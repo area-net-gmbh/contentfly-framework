@@ -3,6 +3,7 @@
 # Changelog
 
 ## 2026-09-04
+- 000-000-0005 task created: "Test-Grundgerüst herstellen" (standalone; ohne `tests/` läuft kein Test — blockiert 012-003-0003, 012-004-0003 und Epic 008)
 - 012-002-0000 → done (merged into master)
 - 012-002-0001 … 012-002-0003 → done: mit der Story geschlossen
 - 000-000-0002 → done (merged into master)
