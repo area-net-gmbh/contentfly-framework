@@ -3,6 +3,7 @@
 # Changelog
 
 ## 2026-09-04
+- 000-000-0003 → done (merged into master)
 - 000-000-0003 → in-progress
 - 000-000-0003 → review: `docker-compose.yml` mit MySQL 8.0 auf Port 3307 (utf8mb3/utf8mb3_unicode_ci, benanntes Volume, Healthcheck) ins Repo; die vier Docker-Zeilen aus der `.gitignore` entfernt; `data/{files,cache,temp,import}` mit `.gitkeep` versioniert; Runbook mit Hochfahren, Verbinden, Zurücksetzen und Herunterfahren. Verifiziert: Container healthy nach ~9s, PHP verbindet sich, `down -v` + `up` liefert eine leere Datenbank, der fremde Container auf 3306 bleibt unberührt
 - 000-000-0003 task created: "Lokale Entwicklungsumgebung mit MySQL bereitstellen" (standalone; hebt die Blockade für 012-002, 012-003, 012-004 und Epic 008 auf)

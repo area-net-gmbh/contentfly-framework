@@ -1,7 +1,7 @@
 ---
 id: 000-000-0003
 title: Lokale Entwicklungsumgebung mit MySQL bereitstellen
-status: review
+status: done
 depends_on: []
 ---
 
