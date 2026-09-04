@@ -3,6 +3,11 @@
 # Changelog
 
 ## 2026-09-04
+- 000-000-0002 → review: `custom/config.php` von der Kundendatei auf die Vorlage zurückgeführt — `$SET_*`-Platzhalter (inkl. neuem `$SET_DB_PORT`), generische Kommentare, kein hinterlegter `SECURITY_CIPHER_KEY` mehr
+- 000-000-0004 task created + → review: `DB_PORT` wurde von der ORM-Verbindung ignoriert (immer 3306) — durchgereicht in `bootstrap.php`, `--db-port` im Install-Command, Platzhalter in der Vorlage
+- 012-002-0002 → review: Happy Path end-to-end verifiziert — Installation gegen die Dev-Datenbank auf 3307 legt 17 Tabellen an, Admin mit GUID, zwei Thumbnail-Größen; Anmeldung über `/auth/login` liefert ein Token. Dabei behoben: fehlende `ContentflyQuoteStrategy` in der eigenen Doctrine-Registrierung — ohne sie scheitert der INSERT an `groups`, seit MySQL 8.0.2 ein reserviertes Wort
+- 012-002-0003 → review: `InstallController`, `install.twig`, `lib/contentfly-ui/` und die Twig-Registrierung entfernt; `BaseController` kommt ohne Twig und ohne ORM aus; der Redirect auf die Installer-Maske wurde durch eine 503-Antwort mit Handlungsanweisung ersetzt; toter Schlüssel `APP_INSTALLER_URL` entfernt
+- 012-002-0000 → review: drei Tasks umgesetzt, Installation und Anmeldung gegen eine echte Datenbank nachgewiesen
 - 000-000-0003 → done (merged into master)
 - 000-000-0003 → in-progress
 - 000-000-0003 → review: `docker-compose.yml` mit MySQL 8.0 auf Port 3307 (utf8mb3/utf8mb3_unicode_ci, benanntes Volume, Healthcheck) ins Repo; die vier Docker-Zeilen aus der `.gitignore` entfernt; `data/{files,cache,temp,import}` mit `.gitkeep` versioniert; Runbook mit Hochfahren, Verbinden, Zurücksetzen und Herunterfahren. Verifiziert: Container healthy nach ~9s, PHP verbindet sich, `down -v` + `up` liefert eine leere Datenbank, der fremde Container auf 3306 bleibt unberührt

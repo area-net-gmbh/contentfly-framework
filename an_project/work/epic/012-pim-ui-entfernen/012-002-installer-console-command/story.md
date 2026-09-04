@@ -1,7 +1,7 @@
 ---
 id: 012-002-0000
 title: Installer als Console-Command
-status: in-progress
+status: review
 depends_on: []
 ---
 
@@ -37,6 +37,6 @@ aufsetzen.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 012-002-0001 — Installationsschritte des InstallControllers erfassen
-- [ ] 012-002-0002 — Install-Command implementieren
-- [ ] 012-002-0003 — InstallController und Twig entfernen
+- [x] 012-002-0001 — Installationsschritte des InstallControllers erfassen
+- [x] 012-002-0002 — Install-Command implementieren
+- [x] 012-002-0003 — InstallController und Twig entfernen

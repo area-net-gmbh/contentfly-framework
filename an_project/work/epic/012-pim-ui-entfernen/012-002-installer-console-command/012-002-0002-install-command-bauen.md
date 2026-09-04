@@ -1,7 +1,7 @@
 ---
 id: 012-002-0002
 title: Install-Command implementieren
-status: in-progress
+status: review
 depends_on: [012-002-0001]
 ---
 
@@ -11,7 +11,7 @@ depends_on: [012-002-0001]
 Die Installation wird ein Console-Command — nicht-interaktiv aufrufbar und damit skript- und CI-fähig, was die Twig-Maske nie konnte.
 
 ## Acceptance criteria
-- [ ] Ein Command führt die Installation vollständig durch.
+- [x] Ein Command führt die Installation vollständig durch.
 - [x] Alle Eingaben sind über Optionen oder Umgebungsvariablen setzbar; kein Schritt erzwingt eine Eingabeaufforderung.
 - [x] Ein zweiter Aufruf erkennt die bestehende Installation und bricht ab, statt Daten zu überschreiben.
 - [x] Fehlerfälle (DB nicht erreichbar, Verzeichnis nicht schreibbar) melden verständlich, was fehlt.
