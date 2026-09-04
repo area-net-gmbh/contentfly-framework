@@ -3,6 +3,9 @@
 # Changelog
 
 ## 2026-09-04
+- 012-002-0000 → in-progress
+- 012-002-0001 → in-progress
+- 012-002-0001 → review: die elf Schritte des InstallControllers erfasst und im Task dokumentiert; Erkenntnis: Schritt 10 (Basisdaten) existiert bereits als `appcms:setup`, neu sind die Schritte 0–9 samt Schreiben der `config.php`
 - 000-000-0001 → done (merged into master)
 - 000-000-0001 → in-progress
 - 000-000-0001 → review: `custom/app.php` durch eine schlanke, bootfähige Vorlage ersetzt (1358 → 76 Zeilen); fehlenden `ApiDateTimeFormatter` ergänzt; Muster der Kundendatei (Middleware-Reihenfolge, Session-Write-Close, Trusted Proxies, Security-Header, CORS-Allowlist, Pro-Tenant-JWT-Secret) nach `an_project/docs/technical.md` übernommen; verifiziert mit `php bin/console.php list` und einem HTTP-Aufruf auf `/api/v1/example/bootstrap` (HTTP 200)

@@ -1,7 +1,7 @@
 ---
 id: 012-002-0000
 title: Installer als Console-Command
-status: todo
+status: in-progress
 depends_on: []
 ---
 
