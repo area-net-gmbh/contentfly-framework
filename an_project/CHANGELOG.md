@@ -3,6 +3,18 @@
 # Changelog
 
 ## 2026-09-04
+- 012-001-0000 → done (merged into master)
+- 012-001-0001 … 012-001-0004 → done: mit der Story geschlossen, sie lagen als Commits auf deren Branch
+- 012-001-0000 → in-progress
+- 012-001-0001 → in-progress
+- 012-001-0002 → in-progress
+- 012-001-0003 → in-progress
+- 012-001-0004 → in-progress
+- 012-001-0001 → review: UiController, Service-Definition `ui.controller`, seine vier Routen und der tote Konfigurationsschlüssel `APP_DEFAULT_CONTROLLER` entfernt; per grep und `php -l` verifiziert
+- 012-001-0002 → review: UIManager gelöscht, Factory `$app['uiManager']` entfernt, die sechs UI-Registrierungsmethoden aus `Plugin.php` entfernt, `uiblocks` aus `/api/config` und `getExtendedSchema()` entfernt; per grep und `php -l` verifiziert
+- 012-001-0003 → review: ExportController samt Provider, `/export`-Mount und den Konfigurationsschlüsseln `APP_EXPORT_METHODS`/`APP_EXPORT_CONTROLLER` entfernt; `ellumilel/php-excel-writer` hat keinen Verbraucher mehr
+- 012-001-0004 → review: `lib/contentfly-ui/` von 31 MB auf 32 KB reduziert (nur `install.twig` bleibt bis 012-002), Admin-Partials aus `custom/Views/` entfernt, `install.twig` von gelöschten Assets entkoppelt
+- 012-001-0000 → review: vier Tasks umgesetzt; Verifikation statisch (grep + `php -l` über den gesamten Framework-Code), da das Repo aus einem vorbestehenden Grund nicht bootet — `custom/app.php:9` verlangt `Custom\Classes\Service\Bootstrap\SecretsCheck`, die es in der ausgedünnten Vorlage nicht gibt
 - 012-000-0000 decided: UI-Anteile der `@PIM\Config`-Annotationen werden bei Bestandsprojekten **hart entfernt** — keine Duldungsphase; Epic 007 liefert dazu eine Rector-Regel
 - 012-001-0001 … 012-006-0003 tasks created: 20 Tasks für die sechs Stories von Epic 012
 - 012-001-0000 / 012-002-0000 updated: Twig-Entfernung nach 012-002 verschoben — der InstallController ist bis dahin der letzte Verbraucher und der einzige Installationsweg

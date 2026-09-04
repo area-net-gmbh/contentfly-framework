@@ -16,6 +16,7 @@ Mit dem Command ist der letzte UI-Verbraucher ersetzt. Damit fällt auch Twig �
 - [ ] Die Twig-Registrierung in `bootstrap.php` (`twig.path`, Service-Provider) ist entfernt.
 - [ ] Die Twig-Nutzung in `Classes/Controller/BaseController.php` ist entfernt.
 - [ ] Keine Twig-Verwendung mehr im Code — das Paket kann in Epic 006 aus dem Manifest fallen.
+- [ ] `custom/Views/partials/_email_layout.twig` ist entschieden: Es hat heute **keinen** PHP-Verbraucher (`Mailer.php` nutzt kein Twig) und stirbt mit Twig — es sei denn, HTML-Mails sollen weiterhin ein Template bekommen. Dann braucht es einen Ersatz ohne Twig.
 
 ## Verification
 `grep -rn "twig\|Twig\|InstallController" lib custom bin index.php` liefert keine Treffer. Anwendung bootet, API antwortet.

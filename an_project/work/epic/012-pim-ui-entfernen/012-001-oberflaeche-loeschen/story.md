@@ -1,7 +1,7 @@
 ---
 id: 012-001-0000
 title: Oberfläche und UI-Controller löschen
-status: todo
+status: done
 depends_on: []
 ---
 
@@ -40,7 +40,7 @@ ersetzt); `FileController` wird hier **nicht** angefasst.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 012-001-0001 — UiController und seine Routen entfernen
-- [ ] 012-001-0002 — UIManager entfernen
-- [ ] 012-001-0003 — ExportController samt Provider und Konfiguration entfernen
-- [ ] 012-001-0004 — UI-Assets und app.twig löschen
+- [x] 012-001-0001 — UiController und seine Routen entfernen
+- [x] 012-001-0002 — UIManager entfernen
+- [x] 012-001-0003 — ExportController samt Provider und Konfiguration entfernen
+- [x] 012-001-0004 — UI-Assets und app.twig löschen
