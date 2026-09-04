@@ -1,7 +1,7 @@
 ---
 id: 012-003-0000
 title: FileController schneiden — API behalten, Datei-UI entfernen
-status: todo
+status: done
 depends_on: [012-001-0000]
 ---
 
@@ -30,6 +30,6 @@ eine Kernfunktion weg.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 012-003-0001 — Actions des FileControllers zuordnen: API oder UI
-- [ ] 012-003-0002 — Admin-Dateiverwaltung entfernen
-- [ ] 012-003-0003 — API-Dateifunktionen mit Tests absichern
+- [x] 012-003-0001 — Actions des FileControllers zuordnen: API oder UI
+- [x] 012-003-0002 — Admin-Dateiverwaltung entfernen
+- [x] 012-003-0003 — API-Dateifunktionen mit Tests absichern
