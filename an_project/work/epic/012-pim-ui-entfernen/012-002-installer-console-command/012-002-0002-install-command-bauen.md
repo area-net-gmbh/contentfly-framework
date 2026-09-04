@@ -1,7 +1,7 @@
 ---
 id: 012-002-0002
 title: Install-Command implementieren
-status: review
+status: done
 depends_on: [012-002-0001]
 ---
 

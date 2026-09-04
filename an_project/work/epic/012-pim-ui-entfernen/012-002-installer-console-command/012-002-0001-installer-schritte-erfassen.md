@@ -1,7 +1,7 @@
 ---
 id: 012-002-0001
 title: Installationsschritte des InstallControllers erfassen
-status: review
+status: done
 depends_on: []
 ---
 

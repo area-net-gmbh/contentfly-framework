@@ -1,7 +1,7 @@
 ---
 id: 000-000-0002
 title: custom/config.php auf die Vorlage zurückführen — Platzhalter statt Kundendaten
-status: review
+status: done
 depends_on: []
 ---
 

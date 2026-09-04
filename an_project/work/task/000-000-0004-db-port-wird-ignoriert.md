@@ -1,7 +1,7 @@
 ---
 id: 000-000-0004
 title: DB_PORT wird von der ORM-Verbindung ignoriert
-status: review
+status: done
 depends_on: []
 ---
 

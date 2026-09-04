@@ -3,6 +3,10 @@
 # Changelog
 
 ## 2026-09-04
+- 012-002-0000 → done (merged into master)
+- 012-002-0001 … 012-002-0003 → done: mit der Story geschlossen
+- 000-000-0002 → done (merged into master)
+- 000-000-0004 → done (merged into master)
 - 000-000-0002 → review: `custom/config.php` von der Kundendatei auf die Vorlage zurückgeführt — `$SET_*`-Platzhalter (inkl. neuem `$SET_DB_PORT`), generische Kommentare, kein hinterlegter `SECURITY_CIPHER_KEY` mehr
 - 000-000-0004 task created + → review: `DB_PORT` wurde von der ORM-Verbindung ignoriert (immer 3306) — durchgereicht in `bootstrap.php`, `--db-port` im Install-Command, Platzhalter in der Vorlage
 - 012-002-0002 → review: Happy Path end-to-end verifiziert — Installation gegen die Dev-Datenbank auf 3307 legt 17 Tabellen an, Admin mit GUID, zwei Thumbnail-Größen; Anmeldung über `/auth/login` liefert ein Token. Dabei behoben: fehlende `ContentflyQuoteStrategy` in der eigenen Doctrine-Registrierung — ohne sie scheitert der INSERT an `groups`, seit MySQL 8.0.2 ein reserviertes Wort
