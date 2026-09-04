@@ -45,6 +45,10 @@ npm-debug.log
 .claude/settings.local.json
 CLAUDE.local.md
 
+# PHPUnit-Ergebniscache: Laufzeitartefakt, gehoert niemandem im Team.
+.phpunit.cache/
+.phpunit.coverage/
+
 # Operating system — macOS
 .DS_Store
 .AppleDouble
