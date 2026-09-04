@@ -3,6 +3,8 @@
 # Changelog
 
 ## 2026-09-04
+- 012-003-0000 → done (merged into master)
+- 012-003-0001 … 012-003-0003 → done: mit der Story geschlossen
 - 000-000-0006 task created: "Fehlerantworten und WEB_ROOT — 404 wird zu 500, Redirects sind umgebungsabhängig" (bei den Charakterisierungstests aufgefallen)
 - 012-003-0003 → review: 16 Tests für die Datei-API — Upload (inkl. des zufällig funktionierenden `$_FILES`-Pfads), Speicherung byte-gleich, Auslieferung als Redirect ohne Token, unbekannte ID, Überschreiben samt Gleichnamen-Vorbedingung; `tests/router.php` ergänzt, weil der eingebaute Server sonst keine Dateien ausliefert
 - 012-003-0000 → review: drei Tasks umgesetzt; Ergebnis der Story ist, dass am FileController nichts zu schneiden war — der Wert liegt in den Tests

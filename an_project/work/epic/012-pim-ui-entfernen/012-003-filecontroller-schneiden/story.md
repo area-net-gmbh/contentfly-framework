@@ -1,7 +1,7 @@
 ---
 id: 012-003-0000
 title: FileController schneiden — API behalten, Datei-UI entfernen
-status: review
+status: done
 depends_on: [012-001-0000]
 ---
 

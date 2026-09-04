@@ -1,7 +1,7 @@
 ---
 id: 012-003-0002
 title: Admin-Dateiverwaltung entfernen
-status: review
+status: done
 depends_on: [012-003-0001]
 ---
 

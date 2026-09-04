@@ -1,7 +1,7 @@
 ---
 id: 012-003-0001
 title: Actions des FileControllers zuordnen: API oder UI
-status: review
+status: done
 depends_on: []
 ---
 

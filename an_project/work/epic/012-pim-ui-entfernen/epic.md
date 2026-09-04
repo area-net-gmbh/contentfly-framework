@@ -61,7 +61,7 @@ Projekt sein eigenes `Entity/`-Verzeichnis bereinigt.
 <!-- Die Stories dieses Epics. Wird von /new-story synchron gehalten. -->
 - [x] 012-001-0000 — Oberfläche und UI-Controller löschen
 - [x] 012-002-0000 — Installer als Console-Command
-- [ ] 012-003-0000 — FileController schneiden — API behalten, Datei-UI entfernen
+- [x] 012-003-0000 — FileController schneiden — API behalten, Datei-UI entfernen
 - [ ] 012-004-0000 — Sessionbasierte Admin-Auth entfernen
 - [ ] 012-005-0000 — @PIM-Annotationen entrümpeln
 - [ ] 012-006-0000 — TypeManager und PluginManager von UI-Belangen befreien
