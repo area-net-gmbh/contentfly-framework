@@ -3,6 +3,7 @@
 # Changelog
 
 ## 2026-09-04
+- 000-000-0005 → done (merged into master)
 - 000-000-0005 → in-progress
 - 000-000-0005 → review: `tests/bootstrap.php` (beide Autoloader, ROOT_DIR, die Konstanten aus den Entity-Annotationen), `phpunit.xml.dist` auf dieses Repo ausgerichtet, Suiten `unit`/`integration` getrennt, fest verdrahtete Coverage-Berichte entfernt (sie ließen die Suite ohne Xdebug mit Exit-Code 1 enden), sechs echte Tests für den `ApiDateTimeFormatter`, `tests/README.md` und Runbook-Abschnitt. Verifiziert: 6 Tests grün mit Exit-Code 0, ein absichtlich gebrochener Assert lässt die Suite fehlschlagen
 - 000-000-0005 task created: "Test-Grundgerüst herstellen" (standalone; ohne `tests/` läuft kein Test — blockiert 012-003-0003, 012-004-0003 und Epic 008)
