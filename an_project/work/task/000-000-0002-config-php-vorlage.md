@@ -1,7 +1,7 @@
 ---
 id: 000-000-0002
 title: custom/config.php auf die Vorlage zurückführen — Platzhalter statt Kundendaten
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -24,15 +24,15 @@ Aufgefallen bei der Umsetzung von `012-002-0002`. Derselbe Defekt wie `000-000-0
 Datei weiter — beim Ausdünnen von `custom/` wurde auch diese übersehen.
 
 ## Acceptance criteria
-- [ ] `custom/config.php` enthält die `$SET_*`-Platzhalter und keine projektspezifischen Werte
+- [x] `custom/config.php` enthält die `$SET_*`-Platzhalter und keine projektspezifischen Werte
       mehr.
-- [ ] Alles, was inhaltlich zur Vorlage gehört (Struktur, Kommentare, sinnvolle Standardwerte
+- [x] Alles, was inhaltlich zur Vorlage gehört (Struktur, Kommentare, sinnvolle Standardwerte
       für Zeitzone, Charset, Systemtypen), bleibt erhalten — die Datei soll erklären, was
       konfigurierbar ist.
-- [ ] Was an Kundenspezifischem entfernt wurde, ist in `an_project/docs/technical.md`
+- [x] Was an Kundenspezifischem entfernt wurde, ist in `an_project/docs/technical.md`
       festgehalten, wie bei `custom/app.php`.
-- [ ] `$app['is_installed']` ist auf einem frischen Checkout `false`.
-- [ ] Der Install-Command aus `012-002-0002` läuft gegen eine leere Datenbank durch und die
+- [x] `$app['is_installed']` ist auf einem frischen Checkout `false`.
+- [x] Der Install-Command aus `012-002-0002` läuft gegen eine leere Datenbank durch und die
       offene Verifikation dieses Tasks ist damit nachgeholt.
 
 ## Verification
