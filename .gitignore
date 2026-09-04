@@ -1,0 +1,34 @@
+.vagrant/*
+# Ignore composer.lock everywhere (vendor-internal locks are noise)…
+composer.lock
+# …EXCEPT the app's own lock: commit it for reproducible CI (pins versions) +
+# `composer audit --locked` (spec 069 §5.2).
+!custom/composer.lock
+.idea/*
+ansible/*
+# Anchored (leading slash): unanchored 'template' matched vendor dirs on every
+# level (case-insensitive on APFS) and silently swallowed 34 PHPUnit .tpl files.
+/template
+docker-compose.yml
+docker/*
+Vagrantfile
+data/*
+data/files/*
+data/cache/*
+data/temp/*
+data/import/*
+profiler/*
+backup/*
+plugins/*
+docker
+docker-compose.yml
+# Anchored: unanchored 'info.php' matched PHPUnit's Event/.../Telemetry/Info.php
+# (case-insensitive on APFS) and broke `make ci-backend` on a fresh clone.
+/info.php
+.DS_Store
+.vscode
+# Composer-Temp-Artefakte aus abgebrochenen Downloads
+*.zip~
+custom/vendor/composer/tmp-*
+# Vendored npm-Debug-Logs aus bower_components (funktionslos)
+npm-debug.log

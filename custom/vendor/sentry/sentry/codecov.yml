@@ -1,0 +1,10 @@
+comment: false
+ignore:
+  - tests/data
+  - tests/resources
+  - tests/Fixtures
+
+coverage:
+  status:
+    project: off
+    patch: off

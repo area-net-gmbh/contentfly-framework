@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="custom/vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         beStrictAboutOutputDuringTests="true"
+         failOnRisky="true"
+         failOnWarning="true"
+         cacheDirectory=".phpunit.cache"
+         executionOrder="random">
+
+    <!-- Task 117: pin the test process to the same zone the app runs in. tests/bootstrap.php
+         deliberately re-declares the constants from lib/contentfly/bootstrap.php but NOT its
+         date_default_timezone_set() call, so without this the suite inherits php.ini (UTC on
+         the official images) by accident rather than by decision.
+
+         Task 121 correction: the previous note here claimed the CLI flag `-d date.timezone=X`
+         overrides this. It does NOT. PHPUnit applies this ini block AFTER the CLI flag, and PHP
+         ignores the TZ environment variable while date.timezone is set, so both fail silently
+         and the run stays on UTC. To exercise the zone matrix, use the hook in
+         tests/bootstrap.php instead:
+             USABIQ_TEST_TZ=Europe/Berlin ./custom/vendor/bin/phpunit -->
+    <php>
+        <ini name="date.timezone" value="UTC"/>
+    </php>
+
+    <testsuites>
+        <testsuite name="unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+    </testsuites>
+
+    <source restrictDeprecations="true"
+            restrictNotices="true"
+            restrictWarnings="true">
+        <include>
+            <directory>custom/Classes/Service</directory>
+        </include>
+        <exclude>
+            <directory>custom/vendor</directory>
+            <directory>vendor</directory>
+        </exclude>
+    </source>
+
+    <coverage>
+        <report>
+            <text outputFile="php://stdout" showOnlySummary="true"/>
+            <html outputDirectory=".phpunit.coverage/html"/>
+        </report>
+    </coverage>
+</phpunit>

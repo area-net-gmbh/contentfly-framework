@@ -1,0 +1,122 @@
+<?xml version="1.0"?>
+<project name="CONTENTFLY-CMS" default="main" basedir=".">
+
+    <property environment="env"/>
+
+    <!-- BUILD -->
+    <target name="main" depends="file-checks,directories,files,composer,bower" unless="appIsBuilded"/>
+
+    <target name="file-checks">
+        <available file="custom/app.php"  property="appIsBuilded"/>
+    </target>
+
+    <target name="directories" description="Verzeichnisse werden erstellt...">
+        <mkdir dir="custom/Classes/Annotations"/>
+        <mkdir dir="custom/Classes/Types"/>
+        <mkdir dir="custom/Command"/>
+        <mkdir dir="custom/Controller"/>
+        <mkdir dir="custom/Entity"/>
+        <mkdir dir="custom/Frontend/contentfly-ui/img"/>
+        <mkdir dir="custom/Frontend/contentfly-ui/scripts/controllers"/>
+        <mkdir dir="custom/Frontend/contentfly-ui/styles"/>
+        <mkdir dir="custom/Frontend/contentfly-ui/types"/>
+        <mkdir dir="custom/Frontend/contentfly-ui/views/blocks"/>
+        <mkdir dir="custom/Traits"/>
+        <mkdir dir="custom/Views"/>
+        <mkdir dir="data/cache"/>
+        <mkdir dir="data/files"/>
+    </target>
+
+    <target name="files" description="Dateien werden erstellt...">
+        <echo file="custom/Traits/File.php"><![CDATA[<?php
+namespace Custom\Traits;
+
+trait File{
+
+}
+    ]]>
+        </echo>
+        <echo file="custom/Traits/Folder.php"><![CDATA[<?php
+namespace Custom\Traits;
+
+trait Folder{
+
+}
+    ]]>
+        </echo>
+        <echo file="custom/Traits/Group.php"><![CDATA[<?php
+namespace Custom\Traits;
+
+trait Group{
+
+}
+    ]]>
+        </echo>
+        <echo file="custom/Traits/User.php"><![CDATA[<?php
+namespace Custom\Traits;
+
+trait User{
+
+}
+    ]]>
+        </echo>
+        <echo file="custom/app.php"><![CDATA[<?php ]]></echo>
+        <echo file="custom/version.php"><![CDATA[<?php
+define('CUSTOM_VERSION', '0.0.0');
+]]></echo>
+
+        <copy file="lib/contentfly/config.sample.php" tofile="custom/config.php"/>
+    </target>
+
+    <target name="composer" description="Composer-Abhängigkeiten werden installiert..." >
+        <exec executable="composer" dir="./">
+            <arg value="install" />
+            <arg value="--prefer-dist" />
+            <arg value="--no-progress" />
+        </exec>
+    </target>
+
+    <target name="bower" description="Bower-Abhängigkeiten werden installiert..." >
+        <exec executable="bower" dir="lib/contentfly-ui/assets/">
+            <arg value="install" />
+            <arg value="--production" />
+        </exec>
+    </target>
+
+
+    <!-- GENERATE API-DOC FOR RELEASE VERSION -->
+    <target name="apidoc" description="API-Dokumentation wird erstellt..." >
+        <exec executable="apidoc" dir="./">
+            <arg value="-i lib/contentfly/Controller/" />
+        </exec>
+    </target>
+
+
+    <!-- DEPLOY RELEASE VERSION -->
+    <target name="zip-release" depends="getversion">
+        <exec executable="zip">
+            <arg value="--symlinks"/>
+            <arg value="-r"/>
+            <arg value="contentfly-${version}.zip"/>
+            <arg value="lib"/>
+            <arg value="custom"/>
+            <arg value="data"/>
+            <arg value="licence.txt"/>
+            <arg value="README.md"/>
+        </exec>
+    </target>
+
+    <!-- GET VERSION -->
+    <target name="getversion">
+        <loadfile srcfile="lib/contentfly/version.php" property="version">
+            <filterchain>
+                <linecontainsregexp>
+                    <regexp pattern="define"/>
+                </linecontainsregexp>
+
+                <replaceregex pattern="define\(\'APP_VERSION\', \'([0-9]).([0-9]).([0-9])\'\);" replace="\1.\2.\3" />
+            </filterchain>
+        </loadfile>
+    </target>
+
+</project>
