@@ -3,6 +3,17 @@
 # Changelog
 
 ## 2026-09-04
+- 000-000-0003 → done (merged into master)
+- 000-000-0003 → in-progress
+- 000-000-0003 → review: `docker-compose.yml` mit MySQL 8.0 auf Port 3307 (utf8mb3/utf8mb3_unicode_ci, benanntes Volume, Healthcheck) ins Repo; die vier Docker-Zeilen aus der `.gitignore` entfernt; `data/{files,cache,temp,import}` mit `.gitkeep` versioniert; Runbook mit Hochfahren, Verbinden, Zurücksetzen und Herunterfahren. Verifiziert: Container healthy nach ~9s, PHP verbindet sich, `down -v` + `up` liefert eine leere Datenbank, der fremde Container auf 3306 bleibt unberührt
+- 000-000-0003 task created: "Lokale Entwicklungsumgebung mit MySQL bereitstellen" (standalone; hebt die Blockade für 012-002, 012-003, 012-004 und Epic 008 auf)
+- 013-000-0000 epic created: "Authentifizierung — stateful und stateless nebeneinander"
+- 013-001-0000 story created: "Auth-Härtung — Passwörter, Master-Passwort, Rate-Limiting, Token-Speicherung" (vorgezogen, ohne Abhängigkeiten)
+- 013-002-0000 story created: "access_token-Authenticator mit verzweigendem TokenHandler"
+- 013-003-0000 story created: "JWT ausstellen und widerrufen"
+- 013-004-0000 story created: "Nachfolger des LoginManagers"
+- 013-005-0000 story created: "Active Directory und OIDC anbinden"
+- an_project/docs/technical.md updated: Auth-Review vom 2026-09-04 festgehalten — Ist-Zustand, sechs Sicherheitsbefunde, drei funktionale Defekte
 - 012-002-0000 → in-progress
 - 012-002-0001 → in-progress
 - 012-002-0002 → in-progress

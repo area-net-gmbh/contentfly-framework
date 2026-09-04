@@ -85,6 +85,45 @@ Beim Aufräumen der Vorlage zu entscheiden: Beispiel auf `CustomCommand` umstell
 `ConsoleManager` für gewöhnliche Symfony-Commands öffnen.
 
 
+## Authentifizierung heute (Review 2026-09-04)
+
+Es gibt **zwei** Auth-Wege, und beide sind stateful:
+
+| Weg | Träger | Wo |
+|---|---|---|
+| Session | `$_SESSION['auth.userid']` | `Classes/Auth.php:32` — nur für die Admin-UI, fällt mit Story `012-004` |
+| DB-Token | Tabelle `pim_token` | `Classes/Controller/Provider/BaseControllerProvider.php:92` (`checkToken`) |
+
+Der Token-Weg: `POST /auth/login` prüft die Anmeldedaten, legt eine `Token`-Zeile an (128 Hex aus
+`openssl_random_pseudo_bytes(64)` — Entropie ist in Ordnung) und gibt sie zurück. Folgerequests
+schicken sie als `appcms-token`, `X-XSRF-TOKEN` oder `_token`. `checkToken()` schlägt nach, prüft
+Benutzer und Timeout (`APP_TOKEN_TIMEOUT`, per Gruppe überschreibbar) und **schreibt `modified`
+bei jedem Request zurück** — Sliding Expiration als DB-Write pro Aufruf. Das ist der eigentliche
+Preis des Modells und das Argument für einen stateless-Pfad.
+
+**JWT gibt es im Framework nicht.** `firebase/php-jwt` liegt ausschließlich in `custom/vendor`;
+die JWT-Logik lag im Kundenprojekt. Was oben unter *Pro-Tenant-JWT-Secret* steht, beschreibt
+fremden Code, keine vorhandene Funktion.
+
+### Befunde
+
+| # | Befund | Wirkung |
+|---|---|---|
+| A-1 | Passwörter sind `hash("sha256", $pass.$salt)` (`Entity/User.php:122`). Salt pro Benutzer ist da, aber SHA-256 hat keinen Arbeitsfaktor | Geleakte Benutzertabelle ist in Stunden geknackt |
+| A-2 | `APP_MASTER_PASSWORD` akzeptiert den Login für **jeden** Benutzer (`Controller/AuthController.php:82-88`) | Vollzugriff über eine Konfigurationszeile |
+| A-3 | Kein Rate-Limiting — `CHECK_LOGIN_INTERVAL` ist eine `false`-Konstante | Brute Force gegen A-1 ungebremst |
+| A-4 | `pim_token.token` steht im Klartext | Ein Lesezugriff auf die DB übergibt alle laufenden Sitzungen |
+| A-5 | `referrer`-Tokens laufen nie ab, und der Token-String kommt beim Anlegen vom Client (`Controller/SystemController.php:159`) | Ratbare Dauerschlüssel möglich |
+| A-6 | `LoginManager::createManagedUser()` setzt `setPass($alias)` — das Passwort ist der Benutzername | Latente Übernahme aller SSO-Konten |
+
+**Funktionale Defekte:** `POST /api/login` und `/api/logout` zeigen auf Methoden, die im
+`ApiController` nicht existieren · der Plugin-Zweig der LoginManager-Auflösung prüft
+`substr($name, 7) == 'Plugins'` statt der ersten sieben Zeichen und greift deshalb nie ·
+die Auflösung existiert doppelt (`Auth.php` und `AuthController.php`) und ist auseinandergelaufen.
+
+Behandelt wird das in Epic `013`; die Härtung (A-1 bis A-4 und die Defekte) hängt in Story
+`013-001` bewusst an nichts und wird vor dem Kernel-Wechsel umgesetzt.
+
 ## Warum `vendor/` in Git liegt
 
 Der Root-`vendor/`-Baum ist committet und hat **kein `composer.json`**. Das war kein Versehen,
