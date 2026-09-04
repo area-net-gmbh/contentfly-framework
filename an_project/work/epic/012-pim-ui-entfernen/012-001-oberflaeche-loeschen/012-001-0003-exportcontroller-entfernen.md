@@ -1,7 +1,7 @@
 ---
 id: 012-001-0003
 title: ExportController samt Provider und Konfiguration entfernen
-status: review
+status: done
 depends_on: [012-001-0001]
 ---
 

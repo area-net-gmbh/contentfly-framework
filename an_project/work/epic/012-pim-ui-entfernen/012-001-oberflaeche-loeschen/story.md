@@ -1,7 +1,7 @@
 ---
 id: 012-001-0000
 title: Oberfläche und UI-Controller löschen
-status: review
+status: done
 depends_on: []
 ---
 

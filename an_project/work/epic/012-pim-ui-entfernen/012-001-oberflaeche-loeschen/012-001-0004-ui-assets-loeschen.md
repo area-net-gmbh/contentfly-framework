@@ -1,7 +1,7 @@
 ---
 id: 012-001-0004
 title: UI-Assets und app.twig löschen
-status: review
+status: done
 depends_on: [012-001-0001,012-001-0002,012-001-0003]
 ---
 

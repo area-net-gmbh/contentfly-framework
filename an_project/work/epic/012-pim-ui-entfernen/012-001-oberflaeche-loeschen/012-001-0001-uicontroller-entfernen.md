@@ -1,7 +1,7 @@
 ---
 id: 012-001-0001
 title: UiController und seine Routen entfernen
-status: review
+status: done
 depends_on: []
 ---
 

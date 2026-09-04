@@ -1,7 +1,7 @@
 ---
 id: 012-001-0002
 title: UIManager entfernen
-status: review
+status: done
 depends_on: [012-001-0001]
 ---
 

@@ -3,6 +3,8 @@
 # Changelog
 
 ## 2026-09-04
+- 012-001-0000 → done (merged into master)
+- 012-001-0001 … 012-001-0004 → done: mit der Story geschlossen, sie lagen als Commits auf deren Branch
 - 012-001-0000 → in-progress
 - 012-001-0001 → in-progress
 - 012-001-0002 → in-progress
