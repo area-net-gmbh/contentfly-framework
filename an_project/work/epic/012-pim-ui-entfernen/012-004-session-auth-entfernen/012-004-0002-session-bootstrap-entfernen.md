@@ -1,7 +1,7 @@
 ---
 id: 012-004-0002
 title: Session-Bootstrap entfernen
-status: review
+status: done
 depends_on: [012-004-0001]
 ---
 

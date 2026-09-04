@@ -1,7 +1,7 @@
 ---
 id: 012-004-0000
 title: Sessionbasierte Admin-Auth entfernen
-status: review
+status: done
 depends_on: [012-001-0000]
 ---
 

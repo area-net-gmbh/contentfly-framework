@@ -1,7 +1,7 @@
 ---
 id: 012-004-0003
 title: Token-Authentifizierung mit Tests absichern
-status: review
+status: done
 depends_on: [012-004-0002]
 ---
 

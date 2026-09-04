@@ -1,7 +1,7 @@
 ---
 id: 012-004-0001
 title: Session-Verwendungen aufspüren und bewerten
-status: review
+status: done
 depends_on: []
 ---
 

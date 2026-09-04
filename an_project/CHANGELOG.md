@@ -3,6 +3,8 @@
 # Changelog
 
 ## 2026-09-04
+- 012-004-0000 → done (merged into master)
+- 012-004-0001 … 012-004-0003 → done: mit der Story geschlossen
 - 012-004-0000 → in-progress
 - 012-004-0001 → in-progress
 - 012-004-0001 → review: fünf Session-Fundstellen erfasst; kein API-Zustand liegt in der Session. Nebenbefund: `Auth::login()`, `logout()`, `getLoginProvider()` und `getToken()/setToken()` haben keinen einzigen Aufrufer
