@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git symbolic-ref:*)",
+      "Bash(git cat-file:*)",
+      "Bash(git for-each-ref:*)",
+      "Bash(test -e:*)",
+      "Bash(git add --:*)",
+      "Bash(git reset -q --:*)",
+      "Bash(git commit -F -:*)",
+      "Bash(git checkout -b:*)",
+      "Bash(git merge --no-ff --no-edit:*)",
+      "Read(an_project/**)",
+      "Read(src/**)",
+      "Read(tests/**)",
+      "Edit(an_project/**)",
+      "Write(an_project/**)",
+      "Edit(src/**)",
+      "Write(src/**)",
+      "Edit(tests/**)",
+      "Write(tests/**)"
+    ],
+    "deny": [
+      "Edit(/.an_framework/**)"
+    ]
+  }
+}

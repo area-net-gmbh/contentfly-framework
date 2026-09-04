@@ -1,0 +1,21 @@
+---
+id: 012-002-0003
+title: InstallController und Twig entfernen
+status: todo
+depends_on: [012-002-0002]
+---
+
+# InstallController und Twig entfernen
+
+## Context
+Mit dem Command ist der letzte UI-Verbraucher ersetzt. Damit fällt auch Twig — der Installer war sein letzter Nutzer im Framework.
+
+## Acceptance criteria
+- [ ] `lib/contentfly/Controller/InstallController.php`, `install.twig` und das leere `lib/contentfly-ui/` sind gelöscht.
+- [ ] Die Routen `APP_INSTALLER_URL` und die Definition `$app['install.controller']` sind entfernt.
+- [ ] Die Twig-Registrierung in `bootstrap.php` (`twig.path`, Service-Provider) ist entfernt.
+- [ ] Die Twig-Nutzung in `Classes/Controller/BaseController.php` ist entfernt.
+- [ ] Keine Twig-Verwendung mehr im Code — das Paket kann in Epic 006 aus dem Manifest fallen.
+
+## Verification
+`grep -rn "twig\|Twig\|InstallController" lib custom bin index.php` liefert keine Treffer. Anwendung bootet, API antwortet.
