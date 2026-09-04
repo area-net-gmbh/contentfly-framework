@@ -4,6 +4,7 @@
      are imported below, never copied. Keep the import as the first content. -->
 
 @.an_framework/AGENT-GUIDE.md
+@an_project/docs/tech-stack.md
 
 > **Load check.** The import above must have brought in a section called
 > "Work model" with the `EEE-SSS-TTTT` id scheme. If you cannot see it, the
