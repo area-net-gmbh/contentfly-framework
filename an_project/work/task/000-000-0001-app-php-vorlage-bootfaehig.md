@@ -1,7 +1,7 @@
 ---
 id: 000-000-0001
 title: custom/app.php bootfähig machen — Vorlage referenziert fehlende Klassen
-status: review
+status: done
 depends_on: []
 ---
 

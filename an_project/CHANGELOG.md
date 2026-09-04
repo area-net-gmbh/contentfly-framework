@@ -3,6 +3,7 @@
 # Changelog
 
 ## 2026-09-04
+- 000-000-0001 → done (merged into master)
 - 000-000-0001 → in-progress
 - 000-000-0001 → review: `custom/app.php` durch eine schlanke, bootfähige Vorlage ersetzt (1358 → 76 Zeilen); fehlenden `ApiDateTimeFormatter` ergänzt; Muster der Kundendatei (Middleware-Reihenfolge, Session-Write-Close, Trusted Proxies, Security-Header, CORS-Allowlist, Pro-Tenant-JWT-Secret) nach `an_project/docs/technical.md` übernommen; verifiziert mit `php bin/console.php list` und einem HTTP-Aufruf auf `/api/v1/example/bootstrap` (HTTP 200)
 - 000-000-0001 task created: "custom/app.php bootfähig machen — Vorlage referenziert fehlende Klassen" (standalone; bei der Umsetzung von 012-001 aufgefallen, vorbestehender Defekt)
