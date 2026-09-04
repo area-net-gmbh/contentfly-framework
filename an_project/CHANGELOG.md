@@ -3,6 +3,13 @@
 # Changelog
 
 ## 2026-09-04
+- 013-000-0000 epic created: "Authentifizierung — stateful und stateless nebeneinander"
+- 013-001-0000 story created: "Auth-Härtung — Passwörter, Master-Passwort, Rate-Limiting, Token-Speicherung" (vorgezogen, ohne Abhängigkeiten)
+- 013-002-0000 story created: "access_token-Authenticator mit verzweigendem TokenHandler"
+- 013-003-0000 story created: "JWT ausstellen und widerrufen"
+- 013-004-0000 story created: "Nachfolger des LoginManagers"
+- 013-005-0000 story created: "Active Directory und OIDC anbinden"
+- an_project/docs/technical.md updated: Auth-Review vom 2026-09-04 festgehalten — Ist-Zustand, sechs Sicherheitsbefunde, drei funktionale Defekte
 - 000-000-0001 → done (merged into master)
 - 000-000-0001 → in-progress
 - 000-000-0001 → review: `custom/app.php` durch eine schlanke, bootfähige Vorlage ersetzt (1358 → 76 Zeilen); fehlenden `ApiDateTimeFormatter` ergänzt; Muster der Kundendatei (Middleware-Reihenfolge, Session-Write-Close, Trusted Proxies, Security-Header, CORS-Allowlist, Pro-Tenant-JWT-Secret) nach `an_project/docs/technical.md` übernommen; verifiziert mit `php bin/console.php list` und einem HTTP-Aufruf auf `/api/v1/example/bootstrap` (HTTP 200)
