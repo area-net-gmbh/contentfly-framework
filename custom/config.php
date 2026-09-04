@@ -1,127 +1,121 @@
 <?php
-use \Areanet\PIM\Classes\Config\Factory;
+/**
+ * Projekt-Konfiguration — die Werte, die ein Projekt gegenüber den Framework-Standards
+ * ändert. Alles, was hier nicht gesetzt wird, kommt aus `Areanet\PIM\Classes\Config`.
+ *
+ * Diese Datei ist eine **Vorlage**. Die `$SET_*`-Platzhalter unten sind kein Versehen:
+ * `php bin/console.php appcms:install` ersetzt sie durch die eingegebenen Zugangsdaten.
+ * Solange `DB_HOST` auf `$SET_DB_HOST` steht, gilt das System als **nicht installiert**
+ * (`$app['is_installed']` in `lib/contentfly/bootstrap.php`) — die Installation prüft
+ * genau darauf.
+ */
+
+use Areanet\PIM\Classes\Config;
+use Areanet\PIM\Classes\Config\Factory;
 
 /*
- * ─── Environment file loading ───────────────────────────────────────────
+ * ─── Optional: Werte aus einer .env-Datei laden ────────────────────────────────────
  *
- * Everything below (and the rest of the app) reads plain `$_ENV`/getenv().
- * On a host that can inject real process environment variables — docker
- * compose `env_file:`, systemd, a hosting panel — nothing here is needed and
- * this block is a no-op. It exists for hosts that can only place a file
- * (Mittwald Managed PHP), where without it the app would silently fall back
- * to the committed dev defaults.
+ * Nur nötig auf Hostern, die keine echten Prozess-Umgebungsvariablen setzen können
+ * (Managed PHP). Wo `docker compose`, systemd oder ein Hosting-Panel die Variablen
+ * liefert, ist dieser Block ein No-op — der Rest der Datei liest ohnehin nur `$_ENV`
+ * bzw. `getenv()`.
  *
- * Resolution order, first existing file wins:
- *   1. $USABIQ_ENV_FILE  — explicit absolute path, overrides everything
- *   2. /etc/usabiq/production.env  — the server path documented in the
- *      hosting plan (docs/operations/hosting/…-ovhcloud-cloudflare.md §5)
- *   3. <repo-root>/.env  — one level ABOVE the document root (which is
- *      `backend/`), so it is never web-reachable
+ * SECURITY: Die Datei darf **niemals** im Document-Root liegen. Die `.htaccess` leitet
+ * nur Anfragen um, für die keine Datei existiert (`RewriteCond %{REQUEST_FILENAME} !-f`),
+ * und Apache blockt von sich aus nur `.ht*` — eine `.env` neben der `index.php` würde im
+ * Klartext ausgeliefert. Rechte auf `600` setzen.
  *
- * SECURITY — the file must NEVER live inside the document root. `.htaccess`
- * only rewrites requests for paths that do not exist on disk
- * (`RewriteCond %{REQUEST_FILENAME} !-f`), and Apache's default config blocks
- * only `.ht*` — a `.env` next to index.php would be served in plain text.
- * Lock it down with `chmod 600` and an owner the webserver can read.
- *
- * Loaded IMMUTABLY on purpose: a real process environment variable always
- * beats the file. That way a panel-provided secret cannot be silently
- * overridden by a stale deployed file.
+ * `createImmutable()` lässt eine bereits gesetzte Umgebungsvariable stehen: Ein echter
+ * Wert aus der Prozessumgebung schlägt eine veraltete Datei. `safeLoad()` wirft nicht,
+ * wenn die Datei fehlt oder kaputt ist — eine defekte Secrets-Datei darf die Anwendung
+ * nicht beim Start umbringen.
  */
 if (class_exists(\Dotenv\Dotenv::class)) {
-    $usabiqEnvCandidates = [];
-
-    $usabiqEnvFileOverride = $_ENV['USABIQ_ENV_FILE'] ?? getenv('USABIQ_ENV_FILE') ?: null;
-    if (is_string($usabiqEnvFileOverride) && $usabiqEnvFileOverride !== '') {
-        $usabiqEnvCandidates[] = $usabiqEnvFileOverride;
-    }
-    $usabiqEnvCandidates[] = '/etc/usabiq/production.env';
-    // ROOT_DIR is `backend/` (defined in lib/contentfly/bootstrap.php), so this
-    // resolves to the repository root — outside the document root.
-    $usabiqEnvCandidates[] = (defined('ROOT_DIR') ? ROOT_DIR : __DIR__ . '/..') . '/../.env';
-
-    foreach ($usabiqEnvCandidates as $usabiqEnvCandidate) {
-        if (!is_file($usabiqEnvCandidate) || !is_readable($usabiqEnvCandidate)) {
-            continue;
-        }
-        // createImmutable() never overwrites an existing env var; safeLoad()
-        // does not throw on a malformed or vanished file — a broken secrets
-        // file must not take the whole application down at boot.
-        \Dotenv\Dotenv::createImmutable(
-            dirname($usabiqEnvCandidate),
-            basename($usabiqEnvCandidate)
-        )->safeLoad();
-        break;
+    $envFile = $_ENV['CONTENTFLY_ENV_FILE'] ?? getenv('CONTENTFLY_ENV_FILE') ?: null;
+    if (!is_string($envFile) || $envFile === '') {
+        // ROOT_DIR ist das Verzeichnis mit der index.php — eine Ebene darüber ist
+        // außerhalb des Document-Roots.
+        $envFile = (defined('ROOT_DIR') ? ROOT_DIR : __DIR__ . '/..') . '/../.env';
     }
 
-    unset($usabiqEnvCandidates, $usabiqEnvCandidate, $usabiqEnvFileOverride);
+    if (is_file($envFile) && is_readable($envFile)) {
+        \Dotenv\Dotenv::createImmutable(dirname($envFile), basename($envFile))->safeLoad();
+    }
+
+    unset($envFile);
 }
 
 $configFactory = Factory::getInstance();
 
 /*
- ************************************************************************************************
- * 
- * LOCAL DEV
- * 
- ************************************************************************************************ 
+ ************************************************************************************
+ * Standard-Konfiguration
+ ************************************************************************************
  */
 
-$configDefault = new \Areanet\PIM\Classes\Config();
+$configDefault = new Config();
 
-$configDefault->DB_HOST                 = $_ENV['DB_HOST'] ?? getenv('DB_HOST') ?: 'usabiq_db';
-$configDefault->DB_NAME                 = $_ENV['DB_NAME'] ?? getenv('DB_NAME') ?: 'usabiq';
-$configDefault->DB_USER                 = $_ENV['DB_USER'] ?? getenv('DB_USER') ?: 'usabiq';
-$configDefault->DB_PASS                 = $_ENV['DB_PASS'] ?? getenv('DB_PASS') ?: 'usabiq';
-$configDefault->DB_GUID_STRATEGY        = true;
+/*
+ * Datenbank — von `appcms:install` gesetzt. Vor der Installation stehen hier die
+ * Platzhalter; danach die echten Werte. Nicht von Hand ändern, solange die
+ * Installation noch aussteht: Ein gesetzter DB_HOST lässt den Installer abbrechen.
+ */
+$configDefault->DB_HOST                 = '$SET_DB_HOST';
+$configDefault->DB_PORT                 = '$SET_DB_PORT';
+$configDefault->DB_NAME                 = '$SET_DB_NAME';
+$configDefault->DB_USER                 = '$SET_DB_USER';
+$configDefault->DB_PASS                 = '$SET_DB_PASS';
+$configDefault->DB_GUID_STRATEGY        = '$SET_DB_GUID_STRATEGY';
 
-// DATETIME — Task 117 / ADR 2026-07-29: every persisted instant is UTC; a timezone
-// is presentation only. This overrides the contentfly framework default of
-// 'Europe/Berlin' (lib/contentfly/Classes/Config.php) WITHOUT touching lib/, and is
-// what bootstrap.php feeds to date_default_timezone_set(). The MySQL session is
-// pinned to +00:00 alongside it (both DBAL connections in bootstrap.php), so PHP's
-// clock and MySQL's NOW() agree — that equality is what keeps the retention and
-// PII-purge jobs comparing like against like.
-$configDefault->APP_TIMEZONE            = 'UTC';
-
-// SECURITY — TOP-1.13: APP_DEBUG drives verbose error output incl. full stack
-// traces in API/HTML responses (bootstrap-web.php). It must default to OFF in
-// production. Resolution: explicit APP_DEBUG env wins; otherwise on for a known
-// dev APP_ENV (or unset, which docker-compose leaves blank), off for prod.
-// Inlined (not via AppEnv) because config.php loads before the class autoloader
-// is guaranteed ready.
-$appEnvRaw  = strtolower(trim((string) ($_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'dev')));
-$isDevEnv   = in_array($appEnvRaw, ['dev', 'development', 'test', 'local'], true);
+/*
+ * APP_DEBUG steuert ausführliche Fehlerausgabe inklusive vollständiger Stacktraces in
+ * API- und HTML-Antworten (`bootstrap-web.php`). In Produktion muss das aus sein.
+ *
+ * Auflösung: Ein ausdrückliches APP_DEBUG gewinnt; sonst an für eine bekannte
+ * Entwicklungsumgebung, aus für alles andere. Bewusst hier ausgeschrieben und nicht in
+ * eine Hilfsklasse ausgelagert — diese Datei wird geladen, bevor der Autoloader
+ * garantiert bereitsteht.
+ */
+$appEnv      = strtolower(trim((string) ($_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'dev')));
 $appDebugEnv = $_ENV['APP_DEBUG'] ?? getenv('APP_DEBUG');
+
 $configDefault->APP_DEBUG = ($appDebugEnv !== false && $appDebugEnv !== null && $appDebugEnv !== '')
     ? filter_var($appDebugEnv, FILTER_VALIDATE_BOOLEAN)
-    : $isDevEnv;
+    : in_array($appEnv, ['dev', 'development', 'test', 'local'], true);
+
+unset($appEnv, $appDebugEnv);
+
 $configDefault->APP_ENABLE_SCHEMA_CACHE = false;
-$configDefault->APP_AUTOGENERATE_PROXIES = 2; // AUTOGENERATE_FILE_NOT_EXISTS — avoids race conditions on concurrent requests
 
-$configDefault->APP_ALLOW_HEADERS_SDK   = 'Access-Control-Allow-Origin,Access-Control-Allow-Methods,Access-Control-Allow-Headers,contentfly-ionic,content-type,content-security-policy,x-origin-host,x-content-type-options,cache-control,strict-transport-security,x-xsrf-token,appcms-token,authorization';
-// CSP for the legacy contentfly bootstrap path. The authoritative CSP is set
-// in app.php (after-hook) — see TOP-5. Dropped 'unsafe-eval' here so even
-// fall-through responses no longer permit eval(); 'unsafe-inline' kept for
-// inline styles that legacy admin pages rely on.
-$configDefault->APP_CS_POLICY           = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:;";
+/*
+ * Zeitzone. Der Framework-Standard ist 'Europe/Berlin'. Wer Zeitpunkte über Zeitzonen
+ * hinweg vergleicht — Auswertungen, Aufbewahrungsfristen, Cron-Jobs — fährt mit UTC
+ * besser: Ein gespeicherter Zeitpunkt ist dann eindeutig, die Zeitzone reine Darstellung.
+ */
+// $configDefault->APP_TIMEZONE         = 'UTC';
 
-// CORS: Allowed origins for production. Null/empty = allow all (dev only).
-// In production, set USABIQ_CORS_ORIGINS env var to comma-separated patterns: "*.usabiq.com,app.usabiq.com,admin.usabiq.com"
-// This is read directly in bootstrap-web.php (not via Config class to avoid dynamic property issues).
-
-$configDefault->SECURITY_CIPHER_KEY     = $_ENV['SECURITY_CIPHER_KEY'] ?? getenv('SECURITY_CIPHER_KEY') ?: 'Gcbg2480xHGWzw25%bnw';
-$configDefault->SECURITY_CIPHER_METHOD  = "AES-256-CBC";
+/*
+ * SECURITY — Schlüssel für die Verschlüsselung von Feldern mit `@PIM\Config(encoded=true)`.
+ *
+ * **Kein Standardwert, mit Absicht.** Ein im Repository hinterlegter Schlüssel ist kein
+ * Schlüssel: Jede Installation, die vergisst ihn zu setzen, verschlüsselt dann mit einem
+ * öffentlich bekannten Wert — und niemand merkt es, weil alles funktioniert. Ohne Wert
+ * verweigern `StringType` und `TextareaType` die Verschlüsselung mit klarer Meldung.
+ */
+$configDefault->SECURITY_CIPHER_KEY     = $_ENV['SECURITY_CIPHER_KEY'] ?? getenv('SECURITY_CIPHER_KEY') ?: null;
 
 $configFactory->setConfig($configDefault);
-/*
- ************************************************************************************************
- * 
- * LIVE Server
- * 
- ************************************************************************************************ 
- */
-$configLive = new \Areanet\PIM\Classes\Config('api.usabiq.com', $configDefault);
-$configLive->APP_CS_POLICY = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' *.usabiq.com;";
 
-$configFactory->setConfig($configLive);
+/*
+ ************************************************************************************
+ * Weitere Hosts
+ *
+ * Die Factory erlaubt eine eigene Konfiguration je Hostname, die von der Standard-
+ * Konfiguration erbt. So bekommt etwa die Produktivdomain eine strengere
+ * Content-Security-Policy, ohne dass die lokale Entwicklung darunter leidet.
+ ************************************************************************************
+ */
+
+// $configLive = new Config('api.example.com', $configDefault);
+// $configLive->APP_CS_POLICY = "default-src 'self'; script-src 'self'; img-src 'self' data:;";

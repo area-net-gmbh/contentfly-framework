@@ -3,6 +3,15 @@
 # Changelog
 
 ## 2026-09-04
+- 012-002-0000 → done (merged into master)
+- 012-002-0001 … 012-002-0003 → done: mit der Story geschlossen
+- 000-000-0002 → done (merged into master)
+- 000-000-0004 → done (merged into master)
+- 000-000-0002 → review: `custom/config.php` von der Kundendatei auf die Vorlage zurückgeführt — `$SET_*`-Platzhalter (inkl. neuem `$SET_DB_PORT`), generische Kommentare, kein hinterlegter `SECURITY_CIPHER_KEY` mehr
+- 000-000-0004 task created + → review: `DB_PORT` wurde von der ORM-Verbindung ignoriert (immer 3306) — durchgereicht in `bootstrap.php`, `--db-port` im Install-Command, Platzhalter in der Vorlage
+- 012-002-0002 → review: Happy Path end-to-end verifiziert — Installation gegen die Dev-Datenbank auf 3307 legt 17 Tabellen an, Admin mit GUID, zwei Thumbnail-Größen; Anmeldung über `/auth/login` liefert ein Token. Dabei behoben: fehlende `ContentflyQuoteStrategy` in der eigenen Doctrine-Registrierung — ohne sie scheitert der INSERT an `groups`, seit MySQL 8.0.2 ein reserviertes Wort
+- 012-002-0003 → review: `InstallController`, `install.twig`, `lib/contentfly-ui/` und die Twig-Registrierung entfernt; `BaseController` kommt ohne Twig und ohne ORM aus; der Redirect auf die Installer-Maske wurde durch eine 503-Antwort mit Handlungsanweisung ersetzt; toter Schlüssel `APP_INSTALLER_URL` entfernt
+- 012-002-0000 → review: drei Tasks umgesetzt, Installation und Anmeldung gegen eine echte Datenbank nachgewiesen
 - 000-000-0003 → done (merged into master)
 - 000-000-0003 → in-progress
 - 000-000-0003 → review: `docker-compose.yml` mit MySQL 8.0 auf Port 3307 (utf8mb3/utf8mb3_unicode_ci, benanntes Volume, Healthcheck) ins Repo; die vier Docker-Zeilen aus der `.gitignore` entfernt; `data/{files,cache,temp,import}` mit `.gitkeep` versioniert; Runbook mit Hochfahren, Verbinden, Zurücksetzen und Herunterfahren. Verifiziert: Container healthy nach ~9s, PHP verbindet sich, `down -v` + `up` liefert eine leere Datenbank, der fremde Container auf 3306 bleibt unberührt
@@ -14,6 +23,13 @@
 - 013-004-0000 story created: "Nachfolger des LoginManagers"
 - 013-005-0000 story created: "Active Directory und OIDC anbinden"
 - an_project/docs/technical.md updated: Auth-Review vom 2026-09-04 festgehalten — Ist-Zustand, sechs Sicherheitsbefunde, drei funktionale Defekte
+- 012-002-0000 → in-progress
+- 012-002-0001 → in-progress
+- 012-002-0002 → in-progress
+- 012-002-0002 fixed: `--dry-run` rief `chmod()` auf und veränderte damit Dateirechte, obwohl es „nichts geschrieben" meldet — die Rechte werden jetzt nur im Schreibpfad gesetzt
+- 000-000-0002 task created: "custom/config.php auf die Vorlage zurückführen — Platzhalter statt Kundendaten" (standalone; blockiert die End-to-End-Verifikation von 012-002-0002)
+- bin/console.php fixed: Doctrine-Helper und -Commands an `is_installed` gebunden — die Konsole war auf einem frischen Checkout nicht startbar, `appcms:install` damit unerreichbar
+- 012-002-0001 → review: die elf Schritte des InstallControllers erfasst und im Task dokumentiert; Erkenntnis: Schritt 10 (Basisdaten) existiert bereits als `appcms:setup`, neu sind die Schritte 0–9 samt Schreiben der `config.php`
 - 000-000-0001 → done (merged into master)
 - 000-000-0001 → in-progress
 - 000-000-0001 → review: `custom/app.php` durch eine schlanke, bootfähige Vorlage ersetzt (1358 → 76 Zeilen); fehlenden `ApiDateTimeFormatter` ergänzt; Muster der Kundendatei (Middleware-Reihenfolge, Session-Write-Close, Trusted Proxies, Security-Header, CORS-Allowlist, Pro-Tenant-JWT-Secret) nach `an_project/docs/technical.md` übernommen; verifiziert mit `php bin/console.php list` und einem HTTP-Aufruf auf `/api/v1/example/bootstrap` (HTTP 200)
