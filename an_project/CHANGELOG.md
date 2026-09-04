@@ -5,6 +5,9 @@
 ## 2026-09-04
 - 012-002-0000 → in-progress
 - 012-002-0001 → in-progress
+- 012-002-0002 → in-progress
+- 000-000-0002 task created: "custom/config.php auf die Vorlage zurückführen — Platzhalter statt Kundendaten" (standalone; blockiert die End-to-End-Verifikation von 012-002-0002)
+- bin/console.php fixed: Doctrine-Helper und -Commands an `is_installed` gebunden — die Konsole war auf einem frischen Checkout nicht startbar, `appcms:install` damit unerreichbar
 - 012-002-0001 → review: die elf Schritte des InstallControllers erfasst und im Task dokumentiert; Erkenntnis: Schritt 10 (Basisdaten) existiert bereits als `appcms:setup`, neu sind die Schritte 0–9 samt Schreiben der `config.php`
 - 000-000-0001 → done (merged into master)
 - 000-000-0001 → in-progress
