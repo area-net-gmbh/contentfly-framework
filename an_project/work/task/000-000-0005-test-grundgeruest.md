@@ -1,7 +1,7 @@
 ---
 id: 000-000-0005
 title: Test-Grundgerüst herstellen
-status: todo
+status: done
 depends_on: []
 ---
 
@@ -25,14 +25,14 @@ Dies ist bewusst **nur das Gerüst**, nicht das Testnetz: eine lauffähige Harne
 Stories ihre Tests schreiben können. Was tatsächlich abgedeckt wird, entscheidet Epic `008`.
 
 ## Acceptance criteria
-- [ ] `tests/bootstrap.php` existiert und macht die Framework- und Projektklassen ladbar
+- [x] `tests/bootstrap.php` existiert und macht die Framework- und Projektklassen ladbar
       (beide Autoloader, `ROOT_DIR` und die Konstanten, die Klassen beim Laden erwarten).
-- [ ] `phpunit.xml.dist` zeigt auf Verzeichnisse, die es gibt, und misst Abdeckung über den
+- [x] `phpunit.xml.dist` zeigt auf Verzeichnisse, die es gibt, und misst Abdeckung über den
       Code dieses Repos — nicht über den des Kundenprojekts.
-- [ ] Ein **echter** Test läuft grün und prüft etwas Sinnvolles. Ein `assertTrue(true)` beweist
+- [x] Ein **echter** Test läuft grün und prüft etwas Sinnvolles. Ein `assertTrue(true)` beweist
       nur, dass PHPUnit startet.
-- [ ] Der Aufruf ist im Runbook dokumentiert.
-- [ ] Tests, die eine Datenbank brauchen, sind von denen getrennt, die ohne auskommen — sonst
+- [x] Der Aufruf ist im Runbook dokumentiert.
+- [x] Tests, die eine Datenbank brauchen, sind von denen getrennt, die ohne auskommen — sonst
       steht die ganze Suite still, sobald kein Container läuft.
 
 ## Verification

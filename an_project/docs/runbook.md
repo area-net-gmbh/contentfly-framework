@@ -106,6 +106,20 @@ Ein `HTTP 405` auf `/` oder einem unbekannten Pfad ist **kein** Fehler: Der
 OPTIONS-Catch-All (`{anything}`) in `lib/contentfly/bootstrap-web.php` fängt jeden Pfad ab,
 sodass GET dort mit „Method Not Allowed" statt mit 404 beantwortet wird.
 
+## 3b. Tests ausführen
+
+```sh
+./custom/vendor/bin/phpunit                    # beide Suiten
+./custom/vendor/bin/phpunit --testsuite unit   # ohne Datenbank, muss immer grün sein
+```
+
+`tests/Unit` läuft ohne Container, `tests/Integration` braucht die Datenbank aus Schritt 1 und
+eine durchgeführte Installation. Details und der Grund für die Trennung: `tests/README.md`.
+
+Für Abdeckung wird ein Treiber gebraucht (Xdebug oder PCOV) und der Schalter `--coverage-text`.
+Die Konfiguration fordert bewusst keinen Bericht bei jedem Lauf an — sonst endet die Suite ohne
+installierten Treiber mit Exit-Code 1, obwohl jeder Test grün ist.
+
 ## 4. Zugriff
 <!-- URLs/Ports: Backend-API, DB, Mailhog … -->
 - Backend-API: http://localhost:8000
