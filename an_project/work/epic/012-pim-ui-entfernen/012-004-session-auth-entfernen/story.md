@@ -1,7 +1,7 @@
 ---
 id: 012-004-0000
 title: Sessionbasierte Admin-Auth entfernen
-status: todo
+status: done
 depends_on: [012-001-0000]
 ---
 
@@ -33,6 +33,6 @@ nicht als Optimierung, sondern weil die Ursache entfällt.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 012-004-0001 — Session-Verwendungen aufspüren und bewerten
-- [ ] 012-004-0002 — Session-Bootstrap entfernen
-- [ ] 012-004-0003 — Token-Authentifizierung mit Tests absichern
+- [x] 012-004-0001 — Session-Verwendungen aufspüren und bewerten
+- [x] 012-004-0002 — Session-Bootstrap entfernen
+- [x] 012-004-0003 — Token-Authentifizierung mit Tests absichern
