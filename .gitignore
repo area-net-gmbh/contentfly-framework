@@ -9,19 +9,19 @@ ansible/*
 # Anchored (leading slash): unanchored 'template' matched vendor dirs on every
 # level (case-insensitive on APFS) and silently swallowed 34 PHPUnit .tpl files.
 /template
-docker-compose.yml
-docker/*
+# docker-compose.yml und docker/ waren hier ausgeschlossen - uebernommen aus dem
+# Kundenprojekt, wo die Compose-Datei bewusst ausserhalb des Repos lag. In einem
+# Framework-Repo ist sie Teil der Vorlage: Ein frischer Checkout soll ohne fremde
+# Zutaten eine Datenbank hochfahren koennen (Task 000-000-0003).
 Vagrantfile
-data/*
-data/files/*
-data/cache/*
-data/temp/*
-data/import/*
+# Laufzeitdaten bleiben draussen - die Verzeichnisse selbst gehoeren ins Repo.
+# Der Installer schreibt in data/files und data/cache (Doctrine-Proxies); ohne die
+# Verzeichnisse ist ein frischer Checkout nicht installierbar.
+data/*/*
+!data/*/.gitkeep
 profiler/*
 backup/*
 plugins/*
-docker
-docker-compose.yml
 # Anchored: unanchored 'info.php' matched PHPUnit's Event/.../Telemetry/Info.php
 # (case-insensitive on APFS) and broke `make ci-backend` on a fresh clone.
 /info.php

@@ -9,27 +9,75 @@ Schritt für Schritt vom frischen Checkout zur laufenden lokalen Umgebung. Das T
 die konkreten Befehle je Stack und ersetzt die Platzhalter unten.
 
 ## Voraussetzungen
-<!-- Vom Team ergänzen: Docker, Node-Version, PHP/Composer, weitere Tools. -->
-- Docker & Docker Compose
-- PHP + Composer (Backend: PHP 8.5 als Zielplattform · MySQL · Doctrine ORM · Symfony 7 als
-  Migrationsziel — aktuell noch Silex 2)
+- **Docker & Docker Compose** — für die Datenbank
+- **PHP** lokal (aktuell 8.3, Zielplattform 8.5). Bewusst nicht im Container: Ein
+  PHP-Container würde die Version festschreiben, die im Zuge der Migration gerade
+  geändert wird.
+- Composer — sobald Epic `006` das Manifest wiederhergestellt hat; heute liegt der
+  `vendor/`-Baum noch eingefroren im Repo.
 
-## 1. Services hochfahren
+## 1. Datenbank hochfahren
+
 ```sh
 docker compose up -d
+docker compose ps            # wartet, bis der Dienst "healthy" meldet
 ```
-<!-- Welche Container starten (DB, Cache, Mailhog …) und auf welchen Ports. -->
 
-## 2. Backend installieren — PHP · MySQL · Doctrine ORM
+Startet einen MySQL 8.0 unter dem Namen `contentfly-db`:
+
+| | Standard | überschreibbar mit |
+|---|---|---|
+| Port | **3307** | `CONTENTFLY_DB_PORT` |
+| Datenbank | `contentfly` | `CONTENTFLY_DB_NAME` |
+| Benutzer / Passwort | `contentfly` / `contentfly` | `CONTENTFLY_DB_USER` · `CONTENTFLY_DB_PASSWORD` |
+| root-Passwort | `root` | `CONTENTFLY_DB_ROOT_PASSWORD` |
+
+Der Port steht bewusst **nicht** auf 3306 — dort läuft auf Entwicklungsmaschinen meist
+schon eine andere Datenbank. Zeichensatz und Kollation sind auf `utf8mb3` /
+`utf8mb3_unicode_ci` gesetzt, passend zu `Config::DB_CHARSET` und `DB_COLLATE`.
+
+Verbindung prüfen:
+
 ```sh
-composer install
-cp .env .env.local        # lokale Overrides
-bin/console doctrine:database:create
-bin/console doctrine:migrations:migrate
-bin/console doctrine:fixtures:load   # Seed-Daten, falls vorhanden
+php -r '$p = new PDO("mysql:host=127.0.0.1;port=3307;dbname=contentfly", "contentfly", "contentfly");
+        echo $p->query("SELECT VERSION()")->fetchColumn(), "\n";'
 ```
-<!-- Die Befehle stammen aus der Vorlage und gelten für den Symfony-Zielkernel.
-     Für den aktuellen Silex-Stand vom Team ergänzen (bin/, custom/app.php). -->
+
+**Daten wegwerfen und neu anfangen** — das benannte Volume überlebt `down`, deshalb braucht
+es `-v`:
+
+```sh
+docker compose down -v       # Container UND Datenvolume entfernen
+docker compose up -d         # frische, leere Datenbank
+```
+
+**Herunterfahren ohne Datenverlust:** `docker compose down`
+
+## 2. Backend installieren
+
+```sh
+php bin/console.php appcms:install \
+    --db-host=127.0.0.1 --db-name=contentfly \
+    --db-user=contentfly --db-pass=contentfly \
+    --dry-run                                    # erst prüfen, schreibt nichts
+
+php bin/console.php appcms:install \
+    --db-host=127.0.0.1 --db-name=contentfly \
+    --db-user=contentfly --db-pass=contentfly    # dann wirklich installieren
+```
+
+Der Command schreibt `custom/config.php`, legt das Schema an und erzeugt die Basisdaten
+(Benutzer `admin`). Alle Optionen gibt es auch als Umgebungsvariable (`APPCMS_DB_HOST` …),
+und `--admin-password` setzt ein echtes Passwort statt des Standards.
+
+> **Heute noch nicht durchführbar**, aus zwei Gründen: `appcms:install` kommt erst mit
+> Story `012-002` in den Hauptzweig, und `custom/config.php` ist die Konfigurationsdatei
+> eines Kundenprojekts ohne `$SET_*`-Platzhalter — der Installer hält das System deshalb
+> für bereits installiert und bricht ab (Task `000-000-0002`). Bis dahin ist die Datenbank
+> aus Schritt 1 nur für eigene Verbindungen nutzbar.
+
+Die Verzeichnisse unter `data/` (`files`, `cache`, `temp`, `import`) liegen im Repo, weil der
+Installer in sie schreibt; ihr Inhalt ist ignoriert.
 
 ## 3. Frontend installieren
 Entfällt — dieses Projekt hat kein Frontend (reines Backend/API).

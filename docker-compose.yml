@@ -1,0 +1,42 @@
+# Lokale Entwicklungsumgebung für das Contentfly-Framework.
+#
+# Bewusst minimal: nur die Datenbank. PHP läuft lokal (siehe an_project/docs/runbook.md) —
+# ein PHP-Container würde hier nur die PHP-Version festschreiben, die wir im Zuge der
+# Migration gerade ändern wollen.
+#
+# Der Port ist über CONTENTFLY_DB_PORT überschreibbar und steht im Standard bewusst NICHT
+# auf 3306: Auf Entwicklungsmaschinen läuft dort meist schon eine andere Datenbank.
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: contentfly-db
+    restart: unless-stopped
+    ports:
+      - "${CONTENTFLY_DB_PORT:-3307}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${CONTENTFLY_DB_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${CONTENTFLY_DB_NAME:-contentfly}
+      MYSQL_USER: ${CONTENTFLY_DB_USER:-contentfly}
+      MYSQL_PASSWORD: ${CONTENTFLY_DB_PASSWORD:-contentfly}
+    # Zeichensatz und Kollation müssen zu Config::DB_CHARSET / DB_COLLATE passen
+    # (utf8 / utf8_unicode_ci), sonst legt die Installation Tabellen an, die nicht
+    # zum erwarteten Schema passen. In MySQL 8 heißen sie utf8mb3_*; utf8 ist nur
+    # noch ein Alias darauf.
+    #
+    # Die Umstellung auf utf8mb4 (echtes 4-Byte-UTF-8, inklusive Emoji) ist eine
+    # Datenmodell-Entscheidung und gehört zu Epic 010, nicht in diese Datei.
+    command:
+      - --character-set-server=utf8mb3
+      - --collation-server=utf8mb3_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${CONTENTFLY_DB_ROOT_PASSWORD:-root}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    volumes:
+      - contentfly-db-data:/var/lib/mysql
+
+volumes:
+  contentfly-db-data:

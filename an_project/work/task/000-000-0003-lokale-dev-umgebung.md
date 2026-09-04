@@ -1,7 +1,7 @@
 ---
 id: 000-000-0003
 title: Lokale Entwicklungsumgebung mit MySQL bereitstellen
-status: todo
+status: done
 depends_on: []
 ---
 
@@ -29,20 +29,20 @@ Das trägt für Löscharbeiten; für den Kernel-Wechsel in Epic `009` trägt es 
 (`anccounting-db-1`). Die Umgebung muss daneben laufen können, ohne ihn zu stören.
 
 ## Acceptance criteria
-- [ ] Eine `docker-compose.yml` liegt **im Repo** und startet mindestens einen MySQL-Dienst.
-- [ ] Die `.gitignore`-Einträge, die sie bisher ausschließen, sind entfernt — bewusst und mit
+- [x] Eine `docker-compose.yml` liegt **im Repo** und startet mindestens einen MySQL-Dienst.
+- [x] Die `.gitignore`-Einträge, die sie bisher ausschließen, sind entfernt — bewusst und mit
       einer Notiz, warum: In einem Framework-Repo ist die Compose-Datei Teil der Vorlage, nicht
       lokaler Kram.
-- [ ] Der Port ist frei wählbar und kollidiert im Standard **nicht** mit 3306.
-- [ ] Zugangsdaten und Datenbankname sind neutral (kein `usabiq`) und passen zu dem, was die
+- [x] Der Port ist frei wählbar und kollidiert im Standard **nicht** mit 3306.
+- [x] Zugangsdaten und Datenbankname sind neutral (kein `usabiq`) und passen zu dem, was die
       Vorlage `custom/config.php` erwartet.
-- [ ] Zeichensatz und Kollation stimmen mit `Config::DB_CHARSET` / `DB_COLLATE` überein — sonst
+- [x] Zeichensatz und Kollation stimmen mit `Config::DB_CHARSET` / `DB_COLLATE` überein — sonst
       legt die Installation Tabellen an, die später nicht zum Schema passen.
-- [ ] Die Daten überleben einen Neustart (benanntes Volume), und es gibt einen dokumentierten Weg,
+- [x] Die Daten überleben einen Neustart (benanntes Volume), und es gibt einen dokumentierten Weg,
       sie wegzuwerfen und neu anzufangen.
-- [ ] Das Runbook (`an_project/docs/runbook.md`) beschreibt Hochfahren, Verbinden, Zurücksetzen
+- [x] Das Runbook (`an_project/docs/runbook.md`) beschreibt Hochfahren, Verbinden, Zurücksetzen
       und Herunterfahren — mit den echten Befehlen, nicht mit Platzhaltern.
-- [ ] PHP erreicht die Datenbank nachweislich aus diesem Repo heraus.
+- [x] PHP erreicht die Datenbank nachweislich aus diesem Repo heraus.
 
 ## Verification
 ```sh
