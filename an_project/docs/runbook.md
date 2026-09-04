@@ -34,6 +34,30 @@ bin/console doctrine:fixtures:load   # Seed-Daten, falls vorhanden
 ## 3. Frontend installieren
 Entfällt — dieses Projekt hat kein Frontend (reines Backend/API).
 
+## 3a. Smoke-Test ohne Datenbank
+
+Der aktuelle Stand bootet ohne laufende Datenbank, solange die aufgerufene Route keine
+Daten anfasst. Damit lässt sich nach jedem Eingriff in 30 Sekunden prüfen, ob Framework
+und Vorlage überhaupt noch hochkommen:
+
+```sh
+# 1. Console — bootet den Kernel und listet die Commands
+php bin/console.php list
+
+# 2. HTTP — eingebauter PHP-Server, index.php als Router
+php -S 127.0.0.1:8123 index.php &
+curl -s -X POST http://127.0.0.1:8123/api/v1/example/bootstrap
+kill %1
+```
+
+Erwartet wird der Standard-Envelope mit `"success":true` und einem Zeitstempel im
+API-Format. Kommt stattdessen eine HTML-Fehlerseite, steht die Ursache in deren
+`exception-message` — meist eine Klasse, die die Vorlage referenziert, aber nicht mitbringt.
+
+Ein `HTTP 405` auf `/` oder einem unbekannten Pfad ist **kein** Fehler: Der
+OPTIONS-Catch-All (`{anything}`) in `lib/contentfly/bootstrap-web.php` fängt jeden Pfad ab,
+sodass GET dort mit „Method Not Allowed" statt mit 404 beantwortet wird.
+
 ## 4. Zugriff
 <!-- URLs/Ports: Backend-API, DB, Mailhog … -->
 - Backend-API: http://localhost:8000
