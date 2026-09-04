@@ -3,6 +3,7 @@
 # Changelog
 
 ## 2026-09-04
+- 000-000-0003 task created: "Lokale Entwicklungsumgebung mit MySQL bereitstellen" (standalone; hebt die Blockade für 012-002, 012-003, 012-004 und Epic 008 auf)
 - 013-000-0000 epic created: "Authentifizierung — stateful und stateless nebeneinander"
 - 013-001-0000 story created: "Auth-Härtung — Passwörter, Master-Passwort, Rate-Limiting, Token-Speicherung" (vorgezogen, ohne Abhängigkeiten)
 - 013-002-0000 story created: "access_token-Authenticator mit verzweigendem TokenHandler"
