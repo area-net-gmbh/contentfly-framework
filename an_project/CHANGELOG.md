@@ -3,6 +3,7 @@
 # Changelog
 
 ## 2026-09-04
+- 000-000-0001 task created: "custom/app.php bootfähig machen — Vorlage referenziert fehlende Klassen" (standalone; bei der Umsetzung von 012-001 aufgefallen, vorbestehender Defekt)
 - 012-001-0000 → done (merged into master)
 - 012-001-0001 … 012-001-0004 → done: mit der Story geschlossen, sie lagen als Commits auf deren Branch
 - 012-001-0000 → in-progress
