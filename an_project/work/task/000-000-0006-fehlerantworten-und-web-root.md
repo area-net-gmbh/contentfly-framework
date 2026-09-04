@@ -28,6 +28,15 @@ Tatsächlich kommt **500** heraus — auch mit `APP_DEBUG=0`. Der zuvor registri
 sie sieht. Der Effekt: Ein normaler „nicht gefunden"-Fall sieht für jeden Client wie ein
 Serverfehler aus — inklusive Monitoring und Fehlerraten.
 
+### 1b. Ein Zugriff ohne Token endet ebenfalls mit 500 statt 401
+
+Dieselbe Ursache, anderer Fall: `BaseControllerProvider` wirft bei fehlendem oder ungültigem
+Token eine `ContentflyException` bzw. `AccessDeniedHttpException`. Auch die kommt beim Client
+als **500** an — nachgewiesen in `tests/Integration/Api/AuthApiTest.php`.
+
+Ein fehlender Token ist der häufigste Normalfall einer API überhaupt. Dass er als Serverfehler
+erscheint, macht jede Fehlerauswertung auf Clientseite unmöglich und verzerrt das Monitoring.
+
 ### 2. `WEB_ROOT` kommt aus `$_SERVER['PHP_SELF']`
 
 `bootstrap-web.php` leitet `Config::WEB_ROOT` aus `dirname($_SERVER['PHP_SELF'])` ab.
@@ -43,6 +52,7 @@ lässt beim Kernel-Wechsel genau die Funktion ungeprüft, die jeder App-Client b
 
 ## Acceptance criteria
 - [ ] Eine unbekannte Datei-ID beantwortet die API mit **404**, unabhängig von `APP_DEBUG`.
+- [ ] Ein Zugriff ohne oder mit ungültigem Token beantwortet die API mit **401**.
 - [ ] Der Debug-Exception-Handler übernimmt nicht mehr die Fälle, für die die Anwendung eine
       eigene Antwort vorsieht.
 - [ ] Der Basispfad kommt aus der Konfiguration, nicht aus `PHP_SELF` — oder der Redirect wird

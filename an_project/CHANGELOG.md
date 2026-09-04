@@ -3,6 +3,13 @@
 # Changelog
 
 ## 2026-09-04
+- 012-004-0000 → in-progress
+- 012-004-0001 → in-progress
+- 012-004-0001 → review: fünf Session-Fundstellen erfasst; kein API-Zustand liegt in der Session. Nebenbefund: `Auth::login()`, `logout()`, `getLoginProvider()` und `getToken()/setToken()` haben keinen einzigen Aufrufer
+- 012-004-0002 → review: `SessionServiceProvider`, `Auth::init()` und die drei `session.*`-ini-Settings entfernt; `Auth` auf `getUser()`/`setUser()` reduziert. Nachgewiesen: kein Request setzt mehr ein PHPSESSID-Cookie, Anmeldung und Token-Weg unverändert
+- 012-004-0003 → review: 10 Tests für die Token-Authentifizierung — Anmeldung, falsches Passwort, unbekannter Benutzer, Zugriff ohne/mit falschem/mit gültigem Token, Abmelden entwertet den Token, plus Regressionsschutz gegen eine zurückkehrende Session
+- 000-000-0006 updated: Zugriff ohne Token endet ebenfalls mit 500 statt 401 — dieselbe Ursache wie beim Datei-404
+- 012-004-0000 → review: drei Tasks umgesetzt, 26 Integrationstests grün
 - 012-003-0000 → done (merged into master)
 - 012-003-0001 … 012-003-0003 → done: mit der Story geschlossen
 - 000-000-0006 task created: "Fehlerantworten und WEB_ROOT — 404 wird zu 500, Redirects sind umgebungsabhängig" (bei den Charakterisierungstests aufgefallen)
