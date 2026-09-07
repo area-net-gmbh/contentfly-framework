@@ -63,3 +63,8 @@ abgesichert ist. Konkret:
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
+- [ ] 008-004-0001 — Manager-Schicht als Vertrag festhalten
+- [ ] 008-004-0002 — Plugin-Infrastruktur dauerhaft absichern
+- [ ] 008-004-0003 — SystemController und die Token-Verwaltung
+- [ ] 008-004-0004 — /api/mail festhalten
+- [ ] 008-004-0005 — Die Vorlage custom/ läuft mit
