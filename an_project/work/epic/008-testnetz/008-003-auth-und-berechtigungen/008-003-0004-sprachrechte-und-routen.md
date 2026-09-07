@@ -1,7 +1,7 @@
 ---
 id: 008-003-0004
 title: Sprachrechte und die Routen-Absicherung
-status: review
+status: done
 depends_on: [008-003-0001]
 ---
 

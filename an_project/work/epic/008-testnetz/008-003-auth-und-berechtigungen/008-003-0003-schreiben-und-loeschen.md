@@ -1,7 +1,7 @@
 ---
 id: 008-003-0003
 title: "Schreiben und Löschen: isWritable, isDeletable"
-status: review
+status: done
 depends_on: [008-003-0001]
 ---
 

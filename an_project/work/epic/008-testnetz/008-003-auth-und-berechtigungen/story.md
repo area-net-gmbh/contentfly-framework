@@ -1,7 +1,7 @@
 ---
 id: 008-003-0000
 title: Auth, Berechtigungen und Routen-Absicherung
-status: review
+status: done
 depends_on: []
 ---
 

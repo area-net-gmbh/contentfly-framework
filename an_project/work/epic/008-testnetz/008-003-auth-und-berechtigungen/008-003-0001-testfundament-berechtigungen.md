@@ -1,7 +1,7 @@
 ---
 id: 008-003-0001
 title: Testfundament für Berechtigungen
-status: review
+status: done
 depends_on: []
 ---
 

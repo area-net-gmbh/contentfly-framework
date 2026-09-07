@@ -1,7 +1,7 @@
 ---
 id: 008-003-0002
 title: "Lesen: isReadable in allen vier Stufen"
-status: review
+status: done
 depends_on: [008-003-0001]
 ---
 

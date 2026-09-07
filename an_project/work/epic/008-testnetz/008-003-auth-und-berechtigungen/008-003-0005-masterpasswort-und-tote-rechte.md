@@ -1,7 +1,7 @@
 ---
 id: 008-003-0005
 title: Master-Passwort und die nicht durchgesetzten Rechte
-status: review
+status: done
 depends_on: [008-003-0001]
 ---
 
