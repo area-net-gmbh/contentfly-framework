@@ -43,6 +43,51 @@ die Auslieferung von Dateien hängt genau daran.
 **`APP_DEBUG=0`** verhindert, dass der Debug-Exception-Handler die Antworten der Anwendung
 überdeckt. Ganz behoben ist das damit nicht — siehe Task `000-000-0006`.
 
+## Die Versandfalle für `/api/mail`
+
+`/api/mail` ist der einzige Endpunkt mit Aussenwirkung. **Kein Testlauf darf eine Mail
+verschicken** — und das gehört nachgewiesen, nicht angenommen. Dafür bekommt der Testserver
+ein Fangskript als `sendmail_path`:
+
+```sh
+FALLE=/tmp/contentfly-mailfalle
+mkdir -p "$FALLE"
+cat > "$FALLE/sendmail" <<'SKRIPT'
+#!/bin/sh
+# Faengt alles ab, was mail() zustellen wollte. Stellt NICHTS zu.
+cat >> "$(dirname "$0")/postausgang.log"
+echo "--- ENDE MAIL ---" >> "$(dirname "$0")/postausgang.log"
+exit 0
+SKRIPT
+chmod +x "$FALLE/sendmail"
+
+# Testserver mit der Umleitung
+APP_ENV=production APP_DEBUG=0 \
+  php -d sendmail_path="$FALLE/sendmail" -S 127.0.0.1:8145 tests/router.php &
+
+# Suite mit dem Pfad zur Falle
+CONTENTFLY_TEST_BASE_URL=http://127.0.0.1:8145 \
+CONTENTFLY_TEST_ADMIN_PASS=dev-only-secret \
+CONTENTFLY_TEST_MAIL_TRAP="$FALLE" \
+  ./custom/vendor/bin/phpunit
+```
+
+`MailApiTest` prüft die Sicherung selbst, in beide Richtungen:
+
+- **Fängt das Skript?** Der Test löst es einmal absichtlich über einen eigenen PHP-Prozess aus
+  und schneidet den Eintrag danach wieder heraus.
+- **Benutzt der Server es?** Über `/__test/sendmail-path` — ein Diagnosepfad, den
+  `tests/router.php` beantwortet und den es in keiner Installation gibt. Läuft der Server ohne
+  die Umleitung, scheitert der Test und nennt den echten MTA.
+
+**Ohne `CONTENTFLY_TEST_MAIL_TRAP` werden die betroffenen Tests übersprungen, nicht
+durchgewinkt.** Das ist Absicht: Solange der Nachweis fehlt, wird der Endpunkt nicht mit einer
+Zieladresse aufgerufen.
+
+> Heute ist die Falle streng genommen unnötig — `/api/mail` scheitert an einer undefinierten
+> Konstanten, bevor `mail()` überhaupt drankommt (`000-000-0016`). Die Sicherung hängt bewusst
+> **nicht** an diesem Fehler: Wer ihn behebt, soll nicht gleichzeitig den Schutz entfernen.
+
 Nach der Installation trägt `custom/config.php` echte Zugangsdaten. **Vor dem Commit die
 Platzhalter wiederherstellen**, sonst landen sie in der Vorlage.
 
