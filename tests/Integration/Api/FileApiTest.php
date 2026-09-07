@@ -185,6 +185,32 @@ class FileApiTest extends IntegrationTestCase
         curl_close($ch);
         unlink($tmp);
 
-        return json_decode((string) $antwort, true) ?: array();
+        $ergebnis = json_decode((string) $antwort, true) ?: array();
+
+        $this->hochgeladeneDateiAufraeumen($ergebnis['data']['id'] ?? null);
+
+        return $ergebnis;
+    }
+
+    /**
+     * Meldet alles an, was ein gelungener Upload hinterlaesst — Datei-Zeile, die dabei
+     * entstandenen Log-Zeilen und das Verzeichnis unter `data/files/`.
+     *
+     * Ohne das wuchs die Testumgebung mit jedem Lauf um 8 Dateien und 17 Datenbankzeilen
+     * (Task `000-000-0008`). Bei einem abgewiesenen Upload gibt es keine Id — dann ist
+     * nichts anzumelden.
+     */
+    private function hochgeladeneDateiAufraeumen(?string $id): void
+    {
+        if ($id === null) {
+            return;
+        }
+
+        foreach ($this->pdo()->query('SELECT id FROM pim_log WHERE model_id = '.$this->pdo()->quote($id))->fetchAll(\PDO::FETCH_COLUMN) as $logId) {
+            $this->nachTestLoeschen('pim_log', $logId);
+        }
+
+        $this->nachTestLoeschen('pim_file', $id);
+        $this->nachTestVerzeichnisLoeschen(ROOT_DIR.'/data/files/'.$id);
     }
 }

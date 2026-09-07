@@ -3,6 +3,9 @@
 # Changelog
 
 ## 2026-09-07
+- 000-000-0008 → done (merged into master)
+- 000-000-0008 → in-progress
+- 000-000-0008 → review: `IntegrationTestCase` um `nachTestVerzeichnisLoeschen()` erweitert; `FileApiTest::upload()` meldet jetzt Datei-Zeile, Log-Zeilen und das Verzeichnis unter `data/files/` zum Aufräumen an. Drei vollständige Läufe lassen `pim_file`, `pim_log`, `pim_tag` und die Dateizahl unverändert. Keine Zusicherung angetastet — 68 Tests / 159 Assertions vor wie nach dem Umbau. Die Altlasten (353 Datei-Zeilen, 90 Log-Zeilen, 354 Dateien, sämtlich Fixture-Namen aus `FileApiTest`) sind einmalig entfernt
 - 000-000-0007 → done (merged into master)
 - 000-000-0007 → in-progress
 - 000-000-0007 → review: `/api/all` läuft wieder (HTTP 200 statt bedingungslos 500). Drei Eingriffe: Pfad über `ROOT_DIR` statt vier relativer Ebenen **samt Verzeichnisbehandlung** (`custom/Entity/Core/` wäre sonst als Entity-Klasse ausgegeben worden); `getAll()` bestimmt seine Entities jetzt wie `getDeleted()` über das Schema minus derselben Ausschlussliste — vorher meldete `getDeleted()` Löschungen für Entities, die `getAll()` nie ausgeliefert hat; und die `excludeFromSync`-Prüfung steht jetzt auch in `getAll()`. **Befund dazu: das Feld wurde bis hierher ausschließlich in `getCount()` geprüft** — es wirkte auf die Bestandsstatistik, nie auf den Endpunkt, nach dem es benannt ist. Die Begründung in 012-005-0002 („steuert die Sync-API, `Api.php:755`") zeigte auf `getCount()`. Verifiziert per Gegenprobe in beiden Richtungen; die Charakterisierungstests in `SyncApiTest` sind umgedreht, nicht gelöscht
