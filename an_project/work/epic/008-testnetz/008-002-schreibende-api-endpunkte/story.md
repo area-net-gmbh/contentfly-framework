@@ -1,7 +1,7 @@
 ---
 id: 008-002-0000
 title: Schreibende API-Endpunkte charakterisieren
-status: todo
+status: in-progress
 depends_on: [008-001-0000]
 ---
 
