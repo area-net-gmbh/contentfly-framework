@@ -3,6 +3,12 @@
 # Changelog
 
 ## 2026-09-07
+- 008-003-0001 task created: "Testfundament für Berechtigungen"
+- 008-003-0002 task created: "Lesen: isReadable in allen vier Stufen"
+- 008-003-0003 task created: "Schreiben und Löschen: isWritable, isDeletable"
+- 008-003-0004 task created: "Sprachrechte und die Routen-Absicherung"
+- 008-003-0005 task created: "Master-Passwort und die nicht durchgesetzten Rechte"
+- 008-003-0001 … 008-003-0005 refined: Kontext, Abnahmekriterien und Verifikation ausgeschrieben. Vorab festgestellt: **`canExport` und `getExtended` werden veröffentlicht, aber nirgends durchgesetzt** — der Konsument von `canExport` war der in 012-001-0003 gelöschte `ExportController`. Das sind der fünfte und sechste Fall des Musters aus Epic 008. Ausserdem notiert: die Permission-Konstanten sind nicht aufsteigend geordnet (`OWN=1`, `ALL=2`, `GROUP=3`), und `Permission::is()` liefert zwei verschiedene Falsy-Werte für zwei verschiedene „nein" (`0` ohne Gruppe, `false` ohne passende Zeile)
 - 008-002-0000 → done (merged into master)
 - 008-002-0001 … 008-002-0005 → done: mit der Story geschlossen
 - 008-002-0000 → in-progress
