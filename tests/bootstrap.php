@@ -38,9 +38,3 @@ if (!defined('APPCMS_ID_TYPE')) {
 if (!defined('APPCMS_ID_STRATEGY')) {
     define('APPCMS_ID_STRATEGY', 'UUID');
 }
-if (!defined('APP_CMS_SHOW_ID_IN_LIST')) {
-    define('APP_CMS_SHOW_ID_IN_LIST', 0);
-}
-if (!defined('APP_CMS_SHOW_OWNER_IN_LIST')) {
-    define('APP_CMS_SHOW_OWNER_IN_LIST', 0);
-}
