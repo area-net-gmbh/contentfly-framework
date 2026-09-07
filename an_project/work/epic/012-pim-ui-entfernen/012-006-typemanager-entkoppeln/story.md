@@ -1,7 +1,7 @@
 ---
 id: 012-006-0000
 title: TypeManager und PluginManager von UI-Belangen befreien
-status: todo
+status: in-progress
 depends_on: [012-005-0000]
 ---
 
