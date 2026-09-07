@@ -1,7 +1,7 @@
 ---
 id: 012-005-0004
 title: Entities des Frameworks und der Vorlage bereinigen
-status: review
+status: done
 depends_on: [012-005-0003]
 ---
 

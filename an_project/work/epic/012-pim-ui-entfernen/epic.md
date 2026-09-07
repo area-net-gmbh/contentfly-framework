@@ -63,5 +63,5 @@ Projekt sein eigenes `Entity/`-Verzeichnis bereinigt.
 - [x] 012-002-0000 — Installer als Console-Command
 - [x] 012-003-0000 — FileController schneiden — API behalten, Datei-UI entfernen
 - [x] 012-004-0000 — Sessionbasierte Admin-Auth entfernen
-- [ ] 012-005-0000 — @PIM-Annotationen entrümpeln
+- [x] 012-005-0000 — @PIM-Annotationen entrümpeln
 - [ ] 012-006-0000 — TypeManager und PluginManager von UI-Belangen befreien

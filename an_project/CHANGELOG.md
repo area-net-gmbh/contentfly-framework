@@ -3,6 +3,8 @@
 # Changelog
 
 ## 2026-09-07
+- 012-005-0000 → done (merged into master)
+- 012-005-0001 … 012-005-0004 → done: mit der Story geschlossen
 - 012-005-0000 → in-progress
 - 012-005-0001 → in-progress
 - 012-005-0001 → review: 7 der 11 Widget-Annotationen gelöscht (`Rte`, `Textarea`, `Datetime`, `Time`, `Password`, `MatrixChooser`, `EntitySelector`) samt `RteType`, `PasswordType`, `EntitySelectorType`. `Checkbox`, `Radio`, `Select` und `Virtualjoin` bleiben — sie wählen Type-Klassen aus, die Collections auflösen, Leseberechtigungen prüfen, OptionGroups anlegen und den Wertebereich tragen; aus ihnen sind nur die Darstellungsfelder entfernt. Verifiziert: Schema-Erzeugung gegen die Dev-Datenbank (HTTP 200, 14 Entities), 26 Tests grün

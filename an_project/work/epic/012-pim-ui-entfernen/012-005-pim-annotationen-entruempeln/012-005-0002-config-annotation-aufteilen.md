@@ -1,7 +1,7 @@
 ---
 id: 012-005-0002
 title: Config-Annotation auf datenrelevante Felder reduzieren
-status: review
+status: done
 depends_on: [012-005-0001]
 ---
 
@@ -51,7 +51,7 @@ Anwendung bootet; das von der API ausgelieferte Schema enthält keine UI-Felder 
 
 - [x] `Config.php` trägt nur noch die zehn datenrelevanten Felder; PHP-Syntax fehlerfrei.
 - [x] Feldliste für Epic 007 angelegt: `an_project/docs/pim-annotationen-migration.md`.
-- [ ] **Boot und Schema werden mit Task 012-005-0004 verifiziert, nicht hier.** Das ist kein
+- [x] **Boot und Schema wurden mit Task 012-005-0004 verifiziert, nicht hier.** Das ist kein
       übersprungener Schritt, sondern der von der Story vorgegebene Schnitt: `Annotation::__get()`
       wirft eine `BadMethodCallException`, und der `AnnotationReader` bricht ab, sobald eine
       Entity ein Feld trägt, das die Annotationsklasse nicht mehr kennt. Zwischen diesem Commit

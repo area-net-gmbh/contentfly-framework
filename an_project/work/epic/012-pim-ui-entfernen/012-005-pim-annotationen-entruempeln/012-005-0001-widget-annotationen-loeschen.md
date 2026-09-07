@@ -1,7 +1,7 @@
 ---
 id: 012-005-0001
 title: Widget-Annotationen löschen
-status: review
+status: done
 depends_on: []
 ---
 
