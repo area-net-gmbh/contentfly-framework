@@ -6,14 +6,10 @@ use Tests\Integration\IntegrationTestCase;
 /**
  * Charakterisierungstests für die Sync-Endpunkte `/api/all`, `/api/deleted` und `/api/count`.
  *
- * **Der wichtigste Test hier hält einen Defekt fest.** `/api/all` antwortet bedingungslos mit
- * HTTP 500 — ein Pfad in `Api::getAll()` trägt ein `../` zu viel und zeigt aus dem Repo heraus.
- * Der Fehler stammt aus dem Initialimport; Task `000-000-0007` behebt ihn. Bis dahin ist das
- * der Ist-Zustand, und die Abgrenzung von Epic `008` verlangt ausdrücklich, ihn festzuhalten
- * statt Wunschverhalten zu prüfen.
- *
- * Wer `000-000-0007` umsetzt, dreht `testAllWirftBedingungslos()` bewusst um — der Test ist
- * die Beschreibung des Defekts, nicht sein Einverständnis.
+ * `/api/all` antwortete bis Task `000-000-0007` bedingungslos mit HTTP 500 — ein Pfad in
+ * `Api::getAll()` trug ein `../` zu viel und zeigte aus dem Repo heraus. Die Tests hielten das
+ * als Ist-Zustand fest; mit dem Fix sind sie **umgedreht** worden, wie ihr Kommentar es
+ * vorsah. Sie beschreiben jetzt den Sync-Vertrag, nicht mehr seinen Ausfall.
  */
 class SyncApiTest extends IntegrationTestCase
 {
@@ -35,26 +31,30 @@ class SyncApiTest extends IntegrationTestCase
 
     // ── /api/all ───────────────────────────────────────────────────────────────────────
 
-    public function testAllWirftBedingungslos(): void
+    public function testAllLiefertDieDatenAllerSynchronisierbarenEntities(): void
     {
-        // Ist-Zustand, siehe 000-000-0007: Api::getAll() baut
-        //   __DIR__.'/../../../../custom/Entity/'
-        // — vier Ebenen von lib/contentfly/Classes fuehren ueber das Repo hinaus. Der
-        // DirectoryIterator wirft, bevor ueberhaupt Daten eingesammelt werden.
-        [$status] = $this->postJson('/api/all', array(), $this->token());
+        [$status, $body] = $this->postJson('/api/all', array(), $this->token());
 
-        $this->assertSame(500, $status,
-            'Der Sync-Endpunkt ist defekt — siehe Task 000-000-0007. Wird der Pfad korrigiert, '
-            .'ist diese Zusicherung umzudrehen, nicht zu loeschen.');
+        $this->assertSame(200, $status, 'Bis 000-000-0007 war das ein HTTP 500');
+        $this->assertSame(array('lastModified', 'data', 'version', 'hash'), array_keys($body),
+            'all traegt lastModified statt ts — der naechste eigene Envelope');
+        $this->assertArrayHasKey('PIM\\Tag', $body['data'],
+            'Seit 000-000-0007 bestimmt das Schema die Entities, nicht mehr eine fest '
+            .'verdrahtete Liste aus File, User und Group');
+        $this->assertContains($this->tag, array_column($body['data']['PIM\\Tag'], 'id'));
     }
 
-    public function testAllWirftAuchMitVorhandenenDaten(): void
+    public function testAllSchliesstDieselbenEntitiesAusWieDeleted(): void
     {
-        // Belegt, dass es nicht am leeren Datenbestand liegt: Der Fehler tritt auf, bevor
-        // ueberhaupt eine Entity gelesen wird.
-        [$status] = $this->postJson('/api/all', array('lastModified' => '2000-01-01 00:00:00'), $this->token());
+        // Der Kern von 000-000-0007: Vorher meldete getDeleted() Loeschungen fuer Entities,
+        // die getAll() nie ausgeliefert hat — ein Client erfuhr vom Verschwinden von Objekten,
+        // die er nie bekommen hatte. Beide nutzen jetzt dieselbe Ausschlussliste.
+        [, $body] = $this->postJson('/api/all', array(), $this->token());
 
-        $this->assertSame(500, $status);
+        foreach (array('PIM\\Folder', 'PIM\\Token', 'PIM\\Group', 'PIM\\Log', 'PIM\\Permission') as $ausgeschlossen) {
+            $this->assertArrayNotHasKey($ausgeschlossen, $body['data'],
+                "$ausgeschlossen steht auf der Ausschlussliste beider Sync-Haelften");
+        }
     }
 
     public function testAllOhneTokenLiefertKeineDaten(): void
@@ -178,15 +178,16 @@ class SyncApiTest extends IntegrationTestCase
 
     public function testKeineEntitySetztExcludeFromSync(): void
     {
-        // Story 012-005-0002 hat excludeFromSync als datenrelevant behalten — zu Recht, es
-        // hat mit Api::getAll() einen echten Leser. Nur: **keine einzige Entity setzt es**,
-        // im Framework nicht und in der Vorlage nicht. Die Wirkung laesst sich deshalb heute
-        // nicht in beide Richtungen pruefen; der Endpunkt, an dem sie sichtbar wuerde, ist
-        // ausserdem defekt (000-000-0007).
+        // Story 012-005-0002 hat excludeFromSync als datenrelevant behalten mit der
+        // Begruendung "steuert die Sync-API". Das war nur halb richtig: Bis 000-000-0007
+        // wurde das Feld ausschliesslich in getCount() geprueft — es wirkte auf die
+        // Bestandsstatistik, nie auf den Endpunkt, nach dem es benannt ist. Seit dem Fix
+        // prueft getAll() es ebenfalls.
         //
-        // Dieser Test haelt genau das fest: Alle Entities kommen ohne das Flag, also ist
-        // "wird ausgenommen" derzeit kein erreichbarer Zustand. Setzt jemand das Flag,
-        // schlaegt der Test an — und der zugehoerige Nachweis kann ergaenzt werden.
+        // Was bleibt: **keine einzige Entity setzt das Flag**, im Framework nicht und in der
+        // Vorlage nicht. Die Wirkung ist damit im laufenden Betrieb nicht beobachtbar — sie
+        // ist in 000-000-0007 durch eine Gegenprobe belegt worden. Setzt jemand das Flag,
+        // schlaegt dieser Test an und fordert den regulaeren Nachweis ein.
         [$status, $roh] = $this->get('/api/schema', $this->token());
         $this->assertSame(200, $status);
 
@@ -204,6 +205,6 @@ class SyncApiTest extends IntegrationTestCase
 
         $this->assertSame(array(), $mitFlag,
             'Heute setzt keine Entity excludeFromSync. Aendert sich das, gehoert der '
-            .'Nachweis der Ausnahme in diesen Test — siehe 000-000-0007.');
+            .'Nachweis der Ausnahme in diesen Test.');
     }
 }
