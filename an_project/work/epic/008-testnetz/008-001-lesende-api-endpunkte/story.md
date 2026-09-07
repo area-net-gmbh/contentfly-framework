@@ -1,7 +1,7 @@
 ---
 id: 008-001-0000
 title: Lesende API-Endpunkte charakterisieren
-status: in-progress
+status: review
 depends_on: []
 ---
 
@@ -65,8 +65,8 @@ machen.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 008-001-0001 — Gemeinsame Basis für die Integrationstests
-- [ ] 008-001-0002 — /api/single und /api/list festhalten
-- [ ] 008-001-0003 — Baum-Endpunkte /api/tree und /api/tree2
-- [ ] 008-001-0004 — Sync-Endpunkte /api/all, /api/deleted und /api/count
-- [ ] 008-001-0005 — /api/translations und /api/query
+- [x] 008-001-0001 — Gemeinsame Basis für die Integrationstests
+- [x] 008-001-0002 — /api/single und /api/list festhalten
+- [x] 008-001-0003 — Baum-Endpunkte /api/tree und /api/tree2
+- [x] 008-001-0004 — Sync-Endpunkte /api/all, /api/deleted und /api/count
+- [x] 008-001-0005 — /api/translations und /api/query
