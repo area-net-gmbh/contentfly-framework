@@ -3,6 +3,13 @@
 # Changelog
 
 ## 2026-09-07
+- 006-001-0000 story created: "Abhängigkeiten inventarisieren und zuordnen" (Epic 006)
+- 006-002-0000 story created: "Root-Manifest und Lock für den Ziel-Stack" (Epic 006)
+- 006-003-0000 story created: "vendor/ aus Git lösen und den Build nachziehen" (Epic 006)
+- 006-004-0000 story created: "Autoloader klären und custom/ entrümpeln" (Epic 006)
+- 006-005-0000 story created: "composer audit als CI-Gate" (Epic 006)
+- 006-001-0000 … 006-005-0000 refined: Ziele, Umfang und Abnahmekriterien ausgeschrieben. Dabei über den Epic-Text hinaus festgestellt: nicht nur `ellumilel`, sondern auch `twig/twig`, `ramsey/uuid` 3.8.0 und der `doctrine/orm`-Dev-Pin cappen auf PHP 7 — `silex/silex` und die Symfony-3.4-Komponenten dagegen nicht (deren `php`-Constraints sind nach oben offen). `vendor/scssphp` und `vendor/phpmailer` stehen in keiner `installed.json`, sind aber im Autoloader registriert; `PHPMailer\PHPMailer\` ist dadurch eine vierte, unsichtbare Dublette, bei der die handkopierte Root-Fassung das gepflegte `^6.10` aus `custom/` verdeckt. Die `.gitignore`-Regel für `composer.lock` würde den künftigen Root-Lock verschlucken
+- 006-000-0000 updated: depends_on auf [008-000-0000] gesetzt — das Root-Manifest beschreibt den Ziel-Stack und macht den Baum bis Epic 009 nicht mehr bootfähig; das Testnetz muss den Vertrag vorher festhalten
 - 012-006-0000 → done (merged into master)
 - 012-006-0001 … 012-006-0003 → done: mit der Story geschlossen
 - 012-006-0000 → in-progress
