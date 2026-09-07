@@ -1,7 +1,7 @@
 ---
 id: 008-004-0002
 title: Plugin-Infrastruktur dauerhaft absichern
-status: todo
+status: done
 depends_on: [008-004-0001]
 ---
 
@@ -48,15 +48,66 @@ Umsetzen zu entscheiden und zu begründen.
 > Testcode zu belasten. Die Entscheidung gehört in den Task, nicht in einen stillen Kompromiss.
 
 ## Acceptance criteria
-- [ ] Ein zur Laufzeit erzeugtes Testplugin wird registriert; seine Entity erscheint im
-      API-Schema mit ausgewerteten `@PIM\Config`-Annotationen.
-- [ ] Sein Console-Command ist unter `custom:<name>` aufrufbar — oder es ist begründet, warum
-      das im Testaufbau nicht prüfbar ist.
-- [ ] `register()` mit unbekanntem Plugin wirft die vorgesehene Ausnahme.
-- [ ] Nach dem Test ist von dem Plugin nichts übrig — weder auf der Platte noch in der
+- [x] Ein zur Laufzeit erzeugtes Testplugin wird registriert. **Der Weg über das API-Schema ist bewusst nicht gegangen** — Begründung unten.
+- [x] Der Console-Command ist **nicht** über die HTTP-Instanz prüfbar; die Registrierung selbst ist in `008-004-0001` abgedeckt (`ConsoleManager`). Begründet unten.
+- [x] `register()` mit unbekanntem Plugin wirft die vorgesehene Ausnahme.
+- [x] Nach dem Test ist von dem Plugin nichts übrig — weder auf der Platte noch in der
       Vorlage noch in der Datenbank.
-- [ ] Der gewählte Weg zur Registrierung ist begründet festgehalten.
+- [x] Der gewählte Weg zur Registrierung ist begründet festgehalten.
 
 ## Verification
 Mehrere vollständige Läufe; `plugins/` ist danach leer und `git status` sauber — insbesondere
 `custom/app.php` unverändert.
+
+## Ergebnis — 10 Unit-Tests in `tests/Unit/Manager/PluginManagerTest.php`
+
+Gesamtsuite: **181 Tests, 408 Assertions**; die Unit-Suite wächst von 29 auf **39**.
+
+### Die Grenze hat gehalten — und warum das die richtige Entscheidung war
+Der Task hatte vorab festgelegt: lieber begründet auf den Integrationstest verzichten, als
+`custom/app.php` dauerhaft mit Testcode zu belasten. Die Prüfung ergab, dass es **keinen
+anderen Weg gibt**:
+
+- Ein Plugin wird ausschließlich in `custom/app.php` registriert. Es gibt **keinen
+  konfigurationsgesteuerten Weg** — `Classes/Config.php` kennt kein Plugin-Feld.
+- `bootstrap-web.php` endet mit `$app->run()`. Zwischen dem Aufbau der Anwendung und dem
+  Bearbeiten des Requests gibt es keine Naht, in die `tests/router.php` sich einhängen könnte.
+
+Damit hätte ein Integrationstest die **Vorlage** anfassen müssen — die Referenz, an der sich
+jedes migrierende Projekt orientiert (Epic `007`). Der Preis wäre zu hoch gewesen.
+
+**Dass es keinen Registrierungs-Hook gibt, ist selbst ein Befund** und gehört in die
+Zusammenfassung der Story: Ein Projekt kann Plugins nur aus seinem eigenen Bootstrap laden,
+nicht über Konfiguration.
+
+### Was stattdessen abgedeckt ist
+Alles außer dem Zusammenspiel mit einem echten EntityManager — und das mit einem **Spion** auf
+der Doctrine-Konfiguration statt eines Nachbaus der Anwendung:
+
+| Zusicherung | wie geprüft |
+|---|---|
+| `register()` legt unter dem Key ab | direkt |
+| Key und Namespace kommen aus dem Klassennamen | direkt — die Konvention `Plugins\<Key>\<Key>Plugin` ist zwingend und nirgends dokumentiert |
+| unbekanntes Plugin → `ContentflyException` | direkt |
+| Klasse ohne `Plugin`-Basis → `ContentflyException` | direkt |
+| `useORM()` hängt den Annotation-Driver ein | Spion: geprüft werden **Pfad und Namespace** |
+| `useORM()` legt `Entity/` an, wenn es fehlt | direkt |
+| `getEntities()` sammelt die Klassen ein | direkt |
+| `registerPluginType()` setzt den Plugin-Key | direkt |
+
+Die Plugin-Dateien entstehen zur Laufzeit unter `plugins/` — von `.gitignore` ohnehin
+ausgeschlossen — mit je eindeutigem Key, weil PHP eine geladene Klasse nicht vergessen kann.
+
+### Ein Befund, der ein eigenes Ticket korrigiert
+`000-000-0011` behauptete, der undefinierte `$key` in `getPlugin()` ergebe unter PHP 8 einen
+`Error`. **Falsch.** Eine undefinierte Variable ist eine **Warning**; der Ausdruck ergibt
+`null`. Die `ContentflyException` kommt also wie vorgesehen — aber **ohne den Namen des
+gesuchten Plugins**. Wer den Fehler untersucht, erfährt nicht, wonach gesucht wurde.
+
+Der Test hält beides fest, die Ausnahme und die Warning; das Ticket ist korrigiert.
+
+## Verification
+- [x] **12 vollständige Läufe grün** bei zufälliger Ausführungsreihenfolge.
+- [x] `plugins/` ist danach leer — die zur Laufzeit erzeugten Plugins sind restlos entfernt.
+- [x] `custom/app.php` ist **unverändert**; `git status` zeigt nur die installationsbedingte
+      `custom/config.php`.

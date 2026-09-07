@@ -1,7 +1,7 @@
 ---
 id: 008-004-0000
 title: Manager-Schicht, Systemendpunkte und die Vorlage
-status: todo
+status: done
 depends_on: []
 ---
 
@@ -63,8 +63,8 @@ abgesichert ist. Konkret:
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 008-004-0001 — Manager-Schicht als Vertrag festhalten
-- [ ] 008-004-0002 — Plugin-Infrastruktur dauerhaft absichern
-- [ ] 008-004-0003 — SystemController und die Token-Verwaltung
-- [ ] 008-004-0004 — /api/mail festhalten
-- [ ] 008-004-0005 — Die Vorlage custom/ läuft mit
+- [x] 008-004-0001 — Manager-Schicht als Vertrag festhalten
+- [x] 008-004-0002 — Plugin-Infrastruktur dauerhaft absichern
+- [x] 008-004-0003 — SystemController und die Token-Verwaltung
+- [x] 008-004-0004 — /api/mail festhalten
+- [x] 008-004-0005 — Die Vorlage custom/ läuft mit
