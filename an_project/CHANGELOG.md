@@ -3,6 +3,7 @@
 # Changelog
 
 ## 2026-09-07
+- 012-000-0000 → done: alle sechs Stories umgesetzt und gemergt. Das Epic hat keinen Branch — hier wird nur der Status festgeschrieben. Der Status sprang direkt von `todo` auf `done`, weil die Stories einzeln über `/implement <story-id>` liefen und die Epic-Frontmatter dabei unberührt bleibt
 - 006-001-0000 story created: "Abhängigkeiten inventarisieren und zuordnen" (Epic 006)
 - 006-002-0000 story created: "Root-Manifest und Lock für den Ziel-Stack" (Epic 006)
 - 006-003-0000 story created: "vendor/ aus Git lösen und den Build nachziehen" (Epic 006)

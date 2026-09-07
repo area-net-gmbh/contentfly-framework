@@ -1,7 +1,7 @@
 ---
 id: 012-000-0000
 title: PIM-CMS-Oberfläche ersatzlos entfernen
-status: todo
+status: done
 depends_on: []
 ---
 
