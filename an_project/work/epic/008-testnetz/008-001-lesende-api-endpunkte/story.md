@@ -1,7 +1,7 @@
 ---
 id: 008-001-0000
 title: Lesende API-Endpunkte charakterisieren
-status: review
+status: done
 depends_on: []
 ---
 

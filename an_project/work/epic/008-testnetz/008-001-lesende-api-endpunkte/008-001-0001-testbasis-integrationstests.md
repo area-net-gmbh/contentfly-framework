@@ -1,7 +1,7 @@
 ---
 id: 008-001-0001
 title: Gemeinsame Basis für die Integrationstests
-status: review
+status: done
 depends_on: []
 ---
 

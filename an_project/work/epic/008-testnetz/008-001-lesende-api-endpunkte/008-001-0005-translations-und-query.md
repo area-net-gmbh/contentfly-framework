@@ -1,7 +1,7 @@
 ---
 id: 008-001-0005
 title: /api/translations und /api/query
-status: review
+status: done
 depends_on: [008-001-0002]
 ---
 

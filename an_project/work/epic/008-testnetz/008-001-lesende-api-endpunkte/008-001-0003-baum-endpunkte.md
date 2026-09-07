@@ -1,7 +1,7 @@
 ---
 id: 008-001-0003
 title: Baum-Endpunkte /api/tree und /api/tree2
-status: review
+status: done
 depends_on: [008-001-0002]
 ---
 

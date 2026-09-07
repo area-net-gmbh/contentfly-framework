@@ -1,7 +1,7 @@
 ---
 id: 008-001-0004
 title: Sync-Endpunkte /api/all, /api/deleted und /api/count
-status: review
+status: done
 depends_on: [008-001-0002]
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: 008-001-0002
 title: /api/single und /api/list festhalten
-status: review
+status: done
 depends_on: [008-001-0001]
 ---
 
