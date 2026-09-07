@@ -64,3 +64,8 @@ schreiben, dann mit `/api/single` oder `/api/list` nachsehen, ob das Richtige an
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
+- [ ] 008-002-0001 — Anlegen und Löschen festhalten
+- [ ] 008-002-0002 — update gegen replace abgrenzen
+- [ ] 008-002-0003 — /api/multiupdate festhalten
+- [ ] 008-002-0004 — Log-Nebenwirkungen festhalten
+- [ ] 008-002-0005 — unique, Sortierung — und die beiden Lücken

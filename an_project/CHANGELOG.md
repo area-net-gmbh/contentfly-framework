@@ -3,6 +3,12 @@
 # Changelog
 
 ## 2026-09-07
+- 008-002-0001 task created: "Anlegen und Löschen festhalten"
+- 008-002-0002 task created: "update gegen replace abgrenzen"
+- 008-002-0003 task created: "/api/multiupdate festhalten"
+- 008-002-0004 task created: "Log-Nebenwirkungen festhalten"
+- 008-002-0005 task created: "unique, Sortierung — und die beiden Lücken"
+- 008-002-0001 … 008-002-0005 refined: Kontext, Abnahmekriterien und Verifikation ausgeschrieben. Vorab festgestellt: **zwei der sechs Nebenwirkungen der Story haben heute keinen Prüfgegenstand** — keine Entity nutzt `encoded=true` (und `SECURITY_CIPHER_KEY` ist `null`), und es gibt keine einzige `@ORM\OneToOne`-Beziehung, an der die OneJoin-Kaskade beim Löschen greifen könnte. Beide bekommen einen Test auf die Vorbedingung, wie schon `excludeFromSync` und `i18n_universal` in 008-001
 - 008-001-0000 → done (merged into master)
 - 008-001-0001 … 008-001-0005 → done: mit der Story geschlossen
 - 008-001-0000 → in-progress
