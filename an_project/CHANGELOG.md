@@ -6,6 +6,9 @@
 - 012-005-0000 → in-progress
 - 012-005-0001 → in-progress
 - 012-005-0001 → review: 7 der 11 Widget-Annotationen gelöscht (`Rte`, `Textarea`, `Datetime`, `Time`, `Password`, `MatrixChooser`, `EntitySelector`) samt `RteType`, `PasswordType`, `EntitySelectorType`. `Checkbox`, `Radio`, `Select` und `Virtualjoin` bleiben — sie wählen Type-Klassen aus, die Collections auflösen, Leseberechtigungen prüfen, OptionGroups anlegen und den Wertebereich tragen; aus ihnen sind nur die Darstellungsfelder entfernt. Verifiziert: Schema-Erzeugung gegen die Dev-Datenbank (HTTP 200, 14 Entities), 26 Tests grün
+- 012-005-0002 → in-progress
+- 012-005-0002 → review: `@PIM\Config` von 24 auf 10 Felder reduziert. `readonly` und `filter` einzeln geprüft — beide reine UI-Hinweise ohne Leser, `readonly` ist kein API-Schreibschutz. **`labelProperty` bleibt entgegen der ursprünglichen Streichliste**: es wird als `modelLabel` ins `Log` persistiert und steuert den `partial`-Select verjointer Objekte; Story und Kriterium entsprechend korrigiert
+- an_project/docs/pim-annotationen-migration.md created: vollständige Liste der entfallenen Annotationen, Config-Felder und Konstanten — Grundlage der Rector-Regel aus Epic 007
 
 ## 2026-09-04
 - 012-004-0000 → done (merged into master)
