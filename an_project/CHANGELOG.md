@@ -3,6 +3,13 @@
 # Changelog
 
 ## 2026-09-07
+- 008-001-0000 story created: "Lesende API-Endpunkte charakterisieren" (Epic 008)
+- 008-002-0000 story created: "Schreibende API-Endpunkte charakterisieren" (Epic 008)
+- 008-003-0000 story created: "Auth, Berechtigungen und Routen-Absicherung" (Epic 008)
+- 008-004-0000 story created: "Manager-Schicht, Systemendpunkte und die Vorlage" (Epic 008)
+- 008-005-0000 story created: "Suite in der CI verankern und als Abnahmegrundlage festschreiben" (Epic 008)
+- 008-001-0000 … 008-005-0000 refined: Ziele, Umfang und Abnahmekriterien ausgeschrieben
+- 008-000-0000 updated: zwei überholte Aussagen korrigiert — es gibt bereits 26 Tests (20 davon Integrationstests über HTTP, aus 012-003-0003 und 012-004-0003), und die „`_secured`-Semantik" heißt im Code `Route::$isSecure` und liegt im `CustomControllerProvider`, nicht im `RouteManager`. Das eigentliche Loch: von 17 `ApiController`-Routen ist genau eine abgedeckt
 - 012-000-0000 → done: alle sechs Stories umgesetzt und gemergt. Das Epic hat keinen Branch — hier wird nur der Status festgeschrieben. Der Status sprang direkt von `todo` auf `done`, weil die Stories einzeln über `/implement <story-id>` liefen und die Epic-Frontmatter dabei unberührt bleibt
 - 006-001-0000 story created: "Abhängigkeiten inventarisieren und zuordnen" (Epic 006)
 - 006-002-0000 story created: "Root-Manifest und Lock für den Ziel-Stack" (Epic 006)
