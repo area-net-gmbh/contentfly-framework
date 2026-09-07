@@ -1,7 +1,7 @@
 ---
 id: 012-006-0000
 title: TypeManager und PluginManager von UI-Belangen befreien
-status: todo
+status: done
 depends_on: [012-005-0000]
 ---
 
@@ -33,6 +33,6 @@ Nach 012-005 ist klar, welche Annotationen es noch gibt; hier wird der Code dara
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 012-006-0001 — TypeManager und Typ-Klassen von Formular-Belangen befreien
-- [ ] 012-006-0002 — UI-Schnittstelle des PluginManagers entfernen
-- [ ] 012-006-0003 — Verbleibende Manager auf UI-Reste durchsehen
+- [x] 012-006-0001 — TypeManager und Typ-Klassen von Formular-Belangen befreien
+- [x] 012-006-0002 — UI-Schnittstelle des PluginManagers entfernen
+- [x] 012-006-0003 — Verbleibende Manager auf UI-Reste durchsehen
