@@ -3,6 +3,9 @@
 # Changelog
 
 ## 2026-09-07
+- 000-000-0007 → done (merged into master)
+- 000-000-0007 → in-progress
+- 000-000-0007 → review: `/api/all` läuft wieder (HTTP 200 statt bedingungslos 500). Drei Eingriffe: Pfad über `ROOT_DIR` statt vier relativer Ebenen **samt Verzeichnisbehandlung** (`custom/Entity/Core/` wäre sonst als Entity-Klasse ausgegeben worden); `getAll()` bestimmt seine Entities jetzt wie `getDeleted()` über das Schema minus derselben Ausschlussliste — vorher meldete `getDeleted()` Löschungen für Entities, die `getAll()` nie ausgeliefert hat; und die `excludeFromSync`-Prüfung steht jetzt auch in `getAll()`. **Befund dazu: das Feld wurde bis hierher ausschließlich in `getCount()` geprüft** — es wirkte auf die Bestandsstatistik, nie auf den Endpunkt, nach dem es benannt ist. Die Begründung in 012-005-0002 („steuert die Sync-API, `Api.php:755`") zeigte auf `getCount()`. Verifiziert per Gegenprobe in beiden Richtungen; die Charakterisierungstests in `SyncApiTest` sind umgedreht, nicht gelöscht
 - 008-002-0001 task created: "Anlegen und Löschen festhalten"
 - 008-002-0002 task created: "update gegen replace abgrenzen"
 - 008-002-0003 task created: "/api/multiupdate festhalten"
