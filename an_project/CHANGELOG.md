@@ -6,6 +6,9 @@
 - 012-006-0000 → in-progress
 - 012-006-0001 → in-progress
 - 012-006-0001 → review: `TypeManager::getCustomTypes/getSystemTypes/getPluginTypes` samt `$mode`-Filter und den Konstanten `CUSTOM`/`PLUGINS`/`SYSTEM` entfernt sowie `Type::renderJSON()` — alle vier ohne Verbraucher, der `UiController` war ihr Nutzer. Typ-Klassen referenzieren keine Templates oder Assets. Verifiziert: API-Schema vor und nach dem Umbau identisch, 26 Tests grün. Stehen geblieben: die nie gelesenen Schema-Keys `multipe`/`multiple` — ihr Entfernen würde das Schema ändern, was diese Story ausschließt
+- 012-006-0002 → in-progress
+- 012-006-0002 → review: Die UI-Schnittstelle lag nicht im `PluginManager` (der ist bereits sauber), sondern in `Classes/Plugin.php`: `getFrontendPath()`, `useFrontend()` und `normalizePath()` entfernt — alle ohne Aufrufer. Erweiterbarkeit für Entities, Types, Services und Commands unverändert, mit einem Wegwerf-Plugin nachgewiesen (Command ausführbar, Entity im Doctrine-Mapping und im API-Schema mit ausgewerteten Annotationen). Nebenbefund: `PluginManager::getPlugin()` referenziert eine nicht existierende Variable `$key` — echter Fehler, kein UI-Belang, nicht angefasst
+- an_project/docs/pim-annotationen-migration.md updated: entfallene Plugin-Schnittstelle als Breaking Change für Epic 007 ergänzt
 - 012-005-0000 → done (merged into master)
 - 012-005-0001 … 012-005-0004 → done: mit der Story geschlossen
 - 012-005-0000 → in-progress

@@ -77,7 +77,28 @@ Zu den beiden Feldern, die die Story einzeln geprüft haben wollte:
 | `sortBy`, `sortOrder`, `sortRestrictTo` | Sortierung der API-Antworten |
 | `labelProperty` | **Abweichung von der ursprünglichen Streichliste.** Der Wert landet als `modelLabel` im `Log` — er wird also *persistiert* — und bestimmt, welches Feld verjointer Objekte die API im `partial`-Select mitliefert. Ohne ihn verlieren Log-Einträge ihr Label und verjointe Objekte im Payload alles außer der `id`. Entschieden am 2026-09-07. |
 
-## 5. Entfallene Konfiguration
+## 5. Entfallene Plugin-Schnittstelle
+
+Aus `Areanet\PIM\Classes\Plugin` sind die Frontend-Anteile entfallen — Plugins konnten der
+Oberfläche einen eigenen Asset-Ordner beisteuern:
+
+| Entfallen | Ersatz |
+|---|---|
+| `Plugin::getFrontendPath()` | keiner. Gab den über Symlink freigegebenen Pfad `/plugins/<KEY>/Frontend` zurück. |
+| `Plugin::useFrontend()` | keiner. Legte den Symlink im Webroot an; war bereits vor diesem Umbau ein leerer Rumpf. |
+
+**Was bleibt, bleibt unverändert:** `useORM()` samt Annotation-Driver für die Entities des
+Plugins, `getEntities()`, `registerPluginType()`, `init()`, die Composer-Einbindung des Plugins
+und die Registrierung von Console-Commands über `$app['consoleManager']`. Ein Plugin, das
+Entities, Types, Services und Commands beisteuert, läuft ohne Änderung weiter; nur ein Plugin
+mit eigenem `Frontend/`-Ordner verliert dessen Anbindung.
+
+Ebenfalls entfallen, ohne Ersatz und ohne bekannten Verbraucher:
+`TypeManager::getCustomTypes()`, `getSystemTypes()`, `getPluginTypes()`, der `$mode`-Parameter
+von `TypeManager::getTypes()` samt der Konstanten `CUSTOM`/`PLUGINS`/`SYSTEM`, und der leere
+Haken `Type::renderJSON()`.
+
+## 6. Entfallene Konfiguration
 
 `FRONTEND_SHOW_ID_IN_LIST` und `FRONTEND_SHOW_OWNER_IN_LIST` samt der daraus abgeleiteten
 Konstanten `APP_CMS_SHOW_ID_IN_LIST` und `APP_CMS_SHOW_OWNER_IN_LIST`. Sie kamen
