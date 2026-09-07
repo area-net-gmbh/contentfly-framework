@@ -3,6 +3,22 @@
 # Changelog
 
 ## 2026-09-07
+- 008-002-0000 → done (merged into master)
+- 008-002-0001 … 008-002-0005 → done: mit der Story geschlossen
+- 008-002-0000 → in-progress
+- 008-002-0001 → in-progress
+- 000-000-0008 task created: "FileApiTest räumt nicht auf — Testdatenbank und data/files wachsen mit jedem Lauf" (beim Schreib-Testnetz aufgefallen)
+- 008-002-0001 → review: 12 Tests für `/api/insert` und `/api/delete` (`WriteApiTest`), Gesamtsuite 80 Tests / 192 Assertions. Befunde: **jeder Endpunkt hat inzwischen seinen eigenen Envelope** (`insert` mit `id` und `data`, `delete` mit `id` ohne `data`), und `insert` reicht Boolesche Werte als Integer durch, während `single` sie als Boolean serialisiert. Ohne Token liefern beide 500 statt 401 — aber gegen die Datenbank geprüft entsteht und verschwindet nichts. Nebenbefund: `FileApiTest` leakt pro Lauf 8 Dateien und 17 Datenbankzeilen (`000-000-0008`)
+- 008-002-0002 → in-progress
+- 008-002-0002 → review: 7 Tests für `/api/update` und `/api/replace`, Gesamtsuite 87 Tests / 213 Assertions. **Der Unterschied ist nicht der erwartete: `replace` ist ein Upsert, kein Vollersetzen.** Bei vorhandener Id delegiert es per Sub-Request an `/api/update` und verhält sich Feld für Feld identisch — nicht gesendete Werte bleiben bei beiden stehen. Nur bei unbekannter Id trennen sich die Wege: `replace` legt mit genau dieser Id an, `update` scheitert. Der Name führt also in die Irre; das stand bisher nirgends
+- 008-002-0003 → in-progress
+- 000-000-0009 task created: "/api/multiupdate bricht mitten im Stapel ab und meldet nicht, wie weit es kam"
+- 008-002-0003 → review: 6 Tests für `/api/multiupdate`, Gesamtsuite 93 Tests / 226 Assertions. **Befund: keine Transaktion, kein Rollback.** Scheitert ein Objekt im Stapel, bleiben die vorher verarbeiteten geändert, die danach werden nie erreicht, und die Antwort ist ein nackter HTTP 500 — der Client kann den Zustand seiner Daten nicht rekonstruieren. Auch der Erfolgsfall meldet nichts: der Rumpf besteht aus `version` und `hash`, dem **dünnsten Envelope aller sechs bisher geprüften Endpunkte**. Als `000-000-0009` notiert, nicht repariert
+- 008-002-0004 → in-progress
+- 008-002-0004 → review: 9 Tests für die Log-Nebenwirkungen, Gesamtsuite 102 Tests / 248 Assertions. Alle vier Modi abgedeckt (`INS`, `UPT`, `DEL`, `USERDEL`); **`model_label` ist per Gegenprobe belegt** — `labelProperty` versuchsweise entfernt, zwei Tests fallen, damit ist die Entscheidung aus 012-005-0002 geschützt. Befund nebenbei: `pim_log.created` hat Sekundenauflösung, ein Lebenszyklus in derselben Sekunde hinterlässt Zeilen mit identischem Zeitstempel — **die Reihenfolge ist aus dem Protokoll nicht rekonstruierbar**. Ein abgewiesener Schreibversuch hinterlässt keine Zeile
+- 008-002-0005 → in-progress
+- 008-002-0005 → review: 7 Tests für `unique`, Sortierung und die beiden Lücken, Gesamtsuite 109 Tests / 265 Assertions. Die `unique`-Verletzung lässt **keine halbe Zeile** zurück (gegen die Datenbank geprüft); `sortRestrictTo` ist als einziges der drei Sortier-Felder mit echtem Leser festgehalten. `encoded` und die OneJoin-Kaskade sind **heute nicht auslösbar** — keine Entity nutzt sie, es gibt keine `@ORM\OneToOne`-Beziehung; beide haben einen Test auf die Vorbedingung
+- 008-002-0000 → review: fünf Tasks auf einem Branch. Die Schreibseite ist charakterisiert: von 87 auf **109 Tests / 265 Assertions**. Drei Befunde mit eigenem Ticket oder eigener Tragweite — `replace` ist ein **Upsert** und kein Vollersetzen, `multiupdate` hat **kein Rollback** (`000-000-0009`), und jeder der sechs geprüften Endpunkte hat einen **eigenen Envelope**. Vier der sechs in der Story genannten Nebenwirkungen sind nachgewiesen, zwei sind im heutigen Stand nicht auslösbar
 - 000-000-0008 → done (merged into master)
 - 000-000-0008 → in-progress
 - 000-000-0008 → review: `IntegrationTestCase` um `nachTestVerzeichnisLoeschen()` erweitert; `FileApiTest::upload()` meldet jetzt Datei-Zeile, Log-Zeilen und das Verzeichnis unter `data/files/` zum Aufräumen an. Drei vollständige Läufe lassen `pim_file`, `pim_log`, `pim_tag` und die Dateizahl unverändert. Keine Zusicherung angetastet — 68 Tests / 159 Assertions vor wie nach dem Umbau. Die Altlasten (353 Datei-Zeilen, 90 Log-Zeilen, 354 Dateien, sämtlich Fixture-Namen aus `FileApiTest`) sind einmalig entfernt
