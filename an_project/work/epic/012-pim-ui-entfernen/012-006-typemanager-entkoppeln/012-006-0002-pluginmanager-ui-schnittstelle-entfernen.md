@@ -1,7 +1,7 @@
 ---
 id: 012-006-0002
 title: UI-Schnittstelle des PluginManagers entfernen
-status: review
+status: done
 depends_on: [012-006-0001]
 ---
 

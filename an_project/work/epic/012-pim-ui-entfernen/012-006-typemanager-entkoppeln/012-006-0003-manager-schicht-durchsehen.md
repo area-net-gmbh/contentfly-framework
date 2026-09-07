@@ -1,7 +1,7 @@
 ---
 id: 012-006-0003
 title: Verbleibende Manager auf UI-Reste durchsehen
-status: review
+status: done
 depends_on: [012-006-0002]
 ---
 

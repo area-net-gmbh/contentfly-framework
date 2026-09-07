@@ -1,7 +1,7 @@
 ---
 id: 012-006-0001
 title: TypeManager und Typ-Klassen von Formular-Belangen befreien
-status: review
+status: done
 depends_on: []
 ---
 

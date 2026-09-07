@@ -3,6 +3,8 @@
 # Changelog
 
 ## 2026-09-07
+- 012-006-0000 → done (merged into master)
+- 012-006-0001 … 012-006-0003 → done: mit der Story geschlossen
 - 012-006-0000 → in-progress
 - 012-006-0001 → in-progress
 - 012-006-0001 → review: `TypeManager::getCustomTypes/getSystemTypes/getPluginTypes` samt `$mode`-Filter und den Konstanten `CUSTOM`/`PLUGINS`/`SYSTEM` entfernt sowie `Type::renderJSON()` — alle vier ohne Verbraucher, der `UiController` war ihr Nutzer. Typ-Klassen referenzieren keine Templates oder Assets. Verifiziert: API-Schema vor und nach dem Umbau identisch, 26 Tests grün. Stehen geblieben: die nie gelesenen Schema-Keys `multipe`/`multiple` — ihr Entfernen würde das Schema ändern, was diese Story ausschließt
