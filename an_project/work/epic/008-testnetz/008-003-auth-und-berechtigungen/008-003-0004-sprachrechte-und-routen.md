@@ -1,7 +1,7 @@
 ---
 id: 008-003-0004
 title: Sprachrechte und die Routen-Absicherung
-status: todo
+status: review
 depends_on: [008-003-0001]
 ---
 
@@ -58,16 +58,65 @@ Dazu die `before`/`after`-Hooks aus `custom/app.php` — der `Referrer-Policy`-H
 einfachste Nachweis, dass sie greifen.
 
 ## Acceptance criteria
-- [ ] Die drei `Group::lang*`-Methoden sind abgedeckt — als Unit-Test, wenn ein
+- [x] Die drei `Group::lang*`-Methoden sind abgedeckt — als Unit-Test, wenn ein
       Integrationstest mangels konfigurierter Sprachen ins Leere liefe.
-- [ ] Die Vorgabe „kein Eintrag heißt erlaubt" ist festgehalten.
-- [ ] Lässt sich `I18nPermission::isWritable()` über die API nicht auslösen, ist das durch
+- [x] Die Vorgabe „kein Eintrag heißt erlaubt" ist festgehalten.
+- [x] Lässt sich `I18nPermission::isWritable()` über die API nicht auslösen, ist das durch
       einen Test auf die Vorbedingung belegt und im Kommentar begründet.
-- [ ] Eine gesicherte Route weist ohne Token ab — als Semantik festgehalten, mit Verweis auf
+- [x] Eine gesicherte Route weist ohne Token ab — als Semantik festgehalten, mit Verweis auf
       `Route::$isSecure`.
-- [ ] `POST api/v1/example/bootstrap` antwortet **ohne** Token.
-- [ ] Die `after`-Hooks aus `custom/app.php` greifen (`Referrer-Policy`).
+- [x] `POST api/v1/example/bootstrap` antwortet **ohne** Token.
+- [x] Die `after`-Hooks aus `custom/app.php` greifen (`Referrer-Policy`).
 
 ## Verification
 Mehrere vollständige Läufe. Der Unit-Test-Anteil muss auch **ohne** laufende Umgebung grün sein
 — das ist der Punkt der Suite-Trennung aus `tests/README.md`.
+
+## Ergebnis — 9 Unit-Tests und 9 Integrationstests
+
+Gesamtsuite: **147 Tests, 350 Assertions**, vier Läufe grün. Die Unit-Suite wächst von 6 auf
+**15 Tests** und läuft weiterhin ohne Datenbank und ohne Server.
+
+### Der erste Unit-Test des Epics
+`tests/Unit/Entity/GroupLanguagePermissionTest.php` deckt die drei `Group::lang*`-Methoden ab.
+Ein Integrationstest liefe hier ins Leere — `APP_LANGUAGES` ist leer, es gibt keine konkrete
+`BaseI18n`-Entity. Die Logik hängt aber an nichts als der Gruppe selbst, also ist ein
+Unit-Test die ehrlichere Abdeckung.
+
+Festgehalten, weil es überrascht: **Die Vorgabe ist „erlaubt", nicht „verboten".** Sind
+Sprachrechte gesetzt, eine Sprache aber nicht darunter aufgeführt, gilt sie als schreibbar. Wer
+eine Sprache sperren will, muss sie ausdrücklich nennen. Dazu ein zweites Detail:
+`setLanguages()` ignoriert falsy Werte — ein leeres Array **löscht** die Rechte nicht, es lässt
+sie unberührt.
+
+### Die Routen-Absicherung, beide Richtungen
+- Gesicherte Route ohne Token: keine Daten.
+- **Ungesicherte Route ohne Token: antwortet** — `POST api/v1/example/bootstrap` aus
+  `custom/app.php`, gebunden mit `isSecure = false`. Das ist der Vertrag, auf den sich Epic
+  `009` verlässt; ein Projekt baut damit seine öffentlichen Endpunkte.
+- `isSecure = false` heißt „Token nicht nötig", nicht „Token verboten" — mit Token antwortet
+  sie ebenso.
+- Die `after`-Hooks der Vorlage greifen auf gesicherten wie ungesicherten Routen
+  (`Referrer-Policy`).
+
+### Drei Befunde, die aus meinen eigenen Fehlannahmen entstanden
+Der erste Lauf hatte drei Fehlschläge — alle drei waren falsche Erwartungen von mir, und alle
+drei sind es wert:
+
+1. **`/api/list` auf eine leere Menge antwortet mit HTTP 404 `{"message":"Not found"}`** — nicht
+   mit einer leeren Liste. In `008-001-0002` nicht aufgefallen, weil dort immer Testdaten
+   vorhanden waren. Für einen Sync-Client sind „keine Treffer" und „Route gibt es nicht" damit
+   **nicht unterscheidbar**.
+2. **`api/v1/example/bootstrap` antwortet im eigenen Envelope der Vorlage** — `success`,
+   `status`, `i18n`, `data`, `errors`, `meta`, `timestamp` — nicht im Format des Frameworks. Ein
+   Projekt ist an dessen Form also nicht gebunden. Das ist eher eine gute Nachricht.
+3. **`/api/config` trägt den siebten eigenen Envelope** (`frontend`, `devmode`, `version`,
+   `hash`) und bewirbt in `frontend` weiterhin `customLogo` — einen Rest der gelöschten
+   Oberfläche, auf dem einzigen öffentlich erreichbaren Endpunkt.
+
+## Verification
+- [x] Vier vollständige Läufe grün bei zufälliger Ausführungsreihenfolge.
+- [x] Die Unit-Suite läuft **ohne** Umgebung: 15 Tests, 20 Assertions.
+- [x] Der Leere-Liste-Test ist zerstörungsfrei — er nutzt `PIM\Nav`, das nach einer frischen
+      Installation leer ist, statt Zeilen zu löschen.
+- [x] Datenbank nach den Läufen auf dem Ausgangsstand.
