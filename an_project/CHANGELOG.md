@@ -3,6 +3,20 @@
 # Changelog
 
 ## 2026-09-07
+- 008-003-0000 → done (merged into master)
+- 008-003-0001 … 008-003-0005 → done: mit der Story geschlossen
+- 008-003-0000 → in-progress
+- 008-003-0001 → in-progress
+- 008-003-0001 → review: `IntegrationTestCase::testbenutzer()` legt Gruppe, Nicht-Admin und Entity-Berechtigungen in einem Aufruf an; `QueryApiTest` darauf umgezogen und von 196 auf 149 Zeilen geschrumpft. **109 Tests / 272 Assertions unverändert** — keine Zusicherung angetastet. Die Berechtigungsstufen werden als Konstanten übergeben, weil sie nicht aufsteigend geordnet sind (`OWN=1`, `ALL=2`, `GROUP=3`); in `tests/README.md` festgehalten
+- 008-003-0002 → in-progress
+- 008-003-0002 → review: 10 Tests für `isReadable`, Gesamtsuite 119 Tests / 296 Assertions. **Die offene Frage ist beantwortet:** eine Entity ohne Leserecht liefert einen **Fehler**, keine gefilterte leere Liste — `getList()` wirft `permission_denied`, `getSingle()` `access_denied`. Alle vier Stufen sind in **beiden** Richtungen belegt, dazu die Randfälle „Benutzer ohne Gruppe" und „Admin übergeht alles". `pim_blocked` ist mit Gegenrichtung geprüft. Fund im eigenen Test: mein `INSERT` schrieb `groups` ohne Backticks — dasselbe reservierte Wort, das 012-005-0003 in `getTree2()` betraf
+- 008-003-0003 → in-progress
+- 008-003-0003 → review: 10 Tests für `isWritable`/`isDeletable`, Gesamtsuite 129 Tests / 319 Assertions. **Die offene Frage ist beantwortet: keine Lücke** — `update` und `delete` prüfen sehr wohl die Objekt-Zugehörigkeit (`Api.php:452`/`:109`), `insert` folgerichtig nur das Entity-Recht. Sonderregel festgehalten: ein Benutzer fällt nie unter die `OWN`-Sperre für sich selbst. Belegt außerdem, dass `writable=ALL` allein nicht zum Löschen berechtigt. **Siebter nicht auslösbarer Pfad**: die Schreibprüfung in `MultijoinType` braucht `acceptFrom`, das keine einzige Eigenschaft trägt
+- 008-003-0004 → in-progress
+- 008-003-0004 → review: 9 Unit- und 9 Integrationstests, Gesamtsuite 147 Tests / 350 Assertions; die Unit-Suite wächst von 6 auf 15 und läuft weiter ohne Umgebung. **Erster Unit-Test des Epics** für die `Group::lang*`-Methoden — ein Integrationstest liefe mangels konfigurierter Sprachen ins Leere. Festgehalten: die Vorgabe der Sprachrechte ist **„erlaubt", nicht „verboten"**, und `setLanguages()` ignoriert falsy Werte. `isSecure` ist in beiden Richtungen belegt. Drei Befunde aus eigenen Fehlannahmen: **`/api/list` antwortet auf eine leere Menge mit HTTP 404** (keine Treffer und Route-nicht-vorhanden sind nicht unterscheidbar), die Vorlage nutzt ihren **eigenen** Antwort-Envelope, und `/api/config` bewirbt weiterhin `customLogo` — ein Rest der gelöschten Oberfläche auf dem einzigen öffentlichen Endpunkt
+- 008-003-0005 → in-progress
+- 008-003-0005 → review: 7 Tests, Gesamtsuite 154 Tests / 366 Assertions. Master-Passwort als Vorbedingung festgehalten (Standard `null`), beide Tests verweisen auf 013-001. **`canExport` und `getExtended` sind veröffentlicht, aber wirkungslos** — gemessen: ein Benutzer mit `export = 0` liest, schreibt und löscht trotzdem. Befund dabei: **`canExport` folgt eigenen Regeln** — es umgeht `Permission::is()` und kollabiert die vier Stufen auf `== 2`; ausgerechnet `GROUP` (3) ergibt `false`, weil die Konstanten nicht aufsteigend geordnet sind
+- 008-003-0000 → review: fünf Tasks auf einem Branch. Von 129 auf **154 Tests / 366 Assertions**; die Unit-Suite wächst von 6 auf 15 und läuft weiter ohne Umgebung. Zwei offene Fragen beantwortet: eine Entity ohne Leserecht liefert einen **Fehler**, keine leere Liste; und `update`/`delete` prüfen die Objekt-Zugehörigkeit — **keine Lücke**. Neu gefunden: `/api/list` antwortet auf eine leere Menge mit HTTP 404, `canExport` kollabiert die Stufen auf ein Boolean, und die Sprachrechte-Vorgabe ist „erlaubt" statt „verboten"
 - 008-003-0001 task created: "Testfundament für Berechtigungen"
 - 008-003-0002 task created: "Lesen: isReadable in allen vier Stufen"
 - 008-003-0003 task created: "Schreiben und Löschen: isWritable, isDeletable"

@@ -1,7 +1,7 @@
 ---
 id: 008-003-0000
 title: Auth, Berechtigungen und Routen-Absicherung
-status: todo
+status: done
 depends_on: []
 ---
 
@@ -76,8 +76,8 @@ bewusst umgedreht statt versehentlich gelöscht wird.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 008-003-0001 — Testfundament für Berechtigungen
-- [ ] 008-003-0002 — Lesen: isReadable in allen vier Stufen
-- [ ] 008-003-0003 — Schreiben und Löschen: isWritable, isDeletable
-- [ ] 008-003-0004 — Sprachrechte und die Routen-Absicherung
-- [ ] 008-003-0005 — Master-Passwort und die nicht durchgesetzten Rechte
+- [x] 008-003-0001 — Testfundament für Berechtigungen
+- [x] 008-003-0002 — Lesen: isReadable in allen vier Stufen
+- [x] 008-003-0003 — Schreiben und Löschen: isWritable, isDeletable
+- [x] 008-003-0004 — Sprachrechte und die Routen-Absicherung
+- [x] 008-003-0005 — Master-Passwort und die nicht durchgesetzten Rechte

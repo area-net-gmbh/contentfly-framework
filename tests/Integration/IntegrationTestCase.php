@@ -232,4 +232,97 @@ abstract class IntegrationTestCase extends TestCase
 
         @rmdir($pfad);
     }
+
+    // ── Testbenutzer mit Berechtigungen ────────────────────────────────────────────────
+
+    /** Passwort aller ueber testbenutzer() angelegten Konten. */
+    protected const TEST_PASSWORT = 'test-nur-fuer-diesen-lauf';
+
+    /**
+     * Legt eine Gruppe, einen Nicht-Admin darin und dessen Entity-Berechtigungen an und
+     * meldet sich als dieser Benutzer an.
+     *
+     * `$rechte` ist eine Zuordnung Entity-Kurzname → Rechte, etwa:
+     *
+     *     $this->testbenutzer(array(
+     *         'PIM\Tag' => array('readable' => Permission::ALL, 'writable' => Permission::OWN),
+     *     ));
+     *
+     * Fehlende Schluessel sind `Permission::NONE`. **Die Stufen gehoeren als Konstanten
+     * uebergeben, nicht als Zahlen:** Sie sind nicht aufsteigend geordnet — `OWN` ist 1,
+     * `ALL` ist 2 und `GROUP` ist 3. Wer sie als Rangfolge liest, irrt.
+     *
+     * Das Passwort wird gehasht, wie `User::setPass()` es tut: sha256 aus Passwort und Salt.
+     * Alles Angelegte meldet sich zum Aufraeumen an, in einer Reihenfolge, die die
+     * Fremdschluessel auf `pim_group` respektiert.
+     *
+     * @param array<string, array<string,int>> $rechte
+     * @param array<string,mixed>              $gruppe  Zusaetzliche Gruppenfelder,
+     *                                                  etwa apiQueryEnabled oder languages
+     * @return array{0:string,1:string,2:string} Token, Benutzer-Id, Gruppen-Id
+     */
+    protected function testbenutzer(array $rechte = array(), array $gruppe = array()): array
+    {
+        $lauf     = bin2hex(random_bytes(6));
+        $gruppeId = 'tgrp-'.$lauf;
+        $userId   = 'tusr-'.$lauf;
+        $alias    = 'testuser-'.$lauf;
+        $salt     = bin2hex(random_bytes(16));
+
+        $this->pdo()->prepare(
+            'INSERT INTO pim_group (id, name, tokenTimeout, apiQueryEnabled, languages,
+                                    created, modified, views, isIntern)
+             VALUES (:id, :name, 60, :ape, :languages, NOW(), NOW(), 0, 0)'
+        )->execute(array(
+            'id'        => $gruppeId,
+            'name'      => 'Testgruppe '.$lauf,
+            'ape'       => $gruppe['apiQueryEnabled'] ?? 'disabled',
+            'languages' => $gruppe['languages'] ?? null,
+        ));
+        $this->nachTestLoeschen('pim_group', $gruppeId);
+
+        $this->pdo()->prepare(
+            'INSERT INTO pim_user (id, isAdmin, alias, pass, isActive, salt,
+                                   created, modified, views, isIntern, group_id)
+             VALUES (:id, 0, :alias, :pass, 1, :salt, NOW(), NOW(), 0, 0, :gruppe)'
+        )->execute(array(
+            'id'     => $userId,
+            'alias'  => $alias,
+            'pass'   => hash('sha256', self::TEST_PASSWORT.$salt),
+            'salt'   => $salt,
+            'gruppe' => $gruppeId,
+        ));
+        $this->nachTestLoeschen('pim_user', $userId);
+
+        $nummer = 0;
+        foreach ($rechte as $entity => $stufen) {
+            $rechtId = 'tperm-'.$lauf.'-'.($nummer++);
+
+            $this->pdo()->prepare(
+                'INSERT INTO pim_permission (id, entityName, readable, writable, deletable,
+                                             export, extended, created, modified, views,
+                                             isIntern, group_id)
+                 VALUES (:id, :entity, :readable, :writable, :deletable, :export, :extended,
+                         NOW(), NOW(), 0, 0, :gruppe)'
+            )->execute(array(
+                'id'        => $rechtId,
+                'entity'    => $entity,
+                'readable'  => $stufen['readable']  ?? 0,
+                'writable'  => $stufen['writable']  ?? 0,
+                'deletable' => $stufen['deletable'] ?? 0,
+                'export'    => $stufen['export']    ?? 0,
+                'extended'  => $stufen['extended']  ?? null,
+                'gruppe'    => $gruppeId,
+            ));
+            $this->nachTestLoeschen('pim_permission', $rechtId);
+        }
+
+        [, $body] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORT));
+
+        if (!isset($body['token'])) {
+            $this->fail('Anmeldung des Testbenutzers fehlgeschlagen: '.json_encode($body));
+        }
+
+        return array($body['token'], $userId, $gruppeId);
+    }
 }

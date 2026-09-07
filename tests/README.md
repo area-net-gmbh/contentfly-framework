@@ -60,6 +60,8 @@ bringt mit, was sonst jede Datei selbst nachbauen müsste:
 | `kopfzeile($kopf, $name)` | liest eine einzelne Kopfzeile, z. B. `Location` |
 | `pdo()` | Verbindung zur Testdatenbank |
 | `nachTestLoeschen($tabelle, $id)` | meldet eine Zeile an, die `tearDown()` entfernt |
+| `nachTestVerzeichnisLoeschen($pfad)` | meldet ein Verzeichnis an, das `tearDown()` samt Inhalt entfernt |
+| `testbenutzer($rechte, $gruppe)` | legt Gruppe, Nicht-Admin und Berechtigungen an → `[Token, Benutzer-Id, Gruppen-Id]` |
 
 Das Überspringen ohne `CONTENTFLY_TEST_BASE_URL` erledigt die Basis ebenfalls — ein eigenes
 `setUp()` braucht es dafür nicht. Wer eines schreibt, ruft `parent::setUp()` auf.
@@ -78,6 +80,26 @@ class BeispielApiTest extends IntegrationTestCase
     }
 }
 ```
+
+### Tests mit Berechtigungen
+
+`testbenutzer()` legt in einem Aufruf eine Gruppe, einen Nicht-Admin darin und dessen
+Entity-Berechtigungen an und meldet ihn an:
+
+```php
+use Areanet\PIM\Entity\Permission;
+
+[$token] = $this->testbenutzer(array(
+    'PIM\\Tag' => array('readable' => Permission::ALL, 'writable' => Permission::OWN),
+));
+```
+
+Fehlende Schlüssel sind `Permission::NONE`. Über den zweiten Parameter lassen sich
+Gruppenfelder setzen (`apiQueryEnabled`, `languages`).
+
+> **Die Stufen gehören als Konstanten übergeben, nicht als Zahlen.** Sie sind nicht
+> aufsteigend geordnet: `NONE` ist 0, `OWN` ist 1, `ALL` ist 2 und `GROUP` ist 3. Wer sie als
+> Rangfolge liest, irrt.
 
 **Testdaten entstehen über `pdo()`, nicht über die Schreib-Endpunkte.** Ein Lesetest, dessen
 Vorbedingung über einen Pfad läuft, den er selbst nicht prüft, verliert seine Aussagekraft —
