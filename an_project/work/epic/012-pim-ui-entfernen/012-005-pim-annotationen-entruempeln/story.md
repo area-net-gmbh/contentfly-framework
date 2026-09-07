@@ -1,7 +1,7 @@
 ---
 id: 012-005-0000
 title: @PIM-Annotationen entrümpeln
-status: in-progress
+status: review
 depends_on: [012-001-0000]
 ---
 
@@ -58,7 +58,7 @@ Der Umstieg ist ein Schnitt, kein Übergang — genau das muss der Migrationslei
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 012-005-0001 — Widget-Annotationen löschen
-- [ ] 012-005-0002 — Config-Annotation auf datenrelevante Felder reduzieren
-- [ ] 012-005-0003 — Leser der Annotationen nachziehen
-- [ ] 012-005-0004 — Entities des Frameworks und der Vorlage bereinigen
+- [x] 012-005-0001 — Widget-Annotationen löschen
+- [x] 012-005-0002 — Config-Annotation auf datenrelevante Felder reduzieren
+- [x] 012-005-0003 — Leser der Annotationen nachziehen
+- [x] 012-005-0004 — Entities des Frameworks und der Vorlage bereinigen
