@@ -6,6 +6,7 @@
 - 008-004-0001 task created: "Manager-Schicht als Vertrag festhalten"
 - 008-004-0002 task created: "Plugin-Infrastruktur dauerhaft absichern"
 - 008-004-0003 task created: "SystemController und die Token-Verwaltung"
+- 000-000-0015 task created: "Defekte im SystemController beheben"
 - 008-004-0004 task created: "/api/mail festhalten"
 - 008-004-0005 task created: "Die Vorlage custom/ läuft mit"
 - 008-004-0001 … 008-004-0005 refined: Kontext, Abnahmekriterien und Verifikation ausgeschrieben. Vorab festgestellt: `POST /system/do` verteilt **dynamisch auf eine vom Request bestimmte Methode** (`method_exists($this, $method)`), ist admin-pflichtig und umfasst die Token-Verwaltung; der `before`-Hook hat ein Notschloss, das `validateORM` und `updateDatabase` bei kaputtem Schema ohne jede Prüfung durchlässt — **`validateORM` existiert als Methode aber nicht mehr**. Zwei Grenzen vorab gezogen: `custom/app.php` bekommt keinen dauerhaften Testcode, und kein Testlauf verschickt eine Mail nach draussen
