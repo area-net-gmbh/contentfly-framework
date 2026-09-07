@@ -9,6 +9,8 @@
 - 012-005-0002 → in-progress
 - 012-005-0002 → review: `@PIM\Config` von 24 auf 10 Felder reduziert. `readonly` und `filter` einzeln geprüft — beide reine UI-Hinweise ohne Leser, `readonly` ist kein API-Schreibschutz. **`labelProperty` bleibt entgegen der ursprünglichen Streichliste**: es wird als `modelLabel` ins `Log` persistiert und steuert den `partial`-Select verjointer Objekte; Story und Kriterium entsprechend korrigiert
 - an_project/docs/pim-annotationen-migration.md created: vollständige Liste der entfallenen Annotationen, Config-Felder und Konstanten — Grundlage der Rector-Regel aus Epic 007
+- 012-005-0003 → in-progress
+- 012-005-0003 → review: `Type.php`, `Api.php`, `OnejoinType`, `FileType`, `MultifileType` und `Serializable` auf die verbliebenen Felder gezogen; Tab-Mechanik, Listenaufbau und der Schema-Schlüssel `list` entfallen. **`showInList` hatte zwei Datenleser** — `Api::getTree2()` (Route `/api/tree2`) und die Beschränkung verschachtelter Objekte in `Serializable::toValueObject()`; beide liefern jetzt alle Eigenschaften, für Clients additiv. Nebenbefund behoben: `getTree2()` quotete Spaltennamen nie, mit `groups` traf das ein in MySQL 8 reserviertes Wort. Verglichen gegen einen `master`-Worktree auf derselben Datenbank: nur UI-Schlüssel entfallen, kein neuer Schlüssel, alle datenrelevanten Werte gleich
 
 ## 2026-09-04
 - 012-004-0000 → done (merged into master)
