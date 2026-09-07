@@ -1,7 +1,7 @@
 ---
 id: 008-004-0005
 title: Die Vorlage custom/ läuft mit
-status: review
+status: done
 depends_on: []
 ---
 

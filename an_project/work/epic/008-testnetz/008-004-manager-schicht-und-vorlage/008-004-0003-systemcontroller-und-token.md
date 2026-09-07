@@ -1,7 +1,7 @@
 ---
 id: 008-004-0003
 title: SystemController und die Token-Verwaltung
-status: review
+status: done
 depends_on: []
 ---
 

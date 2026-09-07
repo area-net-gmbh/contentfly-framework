@@ -1,7 +1,7 @@
 ---
 id: 008-004-0001
 title: Manager-Schicht als Vertrag festhalten
-status: review
+status: done
 depends_on: []
 ---
 

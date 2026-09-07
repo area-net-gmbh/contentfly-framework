@@ -1,7 +1,7 @@
 ---
 id: 008-004-0002
 title: Plugin-Infrastruktur dauerhaft absichern
-status: review
+status: done
 depends_on: [008-004-0001]
 ---
 
