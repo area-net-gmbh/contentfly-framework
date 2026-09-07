@@ -1,7 +1,7 @@
 ---
 id: 012-005-0000
 title: @PIM-Annotationen entrümpeln
-status: todo
+status: in-progress
 depends_on: [012-001-0000]
 ---
 
