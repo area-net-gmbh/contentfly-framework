@@ -3,6 +3,9 @@
 # Changelog
 
 ## 2026-09-07
+- 008-003-0000 → in-progress
+- 008-003-0001 → in-progress
+- 008-003-0001 → review: `IntegrationTestCase::testbenutzer()` legt Gruppe, Nicht-Admin und Entity-Berechtigungen in einem Aufruf an; `QueryApiTest` darauf umgezogen und von 196 auf 149 Zeilen geschrumpft. **109 Tests / 272 Assertions unverändert** — keine Zusicherung angetastet. Die Berechtigungsstufen werden als Konstanten übergeben, weil sie nicht aufsteigend geordnet sind (`OWN=1`, `ALL=2`, `GROUP=3`); in `tests/README.md` festgehalten
 - 008-003-0001 task created: "Testfundament für Berechtigungen"
 - 008-003-0002 task created: "Lesen: isReadable in allen vier Stufen"
 - 008-003-0003 task created: "Schreiben und Löschen: isWritable, isDeletable"

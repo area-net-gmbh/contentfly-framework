@@ -1,7 +1,7 @@
 ---
 id: 008-003-0000
 title: Auth, Berechtigungen und Routen-Absicherung
-status: todo
+status: in-progress
 depends_on: []
 ---
 
