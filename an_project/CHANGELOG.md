@@ -12,6 +12,8 @@
 - 008-002-0003 → in-progress
 - 000-000-0009 task created: "/api/multiupdate bricht mitten im Stapel ab und meldet nicht, wie weit es kam"
 - 008-002-0003 → review: 6 Tests für `/api/multiupdate`, Gesamtsuite 93 Tests / 226 Assertions. **Befund: keine Transaktion, kein Rollback.** Scheitert ein Objekt im Stapel, bleiben die vorher verarbeiteten geändert, die danach werden nie erreicht, und die Antwort ist ein nackter HTTP 500 — der Client kann den Zustand seiner Daten nicht rekonstruieren. Auch der Erfolgsfall meldet nichts: der Rumpf besteht aus `version` und `hash`, dem **dünnsten Envelope aller sechs bisher geprüften Endpunkte**. Als `000-000-0009` notiert, nicht repariert
+- 008-002-0004 → in-progress
+- 008-002-0004 → review: 9 Tests für die Log-Nebenwirkungen, Gesamtsuite 102 Tests / 248 Assertions. Alle vier Modi abgedeckt (`INS`, `UPT`, `DEL`, `USERDEL`); **`model_label` ist per Gegenprobe belegt** — `labelProperty` versuchsweise entfernt, zwei Tests fallen, damit ist die Entscheidung aus 012-005-0002 geschützt. Befund nebenbei: `pim_log.created` hat Sekundenauflösung, ein Lebenszyklus in derselben Sekunde hinterlässt Zeilen mit identischem Zeitstempel — **die Reihenfolge ist aus dem Protokoll nicht rekonstruierbar**. Ein abgewiesener Schreibversuch hinterlässt keine Zeile
 - 008-002-0001 task created: "Anlegen und Löschen festhalten"
 - 008-002-0002 task created: "update gegen replace abgrenzen"
 - 008-002-0003 task created: "/api/multiupdate festhalten"
