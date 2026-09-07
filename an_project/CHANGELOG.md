@@ -11,6 +11,7 @@
 - an_project/docs/pim-annotationen-migration.md updated: entfallene Plugin-Schnittstelle als Breaking Change für Epic 007 ergänzt
 - 012-006-0003 → in-progress
 - 012-006-0003 → review: ohne Codeänderung geschlossen — der Durchgang durch `RouteManager`, `ConsoleManager`, `LoginManager`, `PluginManager` und `Manager.php` hat keinen UI-Rest gefunden. Repo-weit kein `->render(`, kein `.twig`, keine Frontend-/Asset-Verzeichnisse. Die `_secured`-Semantik heißt im Code `Route::$isSecure` und liegt im `CustomControllerProvider` — in dieser Story unberührt, Epic 009 findet sie unverändert vor
+- 012-006-0000 → review: drei Tasks auf einem Branch. Der Befund der Story ist, dass die Manager-Schicht kaum noch UI trug: entfernt wurden die kategorienweisen Getter des `TypeManager` samt `$mode`-Filter, `Type::renderJSON()` und der Frontend-Anteil von `Classes/Plugin.php`. `PluginManager` und die vier übrigen Manager waren bereits sauber. Verifiziert: API-Schema über die gesamte Story **unverändert** — der Vertrag mit den Sync-Clients hält —, Datenbankschema unverändert, Plugin-Erweiterbarkeit mit einem Wegwerf-Plugin nachgewiesen, 26 Tests grün
 - 012-005-0000 → done (merged into master)
 - 012-005-0001 … 012-005-0004 → done: mit der Story geschlossen
 - 012-005-0000 → in-progress
