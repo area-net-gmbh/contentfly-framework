@@ -1,7 +1,7 @@
 ---
 id: 008-004-0000
 title: Manager-Schicht, Systemendpunkte und die Vorlage
-status: todo
+status: in-progress
 depends_on: []
 ---
 

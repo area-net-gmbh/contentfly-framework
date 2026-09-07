@@ -112,22 +112,29 @@ class LogSideEffectApiTest extends IntegrationTestCase
             'Anlegen, Aendern und Loeschen hinterlassen je genau eine Zeile');
     }
 
-    public function testDieReihenfolgeDerLogZeilenIstNichtRekonstruierbar(): void
+    public function testDerZeitstempelDerLogZeilenHatNurSekundenaufloesung(): void
     {
-        // Festgehalten, weil es ueberrascht: pim_log.created ist ein DATETIME mit
-        // Sekundenaufloesung. Ein Lebenszyklus, der in derselben Sekunde ablaeuft — und das
-        // ist der Normalfall bei einem API-Aufruf pro Operation — hinterlaesst drei Zeilen
-        // mit identischem Zeitstempel. Aus dem Protokoll allein laesst sich dann nicht
-        // sagen, was zuerst geschah.
+        // pim_log.created ist ein DATETIME ohne Nachkommastellen. Ein Lebenszyklus, der
+        // innerhalb einer Sekunde ablaeuft — bei je einem API-Aufruf der Normalfall —
+        // hinterlaesst deshalb Zeilen mit identischem Zeitstempel, und aus dem Protokoll
+        // allein laesst sich dann nicht sagen, was zuerst geschah. Siehe 000-000-0013.
+        //
+        // Geprueft wird die **Aufloesung**, nicht die Koinzidenz: Eine erste Fassung dieses
+        // Tests behauptete, zwei aufeinanderfolgende Aufrufe truegen denselben Zeitstempel.
+        // Das stimmt nur, solange sie keine Sekundengrenze ueberschreiten — der Test war in
+        // etwa jedem dreissigsten Lauf rot.
         $id = $this->tagAnlegen('Zeitstempel-Probe');
-        $this->postJson('/api/update', array('entity' => 'PIM\\Tag', 'id' => $id, 'data' => array('title' => 'Zeitstempel-Probe-2')), $this->token());
 
-        $zeitstempel = $this->pdo()
-            ->query('SELECT DISTINCT created FROM pim_log WHERE model_id = '.$this->pdo()->quote($id))
-            ->fetchAll(PDO::FETCH_COLUMN);
+        $zeitstempel = (string) $this->pdo()
+            ->query('SELECT created FROM pim_log WHERE model_id = '.$this->pdo()->quote($id))
+            ->fetchColumn();
 
-        $this->assertCount(1, $zeitstempel,
-            'Beide Zeilen tragen denselben Zeitstempel — die Reihenfolge ist daraus nicht ableitbar');
+        $this->assertMatchesRegularExpression(
+            '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/',
+            $zeitstempel,
+            'Keine Nachkommastellen — zwei Operationen in derselben Sekunde sind nicht '
+            .'unterscheidbar'
+        );
     }
 
     // ── model_label — der Schutz fuer die Entscheidung aus 012-005-0002 ────────────────

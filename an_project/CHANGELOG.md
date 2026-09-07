@@ -3,6 +3,9 @@
 # Changelog
 
 ## 2026-09-07
+- 008-004-0000 → in-progress
+- 008-004-0001 → in-progress
+- 008-004-0001 → review: 14 Unit- und 3 Integrationstests, Gesamtsuite 171 Tests / 392 Assertions; die Unit-Suite wächst von 15 auf 29. `TypeManager`, `RouteManager` und `ConsoleManager` sind unit-testbar; `createManagedUser()` bewusst **nicht** direkt getestet — das hiesse die Anwendung ein zweites Mal und anders zu konstruieren, und der Versuch scheiterte prompt an der Annotationsregistrierung. Stattdessen die beobachtbare Wirkung: ein Benutzer mit gesetztem `loginManager` kann sich nicht per Passwort anmelden. Drei Befunde: **`addCommand()` hat eine undokumentierte Reihenfolgebedingung** (`extend()` auf einem eingefrorenen Pimple-Service), weder `RouteManager` noch `TypeManager` prüfen auf Kollisionen, und `getType()` liefert `null` statt zu werfen. Dazu einen **eigenen flakigen Test aus 008-002-0004 behoben** — er prüfte eine Koinzidenz statt der Sekundenauflösung
 - 008-004-0001 task created: "Manager-Schicht als Vertrag festhalten"
 - 008-004-0002 task created: "Plugin-Infrastruktur dauerhaft absichern"
 - 008-004-0003 task created: "SystemController und die Token-Verwaltung"
