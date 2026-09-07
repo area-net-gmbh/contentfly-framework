@@ -7,6 +7,8 @@
 - 008-002-0001 → in-progress
 - 000-000-0008 task created: "FileApiTest räumt nicht auf — Testdatenbank und data/files wachsen mit jedem Lauf" (beim Schreib-Testnetz aufgefallen)
 - 008-002-0001 → review: 12 Tests für `/api/insert` und `/api/delete` (`WriteApiTest`), Gesamtsuite 80 Tests / 192 Assertions. Befunde: **jeder Endpunkt hat inzwischen seinen eigenen Envelope** (`insert` mit `id` und `data`, `delete` mit `id` ohne `data`), und `insert` reicht Boolesche Werte als Integer durch, während `single` sie als Boolean serialisiert. Ohne Token liefern beide 500 statt 401 — aber gegen die Datenbank geprüft entsteht und verschwindet nichts. Nebenbefund: `FileApiTest` leakt pro Lauf 8 Dateien und 17 Datenbankzeilen (`000-000-0008`)
+- 008-002-0002 → in-progress
+- 008-002-0002 → review: 7 Tests für `/api/update` und `/api/replace`, Gesamtsuite 87 Tests / 213 Assertions. **Der Unterschied ist nicht der erwartete: `replace` ist ein Upsert, kein Vollersetzen.** Bei vorhandener Id delegiert es per Sub-Request an `/api/update` und verhält sich Feld für Feld identisch — nicht gesendete Werte bleiben bei beiden stehen. Nur bei unbekannter Id trennen sich die Wege: `replace` legt mit genau dieser Id an, `update` scheitert. Der Name führt also in die Irre; das stand bisher nirgends
 - 008-002-0001 task created: "Anlegen und Löschen festhalten"
 - 008-002-0002 task created: "update gegen replace abgrenzen"
 - 008-002-0003 task created: "/api/multiupdate festhalten"
