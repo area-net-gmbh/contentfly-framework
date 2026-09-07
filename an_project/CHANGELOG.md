@@ -3,6 +3,8 @@
 # Changelog
 
 ## 2026-09-07
+- 008-002-0000 → done (merged into master)
+- 008-002-0001 … 008-002-0005 → done: mit der Story geschlossen
 - 008-002-0000 → in-progress
 - 008-002-0001 → in-progress
 - 000-000-0008 task created: "FileApiTest räumt nicht auf — Testdatenbank und data/files wachsen mit jedem Lauf" (beim Schreib-Testnetz aufgefallen)

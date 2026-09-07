@@ -1,7 +1,7 @@
 ---
 id: 008-002-0005
 title: unique, Sortierung — und die beiden Lücken
-status: review
+status: done
 depends_on: [008-002-0001]
 ---
 

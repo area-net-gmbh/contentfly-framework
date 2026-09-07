@@ -1,7 +1,7 @@
 ---
 id: 008-002-0004
 title: Log-Nebenwirkungen festhalten
-status: review
+status: done
 depends_on: [008-002-0001]
 ---
 
