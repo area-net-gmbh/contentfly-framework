@@ -6,6 +6,9 @@
 - 008-001-0000 → in-progress
 - 008-001-0001 → in-progress
 - 008-001-0001 → review: `IntegrationTestCase` als gemeinsame Basis angelegt; `AuthApiTest` (215→142 Zeilen) und `FileApiTest` (259→190) darauf umgezogen, ohne eine einzige Zusicherung zu ändern — die Suite meldet unverändert 26 Tests und 45 Assertions. Neu dazu: `pdo()` und `nachTestLoeschen()` für Testdaten an der API vorbei. Befund: die Basisklasse ist nicht autoladbar (`custom/composer.json` mappt `Custom\Tests\`, die Testklassen liegen unter `Tests\`), sie wird daher aus `tests/bootstrap.php` geladen
+- 008-001-0002 → in-progress
+- 008-001-0002 → review: 13 Charakterisierungstests für `/api/single` und `/api/list` (`ReadApiTest`), Gesamtsuite 39 Tests / 83 Assertions, sechs Läufe bei zufälliger Reihenfolge grün. Drei Befunde: die beiden Endpunkte haben **unterschiedliche Envelopes** (`single` mit `ts` ohne `totalItems`, `list` umgekehrt); **`/api/list` wertet `sortBy`/`sortOrder` der Entity gar nicht aus** — sortiert wird nach dem `order`-Parameter, sonst `id DESC`; und `/api/single` liefert bei unbekannter Id `200` mit `data: {"headers":{}}`. Der Sortier-Befund fiel als flakiger Test auf, der Wunschverhalten prüfte — genau die Falle, vor der die Abgrenzung des Epics warnt
+- 012-005-0002 Nachtrag: `sortBy` und `sortOrder` wurden dort als „Sortierung der API-Antworten" behalten, haben aber **keinen Leser im Framework** — nur `sortRestrictTo` wird ausgewertet (`JoinBidirectionalType:64`). Damit stehen sie auf derselben Stufe wie das gestrichene `readonly`, mit dem Unterschied, dass ein Sync-Client sie aus dem Schema anwenden könnte. Festgehalten, nicht entschieden
 - 008-000-0000 → in-progress
 - 008-001-0001 task created: "Gemeinsame Basis für die Integrationstests"
 - 008-001-0002 task created: "/api/single und /api/list festhalten"
