@@ -3,6 +3,12 @@
 # Changelog
 
 ## 2026-09-07
+- 000-000-0010 task created: "UI-Reste aus Konfiguration und Schema entfernen"
+- 000-000-0011 task created: "PluginManager::getPlugin() referenziert eine undefinierte Variable"
+- 000-000-0012 task created: "Die nicht durchgesetzten Berechtigungsfelder entscheiden"
+- 000-000-0013 task created: "Den Sync-Vertrag konsolidieren"
+- 000-000-0014 task created: "Die Antwort-Envelopes der API vereinheitlichen"
+- 007-000-0000 updated: Abschnitt „Die Funktionen ohne Auslöser" ergänzt — Epic 008 hat sieben Codepfade gefunden, deren Wirkung sich im heutigen Stand nicht beobachten lässt. Ob Bestandsprojekte sie nutzen, lässt sich nur am realen Fall klären und gehört damit in dieses Epic, nicht in einen Ad-hoc-Task
 - 008-003-0000 → done (merged into master)
 - 008-003-0001 … 008-003-0005 → done: mit der Story geschlossen
 - 008-003-0000 → in-progress

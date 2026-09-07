@@ -47,6 +47,32 @@ für jeden ein Migrationsschritt existiert, der beschrieben und — wo möglich 
 - **Vorlage nachgezogen:** `custom/` bleibt die Referenz dafür, wie ein Projekt auf der neuen
   Version aussieht — die Example-Artefakte werden mitmigriert und zeigen den Zielzustand.
 
+### Die Funktionen ohne Auslöser — eine Frage, die dieses Epic beantworten muss
+Epic `008` hat beim Aufbau des Testnetzes **sieben Codepfade** gefunden, deren Wirkung sich im
+heutigen Stand nicht beobachten lässt, weil es im Framework und in der Vorlage keinen Auslöser
+gibt:
+
+| Funktion | warum nicht auslösbar | festgestellt in |
+|---|---|---|
+| `@PIM\Config(i18n_universal)` | `APP_LANGUAGES` ist leer, keine konkrete `BaseI18n`-Entity | `008-001-0005` |
+| `I18nPermission` samt `Group::lang*` | dito — als Unit-Test abgedeckt | `008-003-0004` |
+| `@PIM\Config(encoded)` | keine Entity nutzt es, `SECURITY_CIPHER_KEY` ist `null` | `008-002-0005` |
+| OneJoin-Kaskade beim Löschen | keine `@ORM\OneToOne`-Beziehung im Baum | `008-002-0005` |
+| Schreibprüfung in `MultijoinType` | braucht `acceptFrom`, das keine Eigenschaft trägt | `008-003-0003` |
+| `canExport` | Durchsetzungspunkt war der gelöschte `ExportController` | `008-003-0005` |
+| `getExtended` | nie ein Durchsetzungspunkt im Framework | `008-003-0005` |
+
+Jede hat einen Test auf die **Vorbedingung**, der anschlägt, sobald ein Projekt sie benutzt.
+
+**Die Frage, die hierher gehört:** Sind das Fähigkeiten, die Bestandsprojekte tatsächlich
+nutzen — dann müssen sie erhalten bleiben und der Leitfaden muss sie benennen — oder sind es
+Überbleibsel der Oberfläche, die mit dem Umstieg fallen dürfen? Das lässt sich nicht aus diesem
+Repo beantworten, sondern nur an einem realen Bestandsprojekt. Es gehört damit zu dem
+Erfolgskriterium „am echten Fall verifiziert".
+
+Für `canExport` und `getExtended` läuft die Entscheidung separat über `000-000-0012`; sie hängen
+nicht an einem Bestandsprojekt, weil ihr Konsument nachweislich gelöscht ist.
+
 ## Abgrenzung
 Die Migration eines konkreten Kundenprojekts findet in dessen eigenem Repo statt, nicht hier.
 Dieses Epic liefert Weg, Werkzeuge und Doku.
