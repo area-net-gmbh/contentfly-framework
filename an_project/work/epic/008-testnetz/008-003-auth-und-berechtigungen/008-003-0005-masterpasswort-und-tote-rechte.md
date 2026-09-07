@@ -1,7 +1,7 @@
 ---
 id: 008-003-0005
 title: Master-Passwort und die nicht durchgesetzten Rechte
-status: todo
+status: review
 depends_on: [008-003-0001]
 ---
 
@@ -69,15 +69,52 @@ API nicht ändern.
 > Nutzer die gelöschte Oberfläche waren.
 
 ## Acceptance criteria
-- [ ] Ein Test belegt, dass `APP_MASTER_PASSWORD` in der Vorlage nicht gesetzt ist, und
+- [x] Ein Test belegt, dass `APP_MASTER_PASSWORD` in der Vorlage nicht gesetzt ist, und
       verweist im Kommentar auf `013-001`.
-- [ ] Ein Test belegt, dass `canExport` und `getExtended` im Schema ankommen.
-- [ ] Ein Test belegt, dass ein Benutzer **ohne** `export`-Recht trotzdem alles kann, was die
+- [x] Ein Test belegt, dass `canExport` und `getExtended` im Schema ankommen.
+- [x] Ein Test belegt, dass ein Benutzer **ohne** `export`-Recht trotzdem alles kann, was die
       API anbietet — die Wirkungslosigkeit ist damit gemessen, nicht behauptet.
-- [ ] Die Häufung der veröffentlichten, aber nicht durchgesetzten Felder ist in der
+- [x] Die Häufung der veröffentlichten, aber nicht durchgesetzten Felder ist in der
       Zusammenfassung der Story benannt.
 
 ## Verification
 Mehrere vollständige Läufe. Der Nachweis der Wirkungslosigkeit läuft über einen Benutzer, dem
 `export` auf `0` steht und der dennoch lesen, schreiben und löschen kann — soweit die anderen
 Rechte es zulassen.
+
+## Ergebnis — 7 Tests in `tests/Integration/Api/UnenforcedPermissionApiTest.php`
+
+Gesamtsuite: **154 Tests, 366 Assertions**, vier Läufe grün.
+
+### Das Master-Passwort
+Der Standardwert ist `null` — die Hintertür ist zu, aber vorhanden. Ein Integrationstest kann
+die Konfiguration zur Laufzeit nicht ändern; geprüft ist deshalb die **Vorbedingung**, und der
+zweite Test hält fest, dass die falsche Anmeldung *nur deshalb* scheitert. Beide Kommentare
+verweisen auf `013-001`, damit die Tests dort **umgedreht** und nicht verwundert gelöscht
+werden.
+
+### `canExport` und `getExtended`: veröffentlicht, wirkungslos
+Belegt in beide Richtungen: Die Werte kommen im `permissions`-Block des Schemas an — auch für
+einen Nicht-Admin und mit dekodiertem `extended`-JSON —, **und** ein Benutzer mit `export = 0`
+kann trotzdem lesen, schreiben und löschen. `extended` schränkt die Antwort nicht ein; das
+volle Objekt kommt zurück.
+
+### Ein Befund, der beim Schreiben auffiel: `canExport` folgt eigenen Regeln
+`readable`, `writable` und `deletable` laufen über `Permission::is()` und melden ihren
+Stufenwert als Integer. **`canExport` hat eine eigene Implementierung** und kollabiert die vier
+Stufen auf ein Boolean:
+
+```php
+return ($permission->getExport() == 2);
+```
+
+Die Spalte ist derselbe Integer mit derselben Vierstufen-Semantik, aber nur `ALL` (2) gilt als
+erlaubt. Und weil die Konstanten **nicht aufsteigend geordnet** sind, ergibt ausgerechnet
+`GROUP` (3) ein `false` — wer „mehr als ALL" meint, sperrt sich aus. Beide Fälle sind als Test
+festgehalten.
+
+## Verification
+- [x] Vier vollständige Läufe grün bei zufälliger Ausführungsreihenfolge.
+- [x] Die Wirkungslosigkeit ist **gemessen**, nicht behauptet: ein Benutzer mit `export = 0`
+      führt Lesen, Schreiben und Löschen erfolgreich aus.
+- [x] Datenbank nach den Läufen vollständig auf dem Ausgangsstand.
