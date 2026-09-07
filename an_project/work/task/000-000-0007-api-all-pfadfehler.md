@@ -1,7 +1,7 @@
 ---
 id: 000-000-0007
 title: /api/all wirft bedingungslos — Pfad zum Entity-Verzeichnis ist falsch
-status: review
+status: done
 depends_on: []
 ---
 
