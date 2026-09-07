@@ -48,7 +48,7 @@ fragwürdig ist. Wünschenswertes Verhalten zu testen, würde das Netz wertlos m
 
 ## Stories
 <!-- Die Stories dieses Epics. Wird von /new-story synchron gehalten. -->
-- [ ] 008-001-0000 — Lesende API-Endpunkte charakterisieren
+- [x] 008-001-0000 — Lesende API-Endpunkte charakterisieren
 - [ ] 008-002-0000 — Schreibende API-Endpunkte charakterisieren
 - [ ] 008-003-0000 — Auth, Berechtigungen und Routen-Absicherung
 - [ ] 008-004-0000 — Manager-Schicht, Systemendpunkte und die Vorlage

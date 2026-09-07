@@ -1,7 +1,7 @@
 ---
 id: 008-001-0001
 title: Gemeinsame Basis für die Integrationstests
-status: todo
+status: done
 depends_on: []
 ---
 
@@ -33,16 +33,16 @@ ausschließt — und ein Lesetest, dessen Vorbedingung über denselben Stack lä
 verliert seine Aussagekraft. Die Lese-Endpunkte bleiben allein den Zusicherungen vorbehalten.
 
 ## Acceptance criteria
-- [ ] Eine Basisklasse unter `tests/Integration/` bündelt Übersprung-Logik, Anmeldung,
+- [x] Eine Basisklasse unter `tests/Integration/` bündelt Übersprung-Logik, Anmeldung,
       HTTP-Helfer und Testdaten-Auf-/Abbau.
-- [ ] `AuthApiTest` und `FileApiTest` erben davon und sind um ihre eigenen Kopien dieser Helfer
+- [x] `AuthApiTest` und `FileApiTest` erben davon und sind um ihre eigenen Kopien dieser Helfer
       erleichtert.
-- [ ] **Keine einzige Zusicherung der beiden bestehenden Dateien ist verändert.** Es werden
+- [x] **Keine einzige Zusicherung der beiden bestehenden Dateien ist verändert.** Es werden
       Helfer verschoben, keine Tests umgeschrieben — was heute geprüft wird, wird danach
       identisch geprüft.
-- [ ] Testdaten entstehen ohne Beteiligung der Schreib-Endpunkte; nach jedem Test ist die
+- [x] Testdaten entstehen ohne Beteiligung der Schreib-Endpunkte; nach jedem Test ist die
       Datenbank in dem Zustand, in dem der Test sie vorgefunden hat.
-- [ ] `tests/README.md` beschreibt, wie eine neue Integrationstest-Datei auf der Basis aufsetzt.
+- [x] `tests/README.md` beschreibt, wie eine neue Integrationstest-Datei auf der Basis aufsetzt.
 
 ## Verification
 ```sh
@@ -55,3 +55,28 @@ dass beim Umzug eine Zusicherung verlorengegangen oder hinzugekommen ist, und st
 
 Zusätzlich: Ein Lauf **ohne** `CONTENTFLY_TEST_BASE_URL` überspringt die Integrationstests
 weiterhin sauber, statt zu scheitern.
+
+## Ergebnis
+
+`tests/Integration/IntegrationTestCase.php` bündelt Übersprung-Logik, Anmeldung
+(`login()` frisch / `token()` zwischengespeichert), HTTP-Helfer (`postJson()`, `get()`,
+`kopfzeile()`) und die Testdaten-Werkzeuge (`pdo()`, `nachTestLoeschen()` mit Aufräumen in
+`tearDown()`).
+
+| Datei | vorher | nachher |
+|---|---|---|
+| `AuthApiTest` | 215 Zeilen | 142 |
+| `FileApiTest` | 259 Zeilen | 190 |
+
+Aus `FileApiTest` bleibt nur `upload()` als eigener Helfer — der ist dateispezifisch.
+
+**Ein Punkt, der beim Umsetzen auffiel:** Die Basisklasse ist **nicht autoladbar**.
+`custom/composer.json` mappt `Custom\Tests\`, die Testklassen liegen aber unter `Tests\`, und
+PHPUnit lädt von sich aus nur Dateien, die auf `Test.php` enden. Sie wird deshalb von
+`tests/bootstrap.php` per `require_once` geladen — bewusst statt eines `composer dump-autoload`,
+das den committeten `custom/vendor`-Baum neu geschrieben hätte, den Epic `006` ohnehin auflöst.
+Der Kommentar an beiden Stellen verweist darauf.
+
+`pdo()` und `nachTestLoeschen()` sind neu und werden von keinem Test dieses Tasks benutzt — die
+Abnahmezahl verbietet zusätzliche Tests. Ihre Funktion ist stattdessen mit einer Wegwerf-Testdatei
+belegt worden (siehe Verification); `008-001-0002` nimmt sie regulär in Gebrauch.
