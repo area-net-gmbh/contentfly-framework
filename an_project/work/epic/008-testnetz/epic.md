@@ -1,7 +1,7 @@
 ---
 id: 008-000-0000
 title: Testnetz für das Framework vor dem Umbau
-status: todo
+status: in-progress
 depends_on: [012-000-0000]
 ---
 

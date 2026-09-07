@@ -3,6 +3,13 @@
 # Changelog
 
 ## 2026-09-07
+- 008-000-0000 → in-progress
+- 008-001-0001 task created: "Gemeinsame Basis für die Integrationstests"
+- 008-001-0002 task created: "/api/single und /api/list festhalten"
+- 008-001-0003 task created: "Baum-Endpunkte /api/tree und /api/tree2"
+- 008-001-0004 task created: "Sync-Endpunkte /api/all, /api/deleted und /api/count"
+- 008-001-0005 task created: "/api/translations und /api/query"
+- 008-001-0001 … 008-001-0005 refined: Kontext, Abnahmekriterien und Verifikation ausgeschrieben. Jeder Task sichert eine Entscheidung aus Epic 012 ab — `labelProperty` im partial-Select, das „alle Felder"-Verhalten und das Spalten-Quoting von `/api/tree2`, `excludeFromSync` in beiden Richtungen, `i18n_universal`
 - 008-001-0000 story created: "Lesende API-Endpunkte charakterisieren" (Epic 008)
 - 008-002-0000 story created: "Schreibende API-Endpunkte charakterisieren" (Epic 008)
 - 008-003-0000 story created: "Auth, Berechtigungen und Routen-Absicherung" (Epic 008)
