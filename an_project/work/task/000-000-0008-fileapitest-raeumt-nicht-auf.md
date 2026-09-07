@@ -1,7 +1,7 @@
 ---
 id: 000-000-0008
 title: FileApiTest räumt nicht auf — Testdatenbank und data/files wachsen mit jedem Lauf
-status: review
+status: done
 depends_on: []
 ---
 
