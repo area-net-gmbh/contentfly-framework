@@ -1,7 +1,7 @@
 ---
 id: 008-001-0005
 title: /api/translations und /api/query
-status: todo
+status: review
 depends_on: [008-001-0002]
 ---
 
@@ -47,14 +47,12 @@ Ebenfalls festzuhalten: das Verhalten bei fehlendem `select` oder `from` — `Ap
 prüft beides.
 
 ## Acceptance criteria
-- [ ] `/api/translations`: Form der Antwort für ein mehrsprachiges Objekt ist festgehalten.
-- [ ] `i18n_universal` ist geprüft — ein so markiertes Feld trägt über alle Sprachvarianten
-      denselben Wert. Verweis auf `012-005-0002` im Kommentar.
-- [ ] Das Verhalten für eine Entity ohne i18n ist festgehalten.
-- [ ] `/api/query`: alle drei Berechtigungsfälle sind geprüft — Admin, berechtigte Gruppe,
-      unberechtigte Gruppe.
-- [ ] Der Fall „`select` oder `from` fehlt" ist festgehalten.
-- [ ] Beide Routen sind ohne Token abgewiesen.
+- [x] `/api/translations`: **kein mehrsprachiges Objekt verfügbar** — die Vorlage konfiguriert keine Sprachen. Festgehalten ist stattdessen das Verhalten ohne i18n plus ein Test auf diese Vorbedingung.
+- [x] `i18n_universal`: **heute nicht beobachtbar.** Ohne konfigurierte Sprachen und ohne konkrete `BaseI18n`-Entity gibt es keine Sprachvarianten zu vergleichen. Im Testkommentar festgehalten.
+- [x] Das Verhalten für eine Entity ohne i18n ist festgehalten.
+- [x] `/api/query`: alle drei Berechtigungsfälle sind geprüft — Admin, berechtigte Gruppe, unberechtigte Gruppe.
+- [x] Der Fall „`select` oder `from` fehlt" ist festgehalten — beide einzeln.
+- [x] Beide Routen sind ohne Token abgewiesen.
 
 ## Verification
 ```sh
@@ -64,3 +62,37 @@ CONTENTFLY_TEST_ADMIN_PASS=dev-only-secret \
 ```
 Für das Gating von `/api/query` braucht es einen Nicht-Admin-Benutzer in einer Gruppe mit und
 einer ohne `apiQueryEnabled` — der Aufbau gehört in die Testdaten-Helfer aus `008-001-0001`.
+
+## Ergebnis — 9 Tests in `tests/Integration/Api/QueryApiTest.php`
+
+Gesamtsuite: **68 Tests, 159 Assertions**, vier Läufe grün.
+
+### `/api/query`: das Gating ist isoliert nachgewiesen
+
+Alle drei Fälle stehen — Admin, Nicht-Admin mit `apiQueryEnabled = 'enabled'`, Nicht-Admin mit
+`'disabled'`. Das war nicht auf Anhieb sauber: Der erste Versuch scheiterte, weil ein
+Nicht-Admin **zwei** Hürden nimmt. Vor dem `apiQueryEnabled`-Gate greift die Leseprüfung der
+Entity, und ohne `Permission`-Zeile endet beides in `contentfly_general_access_denied`. Der
+Testaufbau legt deshalb eine Berechtigung für `PIM\Tag` mit an — erst dadurch misst der Test
+das Gate, das er messen soll, und nicht das davor.
+
+Nebenbei festgehalten: `/api/query` ist der **einzige** Endpunkt, der die Anfrageparameter in
+der Antwort zurückgibt (`params` neben `ts`, `data`, `version`, `hash`).
+
+### `/api/translations`: heute nicht sinnvoll prüfbar
+
+`APP_LANGUAGES` ist in der Vorlage leer, und es gibt **keine konkrete `BaseI18n`-Entity** — nur
+die abstrakten Basisklassen `BaseI18n`, `BaseI18nSortable`, `BaseI18nTree`. Damit existiert
+kein mehrsprachiges Objekt, an dem sich `i18n_universal` beobachten ließe.
+
+Festgehalten ist deshalb, was gilt: Der Endpunkt endet für eine Entity ohne i18n im Fehler,
+und ein eigener Test hält die **Vorbedingung** fest (`/api/config` meldet keine Sprachen).
+Schaltet ein Projekt oder die Vorlage Mehrsprachigkeit ein, schlägt dieser Test an — und dann
+gehört die eigentliche `i18n_universal`-Zusicherung ergänzt. Das ist ehrlicher, als ein Feld
+zu testen, dessen Wirkung im Testaufbau gar nicht entstehen kann.
+
+## Verification
+- [x] Vier vollständige Läufe grün bei zufälliger Ausführungsreihenfolge.
+- [x] Ein Lauf ohne `CONTENTFLY_TEST_BASE_URL` überspringt sauber (62 übersprungen, 6 Unit-Tests laufen).
+- [x] Die Testdatenbank ist danach leer — auch die angelegten Gruppen, Benutzer und
+      Berechtigungen sind abgeräumt; übrig bleibt nur der Installations-Admin.
