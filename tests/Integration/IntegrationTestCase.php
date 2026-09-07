@@ -33,6 +33,9 @@ abstract class IntegrationTestCase extends TestCase
     /** @var array<int, array{0:string,1:string}> Tabelle und Id, die tearDown() entfernt. */
     private array $aufzuraeumen = array();
 
+    /** @var array<int, string> Verzeichnisse, die tearDown() samt Inhalt entfernt. */
+    private array $verzeichnisse = array();
+
     public static function setUpBeforeClass(): void
     {
         self::$baseUrl                     = getenv('CONTENTFLY_TEST_BASE_URL') ?: null;
@@ -57,7 +60,12 @@ abstract class IntegrationTestCase extends TestCase
             $stmt->execute(array('id' => $id));
         }
 
-        $this->aufzuraeumen = array();
+        foreach ($this->verzeichnisse as $pfad) {
+            $this->verzeichnisEntfernen($pfad);
+        }
+
+        $this->aufzuraeumen  = array();
+        $this->verzeichnisse = array();
     }
 
     // ── Anmeldung ──────────────────────────────────────────────────────────────────────
@@ -192,5 +200,36 @@ abstract class IntegrationTestCase extends TestCase
     protected function nachTestLoeschen(string $tabelle, string $id): void
     {
         $this->aufzuraeumen[] = array($tabelle, $id);
+    }
+
+    /**
+     * Meldet ein Verzeichnis zum Aufräumen an — samt Inhalt.
+     *
+     * Für Tests, die Dateien auf der Platte hinterlassen. Ohne das wächst `data/files` mit
+     * jedem Lauf, und ein frischer Checkout verhält sich anders als eine gewachsene
+     * Umgebung — genau der Unterschied, den ein Testnetz nicht haben soll (`000-000-0008`).
+     */
+    protected function nachTestVerzeichnisLoeschen(string $pfad): void
+    {
+        $this->verzeichnisse[] = $pfad;
+    }
+
+    /** Entfernt ein Verzeichnis samt Inhalt; ein fehlendes ist kein Fehler. */
+    private function verzeichnisEntfernen(string $pfad): void
+    {
+        if (!is_dir($pfad)) {
+            return;
+        }
+
+        foreach (scandir($pfad) ?: array() as $eintrag) {
+            if ($eintrag === '.' || $eintrag === '..') {
+                continue;
+            }
+
+            $voll = $pfad.'/'.$eintrag;
+            is_dir($voll) ? $this->verzeichnisEntfernen($voll) : @unlink($voll);
+        }
+
+        @rmdir($pfad);
     }
 }
