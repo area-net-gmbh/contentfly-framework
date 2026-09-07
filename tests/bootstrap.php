@@ -24,6 +24,14 @@ require_once ROOT_DIR . '/lib/contentfly/version.php';
 require_once ROOT_DIR . '/custom/version.php';
 
 /*
+ * Basisklasse der Integrationstests. Sie kommt nicht über den Autoloader: `custom/composer.json`
+ * mappt `Custom\Tests\`, die Testklassen liegen aber unter `Tests\`. Und PHPUnit selbst lädt
+ * nur Dateien, die auf `Test.php` enden — diese also nicht. Wenn Epic 006 die Autoload-Situation
+ * aufräumt, kann diese Zeile durch ein PSR-4-Mapping ersetzt werden.
+ */
+require_once ROOT_DIR . '/tests/Integration/IntegrationTestCase.php';
+
+/*
  * `lib/contentfly/bootstrap.php` setzt diese Konstanten aus der Konfiguration. Entity-Klassen
  * lesen sie in ihren Annotationen (`@ORM\Column(type=APPCMS_ID_TYPE)`), also müssen sie
  * definiert sein, bevor eine Entity geladen wird — sonst stirbt schon das Einlesen der

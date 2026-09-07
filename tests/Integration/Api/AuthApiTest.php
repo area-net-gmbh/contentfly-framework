@@ -1,7 +1,7 @@
 <?php
 namespace Tests\Integration\Api;
 
-use PHPUnit\Framework\TestCase;
+use Tests\Integration\IntegrationTestCase;
 
 /**
  * Charakterisierungstests für die Token-Authentifizierung.
@@ -13,22 +13,8 @@ use PHPUnit\Framework\TestCase;
  * Voraussetzungen wie in `FileApiTest`: `CONTENTFLY_TEST_BASE_URL` und
  * `CONTENTFLY_TEST_ADMIN_PASS`, sonst wird übersprungen. Siehe `tests/README.md`.
  */
-class AuthApiTest extends TestCase
+class AuthApiTest extends IntegrationTestCase
 {
-    private static ?string $baseUrl = null;
-
-    public static function setUpBeforeClass(): void
-    {
-        self::$baseUrl = getenv('CONTENTFLY_TEST_BASE_URL') ?: null;
-    }
-
-    protected function setUp(): void
-    {
-        if (self::$baseUrl === null) {
-            $this->markTestSkipped('CONTENTFLY_TEST_BASE_URL nicht gesetzt — Integrationstests übersprungen.');
-        }
-    }
-
     // ── Anmeldung ──────────────────────────────────────────────────────────────────────
 
     public function testAnmeldungMitKorrektenDatenLiefertEinToken(): void
@@ -152,64 +138,5 @@ class AuthApiTest extends TestCase
                 $methode.' '.$pfad.' darf kein Session-Cookie setzen'
             );
         }
-    }
-
-    // ── Hilfsmittel ────────────────────────────────────────────────────────────────────
-
-    private function pass(): string
-    {
-        return getenv('CONTENTFLY_TEST_ADMIN_PASS') ?: 'admin';
-    }
-
-    private function login(): string
-    {
-        [, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => $this->pass()));
-
-        if (!isset($body['token'])) {
-            $this->fail('Anmeldung fehlgeschlagen: '.json_encode($body));
-        }
-
-        return $body['token'];
-    }
-
-    /** @return array{0:int,1:array,2:string} Status, Rumpf als Array, Kopfzeilen */
-    private function postJson(string $pfad, array $daten): array
-    {
-        $ch = curl_init(self::$baseUrl.$pfad);
-        curl_setopt_array($ch, array(
-            CURLOPT_POST           => true,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HEADER         => true,
-            CURLOPT_POSTFIELDS     => json_encode($daten),
-            CURLOPT_HTTPHEADER     => array('Content-Type: application/json'),
-        ));
-
-        return $this->auswerten($ch, true);
-    }
-
-    /** @return array{0:int,1:string,2:string} Status, Rumpf, Kopfzeilen */
-    private function get(string $pfad, ?string $token): array
-    {
-        $ch = curl_init(self::$baseUrl.$pfad);
-        curl_setopt_array($ch, array(
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HEADER         => true,
-            CURLOPT_HTTPHEADER     => $token ? array('appcms-token: '.$token) : array(),
-        ));
-
-        return $this->auswerten($ch, false);
-    }
-
-    private function auswerten($ch, bool $alsJson): array
-    {
-        $antwort = (string) curl_exec($ch);
-        $status  = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $kopfLen = (int) curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-        curl_close($ch);
-
-        $kopf = substr($antwort, 0, $kopfLen);
-        $body = substr($antwort, $kopfLen);
-
-        return array($status, $alsJson ? (json_decode($body, true) ?: array()) : $body, $kopf);
     }
 }

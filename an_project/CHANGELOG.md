@@ -3,6 +3,9 @@
 # Changelog
 
 ## 2026-09-07
+- 008-001-0000 → in-progress
+- 008-001-0001 → in-progress
+- 008-001-0001 → review: `IntegrationTestCase` als gemeinsame Basis angelegt; `AuthApiTest` (215→142 Zeilen) und `FileApiTest` (259→190) darauf umgezogen, ohne eine einzige Zusicherung zu ändern — die Suite meldet unverändert 26 Tests und 45 Assertions. Neu dazu: `pdo()` und `nachTestLoeschen()` für Testdaten an der API vorbei. Befund: die Basisklasse ist nicht autoladbar (`custom/composer.json` mappt `Custom\Tests\`, die Testklassen liegen unter `Tests\`), sie wird daher aus `tests/bootstrap.php` geladen
 - 008-000-0000 → in-progress
 - 008-001-0001 task created: "Gemeinsame Basis für die Integrationstests"
 - 008-001-0002 task created: "/api/single und /api/list festhalten"

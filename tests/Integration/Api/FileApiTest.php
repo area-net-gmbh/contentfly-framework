@@ -1,7 +1,7 @@
 <?php
 namespace Tests\Integration\Api;
 
-use PHPUnit\Framework\TestCase;
+use Tests\Integration\IntegrationTestCase;
 
 /**
  * Charakterisierungstests für die Datei-API — die drei Actions, die `012-003-0001` als
@@ -17,36 +17,18 @@ use PHPUnit\Framework\TestCase;
  *
  * Siehe `tests/README.md`.
  */
-class FileApiTest extends TestCase
+class FileApiTest extends IntegrationTestCase
 {
-    private static ?string $baseUrl = null;
-    private static ?string $token   = null;
-
-    public static function setUpBeforeClass(): void
-    {
-        self::$baseUrl = getenv('CONTENTFLY_TEST_BASE_URL') ?: null;
-    }
-
-    protected function setUp(): void
-    {
-        if (self::$baseUrl === null) {
-            $this->markTestSkipped('CONTENTFLY_TEST_BASE_URL nicht gesetzt — Integrationstests übersprungen.');
-        }
-
-        if (self::$token === null) {
-            self::$token = $this->login();
-        }
-    }
 
     public function testAnmeldungLiefertEinToken(): void
     {
-        $this->assertNotEmpty(self::$token);
-        $this->assertMatchesRegularExpression('/^[0-9a-f]{128}$/', self::$token, 'Der Token ist 64 Byte als Hex');
+        $this->assertNotEmpty($this->token());
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{128}$/', $this->token(), 'Der Token ist 64 Byte als Hex');
     }
 
     public function testUploadLegtEineDateiAnUndLiefertIhreId(): void
     {
-        $antwort = $this->upload('probe.txt', "hallo contentfly\n", self::$token);
+        $antwort = $this->upload('probe.txt', "hallo contentfly\n", $this->token());
 
         $this->assertSame('File uploaded', $antwort['message'] ?? null);
         $this->assertNotEmpty($antwort['data']['id'] ?? null);
@@ -55,7 +37,7 @@ class FileApiTest extends TestCase
     public function testHochgeladeneDateiLiegtByteGleichAufDerPlatte(): void
     {
         $inhalt  = "Zeile eins\nZeile zwei\n";
-        $antwort = $this->upload('rueckgabe.txt', $inhalt, self::$token);
+        $antwort = $this->upload('rueckgabe.txt', $inhalt, $this->token());
 
         $pfad = ROOT_DIR.'/data/files/'.$antwort['data']['id'].'/rueckgabe.txt';
 
@@ -76,9 +58,10 @@ class FileApiTest extends TestCase
      */
     public function testAuslieferungAntwortetMitRedirectAufDieDatei(): void
     {
-        $antwort = $this->upload('ausgeliefert.txt', "sichtbar\n", self::$token);
+        $antwort = $this->upload('ausgeliefert.txt', "sichtbar\n", $this->token());
 
-        [$status, , $location] = $this->httpGet('/file/get/'.$antwort['data']['id']);
+        [$status, , $kopf] = $this->get('/file/get/'.$antwort['data']['id']);
+        $location = $this->kopfzeile($kopf, 'Location');
 
         $this->assertSame(301, $status);
         $this->assertStringContainsString('data/files/', (string) $location);
@@ -89,9 +72,9 @@ class FileApiTest extends TestCase
     {
         // Bewusst so: getAction haengt in FileControllerProvider NICHT an checkAuth.
         // Wer die ID kennt, bekommt die Datei. Das ist heutiges Verhalten, kein Vorschlag.
-        $antwort = $this->upload('oeffentlich.txt', "sichtbar\n", self::$token);
+        $antwort = $this->upload('oeffentlich.txt', "sichtbar\n", $this->token());
 
-        [$status] = $this->httpGet('/file/get/'.$antwort['data']['id']);
+        [$status] = $this->get('/file/get/'.$antwort['data']['id']);
 
         $this->assertSame(301, $status, 'Ohne Token wird nicht abgewiesen, sondern weitergeleitet');
     }
@@ -107,7 +90,7 @@ class FileApiTest extends TestCase
      */
     public function testUnbekannteIdLiefertKeineDatei(): void
     {
-        [$status] = $this->httpGet('/file/get/00000000-0000-0000-0000-000000000000');
+        [$status] = $this->get('/file/get/00000000-0000-0000-0000-000000000000');
 
         $this->assertNotSame(200, $status);
         $this->assertSame(500, $status, 'Heutiges Verhalten - erwartet waere 404');
@@ -123,10 +106,10 @@ class FileApiTest extends TestCase
     public function testUeberschreibenErsetztDenInhaltDesZiels(): void
     {
         // Beide Dateien tragen denselben Namen - das ist Vorbedingung, siehe naechster Test.
-        $quelle = $this->upload('gleich.txt', "neuer inhalt\n", self::$token)['data']['id'];
-        $ziel   = $this->upload('gleich.txt', "alter inhalt\n", self::$token)['data']['id'];
+        $quelle = $this->upload('gleich.txt', "neuer inhalt\n", $this->token())['data']['id'];
+        $ziel   = $this->upload('gleich.txt', "alter inhalt\n", $this->token())['data']['id'];
 
-        $antwort = $this->httpPostJson('/file/overwrite', array('sourceId' => $quelle, 'destId' => $ziel), self::$token);
+        [, $antwort] = $this->postJson('/file/overwrite', array('sourceId' => $quelle, 'destId' => $ziel), $this->token());
 
         $this->assertSame('File overwritten', $antwort['message'] ?? null);
 
@@ -152,10 +135,10 @@ class FileApiTest extends TestCase
      */
     public function testUeberschreibenVerlangtGleicheDateinamen(): void
     {
-        $quelle = $this->upload('eins.txt', "neuer inhalt\n", self::$token)['data']['id'];
-        $ziel   = $this->upload('zwei.txt', "alter inhalt\n", self::$token)['data']['id'];
+        $quelle = $this->upload('eins.txt', "neuer inhalt\n", $this->token())['data']['id'];
+        $ziel   = $this->upload('zwei.txt', "alter inhalt\n", $this->token())['data']['id'];
 
-        $this->httpPostJson('/file/overwrite', array('sourceId' => $quelle, 'destId' => $ziel), self::$token);
+        $this->postJson('/file/overwrite', array('sourceId' => $quelle, 'destId' => $ziel), $this->token());
 
         $this->assertSame(
             "alter inhalt\n",
@@ -178,25 +161,13 @@ class FileApiTest extends TestCase
      */
     public function testUploadFunktioniertUeberDenRohenFilesArrayPfad(): void
     {
-        $antwort = $this->upload('bild.txt', str_repeat('x', 1024), self::$token);
+        $antwort = $this->upload('bild.txt', str_repeat('x', 1024), $this->token());
 
         $this->assertNotEmpty($antwort['data']['id'] ?? null);
         $this->assertSame(1024, $antwort['data']['size'] ?? null, 'Die Groesse kommt aus $_FILES["size"]');
     }
 
     // ── Hilfsmittel ────────────────────────────────────────────────────────────────────
-
-    private function login(): string
-    {
-        $pass = getenv('CONTENTFLY_TEST_ADMIN_PASS') ?: 'admin';
-        $body = $this->httpPostJson('/auth/login', array('alias' => 'admin', 'pass' => $pass), null);
-
-        if (!isset($body['token'])) {
-            $this->fail('Anmeldung fehlgeschlagen: '.json_encode($body));
-        }
-
-        return $body['token'];
-    }
 
     private function upload(string $name, string $inhalt, ?string $token): array
     {
@@ -215,45 +186,5 @@ class FileApiTest extends TestCase
         unlink($tmp);
 
         return json_decode((string) $antwort, true) ?: array();
-    }
-
-    private function httpPostJson(string $pfad, array $daten, ?string $token): array
-    {
-        $ch = curl_init(self::$baseUrl.$pfad);
-        $header = array('Content-Type: application/json');
-        if ($token) {
-            $header[] = 'appcms-token: '.$token;
-        }
-        curl_setopt_array($ch, array(
-            CURLOPT_POST           => true,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POSTFIELDS     => json_encode($daten),
-            CURLOPT_HTTPHEADER     => $header,
-        ));
-        $antwort = curl_exec($ch);
-        curl_close($ch);
-
-        return json_decode((string) $antwort, true) ?: array();
-    }
-
-    /** @return array{0:int,1:string,2:?string} Status, Rumpf, Location-Header */
-    private function httpGet(string $pfad): array
-    {
-        $ch = curl_init(self::$baseUrl.$pfad);
-        curl_setopt_array($ch, array(CURLOPT_RETURNTRANSFER => true, CURLOPT_HEADER => true));
-        $antwort = (string) curl_exec($ch);
-        $status  = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $kopfLen = (int) curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-        curl_close($ch);
-
-        $kopf = substr($antwort, 0, $kopfLen);
-        $body = substr($antwort, $kopfLen);
-
-        $location = null;
-        if (preg_match('/^Location:\s*(.+)$/mi', $kopf, $treffer)) {
-            $location = trim($treffer[1]);
-        }
-
-        return array($status, $body, $location);
     }
 }

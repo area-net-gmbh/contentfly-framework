@@ -46,6 +46,49 @@ die Auslieferung von Dateien hängt genau daran.
 Nach der Installation trägt `custom/config.php` echte Zugangsdaten. **Vor dem Commit die
 Platzhalter wiederherstellen**, sonst landen sie in der Vorlage.
 
+## Eine neue Integrationstest-Datei anlegen
+
+Erben von `Tests\Integration\IntegrationTestCase` — nicht von PHPUnits `TestCase`. Die Basis
+bringt mit, was sonst jede Datei selbst nachbauen müsste:
+
+| Methode | Zweck |
+|---|---|
+| `login()` | meldet neu an, liefert einen frischen Token |
+| `token()` | liefert einen Token und behält ihn für die Testklasse |
+| `postJson($pfad, $daten, $token = null)` | → `[Status, Rumpf als Array, Kopfzeilen]` |
+| `get($pfad, $token = null)` | → `[Status, Rumpf als String, Kopfzeilen]` |
+| `kopfzeile($kopf, $name)` | liest eine einzelne Kopfzeile, z. B. `Location` |
+| `pdo()` | Verbindung zur Testdatenbank |
+| `nachTestLoeschen($tabelle, $id)` | meldet eine Zeile an, die `tearDown()` entfernt |
+
+Das Überspringen ohne `CONTENTFLY_TEST_BASE_URL` erledigt die Basis ebenfalls — ein eigenes
+`setUp()` braucht es dafür nicht. Wer eines schreibt, ruft `parent::setUp()` auf.
+
+```php
+namespace Tests\Integration\Api;
+
+use Tests\Integration\IntegrationTestCase;
+
+class BeispielApiTest extends IntegrationTestCase
+{
+    public function testEtwas(): void
+    {
+        [$status, $body] = $this->postJson('/api/single', array(...), $this->token());
+        $this->assertSame(200, $status);
+    }
+}
+```
+
+**Testdaten entstehen über `pdo()`, nicht über die Schreib-Endpunkte.** Ein Lesetest, dessen
+Vorbedingung über einen Pfad läuft, den er selbst nicht prüft, verliert seine Aussagekraft —
+und Story `008-001` soll ausdrücklich nicht von `008-002` abhängen. Die Zugangsdaten kommen aus
+`CONTENTFLY_TEST_DB_*`; die Standardwerte entsprechen der `docker-compose.yml`.
+
+> Die Basisklasse wird von `tests/bootstrap.php` per `require_once` geladen, nicht über den
+> Autoloader: `custom/composer.json` mappt `Custom\Tests\`, die Testklassen liegen aber unter
+> `Tests\` — und PHPUnit lädt von sich aus nur Dateien, die auf `Test.php` enden. Räumt Epic
+> `006` die Autoload-Situation auf, kann daraus ein PSR-4-Mapping werden.
+
 ## Was `tests/bootstrap.php` tut — und was nicht
 
 Es lädt **nicht** `lib/contentfly/bootstrap.php`. Der baut die komplette Silex-Anwendung auf,

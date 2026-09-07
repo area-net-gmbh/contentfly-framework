@@ -1,7 +1,7 @@
 ---
 id: 008-001-0000
 title: Lesende API-Endpunkte charakterisieren
-status: todo
+status: in-progress
 depends_on: []
 ---
 
