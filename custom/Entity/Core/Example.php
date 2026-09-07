@@ -13,7 +13,6 @@ use Doctrine\ORM\Mapping as ORM;
  * }, uniqueConstraints={
  *     @ORM\UniqueConstraint(name="uniq_example_slug", columns={"slug"})
  * })
- * @PIM\Config(hide=false, label="Example", sort=20)
  */
 class Example extends Base {
 
@@ -28,19 +27,16 @@ class Example extends Base {
 	 *
 	 * @ORM\Column(type="string", length=32, options={"default": "active"})
 	 * @PIM\Select(options="provisioning,active,trial_expired,suspended,deactivated")
-	 * @PIM\Config(label="State")
 	 */
 	protected $state = 'active';
 
 	/**
 	 * @ORM\Column(type="string", length=255, nullable=true)
-	 * @PIM\Config(label="Name")
 	 */
 	protected $name;
 
 	/**
 	 * @ORM\Column(type="string", length=255, nullable=true)
-	 * @PIM\Config(label="Slug")
 	 */
 	protected $slug;
 
@@ -51,14 +47,12 @@ class Example extends Base {
 	* }
 	*
 	 * @ORM\Column(type="json", nullable=true)
-	 * @PIM\Config(label="Tenant settings")
 	 */
 	protected $jsonExample;
 
 	/**
 	 * True when Stripe reports the customer as tax-exempt (reverse-charge in EU).
 	 * @ORM\Column(type="boolean", options={"default": false})
-	 * @PIM\Config(label="Tax exempt")
 	 */
 	protected $boolExample = false;
 

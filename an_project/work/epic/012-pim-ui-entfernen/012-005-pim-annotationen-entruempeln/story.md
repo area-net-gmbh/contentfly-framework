@@ -1,7 +1,7 @@
 ---
 id: 012-005-0000
 title: @PIM-Annotationen entrümpeln
-status: todo
+status: done
 depends_on: [012-001-0000]
 ---
 
@@ -30,12 +30,14 @@ Entities, nicht nur hier.
   | `isFilterable` | API-Filter — `Classes/Type.php:117` |
   | `unique`, `type`, `i18n_universal` | Datenmodell |
   | `sortBy`, `sortOrder`, `sortRestrictTo` | Sortierung der API-Antworten |
+  | `labelProperty` | **Korrektur vom 2026-09-07** — landet als `modelLabel` im `Log` (wird persistiert) und bestimmt den `partial`-Select verjointer Objekte in `Api::getList()`. Stand ursprünglich auf der Streichliste. |
 
-  Es fallen: `viewMode`, `showInList`, `listShorten`, `hide`, `label`, `labelProperty`, `tab`,
-  `tabs`, `sort`, `isDatalist`, `isSidebar`, `lines`, `accept`.
-  **`readonly` und `filter` einzeln prüfen** — `readonly` kann ein UI-Hinweis oder ein echter
-  Schreibschutz der API sein. Das ist der Punkt, an dem versehentlich eine Schutzwirkung
-  verschwinden könnte.
+  Es fallen: `viewMode`, `showInList`, `listShorten`, `hide`, `label`, `tab`, `tabs`, `sort`,
+  `isDatalist`, `isSidebar`, `lines`, `accept` — dazu `readonly` und `filter`.
+  **`readonly` und `filter` waren einzeln zu prüfen** — `readonly` konnte ein UI-Hinweis oder ein
+  echter Schreibschutz der API sein. Ergebnis: beide sind reine UI-Hinweise, `readonly` wird ins
+  Schema geschrieben und von niemandem gelesen, `filter` war schon vorher tot. Begründung in
+  Task `012-005-0002`.
 - **Leser nachziehen:** `Classes/Type.php`, `Classes/Api.php`, `Controller/ApiController.php`,
   `Classes/Types/*` lesen die Annotationen aus und bauen daraus das Schema. Was dort auf
   gelöschte Felder zugreift, muss mit.
@@ -56,7 +58,7 @@ Der Umstieg ist ein Schnitt, kein Übergang — genau das muss der Migrationslei
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 012-005-0001 — Widget-Annotationen löschen
-- [ ] 012-005-0002 — Config-Annotation auf datenrelevante Felder reduzieren
-- [ ] 012-005-0003 — Leser der Annotationen nachziehen
-- [ ] 012-005-0004 — Entities des Frameworks und der Vorlage bereinigen
+- [x] 012-005-0001 — Widget-Annotationen löschen
+- [x] 012-005-0002 — Config-Annotation auf datenrelevante Felder reduzieren
+- [x] 012-005-0003 — Leser der Annotationen nachziehen
+- [x] 012-005-0004 — Entities des Frameworks und der Vorlage bereinigen

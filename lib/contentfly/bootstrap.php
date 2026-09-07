@@ -43,7 +43,6 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 AnnotationRegistry::registerFile(ROOT_DIR.'/lib/contentfly/Classes/Annotations/Config.php');
 AnnotationRegistry::registerFile(ROOT_DIR.'/lib/contentfly/Classes/Annotations/ManyToMany.php');
-AnnotationRegistry::registerFile(ROOT_DIR.'/lib/contentfly/Classes/Annotations/MatrixChooser.php');
 
 if(Adapter::getConfig()->APP_DEBUG){
     ini_set('display_errors', 1);
@@ -61,8 +60,6 @@ date_default_timezone_set(Adapter::getConfig()->APP_TIMEZONE);
 
 $app->register(new Silex\Provider\ServiceControllerServiceProvider());
 
-define('APP_CMS_SHOW_ID_IN_LIST', Adapter::getConfig()->FRONTEND_SHOW_ID_IN_LIST);
-define('APP_CMS_SHOW_OWNER_IN_LIST', Adapter::getConfig()->FRONTEND_SHOW_OWNER_IN_LIST);
 
 if(Adapter::getConfig()->APP_LANGUAGES){
     define('APP_CMS_MAIN_LANG', Adapter::getConfig()->APP_LANGUAGES[0]);

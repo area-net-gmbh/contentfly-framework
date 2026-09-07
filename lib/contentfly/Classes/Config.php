@@ -164,11 +164,9 @@ class Config{
         '\\Areanet\\PIM\\Classes\\Types\\DecimalType',
         '\\Areanet\\PIM\\Classes\\Types\\FloatType',
         '\\Areanet\\PIM\\Classes\\Types\\TextareaType',
-        '\\Areanet\\PIM\\Classes\\Types\\PasswordType',
         '\\Areanet\\PIM\\Classes\\Types\\StringType',
         '\\Areanet\\PIM\\Classes\\Types\\TimeType',
         '\\Areanet\\PIM\\Classes\\Types\\SelectType',
-        '\\Areanet\\PIM\\Classes\\Types\\RteType',
         '\\Areanet\\PIM\\Classes\\Types\\OnejoinType',
         '\\Areanet\\PIM\\Classes\\Types\\JoinType',
         '\\Areanet\\PIM\\Classes\\Types\\JoinBidirectionalType',
@@ -177,7 +175,6 @@ class Config{
         '\\Areanet\\PIM\\Classes\\Types\\MultijoinType',
         '\\Areanet\\PIM\\Classes\\Types\\PermissionsType',
         '\\Areanet\\PIM\\Classes\\Types\\VirtualjoinType',
-        '\\Areanet\\PIM\\Classes\\Types\\EntitySelectorType',
         '\\Areanet\\PIM\\Classes\\Types\\CheckboxType',
         '\\Areanet\\PIM\\Classes\\Types\\RadioType',
         '\\Areanet\\PIM\\Classes\\Types\\I18nPermissionsType'
@@ -251,11 +248,6 @@ class Config{
     public $FRONTEND_UI = 'default';
 
     /**
-     * @var string Name of the General-Tab
-     */
-    public $FRONTEND_TAB_GENERAL_NAME = 'Allgemein';
-
-    /**
      * @var string Load Frontend UI in folder /ui/...
      */
     public $FRONTEND_TITLE = 'Contentfly CMS - Let your content fly!';
@@ -299,17 +291,6 @@ class Config{
      * @var integer URL/Path for login in the backend
      */
     public $FRONTEND_ITEMS_PER_PAGE = 40;
-
-
-    /**
-     * @var integer Show ID at position x in list (0 for hide id)
-     */
-    public $FRONTEND_SHOW_ID_IN_LIST = 1;
-
-    /**
-     * @var integer Show Owner at position x in list (0 for hide Owner)
-     */
-    public $FRONTEND_SHOW_OWNER_IN_LIST = 1000;
 
 
     /**

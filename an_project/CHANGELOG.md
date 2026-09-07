@@ -2,6 +2,21 @@
 
 # Changelog
 
+## 2026-09-07
+- 012-005-0000 → done (merged into master)
+- 012-005-0001 … 012-005-0004 → done: mit der Story geschlossen
+- 012-005-0000 → in-progress
+- 012-005-0001 → in-progress
+- 012-005-0001 → review: 7 der 11 Widget-Annotationen gelöscht (`Rte`, `Textarea`, `Datetime`, `Time`, `Password`, `MatrixChooser`, `EntitySelector`) samt `RteType`, `PasswordType`, `EntitySelectorType`. `Checkbox`, `Radio`, `Select` und `Virtualjoin` bleiben — sie wählen Type-Klassen aus, die Collections auflösen, Leseberechtigungen prüfen, OptionGroups anlegen und den Wertebereich tragen; aus ihnen sind nur die Darstellungsfelder entfernt. Verifiziert: Schema-Erzeugung gegen die Dev-Datenbank (HTTP 200, 14 Entities), 26 Tests grün
+- 012-005-0002 → in-progress
+- 012-005-0002 → review: `@PIM\Config` von 24 auf 10 Felder reduziert. `readonly` und `filter` einzeln geprüft — beide reine UI-Hinweise ohne Leser, `readonly` ist kein API-Schreibschutz. **`labelProperty` bleibt entgegen der ursprünglichen Streichliste**: es wird als `modelLabel` ins `Log` persistiert und steuert den `partial`-Select verjointer Objekte; Story und Kriterium entsprechend korrigiert
+- an_project/docs/pim-annotationen-migration.md created: vollständige Liste der entfallenen Annotationen, Config-Felder und Konstanten — Grundlage der Rector-Regel aus Epic 007
+- 012-005-0003 → in-progress
+- 012-005-0003 → review: `Type.php`, `Api.php`, `OnejoinType`, `FileType`, `MultifileType` und `Serializable` auf die verbliebenen Felder gezogen; Tab-Mechanik, Listenaufbau und der Schema-Schlüssel `list` entfallen. **`showInList` hatte zwei Datenleser** — `Api::getTree2()` (Route `/api/tree2`) und die Beschränkung verschachtelter Objekte in `Serializable::toValueObject()`; beide liefern jetzt alle Eigenschaften, für Clients additiv. Nebenbefund behoben: `getTree2()` quotete Spaltennamen nie, mit `groups` traf das ein in MySQL 8 reserviertes Wort. Verglichen gegen einen `master`-Worktree auf derselben Datenbank: nur UI-Schlüssel entfallen, kein neuer Schlüssel, alle datenrelevanten Werte gleich
+- 012-005-0004 → in-progress
+- 012-005-0004 → review: 195 Felder aus 96 `@PIM\Config`-Annotationen in 19 Entities entfernt, 20 datenrelevante bleiben; ein Fundort lag in `custom/Traits/User.php` außerhalb der Entity-Verzeichnisse. `FRONTEND_SHOW_ID_IN_LIST`, `FRONTEND_SHOW_OWNER_IN_LIST` und `FRONTEND_TAB_GENERAL_NAME` samt der abgeleiteten `APP_CMS_*`-Konstanten entfallen. Verifiziert: `orm:schema-tool:update --dump-sql` liefert gegen dieselbe Datenbank byte-identische Ausgabe wie ein `master`-Worktree — das Datenbankschema ist unverändert
+- 012-005-0000 → review: vier Tasks auf einem Branch. Von 15 Annotationsklassen bleiben 8, von 24 `Config`-Feldern 10, von 96 Entity-Annotationen 20. Zwei Korrekturen am Umfang der Story: `labelProperty` bleibt (wird ins `Log` persistiert und steuert den Join-Payload), und `showInList` hatte mit `/api/tree2` und den verschachtelten Objekten zwei Datenleser — beide liefern jetzt alle Felder, additiv. Verifiziert gegen einen `master`-Worktree auf derselben Datenbank: Datenbankschema byte-identisch, im API-Schema entfallen ausschließlich UI-Schlüssel, kein neuer hinzugekommen, alle datenrelevanten Werte gleich; 26 Tests grün
+
 ## 2026-09-04
 - 012-004-0000 → done (merged into master)
 - 012-004-0001 … 012-004-0003 → done: mit der Story geschlossen
