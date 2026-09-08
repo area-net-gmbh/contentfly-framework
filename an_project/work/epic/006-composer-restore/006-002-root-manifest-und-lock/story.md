@@ -1,7 +1,7 @@
 ---
 id: 006-002-0000
 title: Root-Manifest und Lock für den Ist-Stack
-status: in-progress
+status: review
 depends_on: [006-001-0000]
 ---
 
