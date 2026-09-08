@@ -116,8 +116,23 @@ class MailApiTest extends IntegrationTestCase
         $this->assertSame(200, $statusDiagnose,
             'Der Testserver laeuft ueber tests/router.php');
 
-        $this->assertSame($skript, json_decode($roh, true)['sendmail_path'],
-            'Der Testserver stellt ueber genau dieses Fangskript zu');
+        // Verglichen wird die DATEI, nicht die Schreibweise: Auf macOS ist /tmp ein Symlink
+        // auf /private/tmp, und wer den Server mit dem einen und die Suite mit dem anderen
+        // Pfad startet, hat trotzdem dasselbe Skript. Ein woertlicher Vergleich meldete hier
+        // einen Fehler, wo keiner ist — und einer, der leicht als "Test kaputt" abgetan wird.
+        $gemeldet = json_decode($roh, true)['sendmail_path'];
+
+        $this->assertSame(
+            realpath($skript),
+            realpath((string) $gemeldet),
+            sprintf(
+                "Der Testserver stellt nicht ueber dieses Fangskript zu.\n"
+                ."  erwartet: %s\n  gemeldet: %s\n\n"
+                ."Laeuft womoeglich noch ein aelterer Testserver auf demselben Port?",
+                $skript,
+                $gemeldet
+            )
+        );
 
         // Den Selbsttest wieder herausschneiden, damit die folgenden Tests von einem
         // sauberen Ausgangsstand ausgehen.

@@ -70,11 +70,45 @@ Der Command schreibt `custom/config.php`, legt das Schema an und erzeugt die Bas
 (Benutzer `admin`). Alle Optionen gibt es auch als Umgebungsvariable (`APPCMS_DB_HOST` …),
 und `--admin-password` setzt ein echtes Passwort statt des Standards.
 
-> **Heute noch nicht durchführbar**, aus zwei Gründen: `appcms:install` kommt erst mit
-> Story `012-002` in den Hauptzweig, und `custom/config.php` ist die Konfigurationsdatei
-> eines Kundenprojekts ohne `$SET_*`-Platzhalter — der Installer hält das System deshalb
-> für bereits installiert und bricht ab (Task `000-000-0002`). Bis dahin ist die Datenbank
-> aus Schritt 1 nur für eigene Verbindungen nutzbar.
+> **Der Hinweis, dass dies noch nicht durchführbar sei, ist entfallen.** `appcms:install`
+> liegt seit Story `012-002` im Hauptzweig, und `custom/config.php` trägt seit
+> `000-000-0002` wieder die `$SET_*`-Platzhalter. Die Installation läuft.
+
+### Danach: die Vorlage wiederherstellen
+
+`appcms:install` schreibt Host, Benutzer und Passwort **in `custom/config.php` — eine Datei,
+die versioniert im Repo liegt**, weil sie die Vorlage ist. Nach der Installation meldet
+`git status` sie als geändert, und ein `git add -A` genügt, damit die Zugangsdaten in der
+Historie landen. Zweiter Schaden: Eine committete Konfiguration macht den nächsten Checkout
+uninstallierbar — `bootstrap.php` hält das System dann für bereits eingerichtet.
+
+Vor dem Commit deshalb:
+
+```sh
+git checkout HEAD -- custom/config.php
+```
+
+**Das `HEAD` ist wichtig.** Ist die Datei bereits gestagt, holt `git checkout -- <pfad>` sie
+aus dem *Index* zurück und schreibt die installierte Fassung erneut in den Arbeitsbaum — es
+sieht aus wie eine Wiederherstellung und ist keine.
+
+### Den Schutz einmalig aktivieren
+
+Damit man nicht daran denken muss, liegt ein `pre-commit`-Hook im Repo. Git-Hooks lassen sich
+nicht versionieren, deshalb ist er einmalig zu aktivieren:
+
+```sh
+git config core.hooksPath tools/hooks
+```
+
+Er prüft die **gestagte** Fassung: Wer lokal installiert hat und etwas anderes committet, wird
+nicht aufgehalten — nur wer die Konfiguration wirklich mit einpackt. Dieselbe Prüfung läuft in
+der Pipeline als Job `check:template-config`; beide rufen `tools/check-template-config.sh` auf
+und melden deshalb dasselbe.
+
+> `core.hooksPath` ersetzt `.git/hooks` vollständig. Wer dort eigene Hooks liegen hat, nimmt
+> sie mit nach `tools/hooks/` oder kopiert stattdessen nur diese eine Datei nach
+> `.git/hooks/pre-commit`.
 
 Die Verzeichnisse unter `data/` (`files`, `cache`, `temp`, `import`) liegen im Repo, weil der
 Installer in sie schreibt; ihr Inhalt ist ignoriert.

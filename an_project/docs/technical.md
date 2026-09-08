@@ -159,3 +159,62 @@ Dazu treffen zwei Symfony-Generationen aufeinander: `symfony/http-foundation` 3.
 
 Dev-Werkzeuge liegen heute im ausgelieferten Baum: `phpstan/phpstan` 1.10.58 und `rector/rector`
 1.0.1 im Root, `phpunit` 10.5 und `mockery` in `custom/vendor`.
+
+## Die Testsuite ist die Abnahmegrundlage
+
+**Festgelegt am 2026-09-08 mit Story `008-005`.** Epic `008` hat 238 Tests und 575 Assertions
+hervorgebracht. Damit ist `tests/` mehr als ein Testordner: Es ist die **Beschreibung des
+heutigen Verhaltens** — aufgenommen, bevor der Kernel getauscht wird, und genau zu diesem
+Zweck.
+
+> **Der Kernel-Tausch gilt als gelungen, wenn diese Suite ohne inhaltliche Änderung grün
+> bleibt. Eine Testanpassung ist ein Verhaltenswechsel und braucht eine Begründung — sie ist
+> kein Wartungsschritt.**
+
+Ohne diese Festlegung ist beim Umbau nicht entschieden, was ein roter Test bedeutet: einen
+Fehler im Umbau — oder einen Test, der „eben angepasst werden muss". Diese Unterscheidung ist
+der einzige Grund, warum das Testnetz vor dem Umbau gebaut wurde.
+
+### Was **keine** inhaltliche Änderung ist
+Der Satz soll legitime Umbauten nicht blockieren. Erlaubt und nicht begründungspflichtig:
+
+- ein geänderter Namensraum oder Klassenname,
+- ein anderer Aufrufweg für **dieselbe** Zusicherung (etwa ein Symfony-Client statt cURL),
+- ein umbenannter oder umgebauter Helfer in `IntegrationTestCase`,
+- eine neue Assertion, die Bestehendes ergänzt, ohne eine bestehende abzuschwächen.
+
+Begründungspflichtig ist alles, was **eine Zusicherung ändert oder streicht**: ein anderer
+erwarteter Statuscode, eine gelockerte Assertion, ein entfernter oder als „skipped" markierter
+Test.
+
+### Für welche Epics das gilt
+- **`009` (Kernel-Tausch):** Die Suite ist das Abnahmekriterium. Was heute grün ist, muss nach
+  dem Tausch grün sein.
+- **`011` (Release):** Dieselbe Suite als Release-Kriterium.
+- **`007` (Migration der Bestandsprojekte):** Die Suite als Referenz, an der ein
+  Bestandsprojekt prüfen kann, ob sein eigener Umstieg geglückt ist.
+
+### Was die Suite **nicht** abdeckt
+Eine Abnahmegrundlage, die ihre Grenzen verschweigt, wiegt in Sicherheit. Diese Liste ist
+keine Schwäche des Testnetzes, sondern seine Bedienungsanleitung: **Wer beim Umbau eine dieser
+Stellen anfasst, weiss, dass kein Test ihn auffängt.**
+
+| Lücke | Warum | Festgestellt in |
+|---|---|---|
+| `excludeFromSync`, `i18n_universal`, `encoded`, OneJoin-Kaskade, Schreibprüfung des `MultijoinType` | Codepfade, die sich mit der Vorlage nicht auslösen lassen; geprüft ist nur die Vorbedingung — sie greifen, wenn jemand das Feature einschaltet | `008-001`, `008-002` |
+| `canExport`, `getExtended` | veröffentlicht, aber nirgends durchgesetzt; ihr einziger Konsument war die gelöschte Oberfläche | `008-003-0005` |
+| Das Notschloss im `before`-Hook des `SystemController` | nicht scharf geprüft — es verlangt ein absichtlich beschädigtes Schema der gemeinsamen Testdatenbank | `008-004-0003` |
+| Der `before`-Hook der Vorlage | setzt einen Wert, den niemand liest; von aussen nicht nachweisbar | `008-004-0005` |
+| Sprachen und i18n | die Vorlage konfiguriert keine Sprachen und bringt keine konkrete `BaseI18n`-Entity mit; abgedeckt ist nur die Logik im Unit-Test | `008-001-0005` |
+| Der Erfolgsfall von `/api/mail` | existiert nicht — der Endpunkt scheitert an einer undefinierten Konstanten | `008-004-0004` |
+| Das `json`-Feld der Beispiel-Entity | für die API nicht vorhanden, weil kein `json`-Typ registriert ist | `008-004-0005` |
+
+Dazu kommt eine Grenze des Wächters selbst: Er prüft die **Vorbedingungen** eines
+Integrationslaufs (Umgebungsvariablen, Testserver, Datenbank, Versandfalle), nicht jeden
+denkbaren Übersprung. Ein `markTestSkipped()`, das jemand einem einzelnen Test hinzufügt,
+fällt nicht auf.
+
+### Wo die Suite läuft
+`.gitlab-ci.yml` fährt sie bei jedem Push, gegen PHP 8.3 (pflicht) und 8.4 (`allow_failure`
+als Frühwarnung für den Sprung auf 8.5). Die Schritte stehen in `tools/ci/`, damit sie sich
+lokal nachspielen lassen. Details: `tests/README.md`, Einrichtung: `an_project/docs/runbook.md`.

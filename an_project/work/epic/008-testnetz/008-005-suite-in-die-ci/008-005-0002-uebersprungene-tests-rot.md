@@ -1,7 +1,7 @@
 ---
 id: 008-005-0002
 title: Ein übersprungener Integrationstest macht den Lauf rot
-status: todo
+status: done
 depends_on: [008-005-0001]
 ---
 
@@ -62,13 +62,13 @@ Kein Umbau der Suite-Trennung und keine Änderung an `IntegrationTestCase::setUp
 einer Pipeline nicht unbemerkt bleiben.
 
 ## Acceptance criteria
-- [ ] Ein Wächter in der Suite macht den Lauf rot, wenn `CI` gesetzt ist und eine der
+- [x] Ein Wächter in der Suite macht den Lauf rot, wenn `CI` gesetzt ist und eine der
       benötigten Umgebungsvariablen fehlt.
-- [ ] Die Fehlermeldung nennt die fehlende Variable **und** warum sie nicht übersprungen wird.
-- [ ] Ohne `CI` verhält sich die Suite unverändert: Integrationstests überspringen sich sauber.
-- [ ] Der Wächter greift auch, wenn eine Variable gesetzt, der Testserver aber nicht
+- [x] Die Fehlermeldung nennt die fehlende Variable **und** warum sie nicht übersprungen wird.
+- [x] Ohne `CI` verhält sich die Suite unverändert: Integrationstests überspringen sich sauber.
+- [x] Der Wächter greift auch, wenn eine Variable gesetzt, der Testserver aber nicht
       erreichbar ist — oder es ist begründet festgehalten, warum das nicht abgedeckt wird.
-- [ ] Der Fall ist **beidseitig** nachgewiesen: ein Lauf mit `CI=true` ohne Variablen ist rot,
+- [x] Der Fall ist **beidseitig** nachgewiesen: ein Lauf mit `CI=true` ohne Variablen ist rot,
       ein Lauf ohne `CI` ohne Variablen ist grün mit Übersprüngen.
 
 ## Verification
@@ -82,3 +82,51 @@ Vier Läufe, die die Matrix aufspannen:
 | `true` | gesetzt | grün, alles läuft |
 
 Die Ausgabe der beiden interessanten Fälle (Zeile 1 und 3) gehört ins Ergebnis.
+
+## Ergebnis
+`tests/Integration/UmgebungsWaechterTest.php` — 5 Tests. Gesamtsuite 237 Tests / 574
+Assertions (vorher 232 / 564).
+
+Er erbt bewusst **nicht** von `IntegrationTestCase`: Täte er es, würde er sich unter genau
+den Bedingungen selbst überspringen, vor denen er warnt.
+
+### Was er prüft
+- **In der Pipeline Pflicht** (`CI` gesetzt): `CONTENTFLY_TEST_BASE_URL`,
+  `CONTENTFLY_TEST_MAIL_TRAP`, `CONTENTFLY_TEST_ADMIN_PASS`. Je Variable ein eigener Fall mit
+  einer Meldung, die sagt, **was** fehlt und **warum** es nicht durchgewinkt wird.
+- **Auch lokal**, sobald die Variablen gesetzt sind: dass unter der Basisadresse wirklich
+  etwas antwortet und JSON liefert, und dass die Versandfalle ein ausführbares Fangskript
+  enthält. Eine gesetzte Variable sagt nichts darüber, ob dahinter etwas läuft.
+
+### Die Matrix — alle vier Fälle nachgewiesen
+| `CI` | Variablen | Ergebnis | Exit |
+|---|---|---|---|
+| nicht gesetzt | fehlen | `OK, but some tests were skipped` (198 Skips) | 0 |
+| nicht gesetzt | gesetzt | `OK` (3 Skips: die CI-only-Fälle) | 0 |
+| `true` | fehlen | **5 Failures**, je mit Variablenname und Begründung | **1** |
+| `true` | gesetzt | `OK (237 tests, 574 assertions)` | 0 |
+
+### Der Wächter hat sich sofort bewährt
+Beim Durchspielen der Matrix lief der lokale Testserver versehentlich gegen die
+zurückgesetzte Konfigurationsvorlage. Ohne Wächter waren das **181 rote Tests**, keiner davon
+mit einem Hinweis auf die Ursache. Mit Wächter:
+
+```
+Unter http://127.0.0.1:8145 antwortet nichts.
+
+Die Variable ist gesetzt, der Testserver aber nicht erreichbar. Ein Lauf in diesem
+Zustand faerbt jeden Integrationstest rot und nennt dabei nie die eigentliche Ursache.
+```
+
+Das war kein geplanter Testfall, sondern der echte Fehler, für den der Wächter gebaut wurde.
+
+### Die Grenzen, ausdrücklich festgehalten
+- **Ein einzelnes `markTestSkipped()`**, das jemand einem Test hinzufügt, fällt nicht auf.
+  Der Wächter prüft die *Vorbedingungen* eines Integrationslaufs, nicht jeden denkbaren
+  Übersprung. Dafür bräuchte es `--fail-on-skipped` im Job — und das verlegte die Regel
+  wieder aus der Suite heraus.
+- **`CI=false` schaltet ihn ab.** Das ist Absicht: Manche lokalen Werkzeuge setzen `CI=false`,
+  und ein Wächter, der darauf anspringt, wäre lästig statt nützlich. In GitLab lässt sich
+  `CI` nicht überschreiben, dort greift die Hintertür nicht.
+
+Beides steht im Kopf der Testdatei, nicht nur hier.

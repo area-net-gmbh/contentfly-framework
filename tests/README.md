@@ -1,5 +1,11 @@
 # Tests
 
+> **Diese Suite ist die Abnahmegrundlage für den Kernel-Tausch.** Der Kernel-Tausch gilt als
+> gelungen, wenn sie **ohne inhaltliche Änderung** grün bleibt; eine Testanpassung ist ein
+> Verhaltenswechsel und braucht eine Begründung. Was das genau heisst — und was die Suite
+> ausdrücklich **nicht** abdeckt — steht in `an_project/docs/technical.md`, Abschnitt *Die
+> Testsuite ist die Abnahmegrundlage*. Wer hier einen Test ändert, liest das zuerst.
+
 Zwei Suiten, bewusst getrennt:
 
 | Suite | Verzeichnis | Braucht |
@@ -27,14 +33,30 @@ php bin/console.php appcms:install --db-host=127.0.0.1 --db-port=3307 \
     --db-name=contentfly --db-user=contentfly --db-pass=contentfly \
     --db-strategy=guid --admin-password='dev-only-secret'
 
-# 2. Testserver — mit dem Router und ohne Debug-Ausgabe
-APP_ENV=production APP_DEBUG=0 php -S 127.0.0.1:8145 tests/router.php &
+# 2. Versandfalle — damit kein Lauf eine Mail nach draussen schickt
+FALLE=/tmp/contentfly-mailfalle
+mkdir -p "$FALLE"
+printf '#!/bin/sh\ncat >> "$(dirname "$0")/postausgang.log"\nexit 0\n' > "$FALLE/sendmail"
+chmod +x "$FALLE/sendmail"
 
-# 3. Suite gegen diese Instanz
+# 3. Testserver — mit Router, Versandfalle und ohne Fehlerausgabe im Antwortstrom
+APP_ENV=production APP_DEBUG=0 \
+  php -d display_errors=Off -d log_errors=On -d sendmail_path="$FALLE/sendmail" \
+      -S 127.0.0.1:8145 tests/router.php &
+
+# 4. Suite gegen diese Instanz
 CONTENTFLY_TEST_BASE_URL=http://127.0.0.1:8145 \
 CONTENTFLY_TEST_ADMIN_PASS=dev-only-secret \
+CONTENTFLY_TEST_MAIL_TRAP="$FALLE" \
   ./custom/vendor/bin/phpunit
+
+# 5. Die Vorlage wiederherstellen — Schritt 1 hat Zugangsdaten hineingeschrieben
+git checkout HEAD -- custom/config.php
 ```
+
+Ohne Schritt 2 und `CONTENTFLY_TEST_MAIL_TRAP` überspringen sich drei Tests aus `MailApiTest`;
+in einer Pipeline wird der Lauf dann rot (siehe *Der Wächter* weiter unten). Die ausführliche
+Fassung der Versandfalle steht im Abschnitt darunter.
 
 **`tests/router.php` ist nicht optional.** Ohne ihn schickt der eingebaute Server *jede* Anfrage
 durch `index.php` — auch die für eine Datei, die auf der Platte liegt. Apache tut das nicht, und
@@ -42,6 +64,62 @@ die Auslieferung von Dateien hängt genau daran.
 
 **`APP_DEBUG=0`** verhindert, dass der Debug-Exception-Handler die Antworten der Anwendung
 überdeckt. Ganz behoben ist das damit nicht — siehe Task `000-000-0006`.
+
+**`display_errors=Off` ist nicht kosmetisch.** PHP schreibt eine Deprecation direkt in den
+Antwortstrom. Passiert das, bevor Silex den Statuscode setzt, sind die Header schon unterwegs
+— und die Antwort trägt `200`, obwohl die Anwendung `405` oder `500` meint. Beim ersten
+CI-Lauf sind daran sechs Tests gescheitert, die lokal grün waren; mit `display_errors=Off`
+laufen alle 232 durch. Es ist zugleich die Produktionseinstellung: Eine Instanz, die
+Deprecations ausliefert, verrät Dateipfade an jeden Aufrufer. Dass das Framework sie bei
+`APP_DEBUG=0` **nicht erzwingt**, ist ein eigener Befund — `000-000-0018`.
+
+`log_errors=On` sorgt dafür, dass die Deprecations nicht verschwinden, sondern im Serverlog
+stehen. Das ist die Quelle, aus der das „0 Deprecations"-Gate aus `006-005` später liest.
+
+## Der Wächter gegen stille Übersprünge
+
+`tests/Integration/UmgebungsWaechterTest.php` löst das eigentliche Risiko einer Pipeline:
+**eine grüne Suite, die nichts geprüft hat.** Fehlt `CONTENTFLY_TEST_BASE_URL`, überspringen
+sich alle Integrationstests, PHPUnit meldet `OK, but some tests were skipped` — und der Job
+wird grün.
+
+Der Wächter prüft deshalb: Ist `CI` gesetzt (GitLab und die meisten anderen tun das von
+selbst), **müssen** `CONTENTFLY_TEST_BASE_URL`, `CONTENTFLY_TEST_MAIL_TRAP` und
+`CONTENTFLY_TEST_ADMIN_PASS` da sein. Fehlt eine, ist der Lauf rot, und die Meldung nennt die
+Variable und warum sie nicht durchgewinkt wird.
+
+Drei weitere Prüfungen laufen **auch lokal**, sobald die Variablen gesetzt sind: dass unter
+der Basisadresse wirklich etwas antwortet, dass die **Testdatenbank** erreichbar *und
+installiert* ist, und dass die Versandfalle ein ausführbares Fangskript enthält. Eine gesetzte
+Variable sagt nichts darüber, ob dahinter etwas läuft.
+
+Die Datenbankprüfung kam nachträglich dazu, nachdem der Fall real eingetreten war: Bei
+gestopptem Container meldete die Suite **91 Errors** — lauter `PDOException: Connection
+refused` aus einzelnen Tests, und keiner davon sagte, dass schlicht die Datenbank fehlt.
+
+| `CI` | Variablen | Ergebnis |
+|---|---|---|
+| nicht gesetzt | fehlen | grün, Integrationstests übersprungen |
+| nicht gesetzt | gesetzt | grün, alles läuft |
+| `true` | fehlen | **rot** (Exit 1), Meldung nennt die Variable |
+| `true` | gesetzt | grün, alles läuft |
+
+Er erbt bewusst **nicht** von `IntegrationTestCase` — sonst überspränge er sich unter genau
+den Bedingungen selbst, vor denen er warnt. Wovor er nicht schützt: ein einzelnes
+`markTestSkipped()`, das jemand einem Test hinzufügt. Er prüft die Vorbedingungen eines
+Integrationslaufs, nicht jeden denkbaren Übersprung.
+
+## In der Pipeline
+
+`.gitlab-ci.yml` fährt genau diesen Ablauf; die Schritte stehen in `tools/ci/`, damit man sie
+**lokal in Docker nachspielen kann** — eine Pipeline-Definition, deren Schritte man nur in der
+Pipeline ausprobieren kann, ist beim Suchen eines Fehlers nutzlos.
+
+```sh
+sh tools/ci/install-php-extensions.sh    # nur im Container nötig: pdo_mysql und gd
+sh tools/ci/prepare-test-environment.sh  # warten, installieren, Versandfalle, Server
+./custom/vendor/bin/phpunit
+```
 
 ## Die Versandfalle für `/api/mail`
 
@@ -88,8 +166,24 @@ Zieladresse aufgerufen.
 > Konstanten, bevor `mail()` überhaupt drankommt (`000-000-0016`). Die Sicherung hängt bewusst
 > **nicht** an diesem Fehler: Wer ihn behebt, soll nicht gleichzeitig den Schutz entfernen.
 
-Nach der Installation trägt `custom/config.php` echte Zugangsdaten. **Vor dem Commit die
-Platzhalter wiederherstellen**, sonst landen sie in der Vorlage.
+### 4. Die Vorlage wiederherstellen — fester Schritt, nicht Kür
+
+Die Installation aus Schritt 1 schreibt Host, Benutzer und Passwort in `custom/config.php` —
+eine Datei, die **versioniert im Repo liegt**, weil sie die Vorlage ist. Der Testlauf ist erst
+zu Ende, wenn sie wieder eine ist:
+
+```sh
+git checkout HEAD -- custom/config.php
+```
+
+**Das `HEAD` ist wichtig.** Ist die Datei bereits gestagt, holt `git checkout -- <pfad>` sie
+aus dem *Index* zurück und schreibt die installierte Fassung erneut in den Arbeitsbaum — es
+sieht aus wie eine Wiederherstellung und ist keine.
+
+Damit niemand daran denken muss, gibt es zwei Netze: den `pre-commit`-Hook aus `tools/hooks/`
+(einmalig mit `git config core.hooksPath tools/hooks` aktivieren) und den Pipeline-Job
+`check:template-config`. Beide rufen `tools/check-template-config.sh` auf und melden dasselbe.
+Der Hook fängt früher, der Job fängt immer. Einrichtung: `an_project/docs/runbook.md`.
 
 ## Eine neue Integrationstest-Datei anlegen
 
