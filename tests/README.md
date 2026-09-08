@@ -27,8 +27,9 @@ php bin/console.php appcms:install --db-host=127.0.0.1 --db-port=3307 \
     --db-name=contentfly --db-user=contentfly --db-pass=contentfly \
     --db-strategy=guid --admin-password='dev-only-secret'
 
-# 2. Testserver — mit dem Router und ohne Debug-Ausgabe
-APP_ENV=production APP_DEBUG=0 php -S 127.0.0.1:8145 tests/router.php &
+# 2. Testserver — mit dem Router und ohne Fehlerausgabe im Antwortstrom
+APP_ENV=production APP_DEBUG=0 \
+  php -d display_errors=Off -d log_errors=On -S 127.0.0.1:8145 tests/router.php &
 
 # 3. Suite gegen diese Instanz
 CONTENTFLY_TEST_BASE_URL=http://127.0.0.1:8145 \
@@ -42,6 +43,29 @@ die Auslieferung von Dateien hängt genau daran.
 
 **`APP_DEBUG=0`** verhindert, dass der Debug-Exception-Handler die Antworten der Anwendung
 überdeckt. Ganz behoben ist das damit nicht — siehe Task `000-000-0006`.
+
+**`display_errors=Off` ist nicht kosmetisch.** PHP schreibt eine Deprecation direkt in den
+Antwortstrom. Passiert das, bevor Silex den Statuscode setzt, sind die Header schon unterwegs
+— und die Antwort trägt `200`, obwohl die Anwendung `405` oder `500` meint. Beim ersten
+CI-Lauf sind daran sechs Tests gescheitert, die lokal grün waren; mit `display_errors=Off`
+laufen alle 232 durch. Es ist zugleich die Produktionseinstellung: Eine Instanz, die
+Deprecations ausliefert, verrät Dateipfade an jeden Aufrufer. Dass das Framework sie bei
+`APP_DEBUG=0` **nicht erzwingt**, ist ein eigener Befund — `000-000-0018`.
+
+`log_errors=On` sorgt dafür, dass die Deprecations nicht verschwinden, sondern im Serverlog
+stehen. Das ist die Quelle, aus der das „0 Deprecations"-Gate aus `006-005` später liest.
+
+## In der Pipeline
+
+`.gitlab-ci.yml` fährt genau diesen Ablauf; die Schritte stehen in `tools/ci/`, damit man sie
+**lokal in Docker nachspielen kann** — eine Pipeline-Definition, deren Schritte man nur in der
+Pipeline ausprobieren kann, ist beim Suchen eines Fehlers nutzlos.
+
+```sh
+sh tools/ci/install-php-extensions.sh    # nur im Container nötig: pdo_mysql und gd
+sh tools/ci/prepare-test-environment.sh  # warten, installieren, Versandfalle, Server
+./custom/vendor/bin/phpunit
+```
 
 ## Die Versandfalle für `/api/mail`
 

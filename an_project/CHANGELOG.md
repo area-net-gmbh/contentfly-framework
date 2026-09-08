@@ -21,6 +21,9 @@
 - 008-005-0003 task created: "custom/config.php gegen versehentliches Committen absichern"
 - 008-005-0004 task created: "Die Suite als Abnahmegrundlage festschreiben"
 - 008-005-0001…0004 refined: GitLab CI (der Remote ist GitLab), PHP 8.3 pflicht und 8.4 mit `allow_failure`; der Wächter gegen stille Übersprünge kommt **in die Suite** statt in die YAML, damit die Regel mitwandert; `custom/config.php` wird zweischichtig abgesichert (Pipeline-Job plus mitnehmbarer pre-commit-Hook). In 0004 ausdrücklich mit aufgenommen: eine Liste dessen, was die Suite **nicht** abdeckt — eine Abnahmegrundlage, die ihre Grenzen verschweigt, wiegt in Sicherheit
+- 008-005-0000 → in-progress
+- 008-005-0001 → in-progress
+- 008-005-0001 → review: `.gitlab-ci.yml` plus `tools/ci/`-Skripte; zwei Jobs (PHP 8.3 pflicht, 8.4 mit `allow_failure`). Vollständiger Joblauf von Null in Docker nachgespielt — frischer Klon, frische Datenbank, dieselben Befehle: **232 Tests grün, Job-Exit 0**, Postausgang der Versandfalle leer. **PHP 8.4 ebenfalls grün**, mit einer einzigen Deprecation aus Silex selbst — eine bessere Ausgangslage für Epic 006 als angenommen. **Der erste CI-Lauf war rot: sechs Tests, die lokal grün sind.** Ursache ist keine CI-Eigenheit, sondern die Anwendung: PHP schreibt eine Deprecation in den Antwortstrom, bevor Silex den Statuscode setzt — die Header sind dann unterwegs, und die Antwort trägt `200` statt `405`/`500`. Mit `display_errors=Off` laufen alle durch; das ist zugleich die Produktionseinstellung, die `bootstrap.php` bei `APP_DEBUG=0` **nicht erzwingt** (Befund `000-000-0018`). Die Schritte stehen in `tools/ci/*.sh` statt in der YAML, damit man sie lokal nachspielen kann
 - 008-004-0001 task created: "Manager-Schicht als Vertrag festhalten"
 - 008-004-0002 task created: "Plugin-Infrastruktur dauerhaft absichern"
 - 008-004-0003 task created: "SystemController und die Token-Verwaltung"

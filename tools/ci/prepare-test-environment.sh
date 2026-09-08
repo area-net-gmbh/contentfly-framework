@@ -1,0 +1,162 @@
+#!/bin/sh
+#
+# Baut die Umgebung auf, die die Integrationstests brauchen: Datenbank abwarten,
+# Contentfly installieren, Versandfalle einrichten, Testserver starten.
+#
+# Läuft in der Pipeline (008-005-0001) und beim lokalen Nachspielen mit demselben
+# Aufruf — deshalb steht der Ablauf hier und nicht in der .gitlab-ci.yml. Eine
+# Pipeline-Definition, deren Schritte man nur in der Pipeline ausprobieren kann,
+# ist beim Suchen eines Fehlers nutzlos.
+#
+# Erwartete Umgebungsvariablen (die .gitlab-ci.yml setzt sie):
+#
+#   CONTENTFLY_TEST_DB_HOST / _PORT / _NAME / _USER / _PASSWORD
+#   CONTENTFLY_TEST_BASE_URL       Adresse, unter der der Testserver antwortet
+#   CONTENTFLY_TEST_MAIL_TRAP      Verzeichnis der Versandfalle
+#   CONTENTFLY_TEST_ADMIN_PASS     Passwort des Admin-Benutzers
+
+set -eu
+
+WARTEZEIT="${CONTENTFLY_CI_TIMEOUT:-90}"
+
+fehlt() {
+    echo "✗ Umgebungsvariable $1 ist nicht gesetzt." >&2
+    echo "  Ohne sie kann die Testumgebung nicht aufgebaut werden; siehe tests/README.md." >&2
+    exit 1
+}
+
+for name in CONTENTFLY_TEST_DB_HOST CONTENTFLY_TEST_DB_PORT CONTENTFLY_TEST_DB_NAME \
+            CONTENTFLY_TEST_DB_USER CONTENTFLY_TEST_DB_PASSWORD \
+            CONTENTFLY_TEST_BASE_URL CONTENTFLY_TEST_MAIL_TRAP CONTENTFLY_TEST_ADMIN_PASS; do
+    eval "wert=\${$name:-}"
+    [ -n "$wert" ] || fehlt "$name"
+done
+
+# ── 1. Auf die Datenbank warten ────────────────────────────────────────────────────
+#
+# Ein Service ist gestartet, lange bevor er antwortet. Feste sleep-Werte sind hier
+# die schlechteste Lösung: zu kurz und der Lauf ist sporadisch rot, zu lang und
+# jede Pipeline zahlt die Wartezeit. Also fragen statt raten.
+
+echo "→ Warte auf die Datenbank ($CONTENTFLY_TEST_DB_HOST:$CONTENTFLY_TEST_DB_PORT)"
+i=0
+until php -r '
+    try {
+        new PDO(
+            sprintf("mysql:host=%s;port=%s", getenv("CONTENTFLY_TEST_DB_HOST"), getenv("CONTENTFLY_TEST_DB_PORT")),
+            getenv("CONTENTFLY_TEST_DB_USER"),
+            getenv("CONTENTFLY_TEST_DB_PASSWORD")
+        );
+        exit(0);
+    } catch (Throwable $e) {
+        exit(1);
+    }
+' 2>/dev/null; do
+    i=$((i + 1))
+    if [ "$i" -ge "$WARTEZEIT" ]; then
+        echo "✗ Die Datenbank antwortet nach ${WARTEZEIT}s nicht." >&2
+        exit 1
+    fi
+    sleep 1
+done
+echo "  ✓ nach ${i}s erreichbar"
+
+# ── 2. Installieren ────────────────────────────────────────────────────────────────
+#
+# Der Command nimmt seit 012-002 alle Werte als Optionen; -n unterdrückt jede
+# Rückfrage. Er schreibt die Zugangsdaten in custom/config.php — eine Datei, die als
+# Vorlage im Repo liegt. In der Pipeline ist der Checkout flüchtig und das deshalb
+# unkritisch; lokal ist es eine Falle (siehe 008-005-0003).
+
+echo "→ Installation"
+php bin/console.php appcms:install -n \
+    --db-host="$CONTENTFLY_TEST_DB_HOST" \
+    --db-port="$CONTENTFLY_TEST_DB_PORT" \
+    --db-name="$CONTENTFLY_TEST_DB_NAME" \
+    --db-user="$CONTENTFLY_TEST_DB_USER" \
+    --db-pass="$CONTENTFLY_TEST_DB_PASSWORD" \
+    --db-strategy=guid \
+    --admin-password="$CONTENTFLY_TEST_ADMIN_PASS"
+
+# ── 3. Versandfalle ────────────────────────────────────────────────────────────────
+#
+# /api/mail ist der einzige Endpunkt mit Aussenwirkung. Kein Testlauf darf eine Mail
+# verschicken — und das gehört nachgewiesen, nicht angenommen. Der Testserver bekommt
+# deshalb ein Fangskript als sendmail_path; MailApiTest prüft beide Hälften: dass das
+# Skript fängt, und dass der Server genau dieses benutzt.
+#
+# Heute scheitert /api/mail ohnehin an einer undefinierten Konstanten (000-000-0016).
+# Die Sicherung hängt bewusst NICHT an diesem Fehler: Wer ihn behebt, soll nicht
+# gleichzeitig den Schutz entfernen.
+
+echo "→ Versandfalle unter $CONTENTFLY_TEST_MAIL_TRAP"
+mkdir -p "$CONTENTFLY_TEST_MAIL_TRAP"
+cat > "$CONTENTFLY_TEST_MAIL_TRAP/sendmail" <<'FANGSKRIPT'
+#!/bin/sh
+# Fängt alles ab, was mail() zustellen wollte. Stellt NICHTS zu.
+cat >> "$(dirname "$0")/postausgang.log"
+echo "--- ENDE MAIL ---" >> "$(dirname "$0")/postausgang.log"
+exit 0
+FANGSKRIPT
+chmod +x "$CONTENTFLY_TEST_MAIL_TRAP/sendmail"
+: > "$CONTENTFLY_TEST_MAIL_TRAP/postausgang.log"
+
+# ── 4. Testserver ──────────────────────────────────────────────────────────────────
+#
+# tests/router.php ist nicht optional: Ohne ihn schickt der eingebaute Server jede
+# Anfrage durch index.php, auch die für eine Datei, die auf der Platte liegt. Apache
+# tut das nicht, und die Dateiauslieferung hängt genau daran.
+#
+# APP_DEBUG=0 verhindert, dass der Debug-Exception-Handler die Antworten der
+# Anwendung überdeckt (000-000-0006).
+#
+# display_errors=Off ist NICHT kosmetisch, sondern Voraussetzung dafür, dass die Suite
+# überhaupt misst, was sie zu messen glaubt:
+#
+#   PHP schreibt eine Deprecation direkt in den Antwortstrom. Passiert das, bevor Silex
+#   den Statuscode setzt, sind die Header schon unterwegs — und die Antwort trägt 200,
+#   obwohl die Anwendung 405 oder 500 meint. Beim ersten CI-Lauf sind daran sechs Tests
+#   gescheitert, die lokal grün waren (008-005-0001).
+#
+# Es ist zugleich die Produktionseinstellung: Eine Instanz, die Deprecations ausliefert,
+# verrät Dateipfade an jeden Aufrufer. Dass das Framework sie bei APP_DEBUG=0 NICHT
+# erzwingt, ist ein eigener Befund — siehe 000-000-0018.
+#
+# log_errors=On, damit die Deprecations nicht verschwinden, sondern im Serverlog stehen.
+# Das ist die Quelle, aus der das „0 Deprecations"-Gate aus 006-005 später liest.
+
+ADRESSE=$(echo "$CONTENTFLY_TEST_BASE_URL" | sed 's#^https\{0,1\}://##')
+
+echo "→ Testserver auf $ADRESSE"
+APP_ENV=production APP_DEBUG=0 php \
+    -d display_errors=Off \
+    -d log_errors=On \
+    -d sendmail_path="$CONTENTFLY_TEST_MAIL_TRAP/sendmail" \
+    -S "$ADRESSE" tests/router.php > "${CONTENTFLY_CI_LOG:-/tmp/testserver.log}" 2>&1 &
+
+echo $! > /tmp/testserver.pid
+
+# ── 5. Auf den Testserver warten ───────────────────────────────────────────────────
+#
+# Der offene Port allein genügt nicht — er ist offen, bevor die Anwendung antwortet.
+# Geprüft wird deshalb eine echte Antwort von /api/config, der einzigen Route ohne
+# Token. Damit ist zugleich belegt, dass die Installation gegriffen hat.
+
+echo "→ Warte auf den Testserver"
+i=0
+until php -r '
+    $roh = @file_get_contents(getenv("CONTENTFLY_TEST_BASE_URL")."/api/config");
+    exit(($roh !== false && json_decode($roh, true) !== null) ? 0 : 1);
+' 2>/dev/null; do
+    i=$((i + 1))
+    if [ "$i" -ge "$WARTEZEIT" ]; then
+        echo "✗ Der Testserver antwortet nach ${WARTEZEIT}s nicht." >&2
+        echo "--- Serverlog ---" >&2
+        cat "${CONTENTFLY_CI_LOG:-/tmp/testserver.log}" >&2 || true
+        exit 1
+    fi
+    sleep 1
+done
+echo "  ✓ nach ${i}s erreichbar"
+
+echo "✓ Testumgebung steht."

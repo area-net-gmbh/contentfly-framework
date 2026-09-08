@@ -1,7 +1,7 @@
 ---
 id: 008-005-0001
 title: Die Pipeline anlegen: Datenbank, Installation und Testserver
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -118,20 +118,20 @@ Kommando.
   grün ist).
 
 ## Acceptance criteria
-- [ ] `.gitlab-ci.yml` liegt im Repo-Root und definiert die Jobs für PHP 8.3 (pflicht) und
+- [x] `.gitlab-ci.yml` liegt im Repo-Root und definiert die Jobs für PHP 8.3 (pflicht) und
       PHP 8.4 (`allow_failure: true`).
-- [ ] Der Job installiert `pdo_mysql` und `gd` und startet MySQL 8.0 als Service mit
+- [x] Der Job installiert `pdo_mysql` und `gd` und startet MySQL 8.0 als Service mit
       `utf8mb3` / `utf8mb3_unicode_ci`.
-- [ ] Der Job wartet nachweislich auf die Datenbank, bevor er installiert, und auf den Server,
+- [x] Der Job wartet nachweislich auf die Datenbank, bevor er installiert, und auf den Server,
       bevor er testet — keine festen `sleep`-Werte, sondern eine Prüfschleife.
-- [ ] Die Installation läuft ohne Rückfrage durch; das Admin-Passwort kommt aus einer
+- [x] Die Installation läuft ohne Rückfrage durch; das Admin-Passwort kommt aus einer
       CI-Variablen, nicht aus der YAML.
-- [ ] Der Testserver läuft über `tests/router.php` mit `APP_DEBUG=0` und einer eingerichteten
+- [x] Der Testserver läuft über `tests/router.php` mit `APP_DEBUG=0` und einer eingerichteten
       Versandfalle; `CONTENTFLY_TEST_MAIL_TRAP` ist gesetzt.
-- [ ] Beide Suiten laufen im selben Job und sind grün.
-- [ ] Der PHPUnit-Pfad steht an **einer** Stelle, sodass die Umstellung durch Epic `006` ein
+- [x] Beide Suiten laufen im selben Job und sind grün.
+- [x] Der PHPUnit-Pfad steht an **einer** Stelle, sodass die Umstellung durch Epic `006` ein
       Einzeiler ist.
-- [ ] Die Runner-Annahme (Docker-Executor) ist im Kopf der Datei vermerkt.
+- [x] Die Runner-Annahme (Docker-Executor) ist im Kopf der Datei vermerkt.
 
 ## Verification
 Die Pipeline kann in dieser Sitzung nicht gestartet werden — kein Push, kein erreichbarer
@@ -142,3 +142,58 @@ Flags und Umgebungsvariablen wie in der YAML. Festzuhalten ist die Ausgabe des L
 Zusätzlich die YAML-Syntax prüfen. Der erste echte Pipeline-Lauf bleibt ein Schritt, den
 jemand mit Push-Rechten macht — das ist im Ergebnis so zu vermerken und **nicht** als
 erledigt auszugeben.
+
+## Ergebnis
+`.gitlab-ci.yml` plus `tools/ci/install-php-extensions.sh` und
+`tools/ci/prepare-test-environment.sh`. Zwei Jobs: `test:php8.3` (pflicht) und `test:php8.4`
+(`allow_failure`).
+
+### Der Nachweis
+Vollständiger Joblauf **von Null** in Docker — frischer Klon, frische Datenbank, dieselben
+Befehle und Variablen wie in der YAML:
+
+```
+before_script  install-php-extensions.sh    → PHP 8.3.33 mit pdo_mysql, gd, …
+               prepare-test-environment.sh  → DB nach 0s, Installation, Falle, Server nach 1s
+script         ./custom/vendor/bin/phpunit  → OK (232 tests, 564 assertions)
+after_script   Postausgang der Versandfalle → 0 Bytes
+Job-Exit                                    → 0
+```
+
+**PHP 8.4 ebenfalls grün** (232/232), mit einer einzigen Deprecation aus Silex selbst:
+`Silex\Application::run(): Implicitly marking parameter $request as nullable`. Der
+`allow_failure`-Schutz bleibt trotzdem richtig — er fängt künftige Brüche ab —, aber der
+Silex-Stand läuft heute auf 8.4. Das ist eine bessere Ausgangslage für Epic `006`, als der
+Story-Text annahm.
+
+### Der Befund, der den Lauf zuerst rot machte
+Der erste CI-Lauf hatte **sechs Fehler, die lokal grün waren** — dreimal
+`WritePermissionApiTest`, zweimal `testNurPostIstErlaubt`, einmal
+`SystemControllerApiTest::testEineFehlendeMethodeEndetEbenfallsInEinemFehler`. Alle mit
+demselben Muster: `200` statt `405` oder `500`.
+
+Die Ursache ist keine CI-Eigenheit, sondern eine echte Eigenschaft der Anwendung:
+
+> PHP schreibt eine Deprecation direkt in den Antwortstrom. Passiert das, bevor Silex den
+> Statuscode setzt, sind die Header schon unterwegs — und die Antwort trägt `200`, obwohl die
+> Anwendung `405` oder `500` meint.
+
+Mit `display_errors=Off` laufen alle 232 durch. Das ist zugleich die **Produktions**einstellung:
+Eine Instanz, die Deprecations ausliefert, verrät Dateipfade an jeden Aufrufer. Dass
+`bootstrap.php` sie bei `APP_DEBUG=0` **nicht erzwingt** — es setzt `display_errors` und
+`error_reporting` nur im Debug-Zweig —, ist als `000-000-0018` festgehalten.
+
+`log_errors=On` kommt dazu, damit die Deprecations nicht verschwinden, sondern im Serverlog
+stehen. Das ist die Quelle, aus der das „0 Deprecations"-Gate aus `006-005` liest.
+
+`tests/README.md` ist auf denselben Stand gebracht — sonst wiche die lokale Anleitung von der
+Pipeline ab und der nächste liefe in dieselbe Wand.
+
+### Was offen bleibt
+- **Der erste echte Pipeline-Lauf.** Er braucht Push-Rechte und einen Runner; beides steht
+  hier nicht zur Verfügung. Der Nachweis oben ist ein Nachspiel, kein Pipeline-Lauf.
+- **Die Runner-Annahme.** Ob ein Docker-Executor bereitsteht, ist ungeklärt und im Kopf der
+  `.gitlab-ci.yml` vermerkt. Steht nur ein Shell-Runner zur Verfügung, ist der Zuschnitt neu
+  zu machen.
+- `CONTENTFLY_TEST_ADMIN_PASS` muss in Settings → CI/CD → Variables hinterlegt werden, bevor
+  die Pipeline zum ersten Mal läuft. Sie steht bewusst nicht in der YAML.

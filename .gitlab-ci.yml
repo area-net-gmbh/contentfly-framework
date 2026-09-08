@@ -1,0 +1,92 @@
+# Pipeline des Contentfly-Frameworks.
+#
+# Fährt beide Testsuiten gegen eine frisch installierte Instanz. Der Sinn steht in
+# an_project/work/epic/008-testnetz/: Ein Testnetz, das nur auf einer Maschine läuft, ist
+# beim Kernel-Umbau wertlos — niemand fährt es dann noch.
+#
+# ANNAHME, die vor dem ersten Lauf zu prüfen ist:
+#   Es steht ein Runner mit DOCKER-EXECUTOR bereit. Ohne den funktioniert weder `image:`
+#   noch `services:`. Ist nur ein Shell-Runner verfügbar, muss der Job Datenbank und PHP
+#   selbst mitbringen — das wäre ein anderer Zuschnitt, nicht eine kleine Änderung.
+#
+# EINZUTRAGEN in Settings → CI/CD → Variables, bevor die Pipeline zum ersten Mal läuft:
+#   CONTENTFLY_TEST_ADMIN_PASS   Passwort des Admin-Benutzers der Testinstanz.
+#                                Bewusst nicht in dieser Datei — auch für eine flüchtige
+#                                Datenbank gehört ein Passwort nicht ins Repo.
+#
+# Die eigentlichen Schritte stehen in tools/ci/*.sh, nicht hier. Grund: Eine
+# Pipeline-Definition, deren Schritte man nur in der Pipeline ausprobieren kann, ist beim
+# Suchen eines Fehlers nutzlos. Dieselben Skripte laufen lokal in Docker.
+
+stages:
+  - check
+  - test
+
+variables:
+  # ── Epic 006 ────────────────────────────────────────────────────────────────────────
+  # Heute liegen vendor/ und custom/vendor/ committed im Repo, also braucht die Pipeline
+  # kein `composer install`. Nach 006-004 liegt PHPUnit im Root-require-dev und dieser
+  # Pfad wird zu ./vendor/bin/phpunit. Er steht deshalb genau hier — die Umstellung ist
+  # eine Zeile, nicht eine Suche über mehrere Jobs.
+  PHPUNIT: "./custom/vendor/bin/phpunit"
+
+  # ── Der MySQL-Service ───────────────────────────────────────────────────────────────
+  MYSQL_DATABASE: contentfly
+  MYSQL_USER: contentfly
+  MYSQL_PASSWORD: contentfly
+  MYSQL_ROOT_PASSWORD: root
+
+  # ── Was die Suite über ihre Umgebung wissen muss ────────────────────────────────────
+  # Im Service-Netz ist der Port 3306; das 3307 aus docker-compose.yml ist nur die
+  # lokale Umgehung eines belegten Standard-Ports.
+  CONTENTFLY_TEST_DB_HOST: mysql
+  CONTENTFLY_TEST_DB_PORT: "3306"
+  CONTENTFLY_TEST_DB_NAME: contentfly
+  CONTENTFLY_TEST_DB_USER: contentfly
+  CONTENTFLY_TEST_DB_PASSWORD: contentfly
+  CONTENTFLY_TEST_BASE_URL: "http://127.0.0.1:8145"
+  CONTENTFLY_TEST_MAIL_TRAP: "$CI_PROJECT_DIR/.ci-mailfalle"
+
+  GIT_DEPTH: "1"
+
+# ── Die Testsuiten ─────────────────────────────────────────────────────────────────────
+
+.testlauf:
+  stage: test
+  services:
+    # Zeichensatz und Kollation müssen zu Config::DB_CHARSET / DB_COLLATE passen
+    # (utf8 / utf8_unicode_ci), sonst legt die Installation Tabellen an, die nicht zum
+    # erwarteten Schema passen — und der Fehler zeigt sich erst weit später. In MySQL 8
+    # heissen sie utf8mb3_*; utf8 ist nur noch ein Alias darauf. Dieselben Flags stehen
+    # in docker-compose.yml; wer eine ändert, ändert beide.
+    #
+    # Die Umstellung auf utf8mb4 ist eine Datenmodell-Entscheidung und gehört zu Epic 010.
+    - name: mysql:8.0
+      alias: mysql
+      command:
+        - "--character-set-server=utf8mb3"
+        - "--collation-server=utf8mb3_unicode_ci"
+  before_script:
+    - sh tools/ci/install-php-extensions.sh
+    - sh tools/ci/prepare-test-environment.sh
+  script:
+    # Ohne --testsuite laufen beide: `unit` ohne Datenbank, `integration` gegen die eben
+    # aufgebaute Instanz. Die Trennung ist Absicht und in phpunit.xml.dist begründet.
+    - $PHPUNIT
+  after_script:
+    # Der Postausgang der Versandfalle gehört ins Log, auch wenn der Lauf grün war: Eine
+    # nicht leere Datei hiesse, dass ein Testlauf zuzustellen versucht hat.
+    - echo "--- Postausgang der Versandfalle ---"
+    - cat "$CONTENTFLY_TEST_MAIL_TRAP/postausgang.log" || true
+
+test:php8.3:
+  extends: .testlauf
+  image: php:8.3-cli
+
+test:php8.4:
+  extends: .testlauf
+  image: php:8.4-cli
+  # Frühwarnung, kein Gate: Der Silex-Stand ist auf 8.4 nicht erprobt. Was hier rot wird,
+  # ist die Liste dessen, was Epic 006 und 009 auf dem Weg zu PHP 8.5 zu erledigen haben —
+  # aber es darf die Pipeline heute nicht anhalten.
+  allow_failure: true
