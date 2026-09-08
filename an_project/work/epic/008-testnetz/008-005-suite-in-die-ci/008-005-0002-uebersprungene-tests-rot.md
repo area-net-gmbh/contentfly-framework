@@ -1,7 +1,7 @@
 ---
 id: 008-005-0002
 title: Ein übersprungener Integrationstest macht den Lauf rot
-status: review
+status: done
 depends_on: [008-005-0001]
 ---
 

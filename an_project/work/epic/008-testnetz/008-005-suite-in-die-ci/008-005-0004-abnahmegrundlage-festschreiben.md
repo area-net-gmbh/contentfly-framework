@@ -1,7 +1,7 @@
 ---
 id: 008-005-0004
 title: Die Suite als Abnahmegrundlage festschreiben
-status: review
+status: done
 depends_on: [008-005-0001]
 ---
 

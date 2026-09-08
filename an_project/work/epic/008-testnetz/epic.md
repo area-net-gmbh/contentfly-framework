@@ -52,4 +52,4 @@ fragwürdig ist. Wünschenswertes Verhalten zu testen, würde das Netz wertlos m
 - [x] 008-002-0000 — Schreibende API-Endpunkte charakterisieren
 - [x] 008-003-0000 — Auth, Berechtigungen und Routen-Absicherung
 - [x] 008-004-0000 — Manager-Schicht, Systemendpunkte und die Vorlage
-- [ ] 008-005-0000 — Suite in der CI verankern und als Abnahmegrundlage festschreiben
+- [x] 008-005-0000 — Suite in der CI verankern und als Abnahmegrundlage festschreiben

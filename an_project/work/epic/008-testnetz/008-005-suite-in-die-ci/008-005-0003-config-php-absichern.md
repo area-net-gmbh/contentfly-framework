@@ -1,7 +1,7 @@
 ---
 id: 008-005-0003
 title: custom/config.php gegen versehentliches Committen absichern
-status: review
+status: done
 depends_on: []
 ---
 

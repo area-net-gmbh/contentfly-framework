@@ -1,7 +1,7 @@
 ---
 id: 008-005-0001
 title: Die Pipeline anlegen: Datenbank, Installation und Testserver
-status: review
+status: done
 depends_on: []
 ---
 
