@@ -1,7 +1,7 @@
 ---
 id: 006-002-0005
 title: dflydev-Service-Provider durch eigenen Aufbau ersetzen
-status: todo
+status: review
 depends_on: [006-002-0002]
 ---
 
@@ -90,16 +90,16 @@ Der Ersatz darf deshalb **schlank und provisorisch** sein. Er muss nur so lange 
 verstehen und abtragen muss.
 
 ## Acceptance criteria
-- [ ] `dflydev/doctrine-orm-service-provider` steht in keinem `require` mehr und ist aus
+- [x] `dflydev/doctrine-orm-service-provider` steht in keinem `require` mehr und ist aus
       `bootstrap.php` verschwunden.
-- [ ] `$app['orm.em']` liefert weiterhin einen funktionsfähigen `EntityManager`; der
+- [x] `$app['orm.em']` liefert weiterhin einen funktionsfähigen `EntityManager`; der
       Container-Schlüssel ist unverändert.
-- [ ] Die beiden Annotation-Mappings, das Proxy-Verzeichnis, `auto_generate` und die
+- [x] Die beiden Annotation-Mappings, das Proxy-Verzeichnis, `auto_generate` und die
       DQL-Funktion `Find_In_Set` wirken wie zuvor.
-- [ ] Geprüft und entschieden, ob `$app['orm.ems']` und `$app['orm.em.config']` nachgebaut
+- [x] Geprüft und entschieden, ob `$app['orm.ems']` und `$app['orm.em.config']` nachgebaut
       werden müssen — mit dem `grep`, der die Frage beantwortet hat.
-- [ ] Der Ersatz ist als Übergangslösung gekennzeichnet, mit Verweis auf Epic `009`.
-- [ ] Die Suite bleibt grün — gegen den **alten** `vendor/`-Baum, denn der Lock kommt erst
+- [x] Der Ersatz ist als Übergangslösung gekennzeichnet, mit Verweis auf Epic `009`.
+- [x] Die Suite bleibt grün — gegen den **alten** `vendor/`-Baum, denn der Lock kommt erst
       mit `006-002-0003`.
 
 ## Verification
@@ -116,3 +116,76 @@ verbleibenden vier Major-Sprünge — nicht mehr `dflydev`.
 
 `php bin/console.php list` und ein HTTP-Aufruf gehören in beide Läufe: Ein EntityManager, der
 sich im Container erzeugen lässt, ist noch keiner, der eine Abfrage beantwortet.
+
+## Ergebnis
+`lib/contentfly/Classes/ORM/EntityManagerFactory.php` — **106 Zeilen**, davon gut die Hälfte
+Kommentar. Ersetzt 466 Zeilen `dflydev`.
+
+`dflydev` ist aus `composer.json`, aus `bootstrap.php` und aus `Command/InstallCommand.php`
+verschwunden. **Zwei Aufrufstellen**, nicht eine — der Installer registrierte den Provider ein
+zweites Mal, mit derselben Konfiguration. Beide zeigen jetzt auf dieselbe Factory; wichen sie
+voneinander ab, installierte der Installer gegen ein anderes Schema, als die Anwendung
+benutzt.
+
+### Was nachgebaut wurde — und was nicht
+| | |
+|---|---|
+| eine Verbindung | ✓ |
+| zwei Annotation-Mappings über eine `MappingDriverChain` | ✓ |
+| Proxy-Verzeichnis, `auto_generate` | ✓ |
+| die DQL-Funktion `Find_In_Set` | ✓ |
+| `$app['orm.ems']`, `$app['orm.em.config']` | **nein** — der `grep` über `lib/`, `custom/` und `tests/` fand **0 Treffer** |
+| Mehrfach-Verbindungen, sechs Cache-Treiber, fünf Mapping-Formate | **nein** — benutzt niemand |
+
+### Der Fehler, den Lauf 1 gefunden hat
+Die erste Fassung baute den Treiber selbst:
+
+```php
+new AnnotationDriver(new AnnotationReader(), array($mapping['path']))
+```
+
+Gegen den alten Baum ergab das **169 Fehler**:
+
+```
+[Semantical Error] The annotation "@Doctrine\ORM\Mapping\Entity" in class
+Custom\Entity\Core\Example was never imported.
+```
+
+Ein frisch gebauter `AnnotationReader` registriert den Loader der `AnnotationRegistry` nicht,
+ohne den die Doctrine-eigenen Annotationen nicht auflösbar sind. `dflydev` benutzte
+`Configuration::newDefaultAnnotationDriver()`, die das intern erledigt — und die es in beiden
+Doctrine-Ständen gibt. Genau darauf baut die Factory jetzt.
+
+**Das ist der Grund, warum Lauf 1 im Task stand.** Ohne ihn wäre der Fehler erst gegen den
+neuen Baum aufgefallen und dort mit vier Major-Sprüngen vermischt gewesen.
+
+### Die Abnahme
+| Prüfung | Ergebnis |
+|---|---|
+| Suite gegen den **alten** Baum | **247 Tests / 603 Assertions grün** |
+| Console gegen den alten Baum | Exit 0 |
+| Console gegen den **neuen** Baum (Doctrine 2.20, Symfony 4.4) | **Exit 0** |
+| `MappingDriverChain`-Fehler im Lauf-2-Protokoll | **0 Treffer** |
+
+**Die Blockade ist weg.** Gegen den alten Baum ändert sich nichts, gegen den neuen bootet die
+Anwendung.
+
+### Was für `006-002-0003` offen bleibt
+Der Lauf gegen den neuen Baum ist **nicht** grün — 188 Fehler, 7 Errors. Das ist erwartet: Er
+war im Task als *Vorschau* definiert, nicht als Abnahmekriterium. Die Fehler verteilen sich auf
+die vier verbleibenden Sprünge, und ein Punkt ist ausdrücklich **ungeklärt**:
+
+> Im HTTP-Pfad — und nur dort — meldet Doctrine
+> `The annotation "@Doctrine\ORM\Mapping\MappedSuperclass" ... was never imported`.
+> Die Console ist grün, und sie unterscheidet sich vom HTTP-Pfad genau darin, dass sie
+> `APPCMS_CONSOLE` setzt und damit den Cache-Block in `bootstrap.php` überspringt.
+>
+> Zwei Thesen sind bereits **widerlegt**: der geerbte Metadaten-Cache (Leeren half nicht) und
+> `AnnotationRegistry::registerFile()` als Auslöser (isoliert nachgestellt: bricht nichts).
+> Ein frischer `AnnotationReader` löst die Annotation problemlos auf; der Unterschied liegt
+> im `CachedReader`, den `newDefaultAnnotationDriver()` liefert.
+
+Weiter zu graben gehört zu `006-002-0003` — das ist der Task, der den Doctrine-Wechsel abnimmt.
+Hier wäre es Scope-Erweiterung, und der Befund ist sauberer aufgehoben, wo er hingehört.
+
+Der Klon unter `scratchpad/lockprobe` mit dem aufgelösten Baum bleibt für `0003` stehen.
