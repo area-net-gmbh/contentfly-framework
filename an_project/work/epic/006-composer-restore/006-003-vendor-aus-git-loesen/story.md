@@ -67,3 +67,6 @@ gewollt und der eigentliche Punkt der Story, muss aber an jeder Stelle stehen, a
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
+- [ ] 006-003-0001 — Beide Vendor-Bäume aus dem Index lösen
+- [ ] 006-003-0002 — Den Build aus dem committeten Stand nachweisen
+- [ ] 006-003-0003 — Die Dokumentation auf den neuen Ablauf bringen
