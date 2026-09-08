@@ -1,11 +1,11 @@
 ---
 id: 006-002-0000
-title: Root-Manifest und Lock für den Ziel-Stack
+title: Root-Manifest und Lock für den Ist-Stack
 status: todo
 depends_on: [006-001-0000]
 ---
 
-# Root-Manifest und Lock für den Ziel-Stack
+# Root-Manifest und Lock für den Ist-Stack
 
 ## Goal
 Das Repo bekommt wieder ein `composer.json` — und zwar eines, das **den Ziel-Stack beschreibt,
