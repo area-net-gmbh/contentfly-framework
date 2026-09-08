@@ -1,7 +1,7 @@
 ---
 id: 008-005-0000
 title: Suite in der CI verankern und als Abnahmegrundlage festschreiben
-status: in-progress
+status: review
 depends_on: [008-001-0000, 008-002-0000, 008-003-0000, 008-004-0000]
 ---
 
