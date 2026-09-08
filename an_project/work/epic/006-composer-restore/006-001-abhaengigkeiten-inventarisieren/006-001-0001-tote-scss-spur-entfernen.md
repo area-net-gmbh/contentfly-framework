@@ -1,7 +1,7 @@
 ---
 id: 006-001-0001
 title: Die tote SCSS-Spur entfernen
-status: todo
+status: done
 depends_on: []
 ---
 
@@ -61,14 +61,14 @@ Kein Aufräumen anderer wirkungsloser Konfigurationsfelder — das ist `000-000-
 fallen nur die beiden, die unmittelbar zu diesem Block gehören.
 
 ## Acceptance criteria
-- [ ] Der `USE_SCSS_COMPILER`-Block und die beiden `use`-Zeilen sind aus `bootstrap.php` weg.
-- [ ] `USE_SCSS_COMPILER` und `BASE_SCSS_FILE` sind aus `Classes/Config.php` entfernt; kein
+- [x] Der `USE_SCSS_COMPILER`-Block und die beiden `use`-Zeilen sind aus `bootstrap.php` weg.
+- [x] `USE_SCSS_COMPILER` und `BASE_SCSS_FILE` sind aus `Classes/Config.php` entfernt; kein
       Vorkommen bleibt im Baum zurück (`config.sample.php` und `custom/config.php`
       eingeschlossen).
-- [ ] `scssphp` ist entfernt — oder es steht begründet fest, dass es mit `vendor/` in
+- [x] `scssphp` ist entfernt — oder es steht begründet fest, dass es mit `vendor/` in
       `006-003` fällt.
-- [ ] Der Breaking Change für Bestandsprojekte ist als Migrationshinweis festgehalten.
-- [ ] Die Anwendung bootet weiterhin, und die Suite bleibt grün.
+- [x] Der Breaking Change für Bestandsprojekte ist als Migrationshinweis festgehalten.
+- [x] Die Anwendung bootet weiterhin, und die Suite bleibt grün.
 
 ## Verification
 `custom/vendor/bin/phpunit` läuft vollständig grün — **das ist hier das eigentliche
@@ -81,3 +81,42 @@ Zustand überhaupt erreicht.
 
 Und die Gegenprobe: `grep -rn "SCSS\|scssphp" lib/ custom/` findet ausserhalb von `vendor/`
 nichts mehr.
+
+## Ergebnis
+`bootstrap.php` schrumpft von **342 auf 284 Zeilen**; zwei Konfigurationsfelder sind weg.
+Suite unverändert grün: 238 Tests / 575 Assertions.
+
+### Entfernt
+| Was | Wo |
+|---|---|
+| Der `USE_SCSS_COMPILER`-Block, 55 Zeilen | `bootstrap.php:283–337` |
+| `use ScssPhp\ScssPhp\Compiler` und `…\OutputStyle` | `bootstrap.php:38–39` |
+| `$USE_SCSS_COMPILER` und `$BASE_SCSS_FILE` | `Classes/Config.php:15,20` |
+
+Die Blockgrenzen wurden **über die Klammerbilanz** bestimmt, nicht über Zeilennummern — bei
+55 Zeilen mit vier Verschachtelungsebenen ist ein Abzählfehler sonst zu leicht. Der Block
+schloss auf Zeile 337, eine mehr als der Task erwartet hatte.
+
+### `scssphp` bleibt vorerst stehen — begründet
+Das Paket steht in **keiner** `installed.json`, aber in **zwei** generierten Autoloader-Dateien
+(`vendor/composer/autoload_psr4.php` und `autoload_static.php`). Ohne Root-Manifest lässt sich
+`composer dump-autoload` nicht ausführen; von Hand editierte generierte Dateien wären
+schlimmer als das Verzeichnis selbst.
+
+Es fällt deshalb mit dem gesamten `vendor/` in `006-003` und ist für `006-001-0004` als
+**„entfällt"** vorgemerkt. Das war im Task als Ausweg vorgesehen und ist der eingetretene Fall.
+
+### Der Migrationshinweis
+Neu: `an_project/docs/breaking-changes.md` — eine Sammelstelle, die es bisher nicht gab.
+Sie nimmt den SCSS-Eintrag auf und verweist auf die bestehende
+`pim-annotationen-migration.md`. Epic `007` baut daraus den Migrationsleitfaden; bis dahin
+wird sie **im Moment des Entstehens** gefüllt, wo der Zusammenhang noch bekannt ist.
+
+### Verifikation
+- `php bin/console.php list` → Exit 0, Commands vollständig.
+- `GET /api/config` gegen den Testserver → HTTP 200 (der Block sass hinter
+  `$app['is_installed']`, wurde also nur im installierten Zustand erreicht — genau dieser
+  Zustand ist geprüft).
+- Vollständige Suite → 238 Tests / 575 Assertions grün.
+- `grep -rn "SCSS\|Scss\|scss" lib/ custom/ bin/ index.php` findet ausserhalb von
+  `custom/vendor/` **nichts** mehr.
