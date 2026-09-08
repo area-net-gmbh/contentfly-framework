@@ -27,6 +27,7 @@
 - 000-000-0015 task created: "Defekte im SystemController beheben"
 - 000-000-0016 task created: "/api/mail reparieren — aber nicht ohne Schutz"
 - 000-000-0017 task created: "Die Vorlage custom/ lehrt an drei Stellen Falsches"
+- 000-000-0018 task created: "Die Fehlerausgabe ist verkehrt herum verdrahtet"
 - 008-004-0004 task created: "/api/mail festhalten"
 - 008-004-0005 task created: "Die Vorlage custom/ läuft mit"
 - 008-004-0001 … 008-004-0005 refined: Kontext, Abnahmekriterien und Verifikation ausgeschrieben. Vorab festgestellt: `POST /system/do` verteilt **dynamisch auf eine vom Request bestimmte Methode** (`method_exists($this, $method)`), ist admin-pflichtig und umfasst die Token-Verwaltung; der `before`-Hook hat ein Notschloss, das `validateORM` und `updateDatabase` bei kaputtem Schema ohne jede Prüfung durchlässt — **`validateORM` existiert als Methode aber nicht mehr**. Zwei Grenzen vorab gezogen: `custom/app.php` bekommt keinen dauerhaften Testcode, und kein Testlauf verschickt eine Mail nach draussen
