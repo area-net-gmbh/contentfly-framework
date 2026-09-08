@@ -176,21 +176,47 @@ abstract class IntegrationTestCase extends TestCase
     protected function pdo(): PDO
     {
         if (self::$pdo === null) {
-            $host = getenv('CONTENTFLY_TEST_DB_HOST') ?: '127.0.0.1';
-            $port = getenv('CONTENTFLY_TEST_DB_PORT') ?: '3307';
-            $name = getenv('CONTENTFLY_TEST_DB_NAME') ?: 'contentfly';
-            $user = getenv('CONTENTFLY_TEST_DB_USER') ?: 'contentfly';
-            $pass = getenv('CONTENTFLY_TEST_DB_PASSWORD') ?: 'contentfly';
+            $zugang = self::dbZugangsdaten();
 
             self::$pdo = new PDO(
-                "mysql:host=$host;port=$port;dbname=$name;charset=utf8",
-                $user,
-                $pass,
+                $zugang['dsn'],
+                $zugang['user'],
+                $zugang['pass'],
                 array(PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION)
             );
         }
 
         return self::$pdo;
+    }
+
+    /**
+     * Die Verbindungsdaten der Testdatenbank — an genau **einer** Stelle.
+     *
+     * Öffentlich und statisch, weil `UmgebungsWaechterTest` sie ebenfalls braucht: Er prüft
+     * vor dem eigentlichen Lauf, ob die Datenbank überhaupt antwortet, erbt aber bewusst
+     * nicht von dieser Klasse. Stünden die Vorgaben dort ein zweites Mal, liefen sie
+     * auseinander — und der Wächter prüfte irgendwann eine andere Datenbank als die Tests.
+     *
+     * Die Standardwerte entsprechen der `docker-compose.yml` aus dem Runbook.
+     *
+     * @return array{dsn:string,user:string,pass:string,host:string,port:string,name:string}
+     */
+    public static function dbZugangsdaten(): array
+    {
+        $host = getenv('CONTENTFLY_TEST_DB_HOST') ?: '127.0.0.1';
+        $port = getenv('CONTENTFLY_TEST_DB_PORT') ?: '3307';
+        $name = getenv('CONTENTFLY_TEST_DB_NAME') ?: 'contentfly';
+        $user = getenv('CONTENTFLY_TEST_DB_USER') ?: 'contentfly';
+        $pass = getenv('CONTENTFLY_TEST_DB_PASSWORD') ?: 'contentfly';
+
+        return array(
+            'dsn'  => "mysql:host=$host;port=$port;dbname=$name;charset=utf8",
+            'user' => $user,
+            'pass' => $pass,
+            'host' => $host,
+            'port' => $port,
+            'name' => $name,
+        );
     }
 
     /**

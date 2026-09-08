@@ -21,7 +21,8 @@ use PHPUnit\Framework\TestCase;
  * ohne sie neu zu erfinden.
  *
  * ## Wovor der Wächter nicht schützt
- * Er prüft die **Vorbedingungen** eines Integrationslaufs, nicht jeden denkbaren Übersprung.
+ * Er prüft die **Vorbedingungen** eines Integrationslaufs — Umgebungsvariablen, den
+ * Testserver, die Datenbank und die Versandfalle —, nicht jeden denkbaren Übersprung.
  * Fügt jemand einem Test ein eigenes `markTestSkipped()` hinzu, fällt das hier nicht auf —
  * dafür bräuchte es `--fail-on-skipped` im Job, und das verlegte die Regel wieder aus der
  * Suite heraus. Die Vorbedingungen decken die realistischen Ausfälle ab: fehlende Variable,
@@ -153,6 +154,50 @@ class UmgebungsWaechterTest extends TestCase
                 $adresse
             )
         );
+    }
+
+    public function testDieTestdatenbankMussErreichbarSein(): void
+    {
+        // Nachgetragen mit 008-005-0004, nachdem der Fall real eingetreten ist: Beim Bauen
+        // von 008-005-0003 war der Datenbank-Container gestoppt. Die Suite meldete daraufhin
+        // **91 Errors** — lauter "PDOException: Connection refused" aus einzelnen Tests, und
+        // keiner davon sagte, dass schlicht die Datenbank fehlt.
+        //
+        // Genau das Problem, gegen das dieser Waechter gebaut wurde, nur eine Schicht tiefer:
+        // Der HTTP-Server kann laufen und antworten (/api/config braucht die Datenbank nicht),
+        // waehrend die Tests an ihrer eigenen Verbindung scheitern.
+        //
+        // Die Zugangsdaten kommen aus IntegrationTestCase::dbZugangsdaten() — an genau einer
+        // Stelle, damit der Waechter nicht irgendwann eine andere Datenbank prueft als die
+        // Tests.
+        $zugang = IntegrationTestCase::dbZugangsdaten();
+
+        try {
+            $pdo = new \PDO($zugang['dsn'], $zugang['user'], $zugang['pass'],
+                array(\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION));
+
+            // Verbunden zu sein genuegt nicht — eine leere Datenbank antwortet auch. Geprueft
+            // wird deshalb eine Tabelle, die es nur nach durchgefuehrter Installation gibt.
+            $tabellen = $pdo->query("SHOW TABLES LIKE 'pim_user'")->fetchAll(\PDO::FETCH_COLUMN);
+
+            $this->assertNotEmpty($tabellen, sprintf(
+                "Die Datenbank %s auf %s:%s antwortet, enthaelt aber keine Tabelle pim_user.\n\n"
+                ."Das heisst: verbunden, aber nicht installiert. Die Integrationstests wuerden "
+                ."reihenweise an fehlenden Tabellen scheitern, ohne die Ursache zu nennen.\n\n"
+                ."Installation: an_project/docs/runbook.md, Schritt 2.",
+                $zugang['name'], $zugang['host'], $zugang['port']
+            ));
+        } catch (\PDOException $e) {
+            $this->fail(sprintf(
+                "Die Testdatenbank auf %s:%s antwortet nicht.\n\n%s\n\n"
+                ."Ohne sie scheitert jeder Integrationstest an seiner eigenen Verbindung — mit "
+                ."je einer PDOException, die nie sagt, dass die Datenbank fehlt.\n\n"
+                ."Hochfahren: docker compose up -d (siehe an_project/docs/runbook.md).",
+                $zugang['host'],
+                $zugang['port'],
+                $e->getMessage()
+            ));
+        }
     }
 
     public function testEineGesetzteVersandfalleMussEinFangskriptEnthalten(): void

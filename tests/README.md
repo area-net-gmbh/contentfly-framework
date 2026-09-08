@@ -1,5 +1,11 @@
 # Tests
 
+> **Diese Suite ist die Abnahmegrundlage für den Kernel-Tausch.** Der Kernel-Tausch gilt als
+> gelungen, wenn sie **ohne inhaltliche Änderung** grün bleibt; eine Testanpassung ist ein
+> Verhaltenswechsel und braucht eine Begründung. Was das genau heisst — und was die Suite
+> ausdrücklich **nicht** abdeckt — steht in `an_project/docs/technical.md`, Abschnitt *Die
+> Testsuite ist die Abnahmegrundlage*. Wer hier einen Test ändert, liest das zuerst.
+
 Zwei Suiten, bewusst getrennt:
 
 | Suite | Verzeichnis | Braucht |
@@ -27,15 +33,30 @@ php bin/console.php appcms:install --db-host=127.0.0.1 --db-port=3307 \
     --db-name=contentfly --db-user=contentfly --db-pass=contentfly \
     --db-strategy=guid --admin-password='dev-only-secret'
 
-# 2. Testserver — mit dem Router und ohne Fehlerausgabe im Antwortstrom
-APP_ENV=production APP_DEBUG=0 \
-  php -d display_errors=Off -d log_errors=On -S 127.0.0.1:8145 tests/router.php &
+# 2. Versandfalle — damit kein Lauf eine Mail nach draussen schickt
+FALLE=/tmp/contentfly-mailfalle
+mkdir -p "$FALLE"
+printf '#!/bin/sh\ncat >> "$(dirname "$0")/postausgang.log"\nexit 0\n' > "$FALLE/sendmail"
+chmod +x "$FALLE/sendmail"
 
-# 3. Suite gegen diese Instanz
+# 3. Testserver — mit Router, Versandfalle und ohne Fehlerausgabe im Antwortstrom
+APP_ENV=production APP_DEBUG=0 \
+  php -d display_errors=Off -d log_errors=On -d sendmail_path="$FALLE/sendmail" \
+      -S 127.0.0.1:8145 tests/router.php &
+
+# 4. Suite gegen diese Instanz
 CONTENTFLY_TEST_BASE_URL=http://127.0.0.1:8145 \
 CONTENTFLY_TEST_ADMIN_PASS=dev-only-secret \
+CONTENTFLY_TEST_MAIL_TRAP="$FALLE" \
   ./custom/vendor/bin/phpunit
+
+# 5. Die Vorlage wiederherstellen — Schritt 1 hat Zugangsdaten hineingeschrieben
+git checkout HEAD -- custom/config.php
 ```
+
+Ohne Schritt 2 und `CONTENTFLY_TEST_MAIL_TRAP` überspringen sich drei Tests aus `MailApiTest`;
+in einer Pipeline wird der Lauf dann rot (siehe *Der Wächter* weiter unten). Die ausführliche
+Fassung der Versandfalle steht im Abschnitt darunter.
 
 **`tests/router.php` ist nicht optional.** Ohne ihn schickt der eingebaute Server *jede* Anfrage
 durch `index.php` — auch die für eine Datei, die auf der Platte liegt. Apache tut das nicht, und
@@ -67,10 +88,14 @@ selbst), **müssen** `CONTENTFLY_TEST_BASE_URL`, `CONTENTFLY_TEST_MAIL_TRAP` und
 `CONTENTFLY_TEST_ADMIN_PASS` da sein. Fehlt eine, ist der Lauf rot, und die Meldung nennt die
 Variable und warum sie nicht durchgewinkt wird.
 
-Zwei weitere Prüfungen laufen **auch lokal**, sobald die Variablen gesetzt sind: dass unter
-der Basisadresse wirklich etwas antwortet, und dass die Versandfalle ein ausführbares
-Fangskript enthält. Eine gesetzte Variable sagt nichts darüber, ob dahinter etwas läuft —
-und ein toter Testserver färbt sonst jeden Test rot, ohne je die Ursache zu nennen.
+Drei weitere Prüfungen laufen **auch lokal**, sobald die Variablen gesetzt sind: dass unter
+der Basisadresse wirklich etwas antwortet, dass die **Testdatenbank** erreichbar *und
+installiert* ist, und dass die Versandfalle ein ausführbares Fangskript enthält. Eine gesetzte
+Variable sagt nichts darüber, ob dahinter etwas läuft.
+
+Die Datenbankprüfung kam nachträglich dazu, nachdem der Fall real eingetreten war: Bei
+gestopptem Container meldete die Suite **91 Errors** — lauter `PDOException: Connection
+refused` aus einzelnen Tests, und keiner davon sagte, dass schlicht die Datenbank fehlt.
 
 | `CI` | Variablen | Ergebnis |
 |---|---|---|
