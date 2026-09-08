@@ -74,3 +74,7 @@ Die Suite ist ab hier mehr als ein Testordner. In `an_project/docs/` gehört fes
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
+- [ ] 008-005-0001 — Die Pipeline anlegen: Datenbank, Installation und Testserver
+- [ ] 008-005-0002 — Ein übersprungener Integrationstest macht den Lauf rot
+- [ ] 008-005-0003 — custom/config.php gegen versehentliches Committen absichern
+- [ ] 008-005-0004 — Die Suite als Abnahmegrundlage festschreiben
