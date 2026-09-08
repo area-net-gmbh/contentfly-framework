@@ -1,7 +1,7 @@
 ---
 id: 006-001-0002
 title: Beide Vendor-Bäume vollständig erfassen
-status: todo
+status: review
 depends_on: [006-001-0001]
 ---
 
@@ -84,17 +84,17 @@ Keine Zuordnung, keine Entscheidung, kein Manifest. Wer beim Erfassen eine Meinu
 notiert sie als Anmerkung — entschieden wird in `006-001-0004`.
 
 ## Acceptance criteria
-- [ ] Eine Tabelle listet **alle** Pakete beider Bäume mit Version, `php`-Constraint,
+- [x] Eine Tabelle listet **alle** Pakete beider Bäume mit Version, `php`-Constraint,
       Herkunft (`installed.json` oder von Hand) und der Frage, ob sie im Code benutzt werden.
-- [ ] Die Gesamtzahl ist genannt und stimmt mit den beiden `installed.json` plus den
+- [x] Die Gesamtzahl ist genannt und stimmt mit den beiden `installed.json` plus den
       Geisterpaketen überein — 87 ist die Erwartung, nicht die Vorgabe.
-- [ ] Die vier PHP-8-Blocker sind **verifiziert**; Abweichungen von der Erwartung sind
+- [x] Die vier PHP-8-Blocker sind **verifiziert**; Abweichungen von der Erwartung sind
       festgehalten.
-- [ ] Bestätigt oder widerlegt: `silex/silex` und die Symfony-3.4-Komponenten haben nach oben
+- [x] Bestätigt oder widerlegt: `silex/silex` und die Symfony-3.4-Komponenten haben nach oben
       offene `php`-Constraints.
-- [ ] Die Geisterpakete sind durch einen **systematischen** Abgleich ermittelt, nicht aus dem
+- [x] Die Geisterpakete sind durch einen **systematischen** Abgleich ermittelt, nicht aus dem
       Story-Text übernommen.
-- [ ] Die Dubletten sind durch einen Namensraum-Abgleich beider Autoloader vollständig
+- [x] Die Dubletten sind durch einen Namensraum-Abgleich beider Autoloader vollständig
       erfasst.
 
 ## Verification
@@ -104,3 +104,74 @@ erzeugt hat, gehört ins Ergebnis — eine abgetippte Liste veraltet beim ersten
 
 Stichprobe gegen die Wirklichkeit: Für drei Pakete aus der Tabelle wird von Hand geprüft, dass
 Version und Constraint mit dem `composer.json` im Verzeichnis übereinstimmen.
+
+## Ergebnis
+`tools/dependency-inventory.php` erzeugt `an_project/docs/abhaengigkeiten-inventar.md`:
+
+```sh
+php tools/dependency-inventory.php > an_project/docs/abhaengigkeiten-inventar.md
+```
+
+Ein Skript statt einer abgetippten Liste, weil eine Tabelle im Fliesstext beim ersten
+`composer update` veraltet und es niemand merkt.
+
+### **89** Pakete, nicht 87
+Der Story-Text zählte die beiden Geisterpakete nicht mit: 39 (Root `installed.json`) + **2**
+(von Hand) + 48 (`custom/`). Die Erwartung war eine Erwartung, keine Vorgabe — genau deshalb
+stand sie so im Task.
+
+### Der grosse Befund: **20** Pakete mit oberer PHP-Grenze, nicht vier
+Der Story-Text nannte vier. Tatsächlich cappt der **gesamte Doctrine-Baum** (11 Pakete) auf
+`^7.1`, dazu fünf Symfony-Pakete auf `^7.1.3`, sowie `ellumilel`, `twig`, `ramsey/uuid` und
+`paragonie/random_compat`.
+
+Das berührt den Zuschnitt von Epic `006` unmittelbar — und die Antwort ist präziser als
+gedacht:
+
+**Die vier von Silex gepinnten Pakete sind nach oben offen** (`^5.5.9|>=7.0.8`):
+`symfony/event-dispatcher`, `http-foundation`, `http-kernel`, `routing`. Silex selbst
+verlangt nur `>=5.5.9`.
+
+**Fünf weitere Symfony-Pakete im Baum sind es nicht** (`^7.1.3`): `console`, `contracts`,
+`debug`, `translation`, `validator`. Sie hängen nicht an Silex.
+
+Der Epic-Text warf beide Gruppen zusammen („die Symfony-3.4-Komponenten sind nach oben
+offen"). Das gilt nur für die erste. Ob der Ist-Stack trotzdem auflösbar ist, entscheidet
+`006-001-0003` mit einem echten Auflösungslauf — die Vorauswahl hier ist ein
+Zeichenketten-Urteil, kein Composer-Urteil.
+
+### Geisterpakete: die erwarteten zwei, systematisch bestätigt
+`phpmailer/phpmailer` und `scssphp/scssphp` — ermittelt durch Verzeichnisabgleich gegen die
+`installed.json`, nicht aus dem Story-Text übernommen. **Es gibt keine weiteren.**
+
+### Dubletten: vier, davon zwei mit unterschiedlichem Major
+| Paket | Root | `custom/` | gleicher Major |
+|---|---|---|---|
+| `phpmailer/phpmailer` | (unbekannt, von Hand) | v6.10.0 | **nein** |
+| `psr/log` | 1.1.3 | 3.0.2 | **nein** |
+| `symfony/polyfill-ctype` | v1.14.0 | v1.37.0 | ja |
+| `symfony/polyfill-mbstring` | v1.14.0 | v1.38.2 | ja |
+
+Der Namensraum-Abgleich beider Autoloader bestätigt genau diese vier als Kollisionen — **keine
+weiteren**. Der Root wird zuerst geladen und gewinnt; bei `psr/log` heisst das 1.1.3 über
+3.0.2, bei `phpmailer` die von Hand kopierte Fassung über das gepflegte `^6.10`.
+
+### Die Heuristik lügt — und sagt es selbst
+Die Spalte *benutzt?* ist eine `grep`-Näherung. Sie meldet `twig/twig` als **benutzt**, weil
+das Wort „Twig" in einem Kommentar von `Command/InstallCommand.php` steht. Das Dokument
+benennt diesen Fehlalarm ausdrücklich: Ein *ja* heisst „nachsehen", ein *—* ist die
+belastbarere Aussage.
+
+Nicht wegoptimiert, weil der Task es so vorgibt: „entscheidend ist die **Frage**, nicht die
+perfekte Antwort". Die genaue Prüfung leistet `006-001-0004` für die Fälle, auf die es ankommt.
+
+### Verifikation
+Stichprobe gegen die Quelldateien, drei Pakete:
+
+| Paket | Inventar | `vendor/<paket>/composer.json` |
+|---|---|---|
+| `doctrine/orm` | `dev-bugfix-many2many`, `^7.1` | `^7.1` ✓ |
+| `ramsey/uuid` | `3.8.0`, `^5.4 \|\| ^7.0` | `^5.4 \|\| ^7.0` ✓ |
+| `silex/silex` | `v2.2.2`, `>=5.5.9` | `>=5.5.9` ✓ |
+
+Die Gesamtzahl geht auf: 39 + 2 + 48 = 89.
