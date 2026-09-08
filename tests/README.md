@@ -55,6 +55,35 @@ Deprecations ausliefert, verrät Dateipfade an jeden Aufrufer. Dass das Framewor
 `log_errors=On` sorgt dafür, dass die Deprecations nicht verschwinden, sondern im Serverlog
 stehen. Das ist die Quelle, aus der das „0 Deprecations"-Gate aus `006-005` später liest.
 
+## Der Wächter gegen stille Übersprünge
+
+`tests/Integration/UmgebungsWaechterTest.php` löst das eigentliche Risiko einer Pipeline:
+**eine grüne Suite, die nichts geprüft hat.** Fehlt `CONTENTFLY_TEST_BASE_URL`, überspringen
+sich alle Integrationstests, PHPUnit meldet `OK, but some tests were skipped` — und der Job
+wird grün.
+
+Der Wächter prüft deshalb: Ist `CI` gesetzt (GitLab und die meisten anderen tun das von
+selbst), **müssen** `CONTENTFLY_TEST_BASE_URL`, `CONTENTFLY_TEST_MAIL_TRAP` und
+`CONTENTFLY_TEST_ADMIN_PASS` da sein. Fehlt eine, ist der Lauf rot, und die Meldung nennt die
+Variable und warum sie nicht durchgewinkt wird.
+
+Zwei weitere Prüfungen laufen **auch lokal**, sobald die Variablen gesetzt sind: dass unter
+der Basisadresse wirklich etwas antwortet, und dass die Versandfalle ein ausführbares
+Fangskript enthält. Eine gesetzte Variable sagt nichts darüber, ob dahinter etwas läuft —
+und ein toter Testserver färbt sonst jeden Test rot, ohne je die Ursache zu nennen.
+
+| `CI` | Variablen | Ergebnis |
+|---|---|---|
+| nicht gesetzt | fehlen | grün, Integrationstests übersprungen |
+| nicht gesetzt | gesetzt | grün, alles läuft |
+| `true` | fehlen | **rot** (Exit 1), Meldung nennt die Variable |
+| `true` | gesetzt | grün, alles läuft |
+
+Er erbt bewusst **nicht** von `IntegrationTestCase` — sonst überspränge er sich unter genau
+den Bedingungen selbst, vor denen er warnt. Wovor er nicht schützt: ein einzelnes
+`markTestSkipped()`, das jemand einem Test hinzufügt. Er prüft die Vorbedingungen eines
+Integrationslaufs, nicht jeden denkbaren Übersprung.
+
 ## In der Pipeline
 
 `.gitlab-ci.yml` fährt genau diesen Ablauf; die Schritte stehen in `tools/ci/`, damit man sie
