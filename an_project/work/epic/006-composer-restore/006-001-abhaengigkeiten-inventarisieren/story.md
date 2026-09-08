@@ -102,3 +102,7 @@ und `mockery/mockery` in `custom/`. Alle vier gehören in `require-dev` des Root
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
+- [ ] 006-001-0001 — Die tote SCSS-Spur entfernen
+- [ ] 006-001-0002 — Beide Vendor-Bäume vollständig erfassen
+- [ ] 006-001-0003 — Belegen, dass der Ist-Stack auflösbar ist
+- [ ] 006-001-0004 — Zuordnung entscheiden und begründen
