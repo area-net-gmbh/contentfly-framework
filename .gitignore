@@ -1,9 +1,14 @@
 .vagrant/*
 # Ignore composer.lock everywhere (vendor-internal locks are noise)…
 composer.lock
-# …EXCEPT the app's own lock: commit it for reproducible CI (pins versions) +
+# …EXCEPT the app's own locks: commit them for reproducible CI (pins versions) +
 # `composer audit --locked` (spec 069 §5.2).
+#
+# Der fuehrende Slash bei /composer.lock ist noetig: Ohne ihn greift die Ausnahme auf jeder
+# Ebene und holt genau die vendor-internen Locks zurueck, die die Regel darueber fernhaelt.
+# Der Root-Lock kam mit 006-002-0003 dazu.
 !custom/composer.lock
+!/composer.lock
 .idea/*
 ansible/*
 # Anchored (leading slash): unanchored 'template' matched vendor dirs on every

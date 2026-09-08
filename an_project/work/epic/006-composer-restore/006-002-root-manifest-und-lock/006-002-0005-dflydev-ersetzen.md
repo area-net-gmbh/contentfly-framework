@@ -164,8 +164,20 @@ neuen Baum aufgefallen und dort mit vier Major-Sprüngen vermischt gewesen.
 |---|---|
 | Suite gegen den **alten** Baum | **247 Tests / 603 Assertions grün** |
 | Console gegen den alten Baum | Exit 0 |
-| Console gegen den **neuen** Baum (Doctrine 2.20, Symfony 4.4) | **Exit 0** |
+| Console gegen den **neuen** Baum (Doctrine 2.20, Symfony 4.4) | Exit 0 — ⚠️ siehe Korrektur |
 | `MappingDriverChain`-Fehler im Lauf-2-Protokoll | **0 Treffer** |
+
+> **Korrektur, nachgetragen mit `006-002-0003`:** Die Zeile „Console gegen den neuen Baum:
+> Exit 0" taugt **nicht** als Beleg dafür, dass der EntityManager funktioniert.
+> `php bin/console.php list` erzeugt ihn zwar, lädt aber keine Metadaten — der Fehler kommt
+> erst beim ersten `getClassMetadata()`. Der Task-Text dieser Datei warnte ausdrücklich davor
+> („Ein EntityManager, der sich im Container erzeugen lässt, ist noch keiner, der eine Abfrage
+> beantwortet"), und ich habe die eigene Warnung beim Auswerten nicht befolgt.
+>
+> **Was trotzdem gilt:** Die dflydev-Blockade ist weg — belegt durch die 0 Treffer auf
+> `MappingDriverChain` und dadurch, dass `006-002-0003` danach *andere* Fehler fand und
+> schrittweise auflösen konnte. Der eigentliche Beleg ist der grüne Lauf gegen den alten Baum
+> plus die inzwischen funktionierende Anmeldung gegen den neuen.
 
 **Die Blockade ist weg.** Gegen den alten Baum ändert sich nichts, gegen den neuen bootet die
 Anwendung.

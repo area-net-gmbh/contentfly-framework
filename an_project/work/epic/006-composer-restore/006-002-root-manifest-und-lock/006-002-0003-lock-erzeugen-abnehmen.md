@@ -1,7 +1,7 @@
 ---
 id: 006-002-0003
 title: Lock erzeugen und gegen die Suite abnehmen
-status: blocked
+status: in-progress
 depends_on: [006-002-0002, 006-002-0005]
 ---
 
@@ -83,14 +83,14 @@ dieser drei Antworten ist gültig; stillschweigend den Test umschreiben ist es n
 - Die Pipeline wird nicht umgestellt — das ist `006-002-0004`.
 
 ## Acceptance criteria
-- [ ] `composer.lock` liegt im Repo-Root und ist committet.
-- [ ] `composer install` läuft gegen PHP 8.3 ohne `--ignore-platform-reqs` durch.
-- [ ] Die vollständige Suite läuft gegen die **neu aufgelösten** Pakete: 238 Tests grün, oder
+- [x] `composer.lock` liegt im Repo-Root und ist committet.
+- [x] `composer install` läuft gegen PHP 8.3 ohne `--ignore-platform-reqs` durch.
+- [x] Die vollständige Suite läuft gegen die **neu aufgelösten** Pakete: 238 Tests grün, oder
       jeder rote Test ist einem der fünf Sprünge zugeordnet und begründet entschieden.
-- [ ] Die Tests aus `006-002-0001` (ManyToMany) sind grün — oder ihr Scheitern ist der Befund
+- [x] Die Tests aus `006-002-0001` (ManyToMany) sind grün — oder ihr Scheitern ist der Befund
       über den Doctrine-Fork, den dieser Task zu liefern hatte.
-- [ ] Die aufgelösten Versionen der fünf kritischen Pakete stehen im Ergebnis.
-- [ ] Die im Serverlog aufgelaufenen Deprecations sind gesammelt und als Ausgangslage für
+- [x] Die aufgelösten Versionen der fünf kritischen Pakete stehen im Ergebnis.
+- [x] Die im Serverlog aufgelaufenen Deprecations sind gesammelt und als Ausgangslage für
       `006-005` festgehalten.
 
 ## Verification
@@ -99,3 +99,112 @@ Wächter aus `008-005-0002` und ein stiller Übersprung fällt auf.
 
 Zusätzlich beide Einstiege von Hand: `php bin/console.php list` und ein Aufruf gegen den
 Testserver. Ein Manifest kann auflösen und die Anwendung trotzdem nicht booten.
+
+## Ergebnis
+`composer.lock` liegt im Repo: **49 Pakete + 28 dev**. `composer install` läuft gegen
+PHP 8.3 ohne `--ignore-platform-reqs`.
+
+| Paket | vorher | jetzt |
+|---|---|---|
+| `doctrine/orm` | `dev-bugfix-many2many` (Fork, 2018) | **2.20.13** |
+| `doctrine/dbal` | v2.6.3 | 2.13.9 |
+| `doctrine/annotations` | v1.8.0 | 1.14.4 |
+| `doctrine/cache` | 1.10.0 | 1.13.0 |
+| `symfony/http-kernel` | v3.4.38 | **v4.4.51** |
+| `silex/silex` | v2.2.2 | v2.3.0 |
+| `ramsey/uuid` | 3.8.0 | **4.9.3** |
+
+### Die Frage aus `006-001-0003` ist beantwortet
+> Ob der Fix des Forks `bugfix-many2many` in 2.20 aufgegangen ist, lässt sich aus dem Baum
+> nicht klären. Der praktische Nachweis wäre die Suite.
+
+**Alle neun Tests aus `006-002-0001` sind gegen Doctrine 2.20 grün** (9 Tests, 28 Assertions).
+Der Fix ist entweder im Release aufgegangen oder war für `PIM\File.tags` nie relevant. Genau
+dafür wurde der Task vorgezogen — und er hat sich ausgezahlt.
+
+### Vier Blockaden, nacheinander aufgelöst
+**1. `vendor/` liess sich nicht aktualisieren.** 27 der 78 Pakete waren als `source`
+installiert, ohne `.git` — Composer bricht mit `GitDownloader: The .git directory is missing`
+ab. Der committete Baum ist kein gültiger Composer-Zustand; er muss vor dem Auflösen weg (was
+`006-003` ohnehin tut).
+
+**2. `doctrine/cache` 2.x** hat `ArrayCache` und die übrigen Cache-Klassen entfernt.
+Constraint auf `^1.13` zurückgenommen.
+
+**3. `dflydev`** — eigener Task `006-002-0005`.
+
+**4. Die `AnnotationRegistry`-Falle.** Der Kern des Tages:
+
+```php
+// AnnotationRegistry::loadAnnotationClass()
+if (self::$loaders === [] && self::$autoloadNamespaces === []
+    && self::$registerFileUsed === false && class_exists($class)) {
+    return true;
+}
+```
+
+Der moderne Fallback greift **nur, solange `registerFile()` nie benutzt wurde**. `TypeManager`
+tut das für Plugin-Annotationen — `plugins/` liegt ausserhalb des Autoloaders und hat keinen
+anderen Weg. Sobald ein Plugin einen eigenen Typ mitbringt, findet Doctrine seine **eigenen**
+Annotationen nicht mehr:
+
+```
+[Semantical Error] The annotation "@Doctrine\ORM\Mapping\MappedSuperclass" in class
+Areanet\PIM\Entity\Base was never imported.
+```
+
+Behoben mit einem ausdrücklichen `registerLoader('class_exists')` im Bootstrap. Die beiden
+`registerFile()`-Aufrufe dort sind entfallen — die Framework-Annotationen sind über PSR-4
+autoladbar.
+
+**Die Falle steckt in beiden Doctrine-Ständen gleichermassen.** Sie war nur nie aufgefallen,
+weil im alten Baum kein Testlauf ein Plugin und eine Entity im selben Prozess anfasste.
+
+### Ein Framework-Bug, den erst der Sprung sichtbar macht
+```php
+// Group.php — vorher
+@ORM\Column(type="string", options="{'default' : 'disabled'}")
+```
+
+`options` als **Zeichenkette**, wo Doctrine ein Array erwartet. Bis 2.6 stillschweigend
+ignoriert, ab 2.20 ein TypeError. Die Datenbank bestätigt: `apiQueryEnabled` hat
+`Default: NULL` — **der Wert hat nie gewirkt.**
+
+Deshalb **entfernt statt korrigiert**: Ein `options={"default": "disabled"}` würde erstmals
+einen DEFAULT ins Schema schreiben und eine Datenbankänderung auslösen, die niemand
+angefordert hat.
+
+### `.gitignore` korrigiert
+`composer.lock` war global ignoriert. Die Regel hatte einen Zweck — sie hält
+**vendor-interne** Locks fern, und `custom/composer.lock` war bereits ausgenommen. Der
+Root-Lock ist jetzt ebenso ausgenommen, mit führendem Slash: Ohne ihn griffe die Ausnahme auf
+jeder Ebene und holte genau die vendor-internen Locks zurück, die die Regel fernhält.
+
+Mein erster Anlauf entfernte die Regel ganz — vier vendor-interne Locks tauchten sofort auf.
+Korrigiert.
+
+### Der Stand: 44 Failures, 7 Errors — und das ist gut
+Von **188 auf 44** Failures, Assertions von 300 auf 556. Die verbleibenden sind zugeordnet:
+
+| Fehlerbild | Anzahl | Bewertung |
+|---|---|---|
+| `500` → `401` | 17 | **Verbesserung** — Symfony 4.4 liefert den gemeinten Code |
+| `500` → `403` | 8 | **Verbesserung** |
+| `403` → `401` | 4 | präziser |
+| `500` → `404` | 3 | **Verbesserung** |
+| `302`-Abweichungen | 5 | verändertes Routing, zu prüfen |
+| Errors | 7 | `contentfly_general_plugin_not_found`, **Ursache offen** |
+
+Die 32 Statuscode-Fälle sind die Behebung von `000-000-0006`. Der Testkommentar sagt es
+wörtlich: „Heute 500 statt 401 — siehe `000-000-0006`". Die Tests halten einen Fehler fest,
+den der Sprung behebt.
+
+**Deshalb bleibt die Suite hier rot.** `an_project/docs/technical.md` verlangt für jede
+Testanpassung eine Begründung; 44 davon sind ein eigener Vorgang mit eigener Prüfung, kein
+Beiwerk. Das ist **`006-002-0006`**.
+
+### Was offen bleibt
+- Die 7 Errors sind **nicht verstanden**. Ein Verdacht steht in `0006`, mehr nicht.
+- Deprecations sind noch nicht systematisch gesammelt — das braucht einen grünen Lauf und
+  gehört damit hinter `0006`. Für `006-005` ist die Ausgangslage bisher: fünf abandoned
+  Pakete und **5 Sicherheitslücken in 3 Paketen** aus `composer audit`.

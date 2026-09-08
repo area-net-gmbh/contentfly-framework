@@ -124,3 +124,4 @@ ausdrücklich annehmen. **Nicht stillschweigend übergehen.**
 - [ ] 006-002-0003 — Lock erzeugen und gegen die Suite abnehmen
 - [ ] 006-002-0004 — Pipeline und Runbook nachziehen
 - [ ] 006-002-0005 — dflydev-Service-Provider durch eigenen Aufbau ersetzen
+- [ ] 006-002-0006 — Testerwartungen an den neuen Stack anpassen
