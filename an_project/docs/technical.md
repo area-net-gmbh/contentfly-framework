@@ -201,13 +201,23 @@ Stellen anfasst, weiss, dass kein Test ihn auffängt.**
 
 | Lücke | Warum | Festgestellt in |
 |---|---|---|
-| `excludeFromSync`, `i18n_universal`, `encoded`, OneJoin-Kaskade, Schreibprüfung des `MultijoinType` | Codepfade, die sich mit der Vorlage nicht auslösen lassen; geprüft ist nur die Vorbedingung — sie greifen, wenn jemand das Feature einschaltet | `008-001`, `008-002` |
+| `excludeFromSync`, `i18n_universal`, `encoded`, OneJoin-Kaskade, **Schreibprüfung** des `MultijoinType` | Codepfade, die sich mit der Vorlage nicht auslösen lassen; geprüft ist nur die Vorbedingung — sie greifen, wenn jemand das Feature einschaltet | `008-001`, `008-002` |
 | `canExport`, `getExtended` | veröffentlicht, aber nirgends durchgesetzt; ihr einziger Konsument war die gelöschte Oberfläche | `008-003-0005` |
 | Das Notschloss im `before`-Hook des `SystemController` | nicht scharf geprüft — es verlangt ein absichtlich beschädigtes Schema der gemeinsamen Testdatenbank | `008-004-0003` |
 | Der `before`-Hook der Vorlage | setzt einen Wert, den niemand liest; von aussen nicht nachweisbar | `008-004-0005` |
 | Sprachen und i18n | die Vorlage konfiguriert keine Sprachen und bringt keine konkrete `BaseI18n`-Entity mit; abgedeckt ist nur die Logik im Unit-Test | `008-001-0005` |
 | Der Erfolgsfall von `/api/mail` | existiert nicht — der Endpunkt scheitert an einer undefinierten Konstanten | `008-004-0004` |
 | Das `json`-Feld der Beispiel-Entity | für die API nicht vorhanden, weil kein `json`-Typ registriert ist | `008-004-0005` |
+
+### Was seit dieser Liste dazugekommen ist
+- **Der ManyToMany-Pfad `PIM\File.tags`** ist seit `006-002-0001` abgedeckt
+  (`ManyToManyApiTest`): anlegen, lesen, ändern, leeren, löschen und filtern, je mit Prüfung
+  der Verknüpfungstabelle **per SQL**. Anlass war der Doctrine-Wechsel weg von einem eigenen
+  Fork namens `bugfix-many2many`.
+
+  **Nicht zu verwechseln** mit der Zeile oben: Die *Schreibprüfung* des `MultijoinType` ist ein
+  Berechtigungspfad im `acceptFrom`-Zweig und bleibt nicht auslösbar. Das ORM-Verhalten ist
+  jetzt geprüft, die Rechteprüfung darauf nicht.
 
 Dazu kommt eine Grenze des Wächters selbst: Er prüft die **Vorbedingungen** eines
 Integrationslaufs (Umgebungsvariablen, Testserver, Datenbank, Versandfalle), nicht jeden
