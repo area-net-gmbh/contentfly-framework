@@ -1,0 +1,78 @@
+{
+    "name": "areanet/contentfly-framework",
+    "description": "Contentfly — Datenhaltung und Core-Funktionen. Manifest für den IST-Stack: Silex 2 und Symfony 4.4 bleiben bis Epic 009.",
+    "type": "project",
+    "license": "proprietary",
+
+    "config": {
+        "platform": {
+            "php": "8.3.0"
+        },
+        "sort-packages": true
+    },
+
+    "require": {
+        "php": "^8.3",
+
+        "silex/silex": "^2.2",
+        "dflydev/doctrine-orm-service-provider": "^2.0",
+        "knplabs/console-service-provider": "^2.0",
+
+        "doctrine/orm": "^2.14",
+        "doctrine/dbal": "^2.13",
+        "doctrine/annotations": "^1.14",
+
+        "symfony/console": "^4.4",
+        "symfony/translation": "^4.4",
+        "symfony/validator": "^4.4",
+
+        "phpmailer/phpmailer": "^6.10",
+        "ramsey/uuid": "^4.0",
+        "vlucas/phpdotenv": "^5.6"
+    },
+
+    "require-dev": {
+        "phpunit/phpunit": "^10.5",
+        "phpstan/phpstan": "^1.10",
+        "rector/rector": "^1.0"
+    },
+
+    "autoload": {
+        "psr-4": {
+            "Areanet\\PIM\\": "lib/contentfly/",
+            "Custom\\": "custom/"
+        }
+    },
+
+    "extra": {
+        "hinweis": [
+            "BEVOR JEMAND DIE CONSTRAINTS ANFASST — die Zahlen sind nicht gewaehlt, sondern",
+            "erzwungen. Belegt in an_project/work/epic/006-composer-restore/",
+            "006-001-abhaengigkeiten-inventarisieren/006-001-0003-ist-stack-aufloesbar.md:",
+            "",
+            "  1. PHP 8.3 verlangt ein doctrine/orm-RELEASE — der bisherige Pin stand auf",
+            "     einem eigenen Fork (area-net-gmbh/doctrine2, Branch bugfix-many2many,",
+            "     Stand 2018) und cappt auf php ^7.1.",
+            "  2. Jedes ORM-Release ab 2.14 verlangt symfony/console ^4.2 oder hoeher.",
+            "     Symfony 3.4 ist damit ausgeschlossen.",
+            "  3. Nach oben deckelt knplabs/console-service-provider (v2.2.0) auf",
+            "     symfony/console ^4.0.",
+            "",
+            "Zwischen Doctrine als Untergrenze und Silex/knplabs als Obergrenze bleibt",
+            "genau 4.4. Wer eine der drei Zeilen aendert, muss die Kette neu rechnen.",
+            "",
+            "doctrine/dbal steht bewusst auf ^2.13 und nicht ^3: Der Sprung auf DBAL 3 ist",
+            "der groesste API-Bruch der Liste (fetchAll() entfernt, Statement::execute()",
+            "umgebaut) bei einem Paket, das der Framework-Code direkt anfasst. Er gehoert",
+            "zu Epic 010, nicht hierher.",
+            "",
+            "platform.php steht auf 8.3, weil die Suite darauf gruen ist und die Pipeline",
+            "sie dagegen faehrt. Der Sprung auf 8.5 gehoert zu Epic 009, gemeinsam mit",
+            "Symfony 7.4 — dort ist es ein Constraint-Bump in diesem Manifest.",
+            "",
+            "Die Zuordnung jedes einzelnen Pakets steht in",
+            "an_project/docs/abhaengigkeiten-inventar.md, erzeugt von",
+            "tools/dependency-inventory.php. Was hier NICHT steht, steht dort mit Begruendung."
+        ]
+    }
+}
