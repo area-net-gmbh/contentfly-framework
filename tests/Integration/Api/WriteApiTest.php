@@ -139,7 +139,8 @@ class WriteApiTest extends IntegrationTestCase
             $this->token()
         );
 
-        $this->assertSame(500, $status, 'Heute 500 statt 404 — siehe 000-000-0006');
+        $this->assertSame(404, $status,
+            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
     }
 
     public function testInsertOhneTokenLegtNichtsAn(): void
@@ -149,7 +150,7 @@ class WriteApiTest extends IntegrationTestCase
             array('entity' => 'PIM\\Tag', 'data' => array('title' => 'Ohne-Token'))
         );
 
-        $this->assertSame(500, $status, 'Heute 500 statt 401 — siehe 000-000-0006');
+        $this->assertSame(401, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
 
         $anzahl = (int) $this->pdo()
             ->query("SELECT COUNT(*) FROM pim_tag WHERE title = 'Ohne-Token'")
@@ -213,7 +214,7 @@ class WriteApiTest extends IntegrationTestCase
 
         [$status] = $this->postJson('/api/delete', array('entity' => 'PIM\\Tag', 'id' => $body['id']));
 
-        $this->assertSame(500, $status, 'Heute 500 statt 401 — siehe 000-000-0006');
+        $this->assertSame(401, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
 
         $anzahl = (int) $this->pdo()
             ->query('SELECT COUNT(*) FROM pim_tag WHERE id = '.$this->pdo()->quote($body['id']))

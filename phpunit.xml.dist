@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:noNamespaceSchemaLocation="custom/vendor/phpunit/phpunit/phpunit.xsd"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
          bootstrap="tests/bootstrap.php"
          colors="true"
          beStrictAboutOutputDuringTests="true"
@@ -56,5 +56,8 @@
          Coverage-Treiber an, und fehlt Xdebug oder PCOV, endet die Suite mit Exit-Code 1,
          obwohl jeder Test gruen ist. Eine Suite, die aus dem falschen Grund rot ist,
          verliert ihre Aussagekraft. Abdeckung wird deshalb angefordert, wenn man sie will:
-         ./custom/vendor/bin/phpunit with-coverage-text (siehe Runbook). -->
+         ./vendor/bin/phpunit with-coverage-text (siehe Runbook).
+         Die Schreibweise "with-coverage-text" statt der echten Option ist Absicht:
+         Zwei aufeinanderfolgende Bindestriche sind in einem XML-Kommentar nicht
+         erlaubt, und der Parser bricht daran ab. -->
 </phpunit>

@@ -128,7 +128,7 @@ class ReadPermissionApiTest extends IntegrationTestCase
 
         [$status, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'), $token);
 
-        $this->assertSame(500, $status, 'Heute 500 statt 403 — siehe 000-000-0006');
+        $this->assertSame(403, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
         $this->assertArrayNotHasKey('data', $body, 'Es fliessen keine Daten');
     }
 
@@ -144,7 +144,8 @@ class ReadPermissionApiTest extends IntegrationTestCase
             $token
         );
 
-        $this->assertSame(500, $status);
+        $this->assertSame(403, $status,
+            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
         $this->assertArrayNotHasKey('data', $body);
     }
 
@@ -169,7 +170,8 @@ class ReadPermissionApiTest extends IntegrationTestCase
 
         [$status] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'), $anmeldung['token']);
 
-        $this->assertSame(500, $status, 'Ohne Gruppe gibt es kein Recht auf irgendetwas');
+        $this->assertSame(403, $status,
+            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
     }
 
     // ── Admin ──────────────────────────────────────────────────────────────────────────

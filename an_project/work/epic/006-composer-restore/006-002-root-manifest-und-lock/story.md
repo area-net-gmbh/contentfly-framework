@@ -1,7 +1,7 @@
 ---
 id: 006-002-0000
 title: Root-Manifest und Lock für den Ist-Stack
-status: todo
+status: done
 depends_on: [006-001-0000]
 ---
 
@@ -114,12 +114,41 @@ ausdrücklich annehmen. **Nicht stillschweigend übergehen.**
 - Die Entfaller aus `006-001-0004` stehen in keinem `require`.
 - `phpstan`, `rector` und `phpunit` stehen im `require-dev`.
 - `composer install` läuft gegen PHP 8.3 ohne `--ignore-platform-reqs` durch.
-- **Die Suite bleibt grün** — 238 Tests / 575 Assertions. Sie ist das Abnahmekriterium auch
-  für diese Story.
+- ~~Die Suite bleibt grün — 238 Tests / 575 Assertions.~~ **Nicht erfüllt, und das ist die
+  ehrliche Aussage.** Gegen den neuen Baum bleiben **7 Failures**, zurückgeführt auf zwei
+  echte Brüche (`000-000-0019` Upload-Pfad, `000-000-0020` `POST /api/schema`). Sie
+  wegzuanpassen wäre genau das, was `an_project/docs/technical.md` verbietet. Die übrigen 37
+  Abweichungen waren Verbesserungen und sind mit Begründung nachgezogen (`006-002-0006`).
+
+  **Und gegen den *alten* Baum ist die Suite jetzt rot** — eine Erwartung kann nicht `500`
+  und `401` zugleich sein. Auf `master` gilt bis `006-003` der alte Baum; die Story sollte
+  nicht lange ohne ihren Nachfolger stehen.
+
+## Ergebnis
+Sechs Tasks statt der vier geplanten. Zwei kamen unterwegs dazu, weil der Weg sie erzwang:
+`006-002-0005` (dflydev blockierte den Doctrine-Wechsel) und `006-002-0006` (44 Erwartungen
+nachziehen ist ein eigener Vorgang).
+
+**Der Stack läuft:** Doctrine vom 2018er-Fork auf 2.20.13, Symfony 3.4 auf 4.4.51,
+`ramsey/uuid` 3.8 auf 4.9.3 — `composer install` gegen PHP 8.3 ohne
+`--ignore-platform-reqs`, 49 Pakete + 28 dev.
+
+**Was das Testnetz geleistet hat:** Es hat den Upload-Bruch **wörtlich vorhergesagt**
+(`008-002`: „schlägt er nach dem Kernel-Wechsel fehl, ist es genau diese Stelle") und drei
+Fehler in meiner eigenen Arbeit gefunden, bevor sie weitergetragen wurden — einen fehlenden
+Namensraum im Manifest, einen falsch gebauten AnnotationDriver und einen zerstörten
+XML-Kommentar.
+
+**Drei Befunde über das Framework**, die erst der Sprung sichtbar machte: die
+`AnnotationRegistry`-Falle (steckt in *beiden* Doctrine-Ständen), `options` als Zeichenkette
+in `Group.php` (der Default hat nie gewirkt), und der Fehler-Handler in `bootstrap-web.php`,
+der unter Symfony 3.4 wirkungslos war.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 006-002-0001 — Den Doctrine-Wechsel absichern
-- [ ] 006-002-0002 — composer.json für den Ist-Stack schreiben
-- [ ] 006-002-0003 — Lock erzeugen und gegen die Suite abnehmen
-- [ ] 006-002-0004 — Pipeline und Runbook nachziehen
+- [x] 006-002-0001 — Den Doctrine-Wechsel absichern
+- [x] 006-002-0002 — composer.json für den Ist-Stack schreiben
+- [x] 006-002-0003 — Lock erzeugen und gegen die Suite abnehmen
+- [x] 006-002-0004 — Pipeline und Runbook nachziehen
+- [x] 006-002-0005 — dflydev-Service-Provider durch eigenen Aufbau ersetzen
+- [x] 006-002-0006 — Testerwartungen an den neuen Stack anpassen

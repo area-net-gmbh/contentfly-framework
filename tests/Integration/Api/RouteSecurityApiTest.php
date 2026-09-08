@@ -23,7 +23,7 @@ class RouteSecurityApiTest extends IntegrationTestCase
     {
         [$status, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'));
 
-        $this->assertSame(500, $status, 'Heute 500 statt 401 — siehe 000-000-0006');
+        $this->assertSame(401, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
         $this->assertArrayNotHasKey('data', $body, 'Entscheidend ist: es fliessen keine Daten');
     }
 

@@ -129,7 +129,8 @@ class ReadApiTest extends IntegrationTestCase
             $this->token()
         );
 
-        $this->assertSame(500, $status, 'Heute 500 statt 404 — siehe 000-000-0006');
+        $this->assertSame(404, $status,
+            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
     }
 
     public function testSingleOhneTokenLiefert500(): void
@@ -141,7 +142,7 @@ class ReadApiTest extends IntegrationTestCase
             array('entity' => 'PIM\\Tag', 'id' => $this->tagA)
         );
 
-        $this->assertSame(500, $status, 'Heute 500 statt 401 — siehe 000-000-0006');
+        $this->assertSame(401, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
         $this->assertArrayNotHasKey('data', $body, 'Ohne Token fliessen keine Daten');
     }
 
@@ -256,7 +257,7 @@ class ReadApiTest extends IntegrationTestCase
     {
         [$status, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'));
 
-        $this->assertSame(500, $status, 'Heute 500 statt 401 — siehe 000-000-0006');
+        $this->assertSame(401, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
         $this->assertArrayNotHasKey('data', $body);
     }
 }

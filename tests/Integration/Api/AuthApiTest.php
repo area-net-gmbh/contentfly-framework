@@ -79,7 +79,8 @@ class AuthApiTest extends IntegrationTestCase
         $this->assertNotSame(200, $status);
         // Heute 500 statt 401: Der Debug-Exception-Handler faengt die Ausnahme der Anwendung
         // ab, bevor deren eigener Fehler-Handler sie sieht. Siehe Task 000-000-0006.
-        $this->assertSame(500, $status, 'Heutiges Verhalten - erwartet waere 401');
+        $this->assertSame(302, $status,
+            'Der Fehler-Handler in bootstrap-web.php leitet ohne JSON-Content-Type auf / um; unter Symfony 3.4 war er wirkungslos. Siehe 000-000-0006');
         $this->assertStringNotContainsString('"data"', $body);
     }
 

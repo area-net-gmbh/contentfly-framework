@@ -132,7 +132,7 @@ class MultiupdateApiTest extends IntegrationTestCase
             array('entity' => 'PIM\\Tag', 'id' => $this->ersterTag, 'data' => array('title' => 'Ohne-Token')),
         )));
 
-        $this->assertSame(500, $status, 'Heute 500 statt 401 — siehe 000-000-0006');
+        $this->assertSame(401, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
         $this->assertSame('Erster', $this->titel($this->ersterTag),
             'Ohne Token bleibt der Wert unveraendert — gegen die Datenbank geprueft');
     }

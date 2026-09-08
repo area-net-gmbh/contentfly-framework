@@ -112,7 +112,7 @@ class TreeApiTest extends IntegrationTestCase
     {
         [$status, $body] = $this->postJson('/api/tree', array('entity' => 'PIM\\Folder'));
 
-        $this->assertSame(500, $status, 'Heute 500 statt 401 — siehe 000-000-0006');
+        $this->assertSame(401, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
         $this->assertArrayNotHasKey('data', $body);
     }
 
@@ -178,7 +178,7 @@ class TreeApiTest extends IntegrationTestCase
     {
         [$status, $body] = $this->postJson('/api/tree2', array('entity' => 'PIM\\Folder'));
 
-        $this->assertSame(500, $status, 'Heute 500 statt 401 — siehe 000-000-0006');
+        $this->assertSame(401, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
         $this->assertArrayNotHasKey('data', $body);
     }
 }

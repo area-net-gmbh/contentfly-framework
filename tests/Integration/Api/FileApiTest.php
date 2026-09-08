@@ -63,7 +63,7 @@ class FileApiTest extends IntegrationTestCase
         [$status, , $kopf] = $this->get('/file/get/'.$antwort['data']['id']);
         $location = $this->kopfzeile($kopf, 'Location');
 
-        $this->assertSame(301, $status);
+        $this->assertSame(302, $status);
         $this->assertStringContainsString('data/files/', (string) $location);
         $this->assertStringContainsString('ausgeliefert.txt', (string) $location);
     }
@@ -76,7 +76,7 @@ class FileApiTest extends IntegrationTestCase
 
         [$status] = $this->get('/file/get/'.$antwort['data']['id']);
 
-        $this->assertSame(301, $status, 'Ohne Token wird nicht abgewiesen, sondern weitergeleitet');
+        $this->assertSame(302, $status, 'Ohne Token wird nicht abgewiesen, sondern weitergeleitet');
     }
 
     /**
@@ -93,7 +93,8 @@ class FileApiTest extends IntegrationTestCase
         [$status] = $this->get('/file/get/00000000-0000-0000-0000-000000000000');
 
         $this->assertNotSame(200, $status);
-        $this->assertSame(500, $status, 'Heutiges Verhalten - erwartet waere 404');
+        $this->assertSame(404, $status,
+            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
     }
 
     public function testUploadOhneTokenWirdAbgewiesen(): void

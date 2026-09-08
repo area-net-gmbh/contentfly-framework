@@ -72,10 +72,16 @@ laufen deshalb lokal in Docker mit demselben Aufruf — so wurde die Definition 
 bevor sie je in einem Runner lief.
 
 ### Kein `composer install` — noch nicht
-`vendor/` und `custom/vendor/` liegen heute committed im Repo, die Pipeline ruft direkt
-`./custom/vendor/bin/phpunit` auf. Nach `006-004` liegt PHPUnit im Root-`require-dev` und der
-Pfad wird zu `./vendor/bin/phpunit`; er steht deshalb als Variable an **einer** Stelle in der
-YAML. `composer audit --locked` und das „0 Deprecations"-Gate kommen mit `006-005` in dieselbe
+**Seit `006-002-0004` erledigt.** PHPUnit liegt im Root-`require-dev`, die Pipeline ruft
+`./vendor/bin/phpunit`. Die Vorsorge aus `008-005-0001` — den Pfad als Variable an *einer*
+Stelle zu halten — hat sich ausgezahlt: Es war genau eine Zeile.
+
+Der Job baut den Abhängigkeitsbaum jetzt selbst (`composer install`), statt den committeten zu
+benutzen. Solange `006-003` aussteht, liegt `vendor/` noch in Git — im **alten** Stand, ohne
+PHPUnit; der Installationsschritt überschreibt ihn. Mit `006-003` fällt er aus Git und der
+Schritt wird zur einzigen Quelle.
+
+`composer audit --locked` und das „0 Deprecations"-Gate kommen mit `006-005` in dieselbe
 Pipeline — die Stage-Struktur hat dafür Platz.
 
 ### Die Suite ist die Abnahmegrundlage
