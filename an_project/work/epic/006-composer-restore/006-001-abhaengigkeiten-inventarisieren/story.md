@@ -1,7 +1,7 @@
 ---
 id: 006-001-0000
 title: Abhängigkeiten inventarisieren und zuordnen
-status: in-progress
+status: review
 depends_on: []
 ---
 
