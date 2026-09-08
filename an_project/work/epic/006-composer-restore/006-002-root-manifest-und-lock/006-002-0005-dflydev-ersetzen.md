@@ -1,7 +1,7 @@
 ---
 id: 006-002-0005
 title: dflydev-Service-Provider durch eigenen Aufbau ersetzen
-status: review
+status: done
 depends_on: [006-002-0002]
 ---
 

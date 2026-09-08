@@ -1,7 +1,7 @@
 ---
 id: 006-002-0000
 title: Root-Manifest und Lock für den Ist-Stack
-status: review
+status: done
 depends_on: [006-001-0000]
 ---
 
@@ -146,9 +146,9 @@ der unter Symfony 3.4 wirkungslos war.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 006-002-0001 — Den Doctrine-Wechsel absichern
-- [ ] 006-002-0002 — composer.json für den Ist-Stack schreiben
-- [ ] 006-002-0003 — Lock erzeugen und gegen die Suite abnehmen
-- [ ] 006-002-0004 — Pipeline und Runbook nachziehen
-- [ ] 006-002-0005 — dflydev-Service-Provider durch eigenen Aufbau ersetzen
-- [ ] 006-002-0006 — Testerwartungen an den neuen Stack anpassen
+- [x] 006-002-0001 — Den Doctrine-Wechsel absichern
+- [x] 006-002-0002 — composer.json für den Ist-Stack schreiben
+- [x] 006-002-0003 — Lock erzeugen und gegen die Suite abnehmen
+- [x] 006-002-0004 — Pipeline und Runbook nachziehen
+- [x] 006-002-0005 — dflydev-Service-Provider durch eigenen Aufbau ersetzen
+- [x] 006-002-0006 — Testerwartungen an den neuen Stack anpassen

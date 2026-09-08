@@ -1,7 +1,7 @@
 ---
 id: 006-002-0002
 title: composer.json für den Ist-Stack schreiben
-status: review
+status: done
 depends_on: [006-002-0001]
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: 006-002-0001
 title: Den Doctrine-Wechsel absichern
-status: review
+status: done
 depends_on: []
 ---
 

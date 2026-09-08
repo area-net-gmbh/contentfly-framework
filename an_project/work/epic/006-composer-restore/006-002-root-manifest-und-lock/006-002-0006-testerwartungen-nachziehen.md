@@ -1,7 +1,7 @@
 ---
 id: 006-002-0006
 title: Testerwartungen an den neuen Stack anpassen
-status: review
+status: done
 depends_on: [006-002-0003]
 ---
 
