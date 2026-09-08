@@ -76,14 +76,14 @@ class SystemControllerApiTest extends IntegrationTestCase
     {
         [$status] = $this->postJson('/system/do', array('method' => 'listTokens'));
 
-        $this->assertSame(403, $status);
+        $this->assertSame(401, $status);
     }
 
     public function testEinUngueltigerTokenWirdAbgewiesen(): void
     {
         [$status] = $this->systemDo('listTokens', array(), 'diesen-token-gibt-es-nicht');
 
-        $this->assertSame(403, $status);
+        $this->assertSame(401, $status);
     }
 
     public function testEinNichtAdminMitGueltigemTokenWirdAbgewiesen(): void
@@ -97,33 +97,36 @@ class SystemControllerApiTest extends IntegrationTestCase
 
         [$status] = $this->systemDo('listTokens', array(), $token);
 
-        $this->assertSame(403, $status, 'Nicht-Admin wird abgewiesen');
+        $this->assertSame(401, $status, 'Nicht-Admin wird abgewiesen — seit Symfony 4.4 mit 401 statt 403');
     }
 
-    public function testDieAbweisungMeldet403ObwohlDerCodeAuf401Zielt(): void
+    public function testDieAbsichtDesHooksKommtSeitDemStackWechselAnDenClientDurch(): void
     {
-        // Der Hook baut die Ausnahme als
+        // **Umgedreht mit 006-002-0006.** Bis Symfony 3.4 hielt dieser Test fest, dass die
+        // Absicht des Hooks NICHT ankommt:
         //
         //     new AccessDeniedHttpException('…', null, 401)
         //
-        // Das dritte Argument ist der **Exception-Code**, nicht der Statuscode —
-        // AccessDeniedHttpException hat 403 fest verdrahtet. Die 401 kommt nie beim Client
-        // an. Dasselbe Missverstaendnis steckt an mehreren Stellen des Frameworks; hier ist
-        // es nur besonders gut sichtbar.
+        // Das dritte Argument ist der Exception-Code, nicht der Statuscode, und
+        // AccessDeniedHttpException hat 403 fest verdrahtet — beim Client kam 403 an.
+        //
+        // Unter Symfony 4.4 kommt 401 durch. Die Absicht des Codes wird erfuellt; der
+        // Nebenbefund aus 008-004-0003 hat sich mit dem Stack-Wechsel erledigt.
         $quelle = file_get_contents(ROOT_DIR.'/lib/contentfly/Classes/Controller/Provider/Base/SystemControllerProvider.php');
 
         $this->assertStringContainsString("AccessDeniedHttpException('Zugriff verweigert', null, 401)", $quelle,
             'Die Absicht im Code ist 401');
 
         [$status] = $this->postJson('/system/do', array('method' => 'listTokens'));
-        $this->assertSame(403, $status, 'Beim Client kommt 403 an');
+        $this->assertSame(401, $status, 'Und seit Symfony 4.4 kommt sie auch an');
     }
 
     public function testNurPostIstErlaubt(): void
     {
         [$status] = $this->get('/system/do?method=listTokens', $this->token());
 
-        $this->assertSame(405, $status);
+        $this->assertSame(302, $status,
+            'Der Fehler-Handler in bootstrap-web.php leitet ohne JSON-Content-Type auf / um; unter Symfony 3.4 war er wirkungslos. Siehe 000-000-0006');
     }
 
     // ── B: Der Dispatch und seine Antwortform ──────────────────────────────────────────
@@ -159,11 +162,15 @@ class SystemControllerApiTest extends IntegrationTestCase
     {
         // doAction wirft eine nackte \Exception. Silex macht daraus 500 und liefert die
         // HTML-Fehlerseite aus — kein JSON, obwohl der Aufrufer JSON angefordert hat.
-        [$status, $body, $kopf] = $this->systemDo('gibtEsNicht');
+        // **Nachgezogen mit 006-002-0006.** Bis Symfony 3.4 lieferte Silex hier die
+        // HTML-Fehlerseite, obwohl der Aufrufer JSON angefordert hatte. Seit 4.4 greift der
+        // Fehler-Handler aus bootstrap-web.php und antwortet mit JSON — eine Verbesserung,
+        // und ein weiteres Stueck von 000-000-0006.
+        [$status, $body] = $this->systemDo('gibtEsNicht');
 
         $this->assertSame(500, $status);
-        $this->assertSame(array(), $body, 'Der Rumpf ist kein JSON und laeuft deshalb leer');
-        $this->assertStringContainsString('text/html', (string) $this->kopfzeile($kopf, 'Content-Type'));
+        $this->assertSame('Methode gibtEsNicht nicht verfügbar.', $body['message'] ?? null,
+            'Die Meldung der Exception kommt jetzt als JSON beim Client an');
     }
 
     public function testEineFehlendeMethodeEndetEbenfallsInEinemFehler(): void

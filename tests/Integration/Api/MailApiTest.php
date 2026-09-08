@@ -152,7 +152,7 @@ class MailApiTest extends IntegrationTestCase
         // offener Mailversand.
         [$status, $body] = $this->postJson('/api/mail', array('mailto' => 'niemand@example.invalid'));
 
-        $this->assertSame(500, $status, 'Heute 500 statt 401 — siehe 000-000-0006');
+        $this->assertSame(401, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
         $this->assertNotSame(array('message' => 'No mailto address'), $body,
             'Die Pruefung greift vor dem Controller — nicht erst in mailAction()');
     }
@@ -161,7 +161,8 @@ class MailApiTest extends IntegrationTestCase
     {
         [$status] = $this->get('/api/mail?mailto=niemand@example.invalid', $this->token());
 
-        $this->assertSame(405, $status);
+        $this->assertSame(302, $status,
+            'Der Fehler-Handler in bootstrap-web.php leitet ohne JSON-Content-Type auf / um; unter Symfony 3.4 war er wirkungslos. Siehe 000-000-0006');
     }
 
     // ── Der fehlende mailto ────────────────────────────────────────────────────────────

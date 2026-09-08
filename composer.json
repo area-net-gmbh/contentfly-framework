@@ -32,7 +32,8 @@
     "autoload": {
         "psr-4": {
             "Areanet\\PIM\\": "lib/contentfly/",
-            "Custom\\": "custom/"
+            "Custom\\": "custom/",
+            "Plugins\\": "plugins/"
         }
     },
     "extra": {

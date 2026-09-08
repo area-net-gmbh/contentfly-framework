@@ -209,7 +209,8 @@ class LogSideEffectApiTest extends IntegrationTestCase
             array('entity' => 'PIM\\Tag', 'id' => $id, 'data' => array('title' => 'Ohne-Token'))
         );
 
-        $this->assertSame(500, $status);
+        $this->assertSame(401, $status,
+            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
         $this->assertCount($vorher, $this->logZeilen($id),
             'Ohne Token entsteht weder eine Aenderung noch ein Protokolleintrag');
     }

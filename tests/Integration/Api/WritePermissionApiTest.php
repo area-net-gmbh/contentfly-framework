@@ -92,7 +92,7 @@ class WritePermissionApiTest extends IntegrationTestCase
             $token
         );
 
-        $this->assertSame(500, $status, 'Heute 500 statt 403 — siehe 000-000-0006');
+        $this->assertSame(403, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
 
         $anzahl = (int) $this->pdo()
             ->query('SELECT COUNT(*) FROM pim_tag WHERE title = '.$this->pdo()->quote($titel))
@@ -138,7 +138,8 @@ class WritePermissionApiTest extends IntegrationTestCase
             $token
         );
 
-        $this->assertSame(500, $status);
+        $this->assertSame(403, $status,
+            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
         $this->assertSame('Fremd-Original', $this->titel($fremder),
             'Der alte Wert steht noch da — gegen die Datenbank geprueft');
     }
@@ -166,7 +167,8 @@ class WritePermissionApiTest extends IntegrationTestCase
         $this->assertSame(200, $statusGeteilt);
         $this->assertSame('Geteilt-neu', $this->titel($geteilt));
 
-        $this->assertSame(500, $statusFremd);
+        $this->assertSame(403, $statusFremd,
+            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
         $this->assertSame('Unbeteiligt-Original', $this->titel($unbeteiligt),
             'Ohne Gruppenbezug bleibt das Objekt unangetastet');
 
@@ -185,7 +187,8 @@ class WritePermissionApiTest extends IntegrationTestCase
 
         [$status] = $this->postJson('/api/delete', array('entity' => 'PIM\\Tag', 'id' => $tag), $token);
 
-        $this->assertSame(500, $status);
+        $this->assertSame(403, $status,
+            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
         $this->assertTrue($this->existiert($tag),
             'Schreibrecht allein berechtigt nicht zum Loeschen — gegen die Datenbank geprueft');
     }
@@ -202,7 +205,8 @@ class WritePermissionApiTest extends IntegrationTestCase
         [$statusFremd]  = $this->postJson('/api/delete', array('entity' => 'PIM\\Tag', 'id' => $fremder), $token);
         [$statusEigen]  = $this->postJson('/api/delete', array('entity' => 'PIM\\Tag', 'id' => $eigener), $token);
 
-        $this->assertSame(500, $statusFremd);
+        $this->assertSame(403, $statusFremd,
+            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
         $this->assertTrue($this->existiert($fremder), 'Das fremde Objekt ist noch da');
 
         $this->assertSame(200, $statusEigen);

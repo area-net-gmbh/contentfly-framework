@@ -61,7 +61,8 @@ class SyncApiTest extends IntegrationTestCase
     {
         [$status, $body] = $this->postJson('/api/all', array());
 
-        $this->assertSame(500, $status);
+        $this->assertSame(401, $status,
+            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
         $this->assertArrayNotHasKey('data', $body, 'Ohne Token fliessen keine Daten');
     }
 
@@ -135,7 +136,8 @@ class SyncApiTest extends IntegrationTestCase
     {
         [$status, $body] = $this->postJson('/api/deleted', array());
 
-        $this->assertSame(500, $status);
+        $this->assertSame(401, $status,
+            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
         $this->assertArrayNotHasKey('data', $body);
     }
 
@@ -170,7 +172,8 @@ class SyncApiTest extends IntegrationTestCase
     {
         [$status, $body] = $this->postJson('/api/count', array('entity' => 'PIM\\Tag'));
 
-        $this->assertSame(500, $status);
+        $this->assertSame(401, $status,
+            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
         $this->assertArrayNotHasKey('data', $body);
     }
 

@@ -107,7 +107,7 @@ class QueryApiTest extends IntegrationTestCase
     {
         [$status, $body] = $this->postJson('/api/query', array('select' => 'id', 'from' => 'PIM\\Tag'));
 
-        $this->assertSame(500, $status, 'Heute 500 statt 401 — siehe 000-000-0006');
+        $this->assertSame(401, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
         $this->assertArrayNotHasKey('data', $body);
     }
 
@@ -130,7 +130,8 @@ class QueryApiTest extends IntegrationTestCase
     {
         [$status, $body] = $this->postJson('/api/translations', array('entity' => 'PIM\\Tag'));
 
-        $this->assertSame(500, $status);
+        $this->assertSame(401, $status,
+            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
         $this->assertArrayNotHasKey('data', $body);
     }
 

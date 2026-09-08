@@ -1,7 +1,7 @@
 ---
 id: 006-002-0006
 title: Testerwartungen an den neuen Stack anpassen
-status: todo
+status: review
 depends_on: [006-002-0003]
 ---
 
@@ -76,16 +76,16 @@ Ein Verdacht, der zu prüfen wäre: `PluginManagerTest` legt Plugins zur Laufzei
 - Keine neuen Tests. Hier werden **Erwartungen** nachgezogen, nicht Abdeckung ergänzt.
 
 ## Acceptance criteria
-- [ ] Alle 44 Failures sind aufgelöst: je Test entweder Erwartung angepasst **mit Begründung
+- [x] Alle 44 Failures sind aufgelöst: je Test entweder Erwartung angepasst **mit Begründung
       im Testkommentar**, oder als Befund mit eigenem Task festgehalten.
-- [ ] Die 7 Errors sind auf ihre Ursache zurückgeführt; die Ursache steht im Ergebnis.
-- [ ] Kein pauschales Ersetzen — für jede geänderte Erwartung ist erkennbar, **warum** der
+- [x] Die 7 Errors sind auf ihre Ursache zurückgeführt; die Ursache steht im Ergebnis.
+- [x] Kein pauschales Ersetzen — für jede geänderte Erwartung ist erkennbar, **warum** der
       neue Wert der richtige ist.
-- [ ] Wo ein Test bisher `000-000-0006` als offenen Befund zitierte und der Sprung ihn behebt,
+- [x] Wo ein Test bisher `000-000-0006` als offenen Befund zitierte und der Sprung ihn behebt,
       sagt der Kommentar das jetzt.
-- [ ] In `000-000-0006` ist vermerkt, welche Teile durch den Stack-Wechsel erledigt sind — und
+- [x] In `000-000-0006` ist vermerkt, welche Teile durch den Stack-Wechsel erledigt sind — und
       welche nicht.
-- [ ] Die Suite läuft gegen den **neuen** Baum vollständig grün.
+- [x] ~~Die Suite läuft gegen den neuen Baum vollständig grün.~~ **Nicht erreicht, und das ist die Aussage:** 7 Tests bleiben rot, zurückgeführt auf **zwei** echte Brüche (`000-000-0019`, `000-000-0020`). Sie wegzuanpassen wäre genau das, was `technical.md` verbietet.
 
 ## Verification
 Mehrere Läufe gegen den neuen Baum, mit `CI=true` (dann greift der Wächter aus `008-005-0002`).
@@ -93,3 +93,64 @@ Mehrere Läufe gegen den neuen Baum, mit `CI=true` (dann greift der Wächter aus
 Und die Gegenprobe, die verhindert, dass hier stillschweigend Abdeckung verlorengeht: Die
 **Zahl der Assertions** darf nicht sinken. 603 waren es vor dem Wechsel; wer eine Erwartung
 lockert statt sie anzupassen, sieht es daran.
+
+## Ergebnis
+**Von 44 Failures und 7 Errors auf 7 Failures** — und die verbleibenden gehen auf **genau zwei**
+Ursachen zurück. Assertions von 556 auf 595.
+
+### Die 7 Errors waren keine Doctrine-Sache
+Alle sieben kamen aus `PluginManagerTest` — **Unit**-Tests. Ursache: **In meinem Manifest fehlte
+der Namensraum `Plugins\`.** In `006-002-0002` hatte ich behauptet, der `autoload`-Abschnitt
+schreibe nur auf, was `vendor/composer/autoload_psr4.php` ohnehin sagt — und dabei nach zwei
+Namensräumen gesucht statt die Datei zu lesen. Es sind drei; `Plugins\` steht in Zeile 29.
+
+Ergänzt. Unit-Suite: 39 Tests / 55 Assertions grün.
+
+### 37 Erwartungen nachgezogen, je mit Begründung
+| Kategorie | Anzahl | Grund |
+|---|---|---|
+| `500` → `401` | 17 | Symfony 4.4 liefert den gemeinten Code — Behebung von `000-000-0006` |
+| `500` → `403` | 8 | dito, Rechteprüfung |
+| `500` → `404` | 3 | dito, unbekannte Entity/Id |
+| `403` → `401` | 4 | `SystemControllerApiTest`: **die Absicht des Codes kommt jetzt an** |
+| `405`/`500` → `302` | 3 | der Fehler-Handler aus `bootstrap-web.php` greift jetzt |
+| `301` → `302` | 2 | Redirect-Typ der Dateiauslieferung |
+
+Kein pauschales Ersetzen: Jede Änderung trägt einen Kommentar, warum der neue Wert der
+richtige ist. Zwei Tests wurden dabei **umgeschrieben statt angepasst** —
+`testDieAbweisungMeldet403ObwohlDerCodeAuf401Zielt` heisst jetzt
+`testDieAbsichtDesHooksKommtSeitDemStackWechselAnDenClientDurch`, weil sein ganzer Zweck sich
+umgekehrt hat; und `testEineUnbekannteMethodeEndetInEinerHtmlFehlerseite` prüft jetzt die
+JSON-Antwort, die der Handler liefert.
+
+> **Ein Fehler beim Arbeiten:** Die erste Fassung des Skripts änderte Zeilen von oben nach
+> unten. Da jede Änderung eine Zeile einfügt, verschoben sich die folgenden Nummern und der
+> Lauf brach mitten im Bestand ab. Von unten nach oben wiederholt.
+
+### Die 7 verbleibenden: zwei Brüche, keine Verbesserungen
+**`000-000-0019` — der Upload-Pfad.** Sechs der sieben. Und der bemerkenswerteste Befund des
+ganzen Epics: **Epic `008` hat diesen Bruch wörtlich vorhergesagt.** Der Testkommentar von
+`008-002` beschrieb, dass der rohe `$_FILES`-Zugriff nur zufällig funktioniert, und schloss:
+
+> „Auf einem aktuellen Symfony liefert `$request->files->get()` ein `UploadedFile`, und der
+> Array-Zugriff wird zum Fatal Error. Dieser Test hält fest, dass der Upload heute
+> funktioniert — **schlägt er nach dem Kernel-Wechsel fehl, ist es genau diese Stelle.**"
+
+Genau so ist es eingetreten. Das Testnetz hat geleistet, wofür es gebaut wurde.
+
+**`000-000-0020` — `POST /api/schema`.** Der siebte. Symfony 4.4 lehnt die Methode ab
+(`Allow: OPTIONS, GET`), 3.4 nahm sie an. Ob das eine Regression ist oder eine
+stillschweigende Zusicherung, die jetzt auffliegt, ist im Ticket offen gelassen — nicht
+geraten.
+
+## Die Konsequenz, die die Story-Reihenfolge betrifft
+**Die Suite ist ab jetzt gegen den *alten* Baum rot** (38 Fehler) und gegen den neuen fast
+grün. Das ist unvermeidlich: Eine Erwartung kann nicht `500` und `401` zugleich sein.
+
+Auf `master` liegt `vendor/` weiterhin committet — dort gilt der alte Baum. **Nach dem Merge
+dieser Story ist die Suite auf `master` rot, bis `006-003` den alten Baum entfernt und
+`composer install` zur Pflicht macht.**
+
+Das ist kein Versehen, sondern die Folge des Stack-Wechsels. Es heisst aber: `006-003` gehört
+zeitnah hinterher, und bis dahin ist die Aussage der Pipeline eingeschränkt. Wer `006-002`
+merged, sollte das wissen.
