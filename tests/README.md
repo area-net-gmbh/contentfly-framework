@@ -141,8 +141,24 @@ Zieladresse aufgerufen.
 > Konstanten, bevor `mail()` überhaupt drankommt (`000-000-0016`). Die Sicherung hängt bewusst
 > **nicht** an diesem Fehler: Wer ihn behebt, soll nicht gleichzeitig den Schutz entfernen.
 
-Nach der Installation trägt `custom/config.php` echte Zugangsdaten. **Vor dem Commit die
-Platzhalter wiederherstellen**, sonst landen sie in der Vorlage.
+### 4. Die Vorlage wiederherstellen — fester Schritt, nicht Kür
+
+Die Installation aus Schritt 1 schreibt Host, Benutzer und Passwort in `custom/config.php` —
+eine Datei, die **versioniert im Repo liegt**, weil sie die Vorlage ist. Der Testlauf ist erst
+zu Ende, wenn sie wieder eine ist:
+
+```sh
+git checkout HEAD -- custom/config.php
+```
+
+**Das `HEAD` ist wichtig.** Ist die Datei bereits gestagt, holt `git checkout -- <pfad>` sie
+aus dem *Index* zurück und schreibt die installierte Fassung erneut in den Arbeitsbaum — es
+sieht aus wie eine Wiederherstellung und ist keine.
+
+Damit niemand daran denken muss, gibt es zwei Netze: den `pre-commit`-Hook aus `tools/hooks/`
+(einmalig mit `git config core.hooksPath tools/hooks` aktivieren) und den Pipeline-Job
+`check:template-config`. Beide rufen `tools/check-template-config.sh` auf und melden dasselbe.
+Der Hook fängt früher, der Job fängt immer. Einrichtung: `an_project/docs/runbook.md`.
 
 ## Eine neue Integrationstest-Datei anlegen
 

@@ -1,7 +1,7 @@
 ---
 id: 008-005-0003
 title: custom/config.php gegen versehentliches Committen absichern
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -60,18 +60,19 @@ Vorlage wieder her, und danach muss neu installiert werden, wenn lokal weitergea
 - Der `.gitignore` ist **kein** Weg: Die Datei ist eine Vorlage und muss versioniert bleiben.
 
 ## Offene Fragen
-- Ist `tools/hooks/` der richtige Ort, oder gibt es im Repo bereits eine Konvention für
-  Hilfsskripte? Beim Umsetzen zu prüfen.
+- ~~Ist `tools/hooks/` der richtige Ort?~~ Geklärt: `tools/ci/` war mit `008-005-0001`
+  entstanden, `tools/hooks/` fügt sich ein. Das gemeinsame Prüfskript liegt eine Ebene höher
+  unter `tools/`, weil es beide Aufrufer bedient.
 
 ## Acceptance criteria
-- [ ] Ein Pipeline-Job macht den Lauf rot, wenn `custom/config.php` keine Platzhalter mehr
+- [x] Ein Pipeline-Job macht den Lauf rot, wenn `custom/config.php` keine Platzhalter mehr
       trägt.
-- [ ] Eine `pre-commit`-Hook-Vorlage liegt im Repo und ist mit einem dokumentierten Schritt
+- [x] Eine `pre-commit`-Hook-Vorlage liegt im Repo und ist mit einem dokumentierten Schritt
       aktivierbar.
-- [ ] Beide melden dasselbe und nennen den Weg zurück (`git checkout -- custom/config.php`).
-- [ ] `an_project/docs/runbook.md` beschreibt, wie der Hook aktiviert wird, und warum es ihn
+- [x] Beide melden dasselbe und nennen den Weg zurück (`git checkout -- custom/config.php`).
+- [x] `an_project/docs/runbook.md` beschreibt, wie der Hook aktiviert wird, und warum es ihn
       gibt.
-- [ ] Der Ablauf „installieren → testen → Vorlage wiederherstellen" ist in `tests/README.md`
+- [x] Der Ablauf „installieren → testen → Vorlage wiederherstellen" ist in `tests/README.md`
       als fester Schritt beschrieben, nicht als Warnung am Rand.
 
 ## Verification
@@ -82,3 +83,66 @@ Beide Schichten scharf geprüft, nicht nur gelesen:
 - Vorlage wiederhergestellt → beide grün.
 
 Der Hook ist dabei tatsächlich auszuführen, nicht nur sein Skript zu lesen.
+
+## Ergebnis
+`tools/check-template-config.sh` (die Prüfung), `tools/hooks/pre-commit` (die frühe Schicht)
+und der Job `check:template-config` in der Stage `check` (die späte). **Ein Skript, zwei
+Aufrufer** — damit melden Hook und Job zwangsläufig dasselbe, statt zweimal dieselbe Regel zu
+formulieren und auseinanderzulaufen.
+
+### Was geprüft wird
+Die **Zuweisungen**, nicht blosse Vorkommen der Zeichenkette:
+
+```
+$configDefault->DB_HOST                 = '$SET_DB_HOST';
+```
+
+Der Unterschied kam beim Testen ans Licht: `$SET_DB_HOST` steht auch im Kommentar am
+Dateikopf. Eine Prüfung, die nur irgendwo sucht, hinge daran, wie dieser Kommentar formuliert
+ist — und meldete eine halb ersetzte Datei als in Ordnung.
+
+Der Hook prüft die **gestagte** Fassung, nicht den Arbeitsbaum. Das ist der Unterschied
+zwischen brauchbar und lästig: Wer lokal installiert hat und etwas ganz anderes committet,
+wird nicht aufgehalten.
+
+### Der Fund, der die Meldung gerettet hat
+Die erste Fassung nannte als Weg zurück `git checkout -- custom/config.php`. Beim scharfen
+Durchspielen des Hooks zeigte sich: **Das funktioniert genau dann nicht, wenn der Hook
+anspringt.** Ist die Datei gestagt, holt `git checkout -- <pfad>` sie aus dem *Index* und
+schreibt die installierte Fassung erneut in den Arbeitsbaum — es sieht aus wie eine
+Wiederherstellung und ist keine.
+
+Richtig ist `git checkout HEAD -- custom/config.php`. Nachgemessen: nach dem ersten Befehl
+steht ein Platzhalter in der Datei, nach dem zweiten stehen beide, und `git status` ist
+sauber. Die Meldung erklärt jetzt auch, **warum** das `HEAD` dort steht — sonst kürzt es der
+Nächste weg.
+
+### Der Nachweis — beide Schichten scharf, nicht gelesen
+**Prüfskript:**
+
+| Fall | Exit |
+|---|---|
+| unversehrte Vorlage | 0 |
+| installierte Datei | 1, alle sechs Platzhalter genannt |
+| nur die Zuweisungen ersetzt, Kommentar unberührt | 1 — der Grenzfall greift |
+
+**Hook**, in einem eigenen Klon mit `git config core.hooksPath tools/hooks` aktiviert und
+tatsächlich ausgeführt:
+
+| Fall | Ergebnis |
+|---|---|
+| Commit ohne `config.php` | durchgegangen |
+| `config.php` lokal installiert, aber **nicht gestagt** | durchgegangen |
+| `config.php` installiert und **gestagt** | **abgelehnt**, `HEAD` unverändert |
+| nach `git checkout HEAD -- custom/config.php` | durchgegangen |
+
+**Job** im `alpine:3`-Image, wie in der YAML: Exit 0 gegen die Vorlage, Exit 1 gegen eine
+installierte Datei.
+
+Gesamtsuite unverändert grün: 237 Tests / 574 Assertions.
+
+### Nebenbei im Runbook korrigiert
+`an_project/docs/runbook.md` trug noch den Hinweis, die Installation sei „heute noch nicht
+durchführbar" — beide genannten Gründe (`012-002`, `000-000-0002`) sind längst `done`. Der
+Block stand unmittelbar über dem, was hier zu ergänzen war, und hätte ihm widersprochen.
+Ersetzt statt stehen gelassen.

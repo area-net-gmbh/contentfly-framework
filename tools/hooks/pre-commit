@@ -1,0 +1,40 @@
+#!/bin/sh
+#
+# pre-commit — verhindert, dass eine installierte custom/config.php committet wird.
+#
+# Git-Hooks lassen sich nicht versionieren, deshalb liegt dieser hier als Vorlage.
+# Aktivierung (einmalig, siehe an_project/docs/runbook.md):
+#
+#     git config core.hooksPath tools/hooks
+#
+# Der Hook prüft die GESTAGTE Fassung, nicht die im Arbeitsbaum. Das ist der Unterschied,
+# der ihn brauchbar statt lästig macht: Wer lokal installiert hat und etwas ganz anderes
+# committet, wird nicht aufgehalten — nur wer die Konfiguration wirklich mit einpackt.
+#
+# Dieselbe Prüfung läuft in der Pipeline (Job `check:template-config`). Beide rufen dasselbe
+# Skript auf, also melden sie zwangsläufig dasselbe.
+
+set -eu
+
+DATEI="custom/config.php"
+
+# Ist die Datei überhaupt Teil dieses Commits?
+if ! git diff --cached --name-only --diff-filter=ACM | grep -qxF "$DATEI"; then
+    exit 0
+fi
+
+WURZEL=$(git rev-parse --show-toplevel)
+GESTAGT=$(mktemp)
+# shellcheck disable=SC2064
+trap "rm -f '$GESTAGT'" EXIT
+
+git show ":$DATEI" > "$GESTAGT"
+
+if ! sh "$WURZEL/tools/check-template-config.sh" "$GESTAGT" "$DATEI (gestagte Fassung)"; then
+    echo "" >&2
+    echo "  Der Commit wurde abgebrochen. Soll die Datei bewusst so committet werden," >&2
+    echo "  hilft --no-verify — dann aber in dem Wissen, was darin steht." >&2
+    exit 1
+fi
+
+exit 0

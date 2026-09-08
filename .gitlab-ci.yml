@@ -49,6 +49,20 @@ variables:
 
   GIT_DEPTH: "1"
 
+# ── Prüfungen, die keine Umgebung brauchen ─────────────────────────────────────────────
+
+check:template-config:
+  stage: check
+  image: alpine:3
+  # custom/config.php ist die Vorlage, aus der appcms:install die Konfiguration macht. Nach
+  # einer lokalen Installation trägt sie Host, Benutzer und Passwort — und ein `git add -A`
+  # genügt, damit das in der Historie landet. Der Job ist die zweite Schicht: Der
+  # pre-commit-Hook aus tools/hooks/ fängt früher, aber nur bei dem, der ihn installiert hat.
+  #
+  # Beide rufen dasselbe Skript auf, also melden sie dasselbe.
+  script:
+    - sh tools/check-template-config.sh
+
 # ── Die Testsuiten ─────────────────────────────────────────────────────────────────────
 
 .testlauf:
