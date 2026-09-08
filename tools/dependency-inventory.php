@@ -165,6 +165,121 @@ foreach ($baeume as $label => list($relativ, $absolut)) {
     ksort($inventar[$label]);
 }
 
+// ── Die Zuordnung aus 006-001-0004 ─────────────────────────────────────────────────────
+//
+// Getrennt gehalten: Dieses Skript erhebt Fakten, die JSON-Datei haelt Entscheidungen fest.
+// Wer nicht ausdruecklich zugeordnet ist, bekommt eine ABGELEITETE Kategorie nach einer
+// Regel — sichtbar als solche markiert, damit niemand eine Einzelfallentscheidung vermutet,
+// wo eine Faustregel steht.
+
+$zuordnungDatei = __DIR__.'/dependency-assignment.json';
+$zuordnung = is_file($zuordnungDatei)
+    ? (json_decode((string) file_get_contents($zuordnungDatei), true)['zuordnung'] ?? array())
+    : array();
+
+/**
+ * Die Abhängigkeiten eines Pakets, wie sie in der installed.json stehen.
+ *
+ * @return array<string,array<int,string>> Paket → Liste seiner Abhängigkeiten
+ */
+function abhaengigkeitsgraph(string $installedJson): array
+{
+    if (!is_file($installedJson)) {
+        return array();
+    }
+
+    $roh   = json_decode((string) file_get_contents($installedJson), true);
+    $liste = isset($roh['packages']) ? $roh['packages'] : $roh;
+
+    $graph = array();
+    foreach ($liste as $p) {
+        $graph[$p['name']] = array_values(array_filter(
+            array_keys($p['require'] ?? array()),
+            function ($n) { return strpos($n, '/') !== false; }   // php, ext-* aussortieren
+        ));
+    }
+
+    return $graph;
+}
+
+/**
+ * Alles, was von den Wurzeln aus erreichbar ist.
+ *
+ * Der Grund, dafür einen Graphen zu laufen statt einer Faustregel: PHPUnit bleibt als
+ * Werkzeug, also bleiben auch seine dreissig transitiven Abhängigkeiten — sie wandern nur
+ * aus `custom/vendor` ins Root-`require-dev`. Eine Regel „alles unter custom/ entfällt"
+ * würde sie fälschlich streichen.
+ *
+ * @param array<int,string>                    $wurzeln
+ * @param array<string,array<int,string>>      $graph
+ * @return array<string,bool>
+ */
+function erreichbar(array $wurzeln, array $graph): array
+{
+    $gesehen = array();
+    $offen   = $wurzeln;
+
+    while ($offen !== array()) {
+        $aktuell = array_pop($offen);
+        if (isset($gesehen[$aktuell])) {
+            continue;
+        }
+        $gesehen[$aktuell] = true;
+
+        foreach ($graph[$aktuell] ?? array() as $kind) {
+            if (!isset($gesehen[$kind])) {
+                $offen[] = $kind;
+            }
+        }
+    }
+
+    return $gesehen;
+}
+
+/** @return array{0:string,1:string,2:bool} Kategorie, Begründung, ausdrücklich entschieden? */
+function kategorieFuer(string $paket, string $baum, array $zuordnung, array $abgeleitet = array()): array
+{
+    if (isset($zuordnung[$paket])) {
+        return array($zuordnung[$paket]['kategorie'], $zuordnung[$paket]['begruendung'], true);
+    }
+
+    if (isset($abgeleitet[$paket])) {
+        return array($abgeleitet[$paket][0], $abgeleitet[$paket][1], false);
+    }
+
+    if ($baum === 'Root') {
+        return array('root', 'Transitive Abhängigkeit des Ist-Stacks; Composer löst sie mit auf.', false);
+    }
+
+    return array('entfaellt', 'Von keinem behaltenen Paket aus erreichbar.', false);
+}
+
+// Was unter custom/ bleibt, entscheidet der Graph: Ein Paket, das von einem behaltenen
+// Wurzelpaket aus erreichbar ist, wandert mit — auch wenn es selbst nirgends im Code steht.
+$graphCustom = abhaengigkeitsgraph($wurzel.'/custom/vendor/composer/installed.json');
+
+$wurzelnRoot = $wurzelnDev = array();
+foreach ($zuordnung as $name => $z) {
+    if (!isset($graphCustom[$name])) {
+        continue;
+    }
+    if ($z['kategorie'] === 'root')             { $wurzelnRoot[] = $name; }
+    elseif ($z['kategorie'] === 'require-dev')  { $wurzelnDev[]  = $name; }
+}
+
+$abgeleitet = array();
+foreach (erreichbar($wurzelnRoot, $graphCustom) as $name => $_) {
+    $abgeleitet[$name] = array('root', 'Transitiv über ein Paket, das im Root bleibt.');
+}
+foreach (erreichbar($wurzelnDev, $graphCustom) as $name => $_) {
+    if (!isset($abgeleitet[$name])) {
+        $abgeleitet[$name] = array('require-dev', 'Transitiv über ein Werkzeug; wandert mit ins Root-`require-dev`.');
+    }
+}
+foreach ($zuordnung as $name => $z) {
+    unset($abgeleitet[$name]);   // ausdrückliche Entscheidung schlägt Ableitung
+}
+
 $psr4Root   = psr4Praefixe($wurzel.'/vendor/composer/autoload_psr4.php');
 $psr4Custom = psr4Praefixe($wurzel.'/custom/vendor/composer/autoload_psr4.php');
 $kollision  = array_intersect(array_keys($psr4Root), array_keys($psr4Custom));
@@ -189,24 +304,80 @@ echo "**$gesamt Pakete** insgesamt.\n\n";
 
 foreach ($inventar as $label => $pakete) {
     echo "## $label — ".count($pakete)." Pakete\n\n";
-    echo "| Paket | Version | `php`-Constraint | Herkunft | benutzt? |\n";
-    echo "|---|---|---|---|---|\n";
+    echo "| Paket | Version | `php`-Constraint | Herkunft | benutzt? | Kategorie |\n";
+    echo "|---|---|---|---|---|---|\n";
 
     foreach ($pakete as $name => $a) {
         $php = $a['php'] !== '' ? '`'.str_replace('|', '\|', $a['php']).'`' : '—';
+        list($kategorie, , $ausdruecklich) = kategorieFuer($name, $label, $zuordnung, $abgeleitet);
+
         echo sprintf(
-            "| `%s` | %s | %s | %s | %s |\n",
+            "| `%s` | %s | %s | %s | %s | %s |\n",
             $name,
             $a['version'],
             $php,
             $a['herkunft'],
-            imCodeBenutzt($wurzel, $name) ? 'ja' : '—'
+            imCodeBenutzt($wurzel, $name) ? 'ja' : '—',
+            $ausdruecklich ? '**'.$kategorie.'**' : $kategorie
         );
     }
     echo "\n";
 }
 
 // ── Die Auffälligkeiten ────────────────────────────────────────────────────────────────
+
+// ── Die Zuordnung, ausgewertet ─────────────────────────────────────────────────────────
+
+$zaehlung = array('root' => 0, 'custom' => 0, 'require-dev' => 0, 'entfaellt' => 0);
+$entschieden = array();
+
+foreach ($inventar as $label => $pakete) {
+    foreach ($pakete as $name => $a) {
+        list($kategorie, $begruendung, $ausdruecklich) = kategorieFuer($name, $label, $zuordnung, $abgeleitet);
+        $zaehlung[$kategorie] = ($zaehlung[$kategorie] ?? 0) + 1;
+        if ($ausdruecklich) {
+            $entschieden[$kategorie][$name] = $begruendung;
+        }
+    }
+}
+
+echo "## Zuordnung\n\n";
+echo "Entschieden mit `006-001-0004`. **Was im Root steht, ist Framework-Sache und wird\n";
+echo "mitgeliefert; was in `custom/` steht, verantwortet das Projekt.**\n\n";
+
+echo "### Das Prinzip — woran sich ein neues Paket entscheiden lässt\n\n";
+echo "| Frage | Antwort |\n|---|---|\n";
+echo "| Benutzt `lib/` es? | **root** |\n";
+echo "| Benutzt die ausgelieferte Vorlage es (`custom/config.php`, `custom/app.php`)? | **root** — sie gehört zum Framework |\n";
+echo "| Benutzt nur Projektcode es? | **custom** |\n";
+echo "| Nur Tests oder Werkzeuge? | **require-dev** |\n";
+echo "| Niemand? | **entfällt** |\n\n";
+echo "Die Reihenfolge zählt: Die erste zutreffende Zeile gewinnt.\n\n";
+
+echo "### Kontrollsumme\n\n";
+echo "| Kategorie | Pakete |\n|---|---|\n";
+foreach ($zaehlung as $k => $n) {
+    echo sprintf("| %s | %d |\n", $k, $n);
+}
+echo sprintf("| **Summe** | **%d** |\n\n", array_sum($zaehlung));
+echo "Die Summe muss der Gesamtzahl oben entsprechen — ein Paket ohne Kategorie ist ein\n";
+echo "übersehenes Paket.\n\n";
+
+echo "### Die ausdrücklich entschiedenen Fälle\n\n";
+echo "Alle übrigen tragen eine **abgeleitete** Kategorie: im Root-Baum `root` (transitive\n";
+echo "Abhängigkeit des Ist-Stacks), unter `custom/` `entfaellt` (transitive Abhängigkeit eines\n";
+echo "gestrichenen Pakets). In der Tabelle oben sind die entschiedenen **fett** gesetzt.\n\n";
+
+foreach (array('root', 'custom', 'require-dev', 'entfaellt') as $k) {
+    if (empty($entschieden[$k])) {
+        continue;
+    }
+    echo "#### $k\n\n";
+    foreach ($entschieden[$k] as $name => $begruendung) {
+        echo "- **`$name`** — $begruendung\n";
+    }
+    echo "\n";
+}
 
 echo "## Geisterpakete\n\n";
 echo "Verzeichnisse, die in **keiner** `installed.json` stehen. Von Hand hineinkopiert;\n";
@@ -223,6 +394,10 @@ if ($geister === array()) {
 }
 
 echo "## Dubletten — dasselbe Paket in beiden Bäumen\n\n";
+echo "**Die Kategorie gilt dem Paket, nicht der Version.** Steht eine Dublette einmal auf\n";
+echo "`root` und einmal auf `entfaellt`, heisst das: Das Paket bleibt, *diese Fassung* nicht.\n";
+echo "Welche Version das neue Manifest bekommt, entscheidet Composer beim Auflösen — bei\n";
+echo "`psr/log` etwa weder 1.1.3 noch 3.0.2, sondern 2.0.0 (`006-001-0003`).\n\n";
 if ($dubletten === array()) {
     echo "Keine.\n\n";
 } else {
