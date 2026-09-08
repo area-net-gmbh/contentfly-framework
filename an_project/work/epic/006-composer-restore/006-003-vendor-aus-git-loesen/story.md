@@ -1,7 +1,7 @@
 ---
 id: 006-003-0000
 title: vendor/ aus Git lösen und den Build nachziehen
-status: todo
+status: in-progress
 depends_on: [006-002-0000]
 ---
 

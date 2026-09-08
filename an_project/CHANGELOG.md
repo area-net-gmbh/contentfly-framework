@@ -2,6 +2,9 @@
 
 # Changelog
 
+## 2026-09-08
+- 006-003-0001 → review: **11 591 → 383 Dateien im Index**, Differenz **11 208** — exakt die Kontrollzahl aus dem Task. Beide Vendor-Bäume sind mit `git rm -r --cached` aus der Versionskontrolle gelöst und liegen weiter auf der Platte; `.gitignore` fängt sie mit **zwei verankerten Regeln** `/vendor/` und `/custom/vendor/`. Ein unverankertes `vendor/` hätte hier zufällig dasselbe getan, aber auf jeder Ebene gegriffen — auch auf einem künftigen `plugins/x/vendor`, das vielleicht committet gehört; die Begründung steht als Kommentar in der Datei. Die Lock-Ausnahmen aus `006-002-0003` sind **einzeln nachgemessen**, nicht aus der Regelreihenfolge geschlossen: `composer.lock` und `custom/composer.lock` sind weiterhin versioniert und nicht ignoriert, beide Vendor-Autoloader dagegen ignoriert. 0 untracked, 0 von 11 208 Löschungen ausserhalb der beiden Bäume. **Beim Nachmessen selbst danebengegriffen:** Mein `grep` meldete einen vermeintlichen Fremdpfad, der in Wahrheit in `custom/vendor/` liegt — Git setzt Pfade mit Leerzeichen in Anführungszeichen, und daran lief das Muster vorbei; nachgezählt wurde mit einem Skript, das die Quotes entpackt. **Ob die Anwendung aus dem committeten Stand entsteht, beantwortet dieser Task nicht** — lokal läuft sie nur, weil die Dateien noch da liegen; der Beleg kommt mit `006-003-0002`
+
 ## 2026-09-07
 - 008-004-0000 → in-progress
 - 008-004-0001 → in-progress
@@ -80,6 +83,8 @@
 - 006-003-0002 task created: "Den Build aus dem committeten Stand nachweisen"
 - 006-003-0003 task created: "Die Dokumentation auf den neuen Ablauf bringen"
 - 006-003-0001…0003 refined: Punkt B des Story-Texts (die `.gitignore`-Falle beim Root-Lock) ist **bereits erledigt** — gelöst in 006-002-0003. 0001 macht den Schnitt über 11 208 Dateien, mit exakter Kontrollzahl. 0002 ist der Moment, in dem sich zeigt, **ob `master` wieder grün ist**; es misst zusätzlich die Dauer eines `composer install` aus dem Nichts (die Zahl, die jeder CI-Lauf ab jetzt zahlt) und prüft die Deployment-Variante `--no-dev --optimize-autoloader`, die sich für die Plugin-Annotationen anders verhalten könnte. 0003 setzt den Abschnitt *Warum vendor/ in Git liegt* in die **Vergangenheitsform statt ihn zu löschen** — er erklärt, warum der Baum aussah, wie er aussah
+- 006-003-0000 → in-progress
+- 006-003-0001 → in-progress
 - 000-000-0019 task created: "Der Upload-Pfad bricht mit Symfony 4" — **Epic 008 hat diesen Bruch wörtlich vorhergesagt**: Der Testkommentar beschrieb 2026, dass der rohe `$_FILES`-Zugriff nur zufällig funktioniert und „nach dem Kernel-Wechsel genau an dieser Stelle" fehlschlägt. Genau das ist eingetreten
 - 000-000-0020 task created: "POST /api/schema ist mit Symfony 4 nicht mehr erreichbar"
 - 006-002-0005 Ergebnis korrigiert: „Console Exit 0 gegen den neuen Baum" taugte **nicht** als Beleg — die Console erzeugt den EntityManager, lädt aber keine Metadaten. Der Task-Text warnte ausdrücklich davor; ich habe die eigene Warnung beim Auswerten nicht befolgt. Die Blockade war trotzdem weg, nur anders belegt
