@@ -1,7 +1,7 @@
 ---
 id: 006-001-0002
 title: Beide Vendor-Bäume vollständig erfassen
-status: review
+status: done
 depends_on: [006-001-0001]
 ---
 

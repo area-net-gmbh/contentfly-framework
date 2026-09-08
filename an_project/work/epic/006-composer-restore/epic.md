@@ -91,7 +91,7 @@ Lock, Build-Pipeline und einen entrümpelten Abhängigkeitsbaum — darauf bauen
 
 ## Stories
 <!-- Die Stories dieses Epics. Wird von /new-story synchron gehalten. -->
-- [ ] 006-001-0000 — Abhängigkeiten inventarisieren und zuordnen
+- [x] 006-001-0000 — Abhängigkeiten inventarisieren und zuordnen
 - [ ] 006-002-0000 — Root-Manifest und Lock für den Ist-Stack
 - [ ] 006-003-0000 — vendor/ aus Git lösen und den Build nachziehen
 - [ ] 006-004-0000 — Autoloader klären und custom/ entrümpeln

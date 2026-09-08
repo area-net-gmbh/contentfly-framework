@@ -1,7 +1,7 @@
 ---
 id: 006-001-0004
 title: Zuordnung entscheiden und begründen
-status: review
+status: done
 depends_on: [006-001-0002, 006-001-0003]
 ---
 

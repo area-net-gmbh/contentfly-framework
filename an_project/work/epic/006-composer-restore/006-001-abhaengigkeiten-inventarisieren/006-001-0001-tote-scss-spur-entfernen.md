@@ -1,7 +1,7 @@
 ---
 id: 006-001-0001
 title: Die tote SCSS-Spur entfernen
-status: review
+status: done
 depends_on: []
 ---
 

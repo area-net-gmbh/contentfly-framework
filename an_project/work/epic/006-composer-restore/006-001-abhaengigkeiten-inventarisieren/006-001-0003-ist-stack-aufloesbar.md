@@ -1,7 +1,7 @@
 ---
 id: 006-001-0003
 title: Belegen, dass der Ist-Stack auflösbar ist
-status: review
+status: done
 depends_on: [006-001-0002]
 ---
 
