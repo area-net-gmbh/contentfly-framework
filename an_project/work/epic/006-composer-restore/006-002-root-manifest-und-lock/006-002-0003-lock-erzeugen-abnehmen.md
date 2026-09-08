@@ -1,7 +1,7 @@
 ---
 id: 006-002-0003
 title: Lock erzeugen und gegen die Suite abnehmen
-status: in-progress
+status: review
 depends_on: [006-002-0002, 006-002-0005]
 ---
 
