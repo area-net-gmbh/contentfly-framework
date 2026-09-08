@@ -1,13 +1,30 @@
 ---
 id: 006-002-0003
 title: Lock erzeugen und gegen die Suite abnehmen
-status: todo
-depends_on: [006-002-0002]
+status: blocked
+depends_on: [006-002-0002, 006-002-0005]
 ---
 
 # Lock erzeugen und gegen die Suite abnehmen
 
 ## Context
+
+> **Blockiert seit 2026-09-08 durch `006-002-0005`.** Der erste Anlauf dieses Tasks lief bis
+> zum `composer update` und scheiterte dann beim Booten:
+> `dflydev/doctrine-orm-service-provider` (v2.0.1, letzte Version, 2018) benutzt
+> `Doctrine\Common\Persistence\Mapping\Driver\MappingDriverChain` — einen Namensraum, den
+> `doctrine/persistence` 2.0 verschoben hat. `doctrine/orm` 2.20 verlangt aber
+> `persistence ^2.4 || ^3`. Kein Constraint löst das; der Provider muss weg.
+>
+> Zwei kleinere Funde desselben Laufs sind bereits eingearbeitet: `doctrine/cache` musste auf
+> `^1.13` zurück (2.x hat `ArrayCache` und die übrigen Cache-Klassen entfernt, `dflydev`
+> braucht sie), und **27 der 78 Pakete im committeten `vendor/` waren als `source` installiert**
+> — ohne `.git`, weshalb Composer sie nicht aktualisieren kann. Der eingefrorene Baum ist kein
+> gültiger Composer-Zustand; er muss vor dem Auflösen weg (was `006-003` ohnehin tut).
+>
+> Ausserdem meldet `composer audit` **5 Sicherheitslücken in 3 Paketen** — Ausgangslage für
+> `006-005`.
+
 Hier wird es ernst: Aus dem Manifest entsteht ein `composer.lock`, und die Anwendung läuft zum
 ersten Mal gegen **neu aufgelöste** Pakete statt gegen den eingefrorenen Baum von 2018.
 

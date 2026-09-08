@@ -123,3 +123,4 @@ ausdrücklich annehmen. **Nicht stillschweigend übergehen.**
 - [ ] 006-002-0002 — composer.json für den Ist-Stack schreiben
 - [ ] 006-002-0003 — Lock erzeugen und gegen die Suite abnehmen
 - [ ] 006-002-0004 — Pipeline und Runbook nachziehen
+- [ ] 006-002-0005 — dflydev-Service-Provider durch eigenen Aufbau ersetzen
