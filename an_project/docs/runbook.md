@@ -143,8 +143,8 @@ sodass GET dort mit „Method Not Allowed" statt mit 404 beantwortet wird.
 ## 3b. Tests ausführen
 
 ```sh
-./custom/vendor/bin/phpunit                    # beide Suiten
-./custom/vendor/bin/phpunit --testsuite unit   # ohne Datenbank, muss immer grün sein
+./vendor/bin/phpunit                    # beide Suiten
+./vendor/bin/phpunit --testsuite unit   # ohne Datenbank, muss immer grün sein
 ```
 
 `tests/Unit` läuft ohne Container, `tests/Integration` braucht die Datenbank aus Schritt 1 und

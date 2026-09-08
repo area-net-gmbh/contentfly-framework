@@ -17,9 +17,9 @@ Der Grund für die Trennung: Läge beides zusammen, stünde die ganze Suite stil
 Container läuft. Eine Suite, die häufig aus Umgebungsgründen rot ist, wird nicht mehr gelesen.
 
 ```sh
-./custom/vendor/bin/phpunit                          # beide Suiten
-./custom/vendor/bin/phpunit --testsuite unit         # ohne Datenbank
-./custom/vendor/bin/phpunit --coverage-text          # braucht Xdebug oder PCOV
+./vendor/bin/phpunit                          # beide Suiten
+./vendor/bin/phpunit --testsuite unit         # ohne Datenbank
+./vendor/bin/phpunit --coverage-text          # braucht Xdebug oder PCOV
 ```
 
 ## Integrationstests ausführen
@@ -48,7 +48,7 @@ APP_ENV=production APP_DEBUG=0 \
 CONTENTFLY_TEST_BASE_URL=http://127.0.0.1:8145 \
 CONTENTFLY_TEST_ADMIN_PASS=dev-only-secret \
 CONTENTFLY_TEST_MAIL_TRAP="$FALLE" \
-  ./custom/vendor/bin/phpunit
+  ./vendor/bin/phpunit
 
 # 5. Die Vorlage wiederherstellen — Schritt 1 hat Zugangsdaten hineingeschrieben
 git checkout HEAD -- custom/config.php
@@ -118,7 +118,7 @@ Pipeline ausprobieren kann, ist beim Suchen eines Fehlers nutzlos.
 ```sh
 sh tools/ci/install-php-extensions.sh    # nur im Container nötig: pdo_mysql und gd
 sh tools/ci/prepare-test-environment.sh  # warten, installieren, Versandfalle, Server
-./custom/vendor/bin/phpunit
+./vendor/bin/phpunit
 ```
 
 ## Die Versandfalle für `/api/mail`
@@ -147,7 +147,7 @@ APP_ENV=production APP_DEBUG=0 \
 CONTENTFLY_TEST_BASE_URL=http://127.0.0.1:8145 \
 CONTENTFLY_TEST_ADMIN_PASS=dev-only-secret \
 CONTENTFLY_TEST_MAIL_TRAP="$FALLE" \
-  ./custom/vendor/bin/phpunit
+  ./vendor/bin/phpunit
 ```
 
 `MailApiTest` prüft die Sicherung selbst, in beide Richtungen:

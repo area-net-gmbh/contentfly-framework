@@ -23,12 +23,13 @@ stages:
   - test
 
 variables:
-  # ── Epic 006 ────────────────────────────────────────────────────────────────────────
-  # Heute liegen vendor/ und custom/vendor/ committed im Repo, also braucht die Pipeline
-  # kein `composer install`. Nach 006-004 liegt PHPUnit im Root-require-dev und dieser
-  # Pfad wird zu ./vendor/bin/phpunit. Er steht deshalb genau hier — die Umstellung ist
-  # eine Zeile, nicht eine Suche über mehrere Jobs.
-  PHPUNIT: "./custom/vendor/bin/phpunit"
+  # Eingeloest mit 006-002-0004: PHPUnit liegt seit 006-002-0003 im Root-`require-dev`.
+  # Die Vorsorge aus 008-005-0001 hat sich ausgezahlt — es war genau eine Zeile.
+  #
+  # ACHTUNG, solange 006-003 aussteht: `vendor/` liegt noch committed im Repo, und zwar im
+  # ALTEN Stand ohne PHPUnit. Der Job braucht deshalb ein `composer install`, bevor dieser
+  # Pfad existiert — siehe before_script.
+  PHPUNIT: "./vendor/bin/phpunit"
 
   # ── Der MySQL-Service ───────────────────────────────────────────────────────────────
   MYSQL_DATABASE: contentfly
@@ -82,6 +83,12 @@ check:template-config:
         - "--collation-server=utf8mb3_unicode_ci"
   before_script:
     - sh tools/ci/install-php-extensions.sh
+    # Seit 006-002-0003 gibt es ein Root-Manifest und einen Lock. Der committete vendor/-Baum
+    # ist der ALTE Stand; er wird hier ueberschrieben. Mit 006-003 faellt er ganz aus Git und
+    # dieser Schritt wird zur einzigen Quelle.
+    - php -r "copy('https://getcomposer.org/installer','/tmp/composer-setup.php');"
+    - php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer --quiet
+    - composer install --no-interaction --no-progress --prefer-dist
     - sh tools/ci/prepare-test-environment.sh
   script:
     # Ohne --testsuite laufen beide: `unit` ohne Datenbank, `integration` gegen die eben
