@@ -104,3 +104,31 @@ Haken `Type::renderJSON()`.
 Konstanten `APP_CMS_SHOW_ID_IN_LIST` und `APP_CMS_SHOW_OWNER_IN_LIST`. Sie kamen
 ausschließlich in `showInList` vor. Ein Projekt, das sie in `custom/config.php` setzt,
 entfernt die Zeilen.
+
+### Nachtrag aus `000-000-0010`: acht weitere `FRONTEND_*`-Felder
+
+Story `012-005-0004` hat nur die beiden oben genannten mitgezogen — jene, die sie selbst
+verwaist hatte — und den Rest ausdrücklich als eigenen Task vermerkt. Der ist eingelöst:
+
+| Feld | warum es entfällt |
+|---|---|
+| `FRONTEND_UI` | wurde nirgends gelesen |
+| `FRONTEND_URL` | wurde nirgends gelesen |
+| `FRONTEND_CUSTOM_LOGIN_BG` | wurde nirgends gelesen |
+| `FRONTEND_TITLE` | nur im `frontend`-Block des Schemas |
+| `FRONTEND_WELCOME` | nur im `frontend`-Block des Schemas |
+| `FRONTEND_LOGIN_REDIRECT` | nur im `frontend`-Block des Schemas |
+| `FRONTEND_FORM_IMAGE_SQUARE_PREVIEW` | nur im `frontend`-Block des Schemas |
+| `FRONTEND_CUSTOM_LOGO` | `frontend`-Block **und** `/api/config` |
+
+**Zwei bleiben, obwohl sie `FRONTEND_` heissen.** Die Benennung ist ein Erbe, kein Hinweis auf
+den Zweck:
+
+- **`FRONTEND_ITEMS_PER_PAGE`** — Standard-Seitengrösse der Pagination von `/api/list`. Reines
+  API-Verhalten; wer es entfernt, ändert, wie viele Objekte ein Client ohne eigene Angabe
+  bekommt.
+- **`FRONTEND_CUSTOM_NAVIGATION`** — schaltet einen datengetriebenen Zweig frei, der die
+  Entities `PIM\Nav` und `PIM\NavItem` ausliest. Beide gibt es, sie gehören zum Datenmodell.
+
+*Was zu tun ist:* Die acht Zeilen aus `custom/config.php` entfernen. Sie werden nicht mehr
+gelesen und stehen sonst als wirkungslose Schalter herum.
