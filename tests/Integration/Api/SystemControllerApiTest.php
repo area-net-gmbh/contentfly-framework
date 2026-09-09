@@ -590,7 +590,10 @@ class SystemControllerApiTest extends IntegrationTestCase
         $quelle = file_get_contents(ROOT_DIR.'/lib/contentfly/Classes/Controller/Provider/Base/SystemControllerProvider.php');
         $this->assertStringNotContainsString("== 'validateORM'", $quelle,
             'und steht nicht mehr in der Ausnahmeliste');
-        $this->assertStringContainsString("\$request->get('method') == 'updateDatabase'", $quelle,
+        // Die Schreibweise hat sich mit 009-003-0001 geaendert — Request::get() ist in
+        // Symfony 7.4 deprecated, gelesen wird jetzt aus dem request-Beutel. Die Bedingung
+        // selbst ist dieselbe, und genau sie ist gemeint.
+        $this->assertStringContainsString("all()['method'] ?? null) == 'updateDatabase'", $quelle,
             'updateDatabase bleibt — ein kaputtes Schema muss reparierbar sein');
 
         [$status] = $this->systemDo('validateORM');

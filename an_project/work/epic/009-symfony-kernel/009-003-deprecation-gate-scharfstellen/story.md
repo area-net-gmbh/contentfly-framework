@@ -1,7 +1,7 @@
 ---
 id: 009-003-0000
 title: Das Deprecation-Gate unter Symfony 7.4 scharfstellen
-status: todo
+status: in-progress
 depends_on: [009-002-0000]
 ---
 
@@ -23,3 +23,6 @@ blockierend werden kann — entschieden wird das hier, nicht angenommen.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
+- [ ] 009-003-0001 — Request::get() ablösen — 74 Stellen
+- [ ] 009-003-0002 — Die restlichen eigenen Deprecations beheben
+- [ ] 009-003-0003 — Das Gate scharfstellen und den Rest an Epic 010 übergeben
