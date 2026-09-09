@@ -1,7 +1,7 @@
 ---
 id: 000-000-0021
 title: Das CI-Image kann composer install nicht ausführen
-status: todo
+status: review
 depends_on: [006-003-0002]
 ---
 
@@ -59,12 +59,12 @@ Keine Änderung an `.gitlab-ci.yml` selbst; der Aufruf dort stimmt. Keine Änder
 Constraints in `composer.json`. Kein `composer audit` — das ist `006-005`.
 
 ## Acceptance criteria
-- [ ] `tools/ci/install-php-extensions.sh` stellt einen Entpacker bereit; die Wahl zwischen
+- [x] `tools/ci/install-php-extensions.sh` stellt einen Entpacker bereit; die Wahl zwischen
       `unzip` und der `zip`-Extension ist begründet.
-- [ ] Entschieden und begründet, ob `git` mit ins Image gehört.
-- [ ] Der Kopfkommentar der Datei nennt den neuen Stand — er behauptet heute, das Image bringe
+- [x] Entschieden und begründet, ob `git` mit ins Image gehört.
+- [x] Der Kopfkommentar der Datei nennt den neuen Stand — er behauptet heute, das Image bringe
       alles Nötige ausser `pdo_mysql` und `gd` mit.
-- [ ] `composer install --no-interaction --no-progress --prefer-dist` läuft im Image durch und
+- [x] `composer install --no-interaction --no-progress --prefer-dist` läuft im Image durch und
       erzeugt die 77 Pakete des Locks.
 
 ## Verification
@@ -81,3 +81,95 @@ docker run --rm -v "$PWD":/src:ro php:8.3-cli sh -c '
 ```
 
 Danach derselbe Lauf im Image `php:8.4-cli` — der zweite Job der Pipeline benutzt es.
+
+## Ergebnis
+**Die Pipeline kann wieder bauen.** Eine Zeile — `unzip` in
+`tools/ci/install-php-extensions.sh` — und `composer install` läuft im Image durch: 77 Pakete,
+PHPUnit vorhanden, keine einzige Meldung über einen Quell-Fallback.
+
+**Sie ist damit nicht grün.** Der Job läuft jetzt bis zur Suite und endet mit Exit 1 wegen der
+7 bekannten Failures aus `000-000-0019` und `000-000-0020`. Das ist der Unterschied zwischen
+„kann nicht bauen" und „baut und findet die Defekte, die wir kennen" — und mehr war hier auch
+nicht zu holen.
+
+### Die Wahl: `unzip`, nicht die `zip`-Extension
+Beide Varianten im Image gemessen, je zwei Läufe, kalter Cache:
+
+| | Einrichtung | Grösse | `composer install` |
+|---|---|---|---|
+| **`unzip` (apt)** | 5 s · 5 s | 495 KB | 5 s · 6 s |
+| `zip`-Extension (`libzip-dev` + Build) | 13 s · 11 s | — | 12 s · 6 s |
+
+Die Extension kostet gut das Doppelte an Einrichtung, ohne beim Installieren schneller zu sein.
+Der 12-Sekunden-Ausreisser im ersten Lauf war Rauschen — der zweite lag bei 6 s, wie `unzip`.
+
+Sie wäre nur dann die richtige Wahl, wenn die **Anwendung** ZipArchive benutzte. Nachgesehen,
+nicht angenommen: kein `ZipArchive` in `lib/`, `custom/`, `bin/`, `tests/` oder `tools/`, und
+**kein `ext-zip`** in `composer.lock` — geprüft über die Anforderungen aller 77 Pakete. Die 13
+verlangten Erweiterungen sind `ctype`, `dom`, `filter`, `hash`, `iconv`, `json`, `libxml`,
+`mbstring`, `pcre`, `pdo`, `phar`, `tokenizer` und `xmlwriter`; `zip` ist nicht darunter.
+
+### `git` kommt bewusst nicht mit
+| | Grösse installiert | zusätzliche Pakete | Einrichtung |
+|---|---|---|---|
+| `unzip` | 495 KB | 0 | 1 s |
+| `git` | **49 556 KB** | 9 | 6 s |
+
+Das Hundertfache, für eine Fähigkeit, die niemand anfordert. Belegt statt vermutet: Alle 77
+Pakete kommen als `dist`, der Lauf erzeugt **null** Meldungen zu „Source fallback" oder „git was
+not found", und kein Manifest hat eine VCS-`repositories`-Quelle. Das Auschecken des Repos ist
+Sache des Runners, nicht dieses Images — die Pipeline setzt im Kopf ihrer eigenen Datei einen
+Docker-Executor voraus.
+
+Die Bedingung, unter der das kippt, steht als *Nachrüsten, wenn* im Skript: ein Paket, das nur
+als `source` verfügbar ist, oder eine VCS-Quelle in einem Manifest. Beides meldet sich mit genau
+den Zeichenketten, nach denen hier gesucht wurde — dann ist die Zeile die Antwort und nicht ein
+neuer Befund.
+
+### Der Kopfkommentar
+Er behauptete, dem Image fehlten nur `pdo_mysql` und `gd`. Jetzt nennt er `unzip` als drittes,
+ausdrücklich als Werkzeug und nicht als PHP-Erweiterung, samt der Fehlermeldung, an der es
+aufgefallen ist, den Messwerten beider Varianten und der git-Entscheidung. Die Schlusszeile gibt
+die `unzip`-Version mit aus — wer das Skript laufen sieht, sieht auch, dass der Entpacker da ist.
+
+### Verification: der ganze Job, nicht nur der Schritt
+Der Task verlangte den `before_script`-Ablauf. Gefahren wurde der **vollständige Job** samt
+MySQL-Service in einem eigenen Docker-Netz — dieselben Images, dieselben Aufrufe, dieselben
+Variablen wie in `.gitlab-ci.yml`, gegen einen `git archive HEAD` plus dieser einen Änderung:
+
+| | `php:8.3-cli` | `php:8.4-cli` |
+|---|---|---|
+| `install-php-extensions.sh` | 19 s | 16 s |
+| Composer selbst installieren | 3 s | 2 s |
+| `composer install --prefer-dist` | 8 s | 7 s |
+| Pakete | **77** | **77** |
+| `vendor/bin/phpunit` vorhanden | ja | ja |
+| Meldungen zu git/source | **0** | **0** |
+| `prepare-test-environment.sh` | durchgelaufen | durchgelaufen |
+| Suite | 249 Tests / 598 Assertions, 7 Failures | dieselben |
+| übersprungen | **0** | **0** |
+| Postausgang der Versandfalle | leer | leer |
+| Job-Exit | 1 (die 7 bekannten Failures) | 1, `allow_failure` |
+
+Der `before_script` steht damit bei rund **30 s** auf 8.3 und **25 s** auf 8.4 — der
+`composer install` ist mit 7–8 s weiterhin der kleinste Posten darin.
+
+### Ein Nebenbefund für `006-005`
+Auf PHP 8.4 protokolliert der Testserver **zwei** Deprecations, nicht eine:
+
+```
+Deprecated: Silex\Application::run(): Implicitly marking parameter $request as nullable …
+Deprecated: Areanet\PIM\Classes\Config::__construct(): Implicitly marking parameter $config as nullable …
+```
+
+`008-005-0001` hielt fest, es sei „eine einzige Deprecation aus Silex selbst". Die zweite liegt
+im **eigenen Code**. Kein eigenes Ticket — das „0 Deprecations"-Gate ist Story `006-005` und der
+Sprung auf 8.5 ist Epic `009`; beide haben das im Auftrag. Festgehalten ist es hier, damit
+`006-005` nicht mit der Zahl 1 plant.
+
+### Was das Nachspielen nicht beweist
+Es lief in lokalem Docker, nicht auf einem GitLab-Runner. Ungeprüft bleibt damit, ob der Runner
+das Repo mit einem Helper-Image auscheckt — die Annahme, aus der die git-Entscheidung folgt.
+Sie steht im Kopf von `.gitlab-ci.yml` schon als ausdrückliche Voraussetzung („Es steht ein
+Runner mit DOCKER-EXECUTOR bereit"); der erste echte Lauf ist ihre Probe. Schlägt der Checkout
+fehl, ist `git` eine Zeile im selben Skript.
