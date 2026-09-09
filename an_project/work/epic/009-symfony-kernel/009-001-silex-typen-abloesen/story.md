@@ -37,4 +37,5 @@ Er ist ein zugesichertes API für Bestandsprojekte (`custom/app.php` registriert
 - [ ] 009-001-0002 — Die reinen Container-Nutzer auf die Schnittstelle umstellen
 - [ ] 009-001-0003 — Controller-Provider und Manager von Silex lösen
 - [ ] 009-001-0004 — Die Silex-Hilfsmethoden in den Controllern ablösen
+- [ ] 009-001-0006 — Die Console-Commands von knplabs lösen
 - [ ] 009-001-0005 — Ein Wächter gegen die Rückkehr der Silex-Typen

@@ -2,7 +2,7 @@
 id: 009-001-0005
 title: Ein Wächter gegen die Rückkehr der Silex-Typen
 status: todo
-depends_on: [009-001-0002, 009-001-0003, 009-001-0004]
+depends_on: [009-001-0002, 009-001-0003, 009-001-0004, 009-001-0006]
 ---
 
 # Ein Wächter gegen die Rückkehr der Silex-Typen
