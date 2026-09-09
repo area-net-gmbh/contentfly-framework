@@ -57,6 +57,52 @@ gelesen.
 
 ## API
 
+### `@PIM\Select` prüft jetzt beim Schreiben
+**Seit `000-000-0017` (2026-09-09).**
+
+Die Optionen der Annotation standen bisher nur im Schema; **niemand verglich einen Schreibwert
+damit**. Ein Wert ausserhalb der Liste wurde angenommen und landete unverändert in der Spalte.
+Ab jetzt wird er mit `contentfly_general_invalid_params` abgewiesen.
+
+**Betroffen ist ein Projekt, dessen Daten heute Werte ausserhalb der Liste enthalten** — oder
+dessen Clients solche schreiben. Der Fehler tritt beim nächsten Schreiben auf, nicht beim
+Update selbst: Bestehende Zeilen bleiben unangetastet, sie lassen sich nur nicht mehr mit
+demselben Wert zurückschreiben.
+
+*Warum jetzt:* Eine veröffentlichte Werteliste, die nichts zusichert, ist schlechter als keine
+— ein Client baut seine Auswahl daraus und verlässt sich darauf. Der einzige Konsument der
+Liste war früher die gelöschte Oberfläche; seitdem war sie eine Zusicherung ohne Wirkung.
+
+*Was zu tun ist:* Vor dem Umstieg prüfen, welche Werte tatsächlich in den betroffenen Spalten
+stehen:
+
+```sql
+SELECT DISTINCT <spalte> FROM <tabelle>;
+```
+
+Was nicht in der Optionsliste steht, gehört entweder in die Liste aufgenommen oder in den Daten
+korrigiert.
+
+**`null` und der leere String gehen weiterhin durch.** Ob ein Feld leer sein darf, entscheidet
+`nullable` an der Spalte, nicht die Optionsliste — sonst wäre nebenbei jedes Select-Feld zum
+Pflichtfeld geworden.
+
+### Ein Feld mit unbekanntem Spaltentyp meldet sich
+**Seit `000-000-0017` (2026-09-09).**
+
+Griff keiner der registrierten Typen auf eine Entity-Eigenschaft, fiel sie **still** aus dem
+API-Schema: kein Eintrag, keine Warnung. Lesen lieferte das Feld nicht, Schreiben scheiterte mit
+`contentfly_general_unknown_property` — und niemand erfuhr, warum. Jetzt gibt es dabei eine
+`E_USER_WARNING`, die Entity, Eigenschaft und Spaltentyp nennt.
+
+**Geworfen wird nicht.** Ein Projekt mit einem exotischen Spaltentyp soll nach dem Umstieg sein
+Schema noch aufbauen können. Die Warnung landet im Log; in einer Testsuite mit `failOnWarning`
+fällt sie sofort auf.
+
+*Was zu tun ist:* Nach dem Umstieg einmal ins Log sehen. Wer eine solche Warnung findet, hat ein
+Feld, das die API noch nie kannte — `json` ist mit dieser Version dazugekommen, für andere Typen
+braucht es einen eigenen `Type`.
+
 ### `POST /api/mail` entfällt ersatzlos
 **Seit `000-000-0016` (2026-09-09).**
 

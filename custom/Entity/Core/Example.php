@@ -13,17 +13,29 @@ use Doctrine\ORM\Mapping as ORM;
  * }, uniqueConstraints={
  *     @ORM\UniqueConstraint(name="uniq_example_slug", columns={"slug"})
  * })
+ *
+ * Die Beispiel-Entity der Vorlage. Sie fuehrt vor, wie ein Projekt eigene Entities anlegt:
+ * Ableitung von `Base`, Doctrine-Annotationen fuer die Spalten, `@PIM`-Annotationen fuer
+ * das, was die API darueber hinaus wissen muss.
+ *
+ * Die Felder sind Beispiele und stehen fuer nichts Bestimmtes — bis `000-000-0017` trugen
+ * sie Kommentare aus dem Kundenprojekt, aus dem diese Vorlage einmal herausgeschnitten
+ * wurde: Mandanten-Lebenszyklen, ein `TrialExpiryChecker`, eine Stripe-Steuerbefreiung.
+ * Nichts davon gab es je in diesem Baum.
  */
 class Example extends Base {
 
 	/**
-	 * Lifecycle state of the tenant.
-	 * States: provisioning, active, trial_expired, suspended, deactivated
+	 * Ein Feld mit fester Werteliste.
 	 *
-	 * trial_expired is the state we transition into when the bootstrap
-	 * decision_pro trial has ended without an upgrade. The tenant can still
-	 * log in and read/export data (DSGVO compliance) but cannot write —
-	 * see TrialExpiryChecker + the trial-end paywall spec.
+	 * `@PIM\Select` veroeffentlicht die Optionen im Schema — ein Client kann daraus eine
+	 * Auswahl bauen — und **prueft sie beim Schreiben**: Ein Wert ausserhalb der Liste wird
+	 * mit `contentfly_general_invalid_params` abgewiesen (`000-000-0017`). Leer und `null`
+	 * gehen durch; ob das erlaubt ist, entscheidet `nullable` an der Spalte.
+	 *
+	 * Die Werteliste selbst bleibt unveraendert: Sie ist Teil des Schemas, das die
+	 * Charakterisierungstests aus `008-004-0005` zusichern. Umbenennen waere eine
+	 * Datenaenderung, nicht das Entfernen eines Kommentars.
 	 *
 	 * @ORM\Column(type="string", length=32, options={"default": "active"})
 	 * @PIM\Select(options="provisioning,active,trial_expired,suspended,deactivated")
@@ -41,17 +53,27 @@ class Example extends Base {
 	protected $slug;
 
 	/**
-	* Example structure:
-	* {
-	*   "someProperties": "value"
-	* }
-	*
+	 * Ein JSON-Feld.
+	 *
+	 * Doctrine kodiert und dekodiert die Spalte; ueber die API kommt und geht ein
+	 * verschachteltes Objekt, kein String. Der zugehoerige `JsonType` ist mit `000-000-0017`
+	 * dazugekommen — davor fiel ein solches Feld **still aus dem Schema**: Lesen lieferte es
+	 * nicht, Schreiben scheiterte mit `contentfly_general_unknown_property`, und niemand
+	 * erfuhr, warum.
+	 *
+	 * Beispielwert:
+	 * {
+	 *   "titel": "Beispiel",
+	 *   "merkmale": ["a", "b"]
+	 * }
+	 *
 	 * @ORM\Column(type="json", nullable=true)
 	 */
 	protected $jsonExample;
 
 	/**
-	 * True when Stripe reports the customer as tax-exempt (reverse-charge in EU).
+	 * Ein boolesches Feld mit Vorgabewert.
+	 *
 	 * @ORM\Column(type="boolean", options={"default": false})
 	 */
 	protected $boolExample = false;
