@@ -6,7 +6,6 @@ use Areanet\PIM\Classes\Controller\Provider\Base\CustomControllerProvider;
 use Areanet\PIM\Classes\Manager\ConsoleManager;
 use Areanet\PIM\Classes\Manager\RouteManager;
 use Areanet\PIM\Classes\Kernel\ConsoleEvents;
-use Pimple\Exception\FrozenServiceException;
 use PHPUnit\Framework\TestCase;
 use Areanet\PIM\Classes\Kernel\Application;
 
@@ -94,9 +93,14 @@ class RouteAndConsoleManagerTest extends TestCase
     public function testAddCommandMussVorDemErstenZugriffAufDenDispatcherLaufen(): void
     {
         // Ein Befund, der beim Schreiben dieses Tests auffiel: addCommand() nutzt
-        // $app->extend('dispatcher', …). Pimple friert einen Service ein, sobald er
+        // $app->extend('dispatcher', …). Der Container friert einen Dienst ein, sobald er
         // ausgelesen wurde — wer den Dispatcher vorher anfasst, bekommt beim naechsten
-        // addCommand() eine FrozenServiceException.
+        // addCommand() eine Ausnahme.
+        //
+        // Bis 009-002-0002 war das Pimples FrozenServiceException; seither wirft der eigene
+        // Container eine RuntimeException. Das Verhalten ist dasselbe und mit Absicht
+        // nachgebaut — die Reihenfolgebedingung ist echt, und ein Container, der sie
+        // stillschweigend erlaubte, wuerde den Fehler verstecken.
         //
         // Im echten Ablauf ist das kein Problem: custom/app.php laeuft, bevor der erste
         // Request den Dispatcher benutzt. Aber es ist eine Reihenfolgebedingung, die
@@ -107,7 +111,7 @@ class RouteAndConsoleManagerTest extends TestCase
 
         $app['dispatcher']; // einmal auslesen — friert den Service ein
 
-        $this->expectException(FrozenServiceException::class);
+        $this->expectException(\RuntimeException::class);
 
         $manager->addCommand(new class extends CustomCommand {});
     }
