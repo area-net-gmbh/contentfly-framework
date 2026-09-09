@@ -1,7 +1,7 @@
 ---
 id: 000-000-0023
 title: null an strtolower, explode und method_exists
-status: review
+status: done
 depends_on: [006-005-0003]
 ---
 
