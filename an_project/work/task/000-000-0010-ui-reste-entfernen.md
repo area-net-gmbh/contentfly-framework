@@ -1,7 +1,7 @@
 ---
 id: 000-000-0010
 title: UI-Reste aus Konfiguration und Schema entfernen
-status: review
+status: done
 depends_on: []
 ---
 
