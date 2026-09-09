@@ -1,7 +1,7 @@
 ---
 id: 006-003-0001
 title: Beide Vendor-Bäume aus dem Index lösen
-status: review
+status: done
 depends_on: []
 ---
 

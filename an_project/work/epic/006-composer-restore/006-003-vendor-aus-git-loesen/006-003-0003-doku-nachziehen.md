@@ -1,7 +1,7 @@
 ---
 id: 006-003-0003
 title: Die Dokumentation auf den neuen Ablauf bringen
-status: review
+status: done
 depends_on: [006-003-0002]
 ---
 
