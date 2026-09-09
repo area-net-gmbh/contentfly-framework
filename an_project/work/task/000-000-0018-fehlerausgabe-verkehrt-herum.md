@@ -1,7 +1,7 @@
 ---
 id: 000-000-0018
 title: Die Fehlerausgabe ist verkehrt herum verdrahtet
-status: review
+status: done
 depends_on: [008-005-0001]
 ---
 
