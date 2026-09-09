@@ -451,6 +451,37 @@ schickt.
 *Was zu tun ist:* Wer die deklarierte Reihenfolge will, liest sie aus dem Schema und schickt sie
 als `order` mit.
 
+### `/api/list` antwortet auf eine leere Menge mit 200
+**Seit `000-000-0014` (2026-09-09).**
+
+Lieferte die Abfrage keine Treffer, antwortete der Endpunkt mit `404 {"message":"Not found"}` —
+einer achten Antwortform, die mit keiner der sieben anderen etwas zu tun hatte. Für einen
+Client waren **„keine Treffer" und „diese Route gibt es nicht" nicht unterscheidbar**: gleicher
+Statuscode, gleicher Rumpf.
+
+Jetzt antwortet eine bekannte Entity ohne Treffer mit `200`, `data: []` und `totalItems: 0` —
+so wie eine Abfrage mit einem Treffer mit `200` und einer Liste mit einem Eintrag antwortet.
+Eine **unbekannte** Entity bleibt ein `404`, jetzt aber unterscheidbar, mit
+`contentfly_general_unknown_entity` im Rumpf.
+
+**Betroffen ist ein Client, der den 404 als „leer" auswertet.** Er bekommt jetzt `200` und muss
+`data` prüfen — was er ohnehin tut, sobald es Treffer gibt.
+
+*Was zu tun ist:* Die Sonderbehandlung des 404 entfernen. Wer weiterhin unterscheiden will,
+liest `message`: Bei einer unbekannten Entity steht dort `contentfly_general_unknown_entity`.
+
+### Die übrigen Envelopes ändern sich erst mit dem Release
+**Angekündigt mit `000-000-0014` — noch keine Änderung.**
+
+Die sieben Antwortformen der API werden auf `data`, `errors`, `meta` gebracht. Der Umbau gehört
+in Epic `011` und nicht in `009`: Die Charakterisierungstests aus Epic `008` sind die
+Abnahmegrundlage des Kernel-Wechsels, und wären beide Seiten des Vergleichs gleichzeitig neu,
+liesse sich eine Abweichung nicht mehr dem Umbau oder der Absicht zuordnen.
+
+Die vollständige Tabelle *vorher → nachher* je Endpunkt steht in
+`an_project/docs/api-envelope.md`. Sie ist die Vorlage für den Migrationsleitfaden aus Epic
+`007` — wer heute einen Client baut, kann sich darauf einstellen.
+
 ## Annotationen
 
 Die `@PIM`-Annotationen sind mit Epic `012` stark reduziert worden. Die vollständige Liste
