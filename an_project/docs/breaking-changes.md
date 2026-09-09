@@ -243,6 +243,43 @@ gelöschte Oberfläche. Im ausgelieferten Schema waren es 59 Vorkommen.
 Tippfehler ein guter Anlass, es zu lassen: Auf welchen der beiden Schlüssel ein Typ hörte,
 war reiner Zufall.
 
+### `POST /api/multiupdate` ist ganz oder gar nicht
+**Seit `000-000-0009` (2026-09-09).**
+
+Der Endpunkt lief ohne Transaktion. Scheiterte das dritte von fünf Objekten, blieben zwei
+geändert, drei unberührt, und die Antwort war ein Fehler ohne Angabe, wie weit der Stapel kam.
+Jetzt läuft er in einer Datenbanktransaktion: Ein Fehler an irgendeiner Stelle rollt **alles**
+zurück, auch die Zeilen, die `pim_log` nebenbei geschrieben hätte.
+
+**Betroffen ist ein Projekt, das sich auf den Teilerfolg verlassen hat** — etwa eines, das
+einen langen Stapel schickt, den Fehler hinnimmt und beim nächsten Versuch nur den Rest
+nachreicht. Dieses Muster schreibt jetzt gar nichts mehr.
+
+*Was zu tun ist:* Den Stapel als Ganzes wiederholen. Das ist seit der Änderung gefahrlos, denn
+der gescheiterte Versuch hat nichts hinterlassen. Wer bewusst Teilerfolge will, schickt die
+Objekte einzeln über `POST /api/update`.
+
+### `POST /api/multiupdate` antwortet mit `ts` und `data`
+**Seit `000-000-0009` (2026-09-09).**
+
+Der Erfolgsfall lieferte den dünnsten Rumpf aller Endpunkte: nur `version` und `hash`. Jetzt
+kommen `ts` und `data` dazu; `data` listet je Objekt aus dem Request `entity` und `id`, in
+dessen Reihenfolge. Die Mitschriften in die übrigen Sprachen einer I18N-Entität sind Folge
+desselben Eintrags und stehen nicht einzeln in der Liste.
+
+**Ein bestehender Client bricht daran nicht** — es kommt etwas dazu, es fällt nichts weg.
+
+### `POST /api/multiupdate` ohne `objects` ist ein Fehler
+**Seit `000-000-0009` (2026-09-09).**
+
+Fehlte `objects` oder war es kein Array, lief die Schleife über `null` und der Aufruf endete
+mit `200`. Jetzt kommt `contentfly_general_invalid_params`. Solange die Antwort leer war, fiel
+der Unterschied nicht auf; seit sie aufzählt, was geschrieben wurde, wäre eine leere Liste auf
+einen kaputten Request hin eine falsche Auskunft.
+
+*Was zu tun ist:* `objects` mitschicken — auch für einen leeren Stapel, als `[]`. Der leere
+Stapel bleibt ausdrücklich erlaubt.
+
 ## Annotationen
 
 Die `@PIM`-Annotationen sind mit Epic `012` stark reduziert worden. Die vollständige Liste
