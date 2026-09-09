@@ -88,6 +88,33 @@ check:audit:
     # Erlaubnis ins Leere, die stillschweigend weiterwirkt.
     - sh tools/ci/audit-ausnahmen-pruefen.sh
 
+check:phpstan:
+  stage: check
+  image: php:8.3-cli
+  # Die statische Haelfte des "0 Deprecations"-Gates (006-005-0004). Das Laufzeit-Log aus
+  # 006-005-0003 zeigt nur, was ein Testlauf AUSGEFUEHRT hat; PHPStan findet deprecated
+  # APIs auch in Zweigen, die die Suite nicht betritt.
+  #
+  # NICHT BLOCKIEREND, und zwar begruendet: Der erste Lauf meldet 47 Treffer, praktisch
+  # alle Aufrufe in deprecated Doctrine- und Symfony-APIs. Ein Gate, das ab dem ersten Lauf
+  # rot ist und erst von Epic 009/010 gruen gemacht werden kann, wird abgeschaltet statt
+  # abgearbeitet. Die Bedingung zum Scharfschalten steht in phpstan.neon.dist.
+  #
+  # Der Job braucht kein prepare-test-environment.sh und keine Datenbank — statische
+  # Analyse fuehrt nichts aus.
+  allow_failure: true
+  before_script:
+    - sh tools/ci/install-php-extensions.sh
+    - php -r "copy('https://getcomposer.org/installer','/tmp/composer-setup.php');"
+    - php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer --quiet
+    - composer install --no-interaction --no-progress --prefer-dist
+  script:
+    # --memory-limit=512M ist nicht willkuerlich: Mit dem PHP-Standard von 128M bricht ein
+    # Worker bei KALTEM Ergebnis-Cache ab, und PHPStan meldet dann "Result is incomplete"
+    # mit WENIGER Treffern — das saehe aus wie Fortschritt. In der CI ist der Cache immer
+    # kalt. Nachgemessen in 006-005-0004: 128M kalt unvollstaendig, 512M kalt vollstaendig.
+    - ./vendor/bin/phpstan analyse --no-progress --memory-limit=512M
+
 # ── Die Testsuiten ─────────────────────────────────────────────────────────────────────
 
 .testlauf:

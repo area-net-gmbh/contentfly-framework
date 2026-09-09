@@ -1,0 +1,57 @@
+# PHPStan — die statische Hälfte des „0 Deprecations"-Gates (006-005-0004).
+#
+# WOZU. an_project/docs/tech-stack.md verlangt zwei Quellen: das Deprecation-Log und
+# PHPStan. Das Log (006-005-0003) zeigt nur, was ein Testlauf tatsächlich AUSGEFÜHRT hat —
+# eine deprecated API in einem Zweig, den die Suite nicht betritt, bleibt darin unsichtbar
+# bis zum Upgrade. Diese Konfiguration findet sie ohne Ausführung.
+#
+# LEVEL 0, UND DAS IST ABSICHT.
+# Die Deprecation-Regeln aus phpstan/phpstan-deprecation-rules greifen unabhängig vom
+# Level; sie brauchen keinen hohen. Ein höherer Level zöge Typfehler herein, die mit dem
+# Zweck dieses Gates nichts zu tun haben — auf einem Silex-2-Baum mit Doctrine-Annotationen
+# sind das viele —, und eine Liste, in der die Deprecations untergehen, wird nicht gelesen.
+#
+# Wer PHPStan später als echte statische Analyse will, hebt den Level in einem eigenen
+# Ticket und mit eigener Begründung. Das ist eine andere Aufgabe als diese hier.
+#
+# KEINE BASELINE, UND DAS IST DER PUNKT.
+# Eine Baseline friert den Ist-Stand ein und macht den Job sofort grün. Sie würde genau die
+# Liste verstecken, deren Sichtbarkeit der Zweck dieses Tasks ist: Epic 009 misst seinen
+# Aufwand daran.
+#
+# Eine Baseline wird richtig, sobald die Liste auf null steht und nur noch NEUE Treffer
+# interessieren — dann ist sie leer und überflüssig. Oder wenn jemand entscheidet, den
+# Level anzuheben: Dann friert eine Baseline die dabei entstehenden Typfehler ein, ohne die
+# Deprecations mit einzufrieren. Vorher nicht.
+#
+# WANN DER JOB BLOCKIEREND WIRD.
+# Sobald `vendor/`-fremde Treffer auf null stehen. Solange die Liste von Silex und den
+# Symfony-4.4-Komponenten dominiert wird, hinge das Gate an Epic 009 — und ein Gate, das
+# eine andere Story erst grün machen muss, wird abgeschaltet. Der Job trägt bis dahin
+# allow_failure: true in .gitlab-ci.yml.
+
+parameters:
+    level: 0
+
+    paths:
+        - lib
+        - custom
+        - bin
+        - tests
+
+    # `vendor/` wird NICHT analysiert: Was dort deprecated ist, ist nicht unsere Baustelle,
+    # sondern die von Epic 009 (Silex/Symfony) und 010 (Doctrine). PHPStan liest den Baum
+    # trotzdem, um Typen aufzulösen — nur meldet es nichts darüber.
+    excludePaths:
+        - vendor
+        - custom/vendor
+
+    # Die Konstanten, die lib/contentfly/bootstrap.php zur Laufzeit setzt und die
+    # Entity-Klassen schon beim Laden in ihren Annotationen lesen. Ohne sie meldet PHPStan
+    # sie als undefiniert — ein Rauschen, das mit Deprecations nichts zu tun hat.
+    # Dieselbe Liste wie in tests/bootstrap.php.
+    bootstrapFiles:
+        - tests/bootstrap.php
+
+includes:
+    - vendor/phpstan/phpstan-deprecation-rules/rules.neon
