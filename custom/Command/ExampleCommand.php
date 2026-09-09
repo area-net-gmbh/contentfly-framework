@@ -11,9 +11,9 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class ExampleCommand extends Command
 {
-    private \Silex\Application $app;
+    private \Areanet\PIM\Classes\Kernel\ApplicationInterface $app;
 
-    public function __construct(\Silex\Application $app)
+    public function __construct(\Areanet\PIM\Classes\Kernel\ApplicationInterface $app)
     {
         $this->app = $app;
         parent::__construct();

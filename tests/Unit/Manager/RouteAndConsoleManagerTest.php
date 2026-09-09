@@ -8,12 +8,12 @@ use Areanet\PIM\Classes\Manager\RouteManager;
 use Knp\Console\ConsoleEvents;
 use Pimple\Exception\FrozenServiceException;
 use PHPUnit\Framework\TestCase;
-use Silex\Application;
+use Areanet\PIM\Classes\Kernel\Application;
 
 /**
  * Charakterisierungstests für `RouteManager` und `ConsoleManager`.
  *
- * Beide hängen allein an einem `Silex\Application`-Objekt — kein EntityManager, keine
+ * Beide hängen allein an einem `Kernel\Application`-Objekt — kein EntityManager, keine
  * Datenbank, kein HTTP. Deshalb Unit-Tests: Sie laufen auf jedem Checkout, auch ohne
  * Container.
  *
@@ -154,8 +154,8 @@ class RouteAndConsoleManagerTest extends TestCase
  * Anwendung, die sich merkt, welche Pfade gemountet wurden.
  *
  * Ein Spion statt einer Attrappe: Der RouteManager sagt zu, jeden gesammelten Mount an die
- * Anwendung weiterzureichen — das laesst sich hier direkt beobachten, ohne Silex' interne
- * Routen-Struktur zu befragen.
+ * Anwendung weiterzureichen — das laesst sich hier direkt beobachten, ohne die interne
+ * Routen-Struktur des Kernels zu befragen.
  */
 class SpionApplication extends Application
 {
