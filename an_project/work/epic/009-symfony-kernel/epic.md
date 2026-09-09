@@ -1,7 +1,7 @@
 ---
 id: 009-000-0000
 title: Silex durch Symfony 7.4 ersetzen
-status: in-progress
+status: done
 depends_on: [006-000-0000, 008-000-0000, 012-000-0000]
 ---
 
@@ -146,3 +146,59 @@ Ebenfalls nicht in diesem Epic:
 - [x] 009-002-0000 — Der Kernel-Schnitt — Symfony 7.4 statt Silex
 - [x] 009-003-0000 — Das Deprecation-Gate unter Symfony 7.4 scharfstellen
 - [x] 009-004-0000 — Vorlage und Dokumentation auf den neuen Kernel nachziehen
+
+## Ergebnis (2026-09-09)
+
+**Silex ist weg. Das Framework läuft auf Symfony 7.4, und die Suite aus Epic `008` ist grün —
+ohne eine einzige inhaltlich geänderte Zusicherung.** Das war der Prüfstein, und er hält.
+
+### Die Erfolgskriterien, gemessen
+
+| Kriterium | Stand |
+|---|---|
+| Kernel und Container | Symfony-7.4-`HttpKernel`; der Container ist **ein eigener** (`Kernel\Container`, rund 120 Zeilen) statt `symfony/dependency-injection` — Symfonys Container nimmt zur Laufzeit nur fertige Objekte, eine Brücke davor wäre am Ende dieser Container geworden |
+| `$app['…']` bleibt nutzbar | Unverändert, samt Factory-Closures aus `custom/app.php` |
+| Routing | `RouteManager` und `mount()` über Symfony Routing; **27 Routen, 18 abgesichert — dieselben wie vorher** |
+| Middleware und Fehler | `before`/`after`/`error` als Listener, Priorität unverändert, Reihenfolge **nachgewiesen** in `HookReihenfolgeTest` |
+| Console | `knplabs` durch 60 eigene Zeilen ersetzt; von 18 Doctrine-Commands laufen 15 unverändert, 2 über Provider, `ImportCommand` entfällt |
+| Silex und Pimple physisch weg | `composer.lock`: 71 Pakete, **kein** `silex/silex`, `pimple/pimple`, `knplabs/…`, `symfony/debug`, `symfony/validator`, `symfony/translation`; alle 19 `symfony/*` auf 7.4 (die drei `*-contracts` tragen ihre eigene 3.x-Zählung) |
+| Gate „0 Deprecations" scharf | 0 Zeilen bei **0** Ausnahmen, auf PHP 8.3 **und** 8.4 |
+| Testnetz grün | `OK (267 tests, 639 assertions)`, 0 übersprungen — vorher 247/614 |
+
+Dazu, was nicht im Kriterienkatalog stand: **5 ignorierte CVEs auf 0**, PHPStan von 115
+Meldungen auf `[OK] No errors` und blockierend, mit 31 Doctrine-Befunden über acht benannte
+Muster an Epic `010` übergeben.
+
+### Der Umfang war zweimal anders als geplant
+
+- **Story `009-005` gab es im Schnitt nicht.** `symfony/http-foundation` erklärt seit v7.1.7
+  einen harten Konflikt mit `doctrine/dbal <3.6`; der Kernel-Wechsel erzwingt DBAL 2.13 → 3.10.
+  Aufgefallen beim ersten Auflösungsversuch, als eigene Story **vor** den Schnitt gezogen und
+  eigenständig gemergt — Silex nagelt nur `symfony/*` fest, also lief die volle Suite dabei.
+- **Story `009-004` hat einen Defekt erzeugt, statt nur zu dokumentieren.** Die Vorlage ging
+  ihren eigenen dokumentierten Weg nicht; als sie ihn ging, starb die Konsole.
+
+### Drei Befunde, die ohne den Schnitt nicht sichtbar geworden wären
+
+1. **`HttpKernel` fängt in der Vorgabe keine `\Error`** — `handleAllThrowables` steht auf
+   `false`, ein `TypeError` fällt durch den ganzen Kernel, der Aufrufer bekommt eine leere 500.
+   Exakt der Befund aus `000-000-0006`, nur mit Symfonys Kernel statt Silex' Wrapper. **Ohne den
+   Test, der aus jenem Befund stammt, wäre es durchgerutscht:** Die Antwort ist ein 500, und ein
+   Test, der nur den Statuscode prüft, wäre grün geblieben.
+2. **`Messages::contentfly_general_record_already_exists` gibt es nicht** — die Zeile war kein
+   Fehlerbericht, sondern ein Fatal, und sie korrigiert eine Zuschreibung aus Epic `008`.
+3. **Vier Cache-Instanzen teilten sich einen Namensraum**, weil `new ApcCache('query')` sein
+   Argument verwarf — eine Absicht, die seit Jahren nicht griff.
+
+### Was offen bleibt
+
+**Das Kriterium „Silex und Pimple sind physisch weg" ist erfüllt, seine Automatisierung aber nur
+zur Hälfte.** `KeineSilexTypenTest` bewacht den **Quelltext** und meldet jede neue Verwendung
+sowie jede unbenutzte Ausnahme. Den **Lock** bewacht nichts: Wer `silex/silex` wieder anfordert,
+ohne es zu benutzen, käme durch. Das ist eine Lücke gegenüber dem Vorbild aus `006-004-0003` und
+gehört als eigener Task aufgeschrieben, nicht hier nachgeschoben.
+
+Ausserdem übergeben, jeweils mit benanntem Auflöser: 31 PHPStan-Befunde an Epic `010`; die
+`rowCount()`-Stellen, die zum Zählen den ganzen Treffersatz holen; der fehlende
+`modified_index`; die ungültige Zuordnung in `BaseI18nTree`; und die Entscheidung, ob der
+PHP-8.4-Job blockierend wird — der Lauf dafür liegt seit `009-004-0002` grün vor.
