@@ -77,8 +77,10 @@ bleibt trotzdem gesetzt, weil es die Produktionseinstellung ist und die Suite me
 was eine Installation ausliefert.
 
 **`display_errors=Off` ist nicht kosmetisch.** PHP schreibt eine Deprecation direkt in den
-Antwortstrom. Passiert das, bevor Silex den Statuscode setzt, sind die Header schon unterwegs
-— und die Antwort trägt `200`, obwohl die Anwendung `405` oder `500` meint. Beim ersten
+Antwortstrom. Passiert das, bevor der Kernel den Statuscode setzt, sind die Header schon
+unterwegs — und die Antwort trägt `200`, obwohl die Anwendung `405` oder `500` meint. Das gilt
+unverändert für den Symfony-Kernel aus Epic `009`; die Reihenfolge Ausgabe-vor-Header ist eine
+Eigenschaft von PHP, nicht des Frameworks. Beim ersten
 CI-Lauf sind daran sechs Tests gescheitert, die lokal grün waren; mit `display_errors=Off`
 laufen alle 232 durch. Es ist zugleich die Produktionseinstellung: Eine Instanz, die
 Deprecations ausliefert, verrät Dateipfade an jeden Aufrufer. Dass das Framework sie bei
@@ -285,9 +287,11 @@ und Story `008-001` soll ausdrücklich nicht von `008-002` abhängen. Die Zugang
 
 ## Was `tests/bootstrap.php` tut — und was nicht
 
-Es lädt **nicht** `lib/contentfly/bootstrap.php`. Der baut die komplette Silex-Anwendung auf,
+Es lädt **nicht** `lib/contentfly/bootstrap.php`. Der baut die komplette Anwendung auf,
 verlangt eine konfigurierte Datenbank und startet eine Session — für einen Test, der eine
-einzelne Klasse prüft, ist das weder nötig noch erwünscht.
+einzelne Klasse prüft, ist das weder nötig noch erwünscht. Mit dem Kernel-Wechsel aus Epic `009`
+hat sich daran nichts geändert; nur heisst die Anwendung jetzt
+`Areanet\PIM\Classes\Kernel\Application` statt `Silex\Application`.
 
 Stattdessen: beide Autoloader, `ROOT_DIR`, die Versionsdateien und die Konstanten, die
 Entity-Klassen schon beim Laden in ihren Annotationen lesen (`APPCMS_ID_TYPE` und Verwandte).

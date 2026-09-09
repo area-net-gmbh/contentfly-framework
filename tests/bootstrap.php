@@ -2,7 +2,7 @@
 /**
  * Bootstrap für die Testsuite.
  *
- * Bewusst **nicht** `lib/contentfly/bootstrap.php`: Der baut die komplette Silex-Anwendung
+ * Bewusst **nicht** `lib/contentfly/bootstrap.php`: Der baut die komplette Anwendung
  * auf, verlangt eine konfigurierte Datenbank und startet eine Session. Für Tests, die eine
  * einzelne Klasse prüfen, ist das weder nötig noch erwünscht — ein Testlauf, der ohne
  * laufenden Container nicht startet, wird nicht ausgeführt.

@@ -368,40 +368,45 @@ class VorlageApiTest extends IntegrationTestCase
             'Der before-Hook ist registriert');
         $this->assertStringContainsString("\$app['request.startedAt'] = microtime(true);", $vorlage,
             'und setzt einen Wert, den nichts liest');
-        $this->assertStringContainsString('Die Reihenfolge der Registrierung ist die Ausführungsreihenfolge', $vorlage,
+        // Die Formulierung hat sich mit 009-004-0001 geaendert: Sie nennt jetzt auch das
+        // Prioritaetsargument und verweist auf HookReihenfolgeTest, der die Reihenfolge
+        // nachweist, statt sie zu behaupten. Die Aussage ist dieselbe geblieben.
+        $this->assertStringContainsString('die Reihenfolge der Registrierung die Ausführungsreihenfolge', $vorlage,
             'Die Vorlage beschreibt die Reihenfolge als bedeutsam — mit einem Hook nicht pruefbar');
     }
 
     // ── D: Was die Vorlage bewusst nicht kann ──────────────────────────────────────────
 
-    public function testDerBeispielCommandIstAbsichtlichNichtRegistriert(): void
+    public function testDerBeispielCommandIstRegistriertUndTraegtDenCustomPraefix(): void
     {
-        // Festgehalten, damit beim Kernel-Umbau nicht "repariert" wird, was bewusst so steht.
-        //
-        // custom/Command/ExampleCommand.php erbt von Symfony\…\Command und erwartet $app im
-        // Konstruktor. Der ConsoleManager nimmt ausschliesslich CustomCommand-Nachfahren —
-        // diese Basisklasse praefixt den Namen mit "custom:", damit Projekt-Commands nie mit
-        // denen des Frameworks kollidieren. Der Beispiel-Command passt nicht auf diesen Weg
-        // und ist in custom/app.php deshalb ausdruecklich NICHT registriert.
+        /*
+         * UMGEDREHT MIT 009-004-0001. Der Test hiess
+         * testDerBeispielCommandIstAbsichtlichNichtRegistriert und hielt einen Widerspruch
+         * fest: Das Beispiel erbte von Symfony\…\Command, der ConsoleManager nimmt aber nur
+         * CustomCommand-Nachfahren — also lag es unbenutzt herum und zeigte einen Weg, den das
+         * Framework nicht anbietet. technical.md hat das seit Epic 012 als offene Entscheidung
+         * gefuehrt.
+         *
+         * Entschieden wurde, das Beispiel umzustellen statt den Manager zu oeffnen: Der
+         * custom:-Praefix ist die Zusicherung, dass ein Projekt-Command nie einen des
+         * Frameworks ueberschreibt. Waere der Manager fuer jedes Symfony-Command offen, waere
+         * der Praefix nur noch ein Angebot.
+         */
         $command = file_get_contents(ROOT_DIR.'/custom/Command/ExampleCommand.php');
-        $this->assertStringContainsString('class ExampleCommand extends Command', $command,
-            'Er erbt von Symfony\\…\\Command, nicht von CustomCommand');
-        $this->assertStringContainsString("->setName('example:command:run')", $command,
-            'und traegt deshalb auch keinen custom:-Praefix');
+        $this->assertStringContainsString('class ExampleCommand extends CustomCommand', $command,
+            'Er erbt von CustomCommand, dem Weg, den das Framework anbietet');
 
         $vorlage = file_get_contents(ROOT_DIR.'/custom/app.php');
-        $this->assertStringContainsString('bewusst nicht registriert', $vorlage,
-            'Die Vorlage vermerkt es selbst');
-        $this->assertStringNotContainsString('addCommand(new \\Custom\\Command\\ExampleCommand', $vorlage,
-            'und registriert ihn folgerichtig nicht');
+        $this->assertStringContainsString('addCommand(new \\Custom\\Command\\ExampleCommand', $vorlage,
+            'und ist in custom/app.php registriert');
 
-        // Und die Gegenprobe an der Konsole selbst.
+        // Die Gegenprobe an der Konsole selbst — samt Praefix, den CustomCommand voranstellt.
         $ausgabe = array();
         exec(sprintf('%s %s list 2>&1', escapeshellarg(PHP_BINARY), escapeshellarg(ROOT_DIR.'/bin/console.php')), $ausgabe);
         $alles = implode("\n", $ausgabe);
 
         $this->assertStringContainsString('appcms:install', $alles, 'Vorbedingung: die Liste ist gekommen');
-        $this->assertStringNotContainsString('example:command:run', $alles,
-            'Der Beispiel-Command taucht nicht auf');
+        $this->assertStringContainsString('custom:example:command:run', $alles,
+            'Der Beispiel-Command taucht auf, und zwar mit dem custom:-Praefix');
     }
 }

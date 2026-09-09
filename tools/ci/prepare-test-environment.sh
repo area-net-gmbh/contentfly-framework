@@ -115,8 +115,8 @@ chmod +x "$CONTENTFLY_TEST_MAIL_TRAP/sendmail"
 # display_errors=Off ist NICHT kosmetisch, sondern Voraussetzung dafür, dass die Suite
 # überhaupt misst, was sie zu messen glaubt:
 #
-#   PHP schreibt eine Deprecation direkt in den Antwortstrom. Passiert das, bevor Silex
-#   den Statuscode setzt, sind die Header schon unterwegs — und die Antwort trägt 200,
+#   PHP schreibt eine Deprecation direkt in den Antwortstrom. Passiert das, bevor der
+#   Kernel den Statuscode setzt, sind die Header schon unterwegs — und die Antwort trägt 200,
 #   obwohl die Anwendung 405 oder 500 meint. Beim ersten CI-Lauf sind daran sechs Tests
 #   gescheitert, die lokal grün waren (008-005-0001).
 #

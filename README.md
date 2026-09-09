@@ -28,9 +28,16 @@ Mit dem CMS können serverseitig beliebige Inhalte gespeichert und verwaltet wer
 **Technologien**
 
 - [PHP](http://www.php.net/) und [MySQL](https://www.mysql.de/)
-- [Silex](http://silex.sensiolabs.org/) als Micoframework mit [Symfony Components](http://symfony.com/components)
+- [Symfony 7.4 LTS](https://symfony.com/) als Komponenten-Unterbau: HttpFoundation, HttpKernel,
+  EventDispatcher, Routing, Console. Den Container stellt Contentfly selbst
+  (`Areanet\PIM\Classes\Kernel\Container`).
 - [Doctrine](http://www.doctrine-project.org/) als ORM für die Datenhaltung
 - [AngularJS](https://angularjs.org/) für die Oberfläche
+
+> Bis Epic `009` lief hier [Silex 2](http://silex.sensiolabs.org/) als Microframework. Silex ist
+> seit 2018 EOL und deckelte Symfony auf 4.4; der Kernel ist getauscht, die Schnittstelle für
+> Projekte (`$app['…']`, `mount()`, `before()`, `after()`) ist geblieben. Was sich für ein
+> Bestandsprojekt ändert, steht in `an_project/docs/breaking-changes.md`.
 
 ## Migration 1.5 auf 1.6
 

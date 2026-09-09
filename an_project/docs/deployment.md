@@ -60,13 +60,17 @@ Zwei, und keine davon produktiv:
 | Job | Stage | Was er tut |
 |---|---|---|
 | `check:template-config` | `check` | Verhindert, dass eine installierte `custom/config.php` in die Historie gerät |
+| `check:audit` | `check` | `composer audit --locked` gegen die Ausnahmeliste — **blockierend** |
+| `check:phpstan` | `check` | Statische Analyse gegen die Ausnahmeliste — **blockierend seit `009-003-0003`** |
 | `test:php8.3` | `test` | Beide Testsuiten gegen eine frisch installierte Instanz — **pflicht** |
 | `test:php8.4` | `test` | Derselbe Lauf auf PHP 8.4, `allow_failure: true` |
 
 **Der 8.4-Job ist eine Frühwarnung, kein Gate.** Zielplattform ist PHP 8.5; was hier rot wird,
-ist die Liste dessen, was Epic `006` und `009` auf dem Weg dorthin zu erledigen haben — aber
-es darf die Pipeline heute nicht anhalten. Beim Anlegen lief er grün, mit einer einzigen
-Deprecation aus Silex selbst.
+ist die Liste dessen, was auf dem Weg dorthin zu erledigen bleibt — aber es darf die Pipeline
+heute nicht anhalten. Beim Anlegen lief er grün, mit einer einzigen Deprecation aus Silex; eine
+zweite aus eigenem Code (`Classes\Config::__construct()`) kam mit `000-000-0021` dazu. Beide
+sind weg, und **der Job ist heute grün, gemessen** — siehe *Was die Gates heute melden*. Ob er
+deshalb blockierend wird, ist eine offene Entscheidung.
 
 ### Was die Pipeline voraussetzt
 - **Ein Runner mit Docker-Executor.** Ohne ihn funktionieren weder `image:` noch `services:`.
@@ -133,9 +137,10 @@ Eintrag, der nicht mehr greift, den Lauf rot.
 **In dieser Reihenfolge fragen.** Wer gleich bei Frage 3 anfängt, schafft das Gate ab.
 
 1. **Gibt es ein Release, das die Meldung behebt?** Dann Constraint anheben — und die
-   Constraint-Kette aus `006-001-0003` gegenrechnen, bevor irgendetwas committet wird. Silex und
-   `knplabs/console-service-provider` deckeln Symfony auf 4.4; wer daran vorbeigeht, bricht die
-   Suite.
+   Constraint-Kette aus `006-001-0003` gegenrechnen, bevor irgendetwas committet wird. Der
+   Symfony-Deckel bei 4.4 ist mit Epic `009` gefallen; geblieben ist der von Doctrine —
+   `doctrine/orm` 2.20 hält DBAL auf 3.x, und `doctrine/annotations` hängt am Metadaten-Weg.
+   Wer daran vorbeigeht, bricht die Suite. Auflöser ist Epic `010`.
 2. **Kein Release, aber ein Weg um die Nutzung herum?** Dann ist es ein Code-Ticket, kein
    Manifest-Ticket. Die drei `null`-Übergaben aus `000-000-0023` sind so ein Fall.
 3. **Weder noch → Ausnahme.** Einzeln nach Kennung, **nie paketweise**, mit Begründung und dem
@@ -147,34 +152,48 @@ Eintrag, der nicht mehr greift, den Lauf rot.
 jede **künftige** Meldung dieses Pakets. Die CVE-Kennung ist die kleinste Einheit, die den Zweck
 erfüllt; beim Deprecation-Gate ist es das Paar aus Datei und Meldung.
 
-### Die heutigen Ausnahmen als Präzedenzfall
+### Die Ausnahmen als Präzedenzfall — und wie sie verschwunden sind
 
-Wer nur die Listen sieht, hält Ausnehmen für den Normalweg. Deshalb hier, warum es heute neun
-Einträge gibt und warum sie **alle zusammen** verschwinden:
+Wer nur die Listen sieht, hält Ausnehmen für den Normalweg. Deshalb hier, wie es ausgegangen
+ist. Als die Gates entstanden (`006-005`), standen neun Einträge in zwei Listen, **acht davon an
+einer einzigen Ursache**: einem Stack, der bis zum Kernel-Tausch festlag. Genau so soll eine
+Ausnahmeliste aussehen — mit einem benannten Auflöser, der sie als Ganzes räumt.
 
-| Liste | Einträge | Ursache | verschwindet mit |
+| Liste | Einträge damals | Ursache | heute |
 |---|---|---|---|
-| `config.audit.ignore` | 5 CVEs in `symfony/http-foundation`, `-routing`, `-validator` | Symfony 4.4 ist seit Nov 2023 EOL; jede Meldung betrifft die **gesamte** 4.x-Linie, es gibt keinen Fix | Epic `009` |
-| `deprecations-ausnahmen.txt` | 1 aus `silex/silex` | `ReflectionParameter::getClass()`, deprecated seit PHP 8.0; Silex 2.2.2 ist seit 2018 EOL | Epic `009` |
-| `deprecations-ausnahmen.txt` | 3 aus eigenem Code | `null` an `strtolower()`, `explode()`, `method_exists()` | `000-000-0023` |
+| `config.audit.ignore` | 5 CVEs in `symfony/http-foundation`, `-routing`, `-validator` | Symfony 4.4 seit Nov 2023 EOL; jede Meldung betraf die **gesamte** 4.x-Linie | **0** — mit Epic `009` gefallen |
+| `deprecations-ausnahmen.txt` | 1 aus `silex/silex` | `ReflectionParameter::getClass()`, deprecated seit PHP 8.0 | **0** — mit Epic `009` gefallen |
+| `deprecations-ausnahmen.txt` | 3 aus eigenem Code | `null` an `strtolower()`, `explode()`, `method_exists()` | **0** — mit `000-000-0023` behoben |
+| `phpstan.neon.dist` | — (später dazugekommen) | 31 Doctrine-Befunde über acht benannte Muster | **8 Muster**, Auflöser Epic `010` |
 
-Acht der neun hängen an **einer** Ursache: einem Stack, der bis zum Kernel-Tausch festliegt. Das
-ist der Unterschied zu einer gewachsenen Ausnahmeliste — und der Grund, warum sie sich nicht
-vermehren darf.
+**Beide alten Listen sind leer, und das ist der Beleg für Regel 3:** Sie hätten sich nicht von
+allein geleert. Jede Ausnahme, die nicht mehr greift, macht den Lauf rot — also musste sie beim
+Auflösen mit entfernt werden, sonst wäre die Pipeline stehen geblieben.
 
-Dazu `--abandoned=ignore` beim Audit: Fünf Pakete des Ist-Stacks sind abandoned
-(`silex/silex`, `doctrine/annotations`, `doctrine/cache`, `knplabs/console-service-provider`,
-`symfony/debug`). Das ist kein Sicherheitsbefund, sondern die Beschreibung des Altbestands.
-**Auf `fail` umstellen, sobald Epic `010` durch ist.**
+Dazu `--abandoned=ignore` beim Audit: Von fünf abandoned Paketen des Ist-Stacks sind **zwei
+übrig**, `doctrine/annotations` und `doctrine/cache`. `silex/silex`,
+`knplabs/console-service-provider` und `symfony/debug` sind mit Epic `009` aus dem Baum. Das ist
+kein Sicherheitsbefund, sondern die Beschreibung des Restbestands.
+**Auf `fail` umstellen, sobald Epic `010` durch ist** — dann ist die Liste leer.
 
 ### Was die Gates heute melden
 
+Gemessen am 2026-09-09, nach Epic `009`:
+
 | | Stand |
 |---|---|
-| `composer audit --locked` | grün, 5 Meldungen ausgenommen |
-| Deprecations auf PHP 8.3 | grün, 4 Stellen ausgenommen (148 protokollierte Zeilen) |
-| Deprecations auf PHP 8.4 | 46 Stellen ohne Ausnahme — Frühwarnung für Epic `009` |
-| PHPStan | 47 Treffer, davon rund 34 an Doctrine-APIs — der Aufwand liegt bei Epic `010` |
+| `composer audit --locked` | grün, **0 Meldungen, 0 ausgenommen**; 2 abandoned Pakete (beide Doctrine) |
+| Deprecations auf PHP 8.3 | grün, **0 protokollierte Zeilen bei 0 Ausnahmen** |
+| Deprecations auf PHP 8.4 | grün, **0 protokollierte Zeilen bei 0 Ausnahmen** |
+| PHPStan | `[OK] No errors`, blockierend; 31 Doctrine-Befunde über 8 benannte Muster ausgenommen (Epic `010`) |
+| Suite auf PHP 8.3 | `OK (267 tests, 640 assertions)` |
+| Suite auf PHP 8.4 | `OK (267 tests, 639 assertions)`, 0 übersprungen, Postausgang 0 Byte |
+
+**Der 8.4-Lauf beantwortet die Frage, die in der `.gitlab-ci.yml` offen stand.** Dort steht als
+Begründung für `allow_failure: true`, der Symfony-7.4-Stand sei auf 8.4 noch nicht gemessen
+worden. Er ist es jetzt — im Pipeline-Image `php:8.4-cli` gegen einen `mysql:8.0`-Service, mit
+dem Wortlaut des Jobs —, und er ist grün. Den Schalter zu ziehen ist damit eine Entscheidung,
+die anliegt; sie gehört in ein eigenes Ticket, nicht in eine Dokumentationsänderung.
 
 ## Die Suite ist die Abnahmegrundlage
 Was ein roter Test beim Kernel-Tausch bedeutet, ist in `an_project/docs/technical.md`

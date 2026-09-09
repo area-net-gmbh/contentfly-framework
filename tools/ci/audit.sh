@@ -16,11 +16,13 @@
 #
 # ── Warum --abandoned=ignore ──────────────────────────────────────────────────────────
 #
-# Fünf Pakete des Ist-Stacks sind abandoned: silex/silex, doctrine/annotations,
-# doctrine/cache, knplabs/console-service-provider und symfony/debug. Das ist kein
-# Sicherheitsbefund, sondern der bekannte Ausgangszustand — Silex trägt den Kernel,
-# doctrine/annotations trägt die @PIM- und @ORM-Annotationen. Beide fallen mit Epic 009
-# bzw. 010; die Begründung steht bei jedem einzelnen in tools/dependency-assignment.json.
+# Zwei Pakete sind abandoned: doctrine/annotations und doctrine/cache. Das ist kein
+# Sicherheitsbefund, sondern der bekannte Restbestand — doctrine/annotations trägt die
+# @PIM- und @ORM-Annotationen, und beide fallen mit Epic 010.
+#
+# Es waren fünf. silex/silex, knplabs/console-service-provider und symfony/debug sind mit
+# Epic 009 aus dem Baum; die Begründung steht bei jedem einzelnen in
+# tools/dependency-assignment.json.
 #
 # Ohne das Flag wäre der Job dauerhaft rot für einen Zustand, den heute niemand ändern
 # kann — und ein Gate, das immer rot ist, wird nach zwei Läufen abgeschaltet.

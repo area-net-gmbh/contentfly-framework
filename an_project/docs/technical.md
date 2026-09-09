@@ -44,9 +44,16 @@ Vier eigene Middleware, deren Reihenfolge jeweils begründet war:
 4. **ActivityTracker** (`after`) — schreibt `lastActivityAt` fort, gedrosselt auf ≤ 1×/h.
    Bewusst als After-Hook, damit es den Request unter keinen Umständen stören kann.
 
-Silex nimmt bei `before()`/`after()` ein **Prioritätsargument** (`$app->before(fn, 128)`,
-`$app->after(fn, -100)`). Wo es gesetzt war, war es Absicht — beim Portieren auf Symfony-Listener
-muss die effektive Reihenfolge nachgewiesen werden, nicht die Registrierungsreihenfolge geraten.
+`before()` und `after()` nehmen weiterhin ein **Prioritätsargument** (`$app->before(fn, 128)`,
+`$app->after(fn, -100)`) — die Schnittstelle ist die von Silex, der Unterbau seit `009-002` ein
+Symfony-`EventDispatcher`. Wo eine Priorität gesetzt war, war es Absicht, und sie gilt
+unverändert: Höhere Priorität läuft zuerst, bei gleicher Priorität die frühere Registrierung.
+Die Vorgabe ist −8 wie in Silex, damit ein Projekt-Hook Vorrang vor dem Router hat.
+
+**Nachgewiesen, nicht behauptet:** `tests/Unit/Kernel/HookReihenfolgeTest.php` hält die
+effektive Reihenfolge fest, für `before` wie für `after`, und dazu die Regel, dass ein Hook
+**keine** spätere Command-Registrierung verhindern darf (`009-004-0004`). Genau daran ist der
+Nachbau zuerst gescheitert.
 
 ### Weitere Muster, die beim Portieren nicht verloren gehen dürfen
 
@@ -58,7 +65,7 @@ muss die effektive Reihenfolge nachgewiesen werden, nicht die Registrierungsreih
 | **Security-Header** | HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy als After-Hook auf jeder Antwort; CSP zunächst im Report-Only-Modus und erst nach sauberen Reports scharf geschaltet. |
 | **CORS-Allowlist** | In Produktion werden `Access-Control-Allow-Origin`/`-Credentials` entfernt, wenn keine Allowlist gesetzt ist — Fail-closed. In Entwicklung bleibt der Reflect-Origin-Fallback des Frameworks, damit lokales Arbeiten nicht bricht. |
 | **Refresh-Token als HttpOnly-Cookie** | Der Refresh-Token wurde zusätzlich als HttpOnly-Cookie ausgeliefert (host-only, SameSite=Lax, Secure nur über HTTPS), damit die SPA ihn nicht im localStorage halten muss — wo ein XSS ihn zu einer dauerhaften Kontoübernahme machen kann. |
-| **Pro-Tenant-JWT-Secret** | `$app['tenantSecretResolver']` als `$app->protect()`-Closure: schlägt das JWT-Secret pro Tenant in der Datenbank nach. `protect()` ist nötig, weil Pimple eine Closure sonst als Factory versteht und aufruft. |
+| **Pro-Tenant-JWT-Secret** | `$app['tenantSecretResolver']` als `$app->protect()`-Closure: schlägt das JWT-Secret pro Tenant in der Datenbank nach. `protect()` war nötig, weil Pimple eine Closure sonst als Factory versteht und aufruft. **Der neue Container kennt `protect()` nicht** — er hat dieselbe Closure-Regel, aber niemand im Baum legt eine Closure als Wert ab. Wer dieses Muster portiert, braucht es zuerst; der Fehler wäre laut, nicht still (`Kernel\Container::offsetSet()`). |
 
 ### Routen: der RouteManager, nicht `$app->get()`
 
@@ -76,14 +83,25 @@ nach `custom/app.php` durch `bindRoutes()`. Das `isSecure`-Flag ist die
 Authentifizierungsentscheidung pro Route — beim Portieren ist es die Information, die als
 Erstes verloren geht, wenn Routen „nur umgeschrieben" werden.
 
-### Offene Inkonsistenz in der Vorlage
+### Aufgelöst: die Inkonsistenz in der Vorlage
 
-`custom/Command/ExampleCommand.php` erbt von `Symfony\…\Console\Command` und erwartet
-`$app` im Konstruktor. Der `ConsoleManager` des Frameworks nimmt aber ausschließlich
-`Areanet\PIM\Classes\Command\CustomCommand`. Das Beispiel ist deshalb in `custom/app.php`
-bewusst **nicht** registriert — es zeigt einen Weg, den das Framework so nicht anbietet.
-Beim Aufräumen der Vorlage zu entscheiden: Beispiel auf `CustomCommand` umstellen, oder den
-`ConsoleManager` für gewöhnliche Symfony-Commands öffnen.
+`custom/Command/ExampleCommand.php` erbte von `Symfony\…\Console\Command` und erwartete
+`$app` im Konstruktor. Der `ConsoleManager` nimmt aber ausschließlich
+`Areanet\PIM\Classes\Command\CustomCommand`, und das Beispiel war deshalb in `custom/app.php`
+nicht registriert — es zeigte einen Weg, den das Framework nicht anbietet.
+
+**Entschieden mit `009-004-0001`: Das Beispiel erbt jetzt von `CustomCommand` und ist
+registriert.** Nicht der andere Weg — den `ConsoleManager` für jedes Symfony-Command zu öffnen
+—, weil der `custom:`-Präfix die Zusicherung trägt, dass ein Projekt-Command nie einen des
+Frameworks überschreibt. Wäre der Manager offen, wäre der Präfix nur noch ein Angebot, und
+`appcms:install` liesse sich überschreiben. Der Command heisst dadurch
+`custom:example:command:run`; am Namen sieht man, wem er gehört.
+
+**Dabei ist ein Defekt aufgefallen** (`009-004-0004`): Ein `before()`-Hook in `custom/app.php`
+las den Dispatcher aus und fror ihn ein, sodass jede danach registrierte Console-Anmeldung mit
+`RuntimeException` scheiterte. Silex hatte die Registrierung vor dem Boot verschoben; beim
+Nachbau ging das verloren, weil kein Test die Abfolge „erst ein Hook, dann ein Command"
+abdeckte — die Vorlage ging diesen Weg ja nie.
 
 
 ## Authentifizierung heute (Review 2026-09-04)
@@ -191,8 +209,8 @@ Dazu trafen zwei Symfony-Generationen aufeinander: `symfony/http-foundation` 3.4
 | Paket | Constraint | Folge |
 |---|---|---|
 | `ellumilel/php-excel-writer` | `php: ^5.4\|^7.0` | Unter PHP 8.5 **nicht installierbar**. Genutzt in `lib/contentfly/Controller/ExportController.php:9`. |
-| `silex/silex` 2.2.2 | `symfony/*: ~2.8\|^3.0` | Deckelt Symfony auf 3.4 (EOL Nov 2020, nie für PHP 8 freigegeben). Der `php`-Constraint ist nach oben offen — Composer meldet nichts. |
-| `dflydev/doctrine-orm-service-provider` | `doctrine/orm: ~2.3` | Blockiert den Weg auf ORM 3. |
+| ~~`silex/silex` 2.2.2~~ | ~~`symfony/*: ~2.8\|^3.0`~~ | **Erledigt mit `009-002`.** Deckelte Symfony auf 3.4 (EOL Nov 2020, nie für PHP 8 freigegeben), und der `php`-Constraint war nach oben offen, sodass Composer nichts meldete. Das Paket ist aus dem Baum; der Kernel steht auf Symfony 7.4. |
+| ~~`dflydev/doctrine-orm-service-provider`~~ | ~~`doctrine/orm: ~2.3`~~ | **Erledigt mit `009-002`.** Blockierte den Weg auf ORM 3; entfallen mit dem Container. Der Weg auf ORM 3 ist damit frei, gegangen wird er in Epic `010`. |
 | `doctrine/orm` | `dev-bugfix-many2many` | Dev-Branch-Pin ohne Release — in keinem Upgrade-Pfad ausdrückbar. |
 
 Dev-Werkzeuge lagen im ausgelieferten Baum: `phpstan/phpstan` 1.10.58 und `rector/rector`
