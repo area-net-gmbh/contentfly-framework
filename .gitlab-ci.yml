@@ -117,7 +117,14 @@ check:audit:
   script:
     # Ohne --testsuite laufen beide: `unit` ohne Datenbank, `integration` gegen die eben
     # aufgebaute Instanz. Die Trennung ist Absicht und in phpunit.xml.dist begründet.
-    - $PHPUNIT
+    #
+    # Der Exit-Code wird aufgehoben statt sofort wirksam: Das Deprecation-Gate darunter
+    # liest das Serverlog und MUSS auch dann laufen, wenn die Suite rot ist — sonst waere
+    # es genau dann blind, wenn am meisten passiert ist. GitLab bricht die script-Liste
+    # beim ersten Fehlschlag ab, deshalb der Umweg (006-005-0003).
+    - set +e; $PHPUNIT; PHPUNIT_EXIT=$?; set -e
+    - sh tools/ci/deprecations-pruefen.sh
+    - exit $PHPUNIT_EXIT
   after_script:
     # Der Postausgang der Versandfalle gehört ins Log, auch wenn der Lauf grün war: Eine
     # nicht leere Datei hiesse, dass ein Testlauf zuzustellen versucht hat.
