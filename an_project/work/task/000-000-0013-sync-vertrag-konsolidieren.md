@@ -1,7 +1,7 @@
 ---
 id: 000-000-0013
 title: Den Sync-Vertrag konsolidieren
-status: review
+status: done
 depends_on: []
 ---
 
