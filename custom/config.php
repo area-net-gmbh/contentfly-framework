@@ -111,6 +111,19 @@ $configDefault->APP_ENABLE_SCHEMA_CACHE = false;
 // $configDefault->APP_TIMEZONE         = 'UTC';
 
 /*
+ * WEB_ROOT — der Pfad, unter dem die Anwendung im Web haengt. Vorgabe '/'.
+ *
+ * Nur zu setzen, wenn die Anwendung in einem Unterverzeichnis liegt. Der FileController
+ * baut daraus die Weiterleitung auf eine ausgelieferte Datei; steht der Wert falsch, zeigt
+ * sie ins Leere.
+ *
+ * Bis `000-000-0006` wurde der Wert aus `$_SERVER['PHP_SELF']` abgeleitet. Das stimmte unter
+ * Apache mit der mitgelieferten .htaccess und sonst nirgends — es ist eine Angabe, die der
+ * Betreiber kennt und der Server nur raten kann. Deshalb steht sie jetzt hier.
+ */
+// $configDefault->WEB_ROOT             = '/unterverzeichnis/';
+
+/*
  * SECURITY — Schlüssel für die Verschlüsselung von Feldern mit `@PIM\Config(encoded=true)`.
  *
  * **Kein Standardwert, mit Absicht.** Ein im Repository hinterlegter Schlüssel ist kein

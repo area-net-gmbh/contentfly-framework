@@ -76,14 +76,25 @@ nach `custom/app.php` durch `bindRoutes()`. Das `isSecure`-Flag ist die
 Authentifizierungsentscheidung pro Route — beim Portieren ist es die Information, die als
 Erstes verloren geht, wenn Routen „nur umgeschrieben" werden.
 
-### Offene Inkonsistenz in der Vorlage
+### Aufgelöst: die Inkonsistenz in der Vorlage
 
-`custom/Command/ExampleCommand.php` erbt von `Symfony\…\Console\Command` und erwartet
-`$app` im Konstruktor. Der `ConsoleManager` des Frameworks nimmt aber ausschließlich
-`Areanet\PIM\Classes\Command\CustomCommand`. Das Beispiel ist deshalb in `custom/app.php`
-bewusst **nicht** registriert — es zeigt einen Weg, den das Framework so nicht anbietet.
-Beim Aufräumen der Vorlage zu entscheiden: Beispiel auf `CustomCommand` umstellen, oder den
-`ConsoleManager` für gewöhnliche Symfony-Commands öffnen.
+`custom/Command/ExampleCommand.php` erbte von `Symfony\…\Console\Command` und erwartete
+`$app` im Konstruktor. Der `ConsoleManager` nimmt aber ausschließlich
+`Areanet\PIM\Classes\Command\CustomCommand`, und das Beispiel war deshalb in `custom/app.php`
+nicht registriert — es zeigte einen Weg, den das Framework nicht anbietet.
+
+**Entschieden mit `009-004-0001`: Das Beispiel erbt jetzt von `CustomCommand` und ist
+registriert.** Nicht der andere Weg — den `ConsoleManager` für jedes Symfony-Command zu öffnen
+—, weil der `custom:`-Präfix die Zusicherung trägt, dass ein Projekt-Command nie einen des
+Frameworks überschreibt. Wäre der Manager offen, wäre der Präfix nur noch ein Angebot, und
+`appcms:install` liesse sich überschreiben. Der Command heisst dadurch
+`custom:example:command:run`; am Namen sieht man, wem er gehört.
+
+**Dabei ist ein Defekt aufgefallen** (`009-004-0004`): Ein `before()`-Hook in `custom/app.php`
+las den Dispatcher aus und fror ihn ein, sodass jede danach registrierte Console-Anmeldung mit
+`RuntimeException` scheiterte. Silex hatte die Registrierung vor dem Boot verschoben; beim
+Nachbau ging das verloren, weil kein Test die Abfolge „erst ein Hook, dann ein Command"
+abdeckte — die Vorlage ging diesen Weg ja nie.
 
 
 ## Authentifizierung heute (Review 2026-09-04)
