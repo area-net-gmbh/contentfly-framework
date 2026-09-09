@@ -7,12 +7,12 @@ use Areanet\PIM\Classes\Type;
 use Areanet\PIM\Classes\Types\BooleanType;
 use Areanet\PIM\Classes\Types\StringType;
 use PHPUnit\Framework\TestCase;
-use Silex\Application;
+use Areanet\PIM\Classes\Kernel\Application;
 
 /**
  * Charakterisierungstests für den `TypeManager` — die Registrierung der Feldtypen.
  *
- * Bewusst als **Unit-Test**: Der Manager hängt allein an einem `Silex\Application`-Objekt und
+ * Bewusst als **Unit-Test**: Der Manager hängt allein an einem `Kernel\Application`-Objekt und
  * greift auf `$app['orm.em']` nur durch, wenn ein Typ es benutzt. Für Registrierung und
  * Abfrage braucht es weder Datenbank noch HTTP.
  *

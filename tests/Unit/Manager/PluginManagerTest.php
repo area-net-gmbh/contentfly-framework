@@ -5,7 +5,7 @@ use Areanet\PIM\Classes\Exceptions\ContentflyException;
 use Areanet\PIM\Classes\Manager\PluginManager;
 use Areanet\PIM\Classes\Manager\TypeManager;
 use PHPUnit\Framework\TestCase;
-use Silex\Application;
+use Areanet\PIM\Classes\Kernel\Application;
 
 /**
  * Charakterisierungstests für die Plugin-Infrastruktur.

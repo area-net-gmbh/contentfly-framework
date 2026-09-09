@@ -1,7 +1,7 @@
 ---
 id: 009-000-0000
 title: Silex durch Symfony 7.4 ersetzen
-status: todo
+status: in-progress
 depends_on: [006-000-0000, 008-000-0000, 012-000-0000]
 ---
 
@@ -132,7 +132,7 @@ Ebenfalls nicht in diesem Epic:
 
 ## Stories
 <!-- Die Stories dieses Epics. Wird von /new-story synchron gehalten. -->
-- [ ] 009-001-0000 — Den eigenen Code von den Silex-Typen lösen
+- [x] 009-001-0000 — Den eigenen Code von den Silex-Typen lösen
 - [ ] 009-002-0000 — Der Kernel-Schnitt — Symfony 7.4 statt Silex
 - [ ] 009-003-0000 — Das Deprecation-Gate unter Symfony 7.4 scharfstellen
 - [ ] 009-004-0000 — Vorlage und Dokumentation auf den neuen Kernel nachziehen

@@ -30,7 +30,6 @@ use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\ORM\Id\AssignedGenerator;
 use Doctrine\ORM\Query;
-use Silex\Application;
 
 use Symfony\Component\HttpFoundation\File\Exception\AccessDeniedException;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -195,7 +194,7 @@ class ApiController extends BaseController
      *       "filesSize": 1234355
      *     }
      */
-    public function countAction(Request $request, Application $app){
+    public function countAction(Request $request){
         $api            = new Api($this->app, $request);
         $lastModified   = $request->get("lastModified");
         $entity         = $request->get("entity");
@@ -224,7 +223,7 @@ class ApiController extends BaseController
      *      "id": 12
      *      }
      */
-    public function deleteAction(Request $request, Application $app)
+    public function deleteAction(Request $request)
     {
 
         $helper              = new Helper();
@@ -237,8 +236,8 @@ class ApiController extends BaseController
         $event->setParam('request', $request);
         $event->setParam('id',      $id);
         $event->setParam('lang',    $lang);
-        $event->setParam('user',    $app['auth.user']);
-        $event->setParam('app',     $app);
+        $event->setParam('user',    $this->app['auth.user']);
+        $event->setParam('app',     $this->app);
 
         $this->app['dispatcher']->dispatch('pim.entity.before.delete', $event);
 
@@ -250,8 +249,8 @@ class ApiController extends BaseController
         $event->setParam('request', $request);
         $event->setParam('id',      $id);
         $event->setParam('lang',    $lang);
-        $event->setParam('user',    $app['auth.user']);
-        $event->setParam('app',     $app);
+        $event->setParam('user',    $this->app['auth.user']);
+        $event->setParam('app',     $this->app);
         $this->app['dispatcher']->dispatch('pim.entity.after.delete', $event);
 
         $currentDate = new \Datetime();
@@ -284,7 +283,7 @@ class ApiController extends BaseController
      *       {"entity_name": "Entity1", "id": "...."}
      *     ]
      */
-    public function deletedAction(Request $request, Application $app){
+    public function deletedAction(Request $request){
         $api            = new Api($this->app, $request);
         $lastModified   = $request->get("lastModified");
         $data           = $api->getDeleted($lastModified);
@@ -333,7 +332,7 @@ class ApiController extends BaseController
      * @apiError 500 Ein Objekt mit einem gleichen UNIQUE-INDEX ist bereits vorhanden
      * @apiError 501 Unbekannter Serverfehler
      */
-    public function insertAction(Request $request, Application $app)
+    public function insertAction(Request $request)
     {
 
         $helper              = new Helper();
@@ -345,10 +344,10 @@ class ApiController extends BaseController
         $event = new \Areanet\PIM\Classes\Event();
         $event->setParam('entity',  $entityShortName);
         $event->setParam('request', $request);
-        $event->setParam('user',    $app['auth.user']);
+        $event->setParam('user',    $this->app['auth.user']);
         $event->setParam('data',    $data);
         $event->setParam('lang',    $lang);
-        $event->setParam('app',     $app);
+        $event->setParam('app',     $this->app);
         $this->app['dispatcher']->dispatch('pim.entity.before.insert', $event);
 
         $data = $event->getParam('data');
@@ -360,10 +359,10 @@ class ApiController extends BaseController
         $event = new \Areanet\PIM\Classes\Event();
         $event->setParam('entity',  $entityShortName);
         $event->setParam('request', $request);
-        $event->setParam('user',    $app['auth.user']);
+        $event->setParam('user',    $this->app['auth.user']);
         $event->setParam('object',  $object);
         $event->setParam('lang',    $lang);
-        $event->setParam('app',     $app);
+        $event->setParam('app',     $this->app);
         $this->app['dispatcher']->dispatch('pim.entity.after.insert', $event);
 
         $currentDate    = new \Datetime();
@@ -582,7 +581,7 @@ class ApiController extends BaseController
      * Exception. Würde er hier durchfallen, bliebe die Transaktion offen und die Verbindung
      * räumte sie am Ende des Requests ohne Commit ab — richtig im Ergebnis, aber aus Versehen.
      */
-    public function multiupdateAction(Request $request, Application $app)
+    public function multiupdateAction(Request $request)
     {
         $objects             = $request->get('objects');
         $disableModifiedTime = $request->get('disableModifiedTime');
@@ -686,7 +685,7 @@ class ApiController extends BaseController
      * @apiError 400 zu aktualisierendes Objekt ist nicht vorhanden
      * @apiError 500 Ein Objekt mit einem gleichen UNIQUE-INDEX ist bereits vorhanden
      */
-    public function updateAction(Request $request, Application $app)
+    public function updateAction(Request $request)
     {
         $entityName          = $request->get('entity');
         $id                  = $request->get('id');
@@ -700,9 +699,9 @@ class ApiController extends BaseController
         $event->setParam('request', $request);
         $event->setParam('id',      $id);
         $event->setParam('lang',    $lang);
-        $event->setParam('user',    $app['auth.user']);
+        $event->setParam('user',    $this->app['auth.user']);
         $event->setParam('data',    $data);
-        $event->setParam('app',     $app);
+        $event->setParam('app',     $this->app);
         $this->app['dispatcher']->dispatch('pim.entity.before.udpdate', $event);
         $this->app['dispatcher']->dispatch('pim.entity.before.update', $event);
 
@@ -722,9 +721,9 @@ class ApiController extends BaseController
         $event->setParam('request', $request);
         $event->setParam('id',      $id);
         $event->setParam('lang',    $lang);
-        $event->setParam('user',    $app['auth.user']);
+        $event->setParam('user',    $this->app['auth.user']);
         $event->setParam('data',    $data);
-        $event->setParam('app',     $app);
+        $event->setParam('app',     $this->app);
         $this->app['dispatcher']->dispatch('pim.entity.after.udpdate', $event);
         $this->app['dispatcher']->dispatch('pim.entity.after.update', $event);
 
@@ -793,7 +792,7 @@ class ApiController extends BaseController
      *      }
      * @apiError 500 Ein Objekt mit einem gleichen UNIQUE-INDEX ist bereits vorhanden
      */
-    public function replaceAction(Request $request, Application $app)
+    public function replaceAction(Request $request)
     {
         $entityName          = $request->get('entity');
         $id                  = $request->get('id');
@@ -813,6 +812,29 @@ class ApiController extends BaseController
             $object = $this->em->getRepository($entityFullName)->find($id);
         }
 
+        /**
+         * Zwei interne Sub-Requests — und was beim Kernel-Wechsel an ihnen zu pruefen ist
+         * (009-001-0004).
+         *
+         * `replace` entscheidet nicht selbst, ob angelegt oder geaendert wird, sondern schickt
+         * die Anfrage noch einmal durch die Anwendung — an `/api/insert`, wenn es das Objekt
+         * nicht gibt, sonst an `/api/update`. Das ist kein Aufruf der Methode, sondern ein
+         * vollstaendiger Request durch den Kernel: **before- und after-Hooks laufen ein zweites
+         * Mal**, und der Ereignisname, den `BaseControllerProvider` daraus bildet, lautet dann
+         * `pim.controller.before.api.insertaction` statt `…replaceaction`.
+         *
+         * Die drei Zeilen davor sind der Grund, warum das ueberhaupt geht: Die Id aus dem
+         * Request wandert nach `data.id`, und `$subRequest` uebernimmt `request` und `query`
+         * des Originals per Referenz — anders kaeme der Rumpf nicht mit, weil
+         * `Request::create()` ihn aus `getContent()` nicht erneut parst.
+         *
+         * `handle()` kommt aus Symfonys `HttpKernelInterface`, nicht aus Silex. Der Aufruf
+         * bleibt also woertlich stehen. **Zu pruefen ist etwas anderes:** ob `SUB_REQUEST` beim
+         * neuen Kernel dieselben Listener durchlaeuft. Symfony unterscheidet Haupt- und
+         * Unteranfrage in `kernel.request`; ein Listener, der heute mitlaeuft, kann dort
+         * uebersprungen werden — und das waere ein Verhaltenswechsel, den nur
+         * `UpdateReplaceApiTest` sichtbar macht.
+         */
         if(!$object){
             $subRequest = Request::create('/api/insert', 'POST', $request->attributes->all(), $request->cookies->all(), $request->files->all(), $request->server->all(), $request->getContent());
 
