@@ -17,9 +17,11 @@ use PHPUnit\Framework\TestCase;
  *
  * Siehe `tests/README.md`.
  *
- * **Diese Datei wird von `tests/bootstrap.php` per `require_once` geladen**, nicht über den
- * Autoloader: `custom/composer.json` mappt `Custom\Tests\`, die Testklassen liegen aber unter
- * `Tests\`. PHPUnit selbst lädt nur Dateien, die auf `Test.php` enden — diese also nicht.
+ * **Diese Datei kommt über den Autoloader** — `composer.json` mappt `Tests\` auf `tests/`, in
+ * `autoload-dev`. Bis `006-004-0004` war das anders: `tests/bootstrap.php` lud sie per
+ * `require_once`, weil das Mapping im **Projekt**-Manifest lag und auf `Custom\Tests\` zeigte,
+ * einen Namensraum, den keine Testdatei je trug. PHPUnit selbst lädt nur Dateien, die auf
+ * `Test.php` enden — diese also nicht.
  */
 abstract class IntegrationTestCase extends TestCase
 {

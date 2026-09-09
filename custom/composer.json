@@ -1,16 +1,6 @@
 {
     "require": {},
     "require-dev": {},
-    "autoload-dev": {
-        "psr-4": {
-            "Custom\\Tests\\": "../tests/"
-        }
-    },
-    "config": {
-        "allow-plugins": {
-            "php-http/discovery": true
-        }
-    },
     "extra": {
         "hinweis": [
             "DAS IST DER PROJEKT-SLOT. Er ist absichtlich leer.",
@@ -41,12 +31,26 @@
             "laufen im selben Prozess, Root zuerst — bei einem gemeinsamen PSR-4-Praefix",
             "gewinnt also der Root, unabhaengig davon, welche Version aktueller ist.",
             "Die Entscheidung steht in an_project/docs/architecture.md unter Key",
-            "decisions (2026-09-09), die Pruefung dazu kommt mit 006-004-0003.",
+            "decisions (2026-09-09); geprueft wird sie von",
+            "tests/Unit/AutoloaderUeberschneidungTest.php.",
             "",
             "DER LOCK daneben ist bewusst mitversioniert, auch leer: composer.json und",
             "composer.lock gehoeren als Paar in die Historie, sonst meldet Composer beim",
             "naechsten Lauf einen Stand, der nicht zum Manifest passt. Die .gitignore",
-            "haelt die Ausnahme !custom/composer.lock aus 006-002-0003 dafuer offen."
+            "haelt die Ausnahme !custom/composer.lock aus 006-002-0003 dafuer offen.",
+            "",
+            "WAS HIER BEWUSST NICHT MEHR STEHT (006-004-0004):",
+            "",
+            "  autoload-dev mit Custom\\Tests\\ — das mappte einen Namensraum, den keine",
+            "  Testdatei je trug (alle heissen Tests\\...), und es bediente die Tests DES",
+            "  FRAMEWORKS aus dem PROJEKT-Manifest. Es steht jetzt als Tests\\ im",
+            "  autoload-dev des Root-Manifests, wo es hingehoert.",
+            "",
+            "  config.allow-plugins mit php-http/discovery — die Freigabe gehoerte zu",
+            "  sentry/sentry, das mit 006-004-0002 entfallen ist. Eine Vorlage soll keinem",
+            "  Composer-Plugin dauerhaft Ausfuehrungsrechte erteilen, das sie gar nicht",
+            "  anfordert; wer sentry wieder aufnimmt, wird von Composer gefragt und",
+            "  entscheidet dann selbst."
         ]
     }
 }

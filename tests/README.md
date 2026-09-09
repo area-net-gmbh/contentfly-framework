@@ -259,10 +259,11 @@ Vorbedingung über einen Pfad läuft, den er selbst nicht prüft, verliert seine
 und Story `008-001` soll ausdrücklich nicht von `008-002` abhängen. Die Zugangsdaten kommen aus
 `CONTENTFLY_TEST_DB_*`; die Standardwerte entsprechen der `docker-compose.yml`.
 
-> Die Basisklasse wird von `tests/bootstrap.php` per `require_once` geladen, nicht über den
-> Autoloader: `custom/composer.json` mappt `Custom\Tests\`, die Testklassen liegen aber unter
-> `Tests\` — und PHPUnit lädt von sich aus nur Dateien, die auf `Test.php` enden. Räumt Epic
-> `006` die Autoload-Situation auf, kann daraus ein PSR-4-Mapping werden.
+> **Die Basisklasse kommt ganz normal über den Autoloader.** `composer.json` mappt `Tests\` auf
+> `tests/`, in `autoload-dev` — Testcode landet damit nicht im Deployment-Artefakt. Ein eigenes
+> `require_once` in `tests/bootstrap.php` braucht es seit `006-004-0004` nicht mehr; davor lag
+> das Mapping im **Projekt**-Manifest und zeigte auf `Custom\Tests\`, einen Namensraum, den
+> keine Testdatei je trug.
 
 ## Was `tests/bootstrap.php` tut — und was nicht
 
