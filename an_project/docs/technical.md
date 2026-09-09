@@ -15,8 +15,9 @@ Er dient als **Hilfe und Referenz**, was aktuell wie eingesetzt wird.
 
 Konsequenz für alle, die den Baum lesen: `custom/app.php` (1358 Zeilen, 82 `mount()`-Aufrufe)
 referenziert Klassen, die hier bewusst nicht liegen. Das ist kein Defekt und kein
-unvollständiger Import. Dasselbe gilt für `custom/vendor` — der Inhalt stammt aus dem
-Kundenprojekt und ist nicht der Soll-Zustand der Vorlage.
+unvollständiger Import. Dasselbe galt für `custom/vendor` — der Inhalt stammte aus dem
+Kundenprojekt und war nicht der Soll-Zustand der Vorlage. Seit `006-003` liegt der Baum nicht
+mehr im Repo und wird auch nicht mehr gebaut.
 
 ## Muster aus einem echten Projekt-Bootstrap
 
@@ -101,8 +102,10 @@ Benutzer und Timeout (`APP_TOKEN_TIMEOUT`, per Gruppe überschreibbar) und **sch
 bei jedem Request zurück** — Sliding Expiration als DB-Write pro Aufruf. Das ist der eigentliche
 Preis des Modells und das Argument für einen stateless-Pfad.
 
-**JWT gibt es im Framework nicht.** `firebase/php-jwt` liegt ausschließlich in `custom/vendor`;
-die JWT-Logik lag im Kundenprojekt. Was oben unter *Pro-Tenant-JWT-Secret* steht, beschreibt
+**JWT gibt es im Framework nicht.** `firebase/php-jwt` stand ausschließlich in
+`custom/composer.json` und lag im alten `custom/vendor`; die JWT-Logik lag im Kundenprojekt.
+Seit `006-003` wird dieser Baum nicht mehr gebaut — das Paket ist also auch physisch weg.
+`006-001-0004` hat es zum Streichen vorgesehen; `013-003` nimmt JWT bewusst neu auf. Was oben unter *Pro-Tenant-JWT-Secret* steht, beschreibt
 fremden Code, keine vorhandene Funktion.
 
 ### Befunde
@@ -124,20 +127,55 @@ die Auflösung existiert doppelt (`Auth.php` und `AuthController.php`) und ist a
 Behandelt wird das in Epic `013`; die Härtung (A-1 bis A-4 und die Defekte) hängt in Story
 `013-001` bewusst an nichts und wird vor dem Kernel-Wechsel umgesetzt.
 
-## Warum `vendor/` in Git liegt
+## Warum `vendor/` in Git *lag*
 
-Der Root-`vendor/`-Baum ist committet und hat **kein `composer.json`**. Das war kein Versehen,
-sondern eine bewusste Notlösung: Um Contentfly ohne größeres Update und ohne Ausfallzeiten
-produktiv auf PHP 8.x weiterbetreiben zu können, wurde ein schnelles „Fake"-Update gefahren —
-Composer entfernt, der funktionierende Vendor-Stand eingefroren und versioniert.
+**Abgelöst am 2026-09-09 mit Story `006-003`.** Der Baum entsteht seit dem beim Build; im Repo
+liegen `composer.json` und `composer.lock`. Warum er überhaupt dort lag, bleibt hier stehen —
+es erklärt Dinge, die noch eine Weile nachwirken.
 
-Der Preis dafür ist die heutige Lage: kein Upgrade-Pfad, kein `composer audit`, keine
-ausdrückbaren Version-Constraints. Die Rückführung auf Composer ist Epic `006-000-0000`.
+Der Root-`vendor/`-Baum war committet und hatte **kein `composer.json`**. Das war kein
+Versehen, sondern eine bewusste Notlösung: Um Contentfly ohne größeres Update und ohne
+Ausfallzeiten produktiv auf PHP 8.x weiterbetreiben zu können, wurde ein schnelles
+„Fake"-Update gefahren — Composer entfernt, der funktionierende Vendor-Stand eingefroren und
+versioniert.
+
+Der Preis dafür war die Lage, aus der Epic `006` herausgeführt hat: kein Upgrade-Pfad, kein
+`composer audit`, keine ausdrückbaren Version-Constraints. Und der Baum war **kein gültiger
+Composer-Zustand**, sondern nur ein Verzeichnis, das zufällig funktionierte — `006-001-0003`
+hat es nachgemessen: 27 von 78 Paketen lagen als `source` ohne `.git`, ein `doctrine/orm` als
+Fork von 2018, ohne Release dahinter. Wer heute auf ein Paket stösst, das sich seltsam
+verhält oder eine unerwartete Version trägt, findet hier die Erklärung.
+
+### Was an seine Stelle getreten ist
+
+| | vorher | jetzt |
+|---|---|---|
+| Quelle der Wahrheit | der committete Baum | `composer.json` + `composer.lock` (`006-002`) |
+| Dateien im Git-Index | 11 208 (`vendor/` 5 239 · `custom/vendor/` 5 969) | 0 — beide Bäume ignoriert (`006-003-0001`) |
+| Entstehung | Checkout | `composer install`, 77 Pakete / 7 275 Dateien (`006-003-0002`) |
+| Deployment-Artefakt | derselbe Baum | `composer install --no-dev --optimize-autoloader`, 49 Pakete |
+
+**Ein frischer Checkout ist damit ohne `composer install` nicht lauffähig.** Das ist gewollt
+und der Punkt des Umbaus, aber es ist die erste Änderung seit Jahren, die einen Checkout
+unbrauchbar macht, bis ein Befehl lief — und sie meldet sich mit fehlenden Klassen, nicht mit
+ihrem Grund. Der Ablauf steht in `an_project/docs/runbook.md`.
+
+`custom/vendor/` wird dabei **nicht** wieder aufgebaut; es gibt keinen Schritt, der es täte.
+Beide Bootstraps laden es über ein `file_exists`-Tor, das schlicht nicht mehr greift. Damit ist
+das Ziel „`custom/vendor` ist initial leer" aus Epic `006` nicht nur entschieden, sondern
+hergestellt.
 
 ## Zwei Autoloader in einem Prozess
 
-`lib/contentfly/bootstrap.php:8-10` lädt erst `vendor/autoload.php`, dann — falls vorhanden —
-`custom/vendor/autoload.php`. Dadurch existieren Pakete doppelt, teils in inkompatiblen Majors:
+**Der zweite Autoloader ist seit `006-003` leer.** `lib/contentfly/bootstrap.php` lädt
+`custom/vendor/autoload.php` hinter einem `file_exists`-Tor, und das greift nicht mehr — der
+Baum wird nicht gebaut. Die Doppelungen unten sind damit heute **nicht** wirksam; sie stehen
+hier, weil sie erklären, warum Pakete im Altbestand die Versionen tragen, die sie tragen. Ob
+das zweite Manifest ganz verschwindet, entscheidet Story `006-004`.
+
+Es galt: `lib/contentfly/bootstrap.php:8-10` lädt erst `vendor/autoload.php`, dann — falls
+vorhanden — `custom/vendor/autoload.php`. Dadurch existierten Pakete doppelt, teils in
+inkompatiblen Majors:
 
 | Paket | Root | `custom/` | Wirkung |
 |---|---|---|---|
@@ -145,7 +183,7 @@ ausdrückbaren Version-Constraints. Die Rückführung auf Composer ist Epic `006
 | `symfony/polyfill-ctype` | 1.14.0 | 1.37.0 | Durch `function_exists`-Guards unkritisch, aber Ballast. |
 | `symfony/polyfill-mbstring` | 1.14.0 | 1.38.2 | dito |
 
-Dazu treffen zwei Symfony-Generationen aufeinander: `symfony/http-foundation` 3.4 im Root gegen
+Dazu trafen zwei Symfony-Generationen aufeinander: `symfony/http-foundation` 3.4 im Root gegen
 `symfony/options-resolver` 7.4 in `custom/` (via Sentry).
 
 ## Was den Alt-Baum an PHP 8.5 hindert
@@ -157,8 +195,10 @@ Dazu treffen zwei Symfony-Generationen aufeinander: `symfony/http-foundation` 3.
 | `dflydev/doctrine-orm-service-provider` | `doctrine/orm: ~2.3` | Blockiert den Weg auf ORM 3. |
 | `doctrine/orm` | `dev-bugfix-many2many` | Dev-Branch-Pin ohne Release — in keinem Upgrade-Pfad ausdrückbar. |
 
-Dev-Werkzeuge liegen heute im ausgelieferten Baum: `phpstan/phpstan` 1.10.58 und `rector/rector`
-1.0.1 im Root, `phpunit` 10.5 und `mockery` in `custom/vendor`.
+Dev-Werkzeuge lagen im ausgelieferten Baum: `phpstan/phpstan` 1.10.58 und `rector/rector`
+1.0.1 im Root, `phpunit` 10.5 und `mockery` in `custom/vendor`. Das ist erledigt — sie stehen
+seit `006-002` in `require-dev`, und `composer install --no-dev --optimize-autoloader` lässt sie
+im Deployment-Artefakt weg (49 statt 77 Pakete, in `006-003-0002` nachgemessen).
 
 ## Die Testsuite ist die Abnahmegrundlage
 

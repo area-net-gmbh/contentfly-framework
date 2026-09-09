@@ -99,25 +99,38 @@ Angepasste Ordnerstruktur und Betrieb in Unterordnern z.B. www.domain.de/content
 
 ### Manuelle Installation aus GitHub
 
+> **Seit dem Umbau auf Composer (Story `006-003`) liegt kein _vendor_-Ordner mehr im Repository.**
+> Ein frischer Checkout ist ohne Schritt (2) nicht lauffähig — er meldet sich dann mit fehlenden
+> Klassen, nicht mit dem Grund. Der ausführliche Ablauf für Entwickler steht in
+> _an_project/docs/runbook.md_.
+
 (1) Git-Repository laden
 
 `git clone https://github.com/area-net-gmbh/contentfly-cms.git`
 
-(2) Systemumgebung über [Ant](http://ant.apache.org/)-Buildskript im Root-Ordner erstellen
+(2) Abhängigkeiten installieren ([Composer](https://getcomposer.org/) 2.x erforderlich)
+
+`composer install`
+
+Für eine Installation ohne Entwicklungswerkzeuge stattdessen:
+
+`composer install --no-dev --optimize-autoloader`
+
+(3) Systemumgebung über [Ant](http://ant.apache.org/)-Buildskript im Root-Ordner erstellen
 
 `ant`
 
-(3) Datenbankzugangsdaten in _custom/config.php_ eintragen
+(4) Datenbankzugangsdaten in _custom/config.php_ eintragen
 
-(4) Datenbank über Doctrine im Ordner _bin_ generieren.
+(5) Datenbank über Doctrine im Ordner _bin_ generieren.
 
 `php console.php orm:schema:update --force`
 
-(5) Datenbank im Ordner _bin_ initalisieren/einrichten
+(6) Datenbank im Ordner _bin_ initalisieren/einrichten
 
 `php console.php appcms:setup`
 
-(6) URL/Host aufrufen und Standard-Login in das Contentfly CMS mit Benutzer _admin_ und Passwort _admin_
+(7) URL/Host aufrufen und Standard-Login in das Contentfly CMS mit Benutzer _admin_ und Passwort _admin_
 
 ### ZIP-Version für Release-Build erstellen
 

@@ -16,7 +16,12 @@ Zwei Suiten, bewusst getrennt:
 Der Grund für die Trennung: Läge beides zusammen, stünde die ganze Suite still, sobald kein
 Container läuft. Eine Suite, die häufig aus Umgebungsgründen rot ist, wird nicht mehr gelesen.
 
+**Vorher: `composer install`.** PHPUnit liegt in `require-dev` und `vendor/` seit Story
+`006-003` nicht mehr im Repo — ohne den Schritt gibt es kein `./vendor/bin/phpunit`, und zwar
+ohne Hinweis darauf, warum. Der vollständige Ablauf steht in `an_project/docs/runbook.md`.
+
 ```sh
+composer install                              # ZUERST — sonst existiert phpunit nicht
 ./vendor/bin/phpunit                          # beide Suiten
 ./vendor/bin/phpunit --testsuite unit         # ohne Datenbank
 ./vendor/bin/phpunit --coverage-text          # braucht Xdebug oder PCOV
@@ -27,6 +32,9 @@ Container läuft. Eine Suite, die häufig aus Umgebungsgründen rot ist, wird ni
 Sie brauchen eine **laufende, installierte** Instanz und werden sonst sauber übersprungen:
 
 ```sh
+# 0. Abhaengigkeiten — ohne sie gibt es weder phpunit noch einen Autoloader
+composer install
+
 # 1. Datenbank und Installation (siehe an_project/docs/runbook.md)
 docker compose up -d
 php bin/console.php appcms:install --db-host=127.0.0.1 --db-port=3307 \
@@ -117,9 +125,15 @@ Pipeline ausprobieren kann, ist beim Suchen eines Fehlers nutzlos.
 
 ```sh
 sh tools/ci/install-php-extensions.sh    # nur im Container nötig: pdo_mysql und gd
+composer install                          # seit 006-003 die einzige Quelle des Baums
 sh tools/ci/prepare-test-environment.sh  # warten, installieren, Versandfalle, Server
 ./vendor/bin/phpunit
 ```
+
+> **Der `composer install` läuft im CI-Image heute nicht durch.** `php:8.3-cli` bringt weder die
+> `zip`-Extension noch `unzip`, `7z` oder `git` mit, und `install-php-extensions.sh` rüstet nur
+> `pdo_mysql` und `gd` nach. Festgehalten in Task `000-000-0021`. Wer den Ablauf jetzt nachspielen
+> will, ergänzt vorher `apt-get install -y unzip git`.
 
 ## Die Versandfalle für `/api/mail`
 

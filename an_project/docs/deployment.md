@@ -11,17 +11,27 @@ Framework-Version an Bestandsprojekte ausgeliefert wird** — und wie diese dara
 
 ## Abhängigkeiten: Composer als Quelle
 
-**Entschieden am 2026-09-04.** Composer ist die einzige Quelle der Wahrheit für Abhängigkeiten.
+**Entschieden am 2026-09-04, hergestellt am 2026-09-09 mit Story `006-003`.** Composer ist die
+einzige Quelle der Wahrheit für Abhängigkeiten.
 
-- Im Repo liegen `composer.json` und `composer.lock` — kein `vendor/`.
+- Im Repo liegen `composer.json` und `composer.lock` — **kein `vendor/`**. Beide Bäume sind seit
+  `006-003-0001` aus dem Index gelöst (11 208 Dateien) und werden von `.gitignore` gefasst.
 - Wo ein Zielsystem kein Composer hat, wird der `vendor/`-Baum in der Pipeline gebaut
   (`composer install --no-dev --optimize-autoloader`) und als Teil des Deployment-Artefakts
-  ausgeliefert. Der committete `vendor/`-Baum von heute ist **kein** gültiger Ersatz dafür: er
-  hat kein Manifest, keinen Lock und keinen Upgrade-Pfad (siehe `an_project/docs/technical.md`).
-- `composer audit --locked` läuft als CI-Gate gegen den Lock.
+  ausgeliefert. In `006-003-0002` gegen einen frischen Klon geprüft: **49 Pakete, 2 694 Dateien,
+  22 MB**, Console und HTTP booten daraus.
+- `composer audit --locked` läuft als CI-Gate gegen den Lock. Steht noch aus — Story `006-005`.
 
-Umgesetzt in Epic `006-000-0000`. Da hier kein Betrieb daran hängt, kann `vendor/` sofort aus Git
-verschwinden — es muss nicht bis zum Abschalten von Silex (Epic `009-000-0000`) warten.
+**Was das für jeden Checkout heisst:** Ohne `composer install` ist er nicht lauffähig. Der
+Ablauf steht in `an_project/docs/runbook.md`, Schritt 1.
+
+> **Offen, und ein Blocker für die Pipeline:** Das CI-Image `php:8.3-cli` kann `composer install`
+> heute nicht ausführen — es hat weder die `zip`-Extension noch `unzip`, `7z` oder `git`.
+> Festgehalten in Task `000-000-0021`.
+
+Der committete `vendor/`-Baum von früher wäre **kein** gültiger Ersatz für den gebauten gewesen:
+kein Manifest, kein Lock, kein Upgrade-Pfad, und 27 von 78 Paketen lagen als `source` ohne
+`.git` (siehe `an_project/docs/technical.md`).
 
 ## Auslieferung an Bestandsprojekte
 
@@ -71,15 +81,33 @@ Suchen eines Fehlers nutzlos. `install-php-extensions.sh` und `prepare-test-envi
 laufen deshalb lokal in Docker mit demselben Aufruf — so wurde die Definition auch abgenommen,
 bevor sie je in einem Runner lief.
 
-### Kein `composer install` — noch nicht
-**Seit `006-002-0004` erledigt.** PHPUnit liegt im Root-`require-dev`, die Pipeline ruft
-`./vendor/bin/phpunit`. Die Vorsorge aus `008-005-0001` — den Pfad als Variable an *einer*
-Stelle zu halten — hat sich ausgezahlt: Es war genau eine Zeile.
+### Der Baum entsteht im Job
+**Seit `006-002-0004`, und seit `006-003` ohne Rückfallebene.** PHPUnit liegt im
+Root-`require-dev`, die Pipeline ruft `./vendor/bin/phpunit`. Die Vorsorge aus `008-005-0001` —
+den Pfad als Variable an *einer* Stelle zu halten — hat sich ausgezahlt: Es war genau eine Zeile.
 
-Der Job baut den Abhängigkeitsbaum jetzt selbst (`composer install`), statt den committeten zu
-benutzen. Solange `006-003` aussteht, liegt `vendor/` noch in Git — im **alten** Stand, ohne
-PHPUnit; der Installationsschritt überschreibt ihn. Mit `006-003` fällt er aus Git und der
-Schritt wird zur einzigen Quelle.
+Der Job baut den Abhängigkeitsbaum selbst (`composer install`). Bis `006-003` lag daneben noch
+der committete Baum im **alten** Stand ohne PHPUnit; der Installationsschritt überschrieb ihn.
+Jetzt ist er weg, und der Schritt ist die einzige Quelle.
+
+Was das kostet, ist in `006-003-0002` im Pipeline-Image gemessen:
+
+| Schritt | Dauer |
+|---|---|
+| `tools/ci/install-php-extensions.sh` | 14 s |
+| Composer selbst installieren | 1 s |
+| `composer install --prefer-dist`, kalter Cache | **5 s** |
+
+Der Installationsschritt ist der kleinste Posten. Ein Composer-Cache in der Pipeline lohnt an
+dieser Stelle nicht — was der Lauf kostet, kostet das Herrichten des Images.
+
+> **Der Schritt läuft heute nicht durch.** `php:8.3-cli` hat weder die `zip`-Extension noch
+> `unzip`, `7z` oder `git`, und `tools/ci/install-php-extensions.sh` baut nur `pdo_mysql` und
+> `gd`. Damit scheitern beide Wege — `--prefer-dist` findet keinen Entpacker, der Quell-Fallback
+> bräuchte `git`. Der Bruch entstand mit `006-002-0004` und fiel erst in `006-003-0002` auf, weil
+> dort das Image zum ersten Mal seit `008-005-0001` wieder von Null gefahren wurde. Behoben wird
+> er in `000-000-0021`; mit nachgerüstetem `unzip` und `git` läuft er durch — die Messung oben ist
+> mit dieser Ergänzung entstanden.
 
 `composer audit --locked` und das „0 Deprecations"-Gate kommen mit `006-005` in dieselbe
 Pipeline — die Stage-Struktur hat dafür Platz.
