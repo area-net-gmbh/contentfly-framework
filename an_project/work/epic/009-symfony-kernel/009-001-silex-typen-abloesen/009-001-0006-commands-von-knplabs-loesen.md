@@ -1,7 +1,7 @@
 ---
 id: 009-001-0006
 title: Die Console-Commands von knplabs lösen
-status: review
+status: done
 depends_on: [009-001-0001]
 ---
 

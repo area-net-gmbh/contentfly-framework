@@ -1,7 +1,7 @@
 ---
 id: 009-001-0004
 title: Die Silex-Hilfsmethoden in den Controllern ablösen
-status: review
+status: done
 depends_on: [009-001-0001]
 ---
 

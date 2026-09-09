@@ -1,7 +1,7 @@
 ---
 id: 009-001-0000
 title: Den eigenen Code von den Silex-Typen lösen
-status: review
+status: done
 depends_on: []
 ---
 
