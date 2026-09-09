@@ -1,7 +1,7 @@
 ---
 id: 000-000-0016
 title: /api/mail reparieren — aber nicht ohne Schutz
-status: review
+status: done
 depends_on: [008-004-0004]
 ---
 
