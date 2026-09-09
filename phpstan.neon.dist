@@ -66,11 +66,6 @@ parameters:
     # Sie stehen hier als MELDUNG, nicht als Datei-und-Zeile: Eine Zeilennummer haette die
     # Liste bei jeder Codeaenderung brechen lassen.
     ignoreErrors:
-        # doctrine/annotations — abandoned, Ersatz sind PHP-Attribute (Epic 010).
-        # Die AnnotationRegistry faellt mit 010-001-0005; bis dahin steht sie im Bootstrap
-        # und im TypeManager.
-        - '#Call to deprecated method (registerFile|registerLoader)\(\) of class Doctrine\\Common\\Annotations\\AnnotationRegistry#'
-
         # `newDefaultAnnotationDriver()` ist mit 010-001-0003 aus der EntityManagerFactory
         # verschwunden, und das Muster traf sonst nichts mehr — Regel 3 hat es eingefordert.
         #

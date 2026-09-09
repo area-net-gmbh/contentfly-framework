@@ -97,20 +97,29 @@ class TypeManagerTest extends TestCase
         $manager->registerType(new class($app) extends Type\PluginType {
             public function doMatch($propertyAnnotations) { return false; }
             public function getAlias() { return 'pluginprobe'; }
-            public function getAnnotationFile() { return null; }
         });
     }
 
-    public function testEinTypOhneAnnotationsdateiWirdOhneRegistrierungAbgelegt(): void
+    public function testEinTypBrauchtKeineAnnotationsdateiMehr(): void
     {
-        // getAnnotationFile() === null heisst: keine AnnotationRegistry::registerFile().
-        // Waere das anders, wuerde die Registrierung eines Typs ohne eigene Annotation
-        // scheitern — StringType, BooleanType und die meisten anderen sind so gebaut.
+        // UMGEDREHT MIT 010-001-0005, und das ist ein Verhaltenswechsel.
+        //
+        // Vorher hiess der Test „…OhneAnnotationsdateiWirdOhneRegistrierungAbgelegt" und
+        // sicherte zu, dass `getAnnotationFile() === null` KEIN
+        // `AnnotationRegistry::registerFile()` ausloest — sonst waere die Registrierung eines
+        // Typs ohne eigene Annotation gescheitert.
+        //
+        // Die Methode gibt es nicht mehr. Sie nannte dem DocParser den Dateipfad einer
+        // Annotationsklasse, weil der eine Annotation nur aufloest, wenn ihre Klasse bereits
+        // bekannt ist. Ein Attribut nennt eine echte Klasse; der Autoloader holt sie. Damit
+        // hat die Registrierung keinen Gegenstand mehr, und der Test sichert nur noch, dass
+        // das Ablegen ohne sie funktioniert.
         $app     = $this->app();
         $manager = new TypeManager($app);
 
         $typ = new StringType($app);
-        $this->assertNull($typ->getAnnotationFile(), 'Vorbedingung des Tests');
+        $this->assertFalse(method_exists($typ, 'getAnnotationFile'),
+            'getAnnotationFile() ist mit 010-001-0005 entfallen');
 
         $manager->registerType($typ);
 
