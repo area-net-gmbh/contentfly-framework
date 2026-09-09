@@ -1,7 +1,7 @@
 ---
 id: 000-000-0022
 title: Sieben implizit nullable Parameter im eigenen Code
-status: todo
+status: review
 depends_on: [006-005-0003]
 ---
 
@@ -54,12 +54,12 @@ liegt in einem fremden Paket und fällt mit Epic `009`.
 Keine Änderung am Gate selbst; das steht mit `006-005-0003`.
 
 ## Acceptance criteria
-- [ ] Alle sieben Stellen tragen einen expliziten `?`-Typ, oder eine Ausnahme ist begründet.
-- [ ] Die Verträglichkeit von `ContentflyQuoteStrategy::getColumnAlias()` mit der
+- [x] Alle sieben Stellen tragen einen expliziten `?`-Typ, oder eine Ausnahme ist begründet.
+- [x] Die Verträglichkeit von `ContentflyQuoteStrategy::getColumnAlias()` mit der
       Doctrine-Basisklasse ist geprüft.
-- [ ] Der Testlauf auf `php:8.4-cli` meldet danach **eine** Deprecation statt zwei — die aus
+- [x] Der Testlauf auf `php:8.4-cli` meldet danach **eine** Deprecation statt zwei — die aus
       Silex.
-- [ ] Die Suite bleibt bei ihren bekannten Failures; keine Verschiebung.
+- [x] Die Suite bleibt bei ihren bekannten Failures; keine Verschiebung.
 
 ## Verification
 Der vollständige Job in Docker auf **beiden** Pipeline-Images, wie in `000-000-0021`:
@@ -71,3 +71,66 @@ Der vollständige Job in Docker auf **beiden** Pipeline-Images, wie in `000-000-
 
 Dazu die Gegenprobe über den Baum: Das `grep`-Muster aus dem Context darf keinen Treffer mehr
 liefern — ausser an einer begründeten Ausnahme.
+
+## Ergebnis
+**Es waren fünf Stellen, nicht sieben.** Nach der Korrektur meldet PHP 8.4 **keine einzige**
+Implicitly-marking-Deprecation mehr aus eigenem Code.
+
+### Die Zahl im Task war falsch — meine eigene
+Der Task nennt sieben Stellen und listet `Entity/Serializable.php` und `Entity/User.php` mit je
+einer. **Beide tragen längst `?Application $app = null`**, also den expliziten Typ. Mein
+damaliger Zählausdruck war nicht verankert und traf die Zeile auch mit führendem `?`.
+
+Die tatsächlichen fünf:
+
+| Datei | Parameter |
+|---|---|
+| `Classes/Config.php` | `?Config $config` |
+| `Classes/Api.php` | `?User $user` |
+| `Classes/Manager/LoginManager.php` | `?Request $request` |
+| `Classes/Manager/LoginManager.php` | `?Group $group` |
+| `Classes/ORM/Mapping/ContentflyQuoteStrategy.php` | `?ClassMetadata $class` |
+
+Nach der Änderung findet ein verankerter `grep` über `lib/`, `custom/` und `bin/` **keine
+weitere** Stelle.
+
+### `ContentflyQuoteStrategy` war nicht nur verträglich, sondern abweichend
+Der Task hiess, die Verträglichkeit mit der Doctrine-Basisklasse sei zu prüfen und im Zweifel
+eine Ausnahme zu begründen. Nachgesehen:
+
+```php
+// vendor/doctrine/orm/src/Mapping/QuoteStrategy.php:84 — die Schnittstelle
+public function getColumnAlias($columnName, $counter, AbstractPlatform $platform, ?ClassMetadata $class = null);
+```
+
+**Doctrine deklariert selbst `?ClassMetadata`.** Unsere Implementierung wich also von der
+Schnittstelle ab, die sie implementiert. Der Zweifel des Tasks löst sich damit in die
+Gegenrichtung auf: Die Änderung stellt die Übereinstimmung her, statt sie zu gefährden.
+
+### Was PHP 8.4 jetzt meldet
+Der vollständige Job im Image `php:8.4-cli`, mit MySQL-Service:
+
+| | vorher | nachher |
+|---|---|---|
+| Paare aus Datei und Meldung | 50 | **47** |
+| davon ohne Ausnahme | 46 | **43** |
+| davon aus eigenem Code | 3 | **0** |
+
+Die 43 verbliebenen liegen in **19 Dateien, alle unter `vendor/`** — Silex, `symfony/debug`,
+`symfony/http-foundation`, `symfony/http-kernel`, `symfony/routing`. Sie fallen mit Epic `009`.
+
+> **Auch die Erwartung des Tasks stimmte nicht.** Er sagte, danach bleibe „eine Deprecation,
+> die aus Silex". Es sind 43, und die Zahl 2 aus dem ursprünglichen Befund war am Job-Log
+> gemessen statt am Serverlog — derselbe Messfehler, den `006-005-0003` bereits korrigiert hat.
+> Was stimmt, ist die Richtung: aus eigenem Code kommt nichts mehr.
+
+### Verification
+| Prüfung | Ergebnis |
+|---|---|
+| Suite auf PHP 8.3 (Pflicht-Job) | **OK (249 tests, 605 assertions)**, 0 übersprungen |
+| Deprecation-Gate auf 8.3 | grün, 4 Paare, 4 ausgenommen — unverändert |
+| Suite auf PHP 8.4 | **OK (249 tests, 605 assertions)** |
+| Implicitly-marking aus `lib/`, `custom/`, `bin/` auf 8.4 | **0** |
+
+Auf 8.3 ändert sich erwartungsgemäss nichts: Implizit nullable Parameter sind erst ab 8.4
+deprecated. Die Änderung wirkt dort vorbeugend.
