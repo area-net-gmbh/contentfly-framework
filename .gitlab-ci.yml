@@ -83,6 +83,10 @@ check:audit:
     - php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer --quiet
   script:
     - sh tools/ci/audit.sh
+    # Zweite Haelfte des Gates (006-005-0002): Eine Ausnahme, die nicht mehr greift, macht
+    # den Lauf rot. Sonst waere die Liste aus config.audit.ignore nach Epic 009 eine
+    # Erlaubnis ins Leere, die stillschweigend weiterwirkt.
+    - sh tools/ci/audit-ausnahmen-pruefen.sh
 
 # ── Die Testsuiten ─────────────────────────────────────────────────────────────────────
 

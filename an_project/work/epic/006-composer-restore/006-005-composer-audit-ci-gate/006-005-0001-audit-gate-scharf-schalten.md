@@ -139,13 +139,26 @@ Ist-Stack. Im Skript steht, wann es umgestellt wird: *„Auf `fail` umstellen, s
 durch ist."*
 
 ### Eine Falle, die der Task nicht vorhergesehen hat
-`config.audit.ignore` gibt es erst ab **Composer 2.7**. Eine ältere Fassung übergeht den Block
-**stillschweigend** — der Job wäre rot wegen der fünf bekannten Meldungen, und niemand käme
-darauf, dass es an der Composer-Version liegt. Lokal läuft hier 2.6.6, also genau so eine.
+Das Gate braucht eine Mindestversion von Composer, sonst scheitert es an einer Meldung, die den
+Grund nicht nennt. `tools/ci/audit.sh` prüft sie und bricht mit Klartext ab. Eine
+**Untergrenze**, keine feste Version: Die Pipeline installiert jeweils den aktuellen Composer,
+und ein Sicherheitswerkzeug einzufrieren wäre die falsche Sparsamkeit.
 
-`tools/ci/audit.sh` prüft deshalb eine Untergrenze und bricht mit einer Meldung ab, die den
-Grund nennt. Eine **Untergrenze**, keine feste Version: Die Pipeline installiert jeweils den
-aktuellen Composer, und ein Sicherheitswerkzeug einzufrieren wäre die falsche Sparsamkeit.
+> **Korrektur, nachgetragen mit `006-005-0002`.** Dieser Abschnitt stand hier zuerst falsch: Er
+> behauptete, `config.audit.ignore` gebe es erst ab Composer 2.7 und ältere Fassungen übergingen
+> den Block stillschweigend. **Beides ist unzutreffend.** Composer 2.6.6 beachtet die
+> Ausnahmeliste sehr wohl — nachgemessen: `advisories: 0`. Woran es wirklich hängt, ist der
+> Schalter **`--abandoned`**, und den gibt es erst ab **2.8.0**:
+>
+> | Composer | `config.audit.ignore` | `--abandoned` |
+> |---|---|---|
+> | 2.6.6 | beachtet | fehlt — *„The `--abandoned` option does not exist."* |
+> | 2.7.0 · 2.7.7 | beachtet | fehlt |
+> | 2.8.0 | beachtet | vorhanden, Lauf endet mit Exit 0 |
+>
+> Die Untergrenze im Skript stand deshalb mit 2.7.0 zu niedrig — eine 2.7.x wäre durch die
+> Prüfung gekommen und danach an `--abandoned` gescheitert. Korrigiert auf **2.8.0**, samt der
+> richtigen Begründung.
 
 ### Verification — drei Richtungen
 Gefahren in `php:8.3-cli`, mit demselben Aufruf wie die Pipeline, gegen `git archive HEAD` plus
@@ -155,7 +168,7 @@ dieser Änderung:
 |---|---|---|
 | Ist-Stand | **0** | fünf Meldungen mit *Ignore reason*, `✓ Keine unausgenommene Sicherheitsmeldung im Lock.` |
 | eine Ausnahme (`CVE-2024-50343`) entfernt | **1** | `Found 1 security vulnerability advisory`, nennt die Kennung; kein Erfolgs-Häkchen |
-| Composer auf 2.6.6 gezwungen | **1** | `✗ Composer 2.6.6 ist zu alt für dieses Gate (nötig: >= 2.7.0)` |
+| Composer auf 2.6.6 gezwungen | **1** | `✗ Composer 2.6.6 ist zu alt für dieses Gate` (die Schranke stand hier noch auf 2.7.0 — siehe Korrektur oben) |
 
 Die zweite Zeile ist die eigentliche Abnahme. Ein Gate, das nur im Gutfall vorgeführt wurde, ist
 nicht vorgeführt.

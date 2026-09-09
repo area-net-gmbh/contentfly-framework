@@ -43,17 +43,25 @@
 
 set -eu
 
-# ── Composer muss die Ausnahmeliste überhaupt kennen ──────────────────────────────────
+# ── Composer muss --abandoned kennen ──────────────────────────────────────────────────
 #
-# config.audit.ignore gibt es erst ab Composer 2.7. Eine ältere Fassung ÜBERGEHT den
-# Block stillschweigend — sie meldet dann die fünf bekannten Advisories als Fund und der
-# Job ist rot, ohne dass jemand versteht, warum. Das gehört gesagt, nicht erlitten.
+# Nachgemessen über mehrere Fassungen, statt aus dem Changelog geschlossen:
+#
+#   2.6.6   config.audit.ignore wird BEREITS beachtet (advisories: 0), aber
+#           `--abandoned` gibt es nicht: "The --abandoned option does not exist." -> Exit 1
+#   2.7.0   dieselbe Absage
+#   2.7.7   dieselbe Absage
+#   2.8.0   --abandoned vorhanden, Lauf endet mit Exit 0
+#
+# Die Untergrenze ist also 2.8.0, und sie haengt an --abandoned, NICHT an der
+# Ausnahmeliste. (Eine frühere Fassung dieses Kommentars behauptete das Gegenteil und
+# setzte 2.7.0 an — beides falsch, korrigiert mit 006-005-0002.)
 #
 # Geprüft wird eine Untergrenze, nicht eine feste Version: Die Pipeline installiert
 # jeweils den aktuellen Composer, und das soll so bleiben — ein Sicherheitswerkzeug
 # einzufrieren wäre die falsche Sparsamkeit.
 
-MINDESTVERSION=2.7.0
+MINDESTVERSION=2.8.0
 VERSION=$(composer --version --no-ansi 2>/dev/null | sed -n 's/^Composer version \([0-9.]*\).*/\1/p')
 
 if [ -z "$VERSION" ]; then
@@ -63,8 +71,8 @@ fi
 
 if [ "$(printf '%s\n%s\n' "$MINDESTVERSION" "$VERSION" | sort -V | head -1)" != "$MINDESTVERSION" ]; then
     echo "✗ Composer $VERSION ist zu alt für dieses Gate (nötig: >= $MINDESTVERSION)." >&2
-    echo "  config.audit.ignore aus composer.json würde stillschweigend übergangen —" >&2
-    echo "  der Lauf wäre rot wegen der fünf bekannten Symfony-4.4-Meldungen." >&2
+    echo "  Der Schalter --abandoned existiert dort nicht; der Aufruf unten schlaegt fehl," >&2
+    echo "  ohne dass die Meldung den Grund nennt." >&2
     exit 1
 fi
 
