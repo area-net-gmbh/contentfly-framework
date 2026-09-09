@@ -37,6 +37,16 @@
 #
 #   Damit steht die Liste auf genau einer Ursache: einem Fremdpaket, das mit Epic 009
 #   faellt. Waechst sie wieder, ist das eine Aussage und keine Gewohnheit.
-
-vendor/silex/silex/src/Silex/ExceptionListenerWrapper.php|Method ReflectionParameter::getClass() is deprecated|Fremdpaket. Silex 2.2.2 ist seit 2018 EOL, es gibt keine Fassung ohne diesen Aufruf. Faellt mit Epic 009 (Silex durch Symfony 7.4 ersetzen).
+#
+# ── Stand nach 009-002-0006: LEER ─────────────────────────────────────────────────────
+#
+#   Die letzte Ausnahme betraf Silex' ExceptionListenerWrapper. Silex ist mit dem
+#   Kernel-Schnitt aus dem Baum, und das Gate hat die Streichung selbst eingefordert:
+#
+#       Die Meldung tritt nicht mehr auf — der Grund fuer die Ausnahme ist entfallen.
+#       ZU TUN: die Zeile aus tools/ci/deprecations-ausnahmen.txt streichen.
+#
+#   Genau so war Regel 3 gemeint. Die Datei bleibt mit ihren Regeln stehen, ohne einen
+#   einzigen Eintrag — das ist der Zustand, den Epic 009 herstellen sollte, und die naechste
+#   Zeile hier ist wieder eine Aussage.
 
