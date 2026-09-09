@@ -1,7 +1,7 @@
 ---
 id: 000-000-0011
 title: PluginManager::getPlugin() referenziert eine undefinierte Variable
-status: review
+status: done
 depends_on: []
 ---
 
