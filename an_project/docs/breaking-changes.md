@@ -91,6 +91,45 @@ die vorher unsichtbar waren. Das ist kein neuer Code, nur neu sichtbarer.
 *Was zu tun ist:* Sie abarbeiten. `an_project/docs/tech-stack.md` macht deprecation-freies Bauen
 zur Pflicht — der spätere Sprung auf Symfony 8.4 LTS ist nur dann ein reiner Constraint-Bump.
 
+### `POST /system/do` hat eine Erlaubnisliste statt `method_exists`
+**Seit `000-000-0015` (2026-09-09).**
+
+Erreichbar war alles, was `method_exists()` bejahte — auch `doAction` selbst (das den
+Controller in eine Endlosrekursion schickte) und `setEM`/`__construct` aus `BaseController`.
+Jetzt nennt eine ausgeschriebene Liste, was aufgerufen werden darf: `flushSchemaCache`,
+`updateDatabase`, `deleteToken`, `generateToken`, `listTokens`, `addToken`.
+
+**Betroffen ist, wer eine eigene Methode in einen abgeleiteten `SystemController` gelegt und
+über `/system/do` aufgerufen hat.** Sie wird jetzt abgewiesen.
+
+*Was zu tun ist:* Die Methode in die Liste aufnehmen. Dass das ein bewusster Schritt ist, ist
+der Zweck der Änderung — vorher war jede neue Methode automatisch ein Endpunkt.
+
+### Token-Vorgänge stehen mit `Log`-Konstanten in `pim_log`
+**Seit `000-000-0015` (2026-09-09).**
+
+`addToken` schrieb `mode = 'Erstellt'`, `deleteToken` `'Gelöscht'`. Die Konstanten heissen
+`Log::INSERTED` (`'INS'`) und `Log::DELETED` (`'DEL'`). In `pim_log.mode` standen damit zwei
+Vokabulare, und wer nach `Log::INSERTED` filterte, fand die Token-Vorgänge nicht.
+
+**Der Altbestand bleibt unverändert — bewusst.** `pim_log` ist ein Protokoll; alte Zeilen
+nachträglich umzuschreiben hiesse, die Aufzeichnung zu ändern. Eine Migration wäre technisch
+einfach und fachlich falsch.
+
+*Was zu tun ist:* Wer historisch auswertet, sucht für Token-Vorgänge **vor** diesem Stand nach
+`'Erstellt'`/`'Gelöscht'` und danach nach `'INS'`/`'DEL'`. Ein Stichtag lässt sich aus
+`pim_log.created` ablesen.
+
+### `deleteToken` funktioniert
+**Seit `000-000-0015` (2026-09-09).**
+
+Kein Breaking Change, sondern das Gegenteil — aber erwähnenswert, weil sich Verhalten ändert:
+Die Methode suchte in `Areanet\Contently\Entity\Token` („Contently" statt „PIM") und endete
+vor ihrer ersten fachlichen Zeile. **Ein API-Token liess sich über die API nicht löschen.**
+
+*Was zu tun ist:* Nichts. Wer einen Workaround gebaut hat — etwa Löschen direkt in der
+Datenbank —, kann ihn ablegen.
+
 ## API
 
 ### `@PIM\Select` prüft jetzt beim Schreiben

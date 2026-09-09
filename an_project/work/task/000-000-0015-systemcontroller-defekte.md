@@ -1,7 +1,7 @@
 ---
 id: 000-000-0015
 title: Defekte im SystemController beheben
-status: todo
+status: done
 depends_on: [008-004-0003]
 ---
 
@@ -86,15 +86,15 @@ ankommt, bleibt hier aussen vor: Dasselbe Missverständnis steckt an mehreren St
 Frameworks und gehört einheitlich behandelt, zusammen mit `000-000-0006`.
 
 ## Acceptance criteria
-- [ ] `deleteToken` entfernt eine Zeile aus `pim_token` und schreibt einen Logeintrag; der
+- [x] `deleteToken` entfernt eine Zeile aus `pim_token` und schreibt einen Logeintrag; der
       Erfolgsfall und der Fall „Token unbekannt" sind je durch einen Test belegt.
-- [ ] Die tote `validateORM`-Bedingung ist aufgelöst — gestrichen oder durch eine
+- [x] Die tote `validateORM`-Bedingung ist aufgelöst — gestrichen oder durch eine
       wiederhergestellte Methode gedeckt; die Entscheidung steht begründet im Commit.
-- [ ] `addToken` und `deleteToken` schreiben `Log::INSERTED` bzw. `Log::DELETED`; der Umgang
+- [x] `addToken` und `deleteToken` schreiben `Log::INSERTED` bzw. `Log::DELETED`; der Umgang
       mit dem Altbestand in `pim_log` ist entschieden und festgehalten.
-- [ ] `method: "doAction"` führt nicht mehr in die Rekursion.
-- [ ] Für Punkt 5 ist entweder ein Aufräumweg vorhanden oder begründet auf `013-003` verwiesen.
-- [ ] Die Tests aus `008-004-0003`, die das defekte Verhalten festhalten, sind umgedreht —
+- [x] `method: "doAction"` führt nicht mehr in die Rekursion.
+- [x] Für Punkt 5 ist entweder ein Aufräumweg vorhanden oder begründet auf `013-003` verwiesen.
+- [x] Die Tests aus `008-004-0003`, die das defekte Verhalten festhalten, sind umgedreht —
       keiner davon bleibt als „so ist es nun mal" stehen.
 
 ## Verification
@@ -102,3 +102,94 @@ Frameworks und gehört einheitlich behandelt, zusammen mit `000-000-0006`.
 Lauf auf dem Ausgangsstand. Zusätzlich von Hand: einen API-Token über `addToken` anlegen,
 über `listTokens` sehen, über `deleteToken` entfernen und die Tabelle prüfen — der Ablauf, der
 heute nicht durchführbar ist.
+
+## Ergebnis
+**Alle fünf Punkte gelöst.** Der interessanteste ist der fünfte: Die Frage, ob `013-003` die
+Tokentabelle ohnehin ersetzt, lässt sich beantworten — und die Antwort ist nein.
+
+### 1 — `deleteToken`, und was danach kam
+`Areanet\Contently\Entity\Token` → `Areanet\PIM\Entity\Token`. Ein Wort, und **ein
+API-Token liess sich über die API nicht löschen**.
+
+Der Task warnte: *„Der Rest der Methode ist unerprobt — nach der Korrektur läuft erstmals Code,
+den nie jemand ausgeführt hat."* Er läuft. Belegt sind beide Fälle, wie gefordert: Die Zeile
+verschwindet und ein Logeintrag mit `Log::DELETED` entsteht; ein unbekannter Token endet mit
+`Token ungültig`.
+
+### 2 — `validateORM`: gestrichen, nicht wiederhergestellt
+Das Notschloss liess `validateORM` und `updateDatabase` **ohne Token und ohne Adminrecht**
+durch — und die erste der beiden gab es nicht.
+
+Doctrine brächte mit `SchemaValidator` alles mit, und der Import steht noch oben in der Datei.
+Trotzdem gestrichen: **Eine wiederhergestellte Methode wäre ein zweiter Endpunkt ohne Token und
+ohne Adminrecht.** Ein Notschloss soll so klein sein wie möglich. Wer den Schemazustand prüfen
+will, kann das mit einem Console-Command tun, der keine offene Tür braucht.
+
+`updateDatabase` bleibt: Ein kaputtes Schema muss reparierbar sein, ohne dass man sich anmelden
+kann — das ist der Sinn des Zweigs.
+
+### 3 — `Log`-Konstanten, Altbestand bleibt
+`'Erstellt'` → `Log::INSERTED`, `'Gelöscht'` → `Log::DELETED`.
+
+**Der Altbestand wird nicht migriert, und das ist die Entscheidung, nicht die Bequemlichkeit:**
+`pim_log` ist ein Protokoll. Alte Zeilen nachträglich umzuschreiben hiesse, die Aufzeichnung zu
+ändern — und zwar rückwirkend eine Aussage darüber, was das System damals getan hat. Eine
+Migration wäre technisch einfach und fachlich falsch. Der Umgang steht in
+`breaking-changes.md`, samt dem Hinweis, dass sich der Stichtag aus `pim_log.created` ablesen
+lässt.
+
+### 4 — Erlaubnisliste statt `method_exists`
+Sechs Methoden, ausgeschrieben. **Bewusst nicht aus Reflection abgeleitet:** Was dort steht, ist
+eine Entscheidung, keine Eigenschaft der Klasse — sonst wäre jede neue Methode wieder
+automatisch ein Endpunkt.
+
+Damit fällt auch der Rekursionsfall. Der alte Test prüfte die **Ursache** statt der Wirkung
+(`doAction` ist public), weil ein Aufruf ohne `memory_limit` den Testserver mitgenommen hätte.
+Jetzt lässt sich die Wirkung gefahrlos prüfen: `method: "doAction"` wird abgewiesen.
+`doAction` bleibt public — Silex ruft es als Route auf.
+
+### 5 — Die Tokentabelle: `013-003` löst es nicht
+Der Task liess offen, welcher Fall gilt, und warnte vor Arbeit, die `013-003` gleich wieder
+abräumt. Nachgelesen — die Story sagt es deutlich:
+
+> **Refresh-Token als opaques DB-Token** — also genau der Mechanismus, der ohnehin existiert.
+
+Die Tabelle bleibt also, und mit ihr das Wachstum. Deshalb ein Aufräumweg:
+**`appcms:token:cleanup`**, mit `--dry-run`.
+
+Er rechnet **dieselbe Rechnung wie `checkToken()`**, damit nichts fällt, was dort noch gültig
+wäre: `modified` gegen das Zeitlimit, Limit aus der Gruppe vor `APP_TOKEN_TIMEOUT`, Token mit
+`referrer` bleiben (API-Token verfallen nicht über die Zeit), und bei ausgeschaltetem
+`APP_CHECK_TOKEN_TIMEOUT` räumt er gar nichts weg — sonst löschte er gültige Sitzungen.
+
+`--dry-run` ist **nicht** der Vorgabewert: Wer das Command in einen Cron hängt, soll nicht
+feststellen, dass es nie etwas getan hat.
+
+### Die Tests sind umgedreht, keiner blieb stehen
+| vorher | jetzt |
+|---|---|
+| `testDasTorIstMethodExistsUndNichtEineErlaubnisliste` | `testDasTorIstEineErlaubnislisteUndNichtMethodExists` |
+| `testDoActionRuftSichSelbstAufUndWirdDeshalbNichtScharfGeprueft` | `testDoActionRuftSichNichtMehrSelbstAuf` |
+| `testAddTokenSchreibtDenLogeintragMitEinemDeutschenModusStattDerKonstanten` | `testAddTokenSchreibtDenLogeintragMitDerKonstanten` |
+| `testDeleteTokenIstDurchEinenFalschenNamensraumUnbrauchbar` | `testDeleteTokenEntferntDieZeileUndProtokolliertEs` |
+| `testValidateORMStehtInDerAusnahmelisteExistiertAberNicht` | `testDasNotschlossKenntNurNochUpdateDatabase` |
+
+Dazu **zwei neue**: `testDeleteTokenMeldetEinenUnbekanntenToken()` und
+`testAbgelaufeneAnmeldetokenLassenSichAufraeumen()`.
+
+### Ein Fehlgriff beim Testaufbau
+Mein erster Aufräum-Test legte Token mit selbstgebauten Zeichenketten-Ids an und scheiterte an
+`Incorrect integer value`. **`pim_token.id` ist eine Integer-Spalte mit Auto-Increment** —
+anders als die Entities, die von `Base` erben und eine GUID tragen. Ich hatte von der
+Id-Strategie der einen auf die andere geschlossen. Jetzt vergibt MySQL die Id.
+
+### Verification
+| Prüfung | Ergebnis |
+|---|---|
+| `SystemControllerApiTest` | **OK (27 tests, 81 assertions)** |
+| volle Suite mit `CI=true` | **OK (239 tests, 594 assertions)**, 0 übersprungen |
+| Deprecation-Gate | grün, 1 Paar, 1 ausgenommen |
+
+Drei Einträge in `breaking-changes.md`: die Erlaubnisliste, die `Log`-Konstanten samt Umgang mit
+dem Altbestand, und — als Gegenteil eines Breaking Change, aber erwähnenswert — dass
+`deleteToken` jetzt funktioniert.
