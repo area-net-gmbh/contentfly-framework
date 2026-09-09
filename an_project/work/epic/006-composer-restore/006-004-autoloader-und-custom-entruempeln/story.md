@@ -84,3 +84,7 @@ die Vorlage für jedes Folgeprojekt prägt.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
+- [ ] 006-004-0001 — Den Autoloader-Weg entscheiden und begründen
+- [ ] 006-004-0002 — custom/composer.json auf den Projekt-Slot zurückschneiden
+- [ ] 006-004-0003 — Den Bootstrap festzurren und eine Überschneidung auffallen lassen
+- [ ] 006-004-0004 — Custom\Tests\ durch ein PSR-4-Mapping im Root ersetzen
