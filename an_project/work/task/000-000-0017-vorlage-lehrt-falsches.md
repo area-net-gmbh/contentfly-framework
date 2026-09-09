@@ -1,7 +1,7 @@
 ---
 id: 000-000-0017
 title: Die Vorlage custom/ lehrt an drei Stellen Falsches
-status: review
+status: done
 depends_on: [008-004-0005]
 ---
 
