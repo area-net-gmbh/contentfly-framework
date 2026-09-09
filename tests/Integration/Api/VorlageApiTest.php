@@ -117,22 +117,22 @@ class VorlageApiTest extends IntegrationTestCase
         $this->assertSame('active', $state['default'], 'Der Standardwert kommt aus der ORM-Spalte');
     }
 
-    public function testDasJsonFeldDerVorlageHatKeinenTypUndFehltDamitImSchema(): void
+    /**
+     * **Umgedreht mit `000-000-0017`, nicht geloescht.**
+     *
+     * Der Test hiess `testDasJsonFeldDerVorlageHatKeinenTypUndFehltDamitImSchema()` und hielt
+     * fest, dass das Feld **still** aus dem Schema fiel: kein Eintrag, keine Warnung, kein
+     * Hinweis — obwohl Spalte und Entity-Feld existierten. Ursache war der fehlende
+     * `JsonType`; der `TypeManager` kannte Doctrines `json` nicht.
+     */
+    public function testDasJsonFeldDerVorlageStehtImSchema(): void
     {
-        // Befund, notiert in 000-000-0017.
-        //
-        // custom/Entity/Core/Example.php fuehrt ein Feld mit @ORM\Column(type="json") vor.
-        // Der TypeManager kennt aber keinen json-Typ — lib/contentfly/Classes/Types/ hat
-        // zwanzig Typen, keiner davon deckt ihn ab. Das Feld faellt deshalb still aus dem
-        // Schema heraus: kein Eintrag, keine Warnung, kein Hinweis.
-        //
-        // Die Spalte existiert in der Datenbank, das Feld existiert in der Entity — fuer die
-        // API existiert es nicht. Wer sich an der Vorlage orientiert und ein json-Feld baut,
-        // laeuft in dieselbe Wand.
         $properties = $this->schema()['data'][self::ENTITY]['properties'];
 
-        $this->assertArrayNotHasKey('jsonExample', $properties,
-            'Das Feld fehlt im Schema vollstaendig — nicht einmal als leerer Eintrag');
+        $this->assertArrayHasKey('jsonExample', $properties,
+            'Das Feld steht im Schema, seit es einen JsonType gibt');
+        $this->assertSame('json', $properties['jsonExample']['type'],
+            'und zwar unter seinem eigenen Typ, nicht als String getarnt');
         $this->assertArrayHasKey('boolExample', $properties,
             'Waehrend die uebrigen Felder derselben Entity da sind');
 
@@ -201,24 +201,28 @@ class VorlageApiTest extends IntegrationTestCase
         $this->assertSame(self::ENTITY, $eintrag['model_name']);
     }
 
-    public function testDasJsonFeldLaesstSichWederSchreibenNochLesen(): void
+    /**
+     * **Umgedreht mit `000-000-0017`, nicht geloescht.**
+     *
+     * Der Test hiess `testDasJsonFeldLaesstSichWederSchreibenNochLesen()` und hielt fest, dass
+     * `jsonExample` fuer die API nicht existierte: Schreiben scheiterte mit
+     * `contentfly_general_unknown_property`, Lesen lieferte das Feld nicht. Ursache war ein
+     * fehlender Framework-Typ — der `TypeManager` kannte Doctrines `json` nicht, und das Feld
+     * fiel **still** aus dem Schema.
+     *
+     * `JsonType` schliesst die Luecke. Geprueft wird jetzt, was der Task verlangt hat: dass ein
+     * **verschachtelter** Wert unveraendert zurueckkommt — nicht nur, dass irgendetwas ankommt.
+     */
+    public function testDasJsonFeldNimmtEinenVerschachteltenWertUndGibtIhnZurueck(): void
     {
-        // Die Folge des Befunds oben, an der API beobachtet: Ein Schreibversuch scheitert mit
-        // "unbekannte Eigenschaft", und beim Lesen fehlt das Feld in der Antwort. Fuer einen
-        // Client der Vorlage ist jsonExample schlicht nicht vorhanden.
-        //
-        // Notiert in 000-000-0017.
-        [$status] = $this->postJson(
-            '/api/insert',
-            array('entity' => self::ENTITY, 'data' => array('name' => 'Json', 'jsonExample' => array('a' => 1))),
-            $this->token()
+        $wert = array(
+            'titel'    => 'Beispiel',
+            'merkmale' => array('a', 'b'),
+            'tiefer'   => array('zahl' => 42, 'flag' => true, 'leer' => null),
         );
-        $this->assertSame(500, $status, 'ContentflyException: contentfly_general_unknown_property');
 
-        $verirrt = $this->pdo()->query("SELECT COUNT(*) FROM example_entity WHERE name = 'Json'")->fetchColumn();
-        $this->assertSame('0', (string) $verirrt, 'Der gescheiterte Insert hinterlaesst nichts');
-
-        [, $angelegt] = $this->beispielAnlegen(array('name' => 'Ohne-Json'));
+        [$status, $angelegt] = $this->beispielAnlegen(array('name' => 'Json', 'jsonExample' => $wert));
+        $this->assertSame(200, $status, 'Das Feld ist jetzt Teil des Schemas');
 
         [, $einzeln] = $this->postJson(
             '/api/single',
@@ -226,35 +230,61 @@ class VorlageApiTest extends IntegrationTestCase
             $this->token()
         );
 
-        $this->assertArrayNotHasKey('jsonExample', $einzeln['data'],
-            'Auch beim Lesen taucht das Feld nicht auf');
-        $this->assertArrayHasKey('boolExample', $einzeln['data'],
-            'Vergleichsfeld mit einem bekannten Typ — das kommt an');
+        $this->assertArrayHasKey('jsonExample', $einzeln['data'], 'und kommt beim Lesen zurueck');
+
+        // assertEquals, nicht assertSame: MySQLs nativer JSON-Typ **normalisiert die
+        // Schluesselreihenfolge** in Objekten. Der Wert kommt vollstaendig und mit denselben
+        // Typen zurueck — nur "tiefer" steht danach vor "merkmale". Ein assertSame verglich
+        // hier die Speicherform von MySQL, nicht die Zusicherung der API.
+        $this->assertEquals($wert, $einzeln['data']['jsonExample'],
+            'vollstaendig verschachtelt — Doctrine kodiert und dekodiert, der Typ mischt sich nicht ein');
+
+        $this->assertSame('json', $this->schema()['data'][self::ENTITY]['properties']['jsonExample']['type'],
+            'und das Schema nennt den Typ beim Namen');
     }
 
-    public function testDieSelectAnnotationPruefteNichtsWasSieAuflistet(): void
+    /**
+     * **Umgedreht mit `000-000-0017`, nicht geloescht.**
+     *
+     * Der Test hiess `testDieSelectAnnotationPruefteNichtsWasSieAuflistet()`: Die Optionen
+     * standen im Schema, aber niemand verglich einen Schreibwert damit — `"gibtsnicht"` wurde
+     * angenommen und landete in der Spalte. Die Annotation war reine Metadatenlieferung, ihr
+     * einziger Konsument die geloeschte Oberflaeche.
+     *
+     * `@PIM\Select` prueft jetzt. Damit unterscheidet sich dieser Fall von `canExport` und
+     * `getExtended` (`000-000-0012`), die dasselbe Muster zeigen: Dort ist die Durchsetzung
+     * eine Entscheidung ueber Berechtigungen, hier stehen die erlaubten Werte direkt daneben.
+     */
+    public function testDieSelectAnnotationWeistEinenUnbekanntenWertAb(): void
     {
-        // Zweiter Befund, notiert in 000-000-0017.
-        //
-        // Die Optionen aus @PIM\Select stehen im Schema, aber niemand vergleicht einen
-        // Schreibwert damit. "gibtsnicht" wird angenommen und landet in der Spalte. Die
-        // Annotation ist reine Metadatenlieferung fuer einen Client — ihr einziger Konsument
-        // war die geloeschte Oberflaeche.
-        //
-        // Dasselbe Muster wie bei canExport und getExtended (UnenforcedPermissionApiTest):
-        // veroeffentlicht, aber nirgends durchgesetzt. Hier waere es besonders leicht zu
-        // beheben, weil die erlaubten Werte direkt daneben stehen.
         $ungueltig = 'gibtsnicht-'.bin2hex(random_bytes(3));
 
-        [$status, $angelegt] = $this->beispielAnlegen(array('name' => 'Select', 'state' => $ungueltig));
+        [$status] = $this->postJson(
+            '/api/insert',
+            array('entity' => self::ENTITY, 'data' => array('name' => 'Select', 'state' => $ungueltig)),
+            $this->token()
+        );
 
-        $this->assertSame(200, $status, 'Der Schreibvorgang gelingt — trotz unbekannter Option');
+        $this->assertSame(500, $status, 'ContentflyException: contentfly_general_invalid_params');
+
+        $verirrt = $this->pdo()->prepare('SELECT COUNT(*) FROM example_entity WHERE state = :state');
+        $verirrt->execute(array('state' => $ungueltig));
+        $this->assertSame('0', (string) $verirrt->fetchColumn(),
+            'und nichts davon erreicht die Spalte');
+    }
+
+    public function testEinErlaubterSelectWertGehtWeiterhinDurch(): void
+    {
+        // Die Gegenrichtung: Die Pruefung darf nicht alles abweisen. Ohne diesen Test waere
+        // ein Select-Feld, das gar nichts mehr annimmt, ebenso "gruen".
+        [$status, $angelegt] = $this->beispielAnlegen(array('name' => 'Select-gut', 'state' => 'suspended'));
+
+        $this->assertSame(200, $status);
 
         $gespeichert = $this->pdo()->prepare('SELECT state FROM example_entity WHERE id = :id');
         $gespeichert->execute(array('id' => $angelegt['id']));
 
-        $this->assertSame($ungueltig, $gespeichert->fetchColumn(),
-            'und der Wert steht unveraendert in der Spalte');
+        $this->assertSame('suspended', $gespeichert->fetchColumn());
     }
 
     // ── B: Der Beispiel-Endpunkt ───────────────────────────────────────────────────────

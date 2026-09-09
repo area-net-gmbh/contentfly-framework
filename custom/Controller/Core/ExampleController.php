@@ -7,24 +7,29 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Custom\Classes\Service\Core\ApiResponseService;
 
 /**
- *  Example Controller for
- * 
+ * Der Beispiel-Controller der Vorlage.
+ *
+ * Er zeigt, wie ein Projekt eigene Routen baut: eine Action, die einen `Request` entgegen-
+ * nimmt und eine `JsonResponse` liefert. Registriert wird sie in `custom/app.php`.
+ *
  * @package Custom\Controller\Core
  */
 class ExampleController extends BaseController
 {
 
     /**
-     * Retrieves bootstrap configuration for application initialization.
-     * 
-     * Resolves configuration based on:
-     * - X-Origin-Host header
-     * - originHost query parameter
-     * - Request host
-     * - Optional tenant slug override
-     * 
-     * @param Request $request The HTTP request
-     * @return JsonResponse Configuration with proper tenant context
+     * Liefert eine leere Beispielantwort im Standard-Envelope.
+     *
+     * **Der Kommentar beschrieb bis `000-000-0017` etwas anderes** — eine Aufloesung ueber
+     * den `X-Origin-Host`-Header, einen `originHost`-Parameter und einen Mandanten-Slug.
+     * Nichts davon steht im Rumpf, und nichts davon gab es je in diesem Baum: Es waren
+     * Reste aus dem Kundenprojekt, aus dem die Vorlage herausgeschnitten wurde.
+     *
+     * Was die Methode wirklich zeigt, ist der Weg von der Route zur Antwort — mehr soll sie
+     * nicht. Wer hier eine Aufloesung braucht, baut sie selbst.
+     *
+     * @param Request $request Die HTTP-Anfrage
+     * @return JsonResponse Standard-Envelope mit leerem `data`
      */
     public function bootstrapAction(Request $request): JsonResponse
     {
