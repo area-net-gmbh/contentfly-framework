@@ -64,6 +64,26 @@ check:template-config:
   script:
     - sh tools/check-template-config.sh
 
+check:audit:
+  stage: check
+  image: php:8.3-cli
+  # Das Sicherheits-Gate aus 006-005-0001. Es braucht KEIN composer install: `--locked`
+  # prueft den committeten Lock, nicht ein installiertes vendor/. Damit laeuft es auch
+  # dann, wenn der Testlauf an etwas anderem scheitert — ein Sicherheitsbefund soll nicht
+  # davon abhaengen, ob die Suite gruen ist.
+  #
+  # Die fuenf heute unbehebbaren Symfony-4.4-Meldungen stehen einzeln nach CVE-Kennung in
+  # composer.json unter config.audit.ignore, jede mit Begruendung. Eine SECHSTE Meldung
+  # macht diesen Job sofort rot — das ist der Unterschied zwischen einer Ausnahme und
+  # einem abgeschalteten Gate.
+  #
+  # Der Ablauf steht in tools/ci/audit.sh, damit man ihn lokal nachspielen kann.
+  before_script:
+    - php -r "copy('https://getcomposer.org/installer','/tmp/composer-setup.php');"
+    - php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer --quiet
+  script:
+    - sh tools/ci/audit.sh
+
 # ── Die Testsuiten ─────────────────────────────────────────────────────────────────────
 
 .testlauf:

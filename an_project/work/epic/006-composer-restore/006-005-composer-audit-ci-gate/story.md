@@ -1,7 +1,7 @@
 ---
 id: 006-005-0000
 title: composer audit als CI-Gate
-status: todo
+status: in-progress
 depends_on: [006-003-0000, 006-004-0000]
 ---
 

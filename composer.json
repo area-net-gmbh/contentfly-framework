@@ -7,7 +7,16 @@
         "platform": {
             "php": "8.3.0"
         },
-        "sort-packages": true
+        "sort-packages": true,
+        "audit": {
+            "ignore": {
+                "CVE-2025-64500": "symfony/http-foundation v4.4.49 — Incorrect parsing of PATH_INFO. Betroffen ist die GESAMTE 4.x-Linie (>=4.0.0,<5.0.0, ohne Obergrenze darin); Symfony 4.4 ist seit Nov 2023 EOL, es gibt keinen Fix. Der Ausweg ist Symfony 5+, und den deckelt knplabs/console-service-provider auf ^4.0 (006-001-0003). Faellt mit Epic 009.",
+                "CVE-2024-50345": "symfony/http-foundation v4.4.49 — Open redirect via browser-sanitized URLs. Gleiche Lage wie CVE-2025-64500: kein Fix in 4.x, EOL. Faellt mit Epic 009.",
+                "CVE-2026-48784": "symfony/routing v4.4.44 — UrlGenerator Dot-Segment Encoding. Kein Fix in 4.x, EOL. Faellt mit Epic 009.",
+                "CVE-2026-45065": "symfony/routing v4.4.44 — UrlGenerator Route-Requirement Bypass. Kein Fix in 4.x, EOL. Faellt mit Epic 009.",
+                "CVE-2024-50343": "symfony/validator v4.4.48 — Incorrect response from Validator. Kein Fix in 4.x, EOL. Faellt mit Epic 009."
+            }
+        }
     },
     "require": {
         "php": "^8.3",
