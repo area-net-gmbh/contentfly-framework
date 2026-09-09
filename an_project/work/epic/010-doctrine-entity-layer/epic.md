@@ -1,7 +1,7 @@
 ---
 id: 010-000-0000
 title: Doctrine und Entity-Layer modernisieren
-status: todo
+status: in-progress
 depends_on: [006-000-0000, 012-000-0000]
 ---
 
