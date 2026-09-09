@@ -63,11 +63,31 @@ class FileApiTest extends IntegrationTestCase
         [$status, , $kopf] = $this->get('/file/get/'.$antwort['data']['id']);
         $location = $this->kopfzeile($kopf, 'Location');
 
-        $this->assertSame(302, $status);
+        // 301, nicht 302: getAction() ruft `$this->app->redirect($redirectUri, 301)` — so seit
+        // dem initialen Import, und so in der README dokumentiert. Die Zusicherung stand bis
+        // 000-000-0019 auf 302; siehe den Kommentar an testAuslieferungBrauchtKeinenToken.
+        $this->assertSame(301, $status);
         $this->assertStringContainsString('data/files/', (string) $location);
         $this->assertStringContainsString('ausgeliefert.txt', (string) $location);
     }
 
+    /**
+     * **Warum hier 301 steht und eine Zeitlang 302 stand** (`000-000-0019`).
+     *
+     * `006-002-0006` hat beide Auslieferungs-Zusicherungen von 301 auf 302 gesetzt, als
+     * „Testerwartung an den neuen Stack nachziehen". Das war eine Fehldiagnose: Zu diesem
+     * Zeitpunkt war der Upload durch den `UploadedFile`-Bruch bereits kaputt, `data.id` kam
+     * als `null` zurueck, und der Aufruf ging an `/file/get/` **ohne Id**. Dort antwortet
+     * nicht die Auslieferung, sondern die WEB_ROOT-Umleitung auf `/` — mit 302.
+     *
+     * Gemessen wurde also ein Symptom des Upload-Defekts und als neues Symfony-4.4-Verhalten
+     * festgeschrieben. `getAction()` ruft unveraendert `redirect($redirectUri, 301)`, seit dem
+     * initialen Import; die README beschreibt es ebenso.
+     *
+     * Der Fall ist die Illustration zu der Regel aus `an_project/docs/technical.md`: Eine
+     * Testanpassung ist ein Verhaltenswechsel und braucht eine Begruendung. Wird sie
+     * vorgenommen, um einen roten Test gruen zu bekommen, schreibt sie den Defekt fest.
+     */
     public function testAuslieferungBrauchtKeinenToken(): void
     {
         // Bewusst so: getAction haengt in FileControllerProvider NICHT an checkAuth.
@@ -76,7 +96,7 @@ class FileApiTest extends IntegrationTestCase
 
         [$status] = $this->get('/file/get/'.$antwort['data']['id']);
 
-        $this->assertSame(302, $status, 'Ohne Token wird nicht abgewiesen, sondern weitergeleitet');
+        $this->assertSame(301, $status, 'Ohne Token wird nicht abgewiesen, sondern weitergeleitet');
     }
 
     /**
@@ -149,23 +169,30 @@ class FileApiTest extends IntegrationTestCase
     }
 
     /**
-     * Der Upload nimmt ein rohes `$_FILES`-Array entgegen, kein `UploadedFile`.
+     * **Der vorhergesagte Fall ist eingetreten und behoben** (`000-000-0019`).
      *
-     * Das funktioniert heute **zufaellig**: PHP 8.1 ergaenzt `$_FILES` um den Schluessel
-     * `full_path`; die Erkennung in HttpFoundation 3.4 (`FileBag::$fileKeys`) vergleicht die
-     * Schluessel exakt, scheitert daran und reicht das rohe Array durch — genau das, was
-     * `FileController::uploadAction()` mit `$file['name']` und `$file['tmp_name']` erwartet.
+     * Dieser Test hiess bis dahin `testUploadFunktioniertUeberDenRohenFilesArrayPfad` und
+     * trug die Warnung, der Upload nehme ein rohes `$_FILES`-Array entgegen statt eines
+     * `UploadedFile`. Das funktionierte **zufaellig**: PHP 8.1 ergaenzt `$_FILES` um den
+     * Schluessel `full_path`, die Erkennung in HttpFoundation 3.4 (`FileBag::$fileKeys`)
+     * vergleicht die Schluessel exakt, scheitert daran und reichte das rohe Array durch —
+     * genau das, was `uploadAction()` mit `$file['name']` erwartete.
      *
-     * Auf einem aktuellen Symfony liefert `$request->files->get()` ein `UploadedFile`, und der
-     * Array-Zugriff wird zum Fatal Error. Dieser Test haelt fest, dass der Upload heute
-     * funktioniert — schlaegt er nach dem Kernel-Wechsel fehl, ist es genau diese Stelle.
+     * Mit `006-002-0003` (Symfony 3.4 -> 4.4) kam dort ein `UploadedFile` an, und der
+     * Array-Zugriff wurde zum Fatal Error. Wortwoertlich an der vorhergesagten Stelle.
+     * `uploadAction()` liest die vier Werte seitdem ueber die `UploadedFile`-API.
+     *
+     * **Der Test selbst ist unveraendert** — dieselben zwei Zusicherungen wie zuvor. Nur
+     * Name und Kommentar beschrieben einen Mechanismus, den es nicht mehr gibt. Was er
+     * prueft, ist die Zusicherung, an der der Bruch damals sichtbar wurde: dass die
+     * gemeldete Dateigroesse durchkommt.
      */
-    public function testUploadFunktioniertUeberDenRohenFilesArrayPfad(): void
+    public function testUploadUebernimmtDieGemeldeteDateigroesse(): void
     {
         $antwort = $this->upload('bild.txt', str_repeat('x', 1024), $this->token());
 
         $this->assertNotEmpty($antwort['data']['id'] ?? null);
-        $this->assertSame(1024, $antwort['data']['size'] ?? null, 'Die Groesse kommt aus $_FILES["size"]');
+        $this->assertSame(1024, $antwort['data']['size'] ?? null, 'Die Groesse kommt aus der Angabe des Clients');
     }
 
     // ── Hilfsmittel ────────────────────────────────────────────────────────────────────
