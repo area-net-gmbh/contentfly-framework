@@ -1,7 +1,7 @@
 ---
 id: 009-003-0003
 title: Das Gate scharfstellen und den Rest an Epic 010 übergeben
-status: review
+status: done
 depends_on: [009-003-0001, 009-003-0002]
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: 009-003-0001
 title: Request::get() ablösen — 74 Stellen
-status: review
+status: done
 depends_on: []
 ---
 

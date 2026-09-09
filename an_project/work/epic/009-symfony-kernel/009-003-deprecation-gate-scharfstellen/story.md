@@ -1,7 +1,7 @@
 ---
 id: 009-003-0000
 title: Das Deprecation-Gate unter Symfony 7.4 scharfstellen
-status: review
+status: done
 depends_on: [009-002-0000]
 ---
 

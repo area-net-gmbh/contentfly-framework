@@ -1,7 +1,7 @@
 ---
 id: 009-003-0002
 title: Die restlichen eigenen Deprecations beheben
-status: review
+status: done
 depends_on: []
 ---
 
