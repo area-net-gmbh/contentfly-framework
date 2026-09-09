@@ -13,10 +13,38 @@ die konkreten Befehle je Stack und ersetzt die Platzhalter unten.
 - **PHP** lokal (aktuell 8.3, Zielplattform 8.5). Bewusst nicht im Container: Ein
   PHP-Container würde die Version festschreiben, die im Zuge der Migration gerade
   geändert wird.
-- Composer — sobald Epic `006` das Manifest wiederhergestellt hat; heute liegt der
-  `vendor/`-Baum noch eingefroren im Repo.
+- **Composer** — zwingend. Seit Story `006-003` liegt **kein `vendor/`-Baum mehr im Repo**;
+  er entsteht bei der Installation. Getestet mit Composer 2.6.
 
-## 1. Datenbank hochfahren
+## 1. Abhängigkeiten installieren
+
+**Der erste Schritt, vor allem anderen.** Ein frischer Checkout ist ohne ihn nicht lauffähig —
+`vendor/` liegt seit Story `006-003` nicht mehr im Repo, sondern entsteht hier:
+
+```sh
+composer install
+```
+
+Das ergibt 77 Pakete in `vendor/` und dauert **rund 7 Sekunden** mit leerem Composer-Cache, 2
+Sekunden mit gefülltem (gemessen in `006-003-0002`, macOS, PHP 8.3). Wer nichts sieht, wartet
+also nicht lange — bleibt es länger stehen, hängt es an der Netzverbindung, nicht am Projekt.
+
+> **Wenn dieser Schritt fehlt, meldet sich das Projekt nicht mit seinem Grund**, sondern mit
+> fehlenden Klassen oder einem fehlenden Autoloader. Wer eine solche Meldung sieht, prüft
+> zuerst, ob `vendor/` existiert.
+
+`custom/vendor/` wird **nicht** gebaut und wird auch nicht gebraucht — beide Bootstraps laden es
+nur, falls es da ist.
+
+Für ein Deployment-Artefakt statt einer Arbeitskopie:
+
+```sh
+composer install --no-dev --optimize-autoloader   # 49 Pakete, ohne PHPUnit
+```
+
+Damit lässt sich die Suite **nicht** fahren; PHPUnit liegt in `require-dev`.
+
+## 2. Datenbank hochfahren
 
 ```sh
 docker compose up -d
@@ -53,18 +81,24 @@ docker compose up -d         # frische, leere Datenbank
 
 **Herunterfahren ohne Datenverlust:** `docker compose down`
 
-## 2. Backend installieren
+## 3. Backend installieren
 
 ```sh
 php bin/console.php appcms:install \
-    --db-host=127.0.0.1 --db-name=contentfly \
+    --db-host=127.0.0.1 --db-port=3307 --db-name=contentfly \
     --db-user=contentfly --db-pass=contentfly \
     --dry-run                                    # erst prüfen, schreibt nichts
 
 php bin/console.php appcms:install \
-    --db-host=127.0.0.1 --db-name=contentfly \
+    --db-host=127.0.0.1 --db-port=3307 --db-name=contentfly \
     --db-user=contentfly --db-pass=contentfly    # dann wirklich installieren
 ```
+
+**`--db-port=3307` ist nicht optional.** Der Command hat den Default `3306`, `docker-compose.yml`
+veröffentlicht aber `3307`. Ohne den Schalter endet der Lauf mit
+`SQLSTATE[HY000] [2002] Connection refused` — was wie ein nicht laufender Container aussieht und
+keiner ist. Aufgefallen beim Nachspielen dieser Anleitung in `006-003-0003`; `tests/README.md`
+hatte den Schalter von Anfang an. Das `--dry-run` fängt es ab, bevor etwas geschrieben wird.
 
 Der Command schreibt `custom/config.php`, legt das Schema an und erzeugt die Basisdaten
 (Benutzer `admin`). Alle Optionen gibt es auch als Umgebungsvariable (`APPCMS_DB_HOST` …),
@@ -113,10 +147,10 @@ und melden deshalb dasselbe.
 Die Verzeichnisse unter `data/` (`files`, `cache`, `temp`, `import`) liegen im Repo, weil der
 Installer in sie schreibt; ihr Inhalt ist ignoriert.
 
-## 3. Frontend installieren
+## 4. Frontend installieren
 Entfällt — dieses Projekt hat kein Frontend (reines Backend/API).
 
-## 3a. Smoke-Test ohne Datenbank
+## 4a. Smoke-Test ohne Datenbank
 
 Der aktuelle Stand bootet ohne laufende Datenbank, solange die aufgerufene Route keine
 Daten anfasst. Damit lässt sich nach jedem Eingriff in 30 Sekunden prüfen, ob Framework
@@ -136,29 +170,36 @@ Erwartet wird der Standard-Envelope mit `"success":true` und einem Zeitstempel i
 API-Format. Kommt stattdessen eine HTML-Fehlerseite, steht die Ursache in deren
 `exception-message` — meist eine Klasse, die die Vorlage referenziert, aber nicht mitbringt.
 
-Ein `HTTP 405` auf `/` oder einem unbekannten Pfad ist **kein** Fehler: Der
-OPTIONS-Catch-All (`{anything}`) in `lib/contentfly/bootstrap-web.php` fängt jeden Pfad ab,
-sodass GET dort mit „Method Not Allowed" statt mit 404 beantwortet wird.
+**Auf `/` und auf unbekannten Pfaden kommt heute `HTTP 500`, nicht 405.** Die Ursache ist
+harmlos und erwartet: Der OPTIONS-Catch-All (`{anything}`) in
+`lib/contentfly/bootstrap-web.php` fängt jeden Pfad ab, sodass GET dort „Method Not Allowed"
+bedeutet — im Rumpf steht es auch so. Nur der Statuscode kommt falsch heraus. Das ist Task
+`000-000-0006`; **kein Grund, den Smoke-Test für gescheitert zu halten.** Massgeblich ist die
+Antwort auf `/api/v1/example/bootstrap` oben.
 
-## 3b. Tests ausführen
+Mit `tests/router.php` und `APP_DEBUG=0` — so fährt die Suite — wird aus demselben Aufruf ein
+`302` auf `/`, also eine Umleitung auf sich selbst. Auch das gehört zu `000-000-0006`
+(WEB_ROOT). Nachgemessen beim Nachspielen dieser Anleitung in `006-003-0003`.
+
+## 4b. Tests ausführen
 
 ```sh
 ./vendor/bin/phpunit                    # beide Suiten
 ./vendor/bin/phpunit --testsuite unit   # ohne Datenbank, muss immer grün sein
 ```
 
-`tests/Unit` läuft ohne Container, `tests/Integration` braucht die Datenbank aus Schritt 1 und
+`tests/Unit` läuft ohne Container, `tests/Integration` braucht die Datenbank aus Schritt 2 und
 eine durchgeführte Installation. Details und der Grund für die Trennung: `tests/README.md`.
 
 Für Abdeckung wird ein Treiber gebraucht (Xdebug oder PCOV) und der Schalter `--coverage-text`.
 Die Konfiguration fordert bewusst keinen Bericht bei jedem Lauf an — sonst endet die Suite ohne
 installierten Treiber mit Exit-Code 1, obwohl jeder Test grün ist.
 
-## 4. Zugriff
+## 5. Zugriff
 <!-- URLs/Ports: Backend-API, DB, Mailhog … -->
 - Backend-API: http://localhost:8000
 
-## 5. API-Doku neu generieren
+## 6. API-Doku neu generieren
 <!-- Befehl, der die OpenAPI/Swagger-Doku aktualisiert — Details in an_project/docs/dev-guide.md. -->
 
 ## Troubleshooting

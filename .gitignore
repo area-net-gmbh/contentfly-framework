@@ -9,6 +9,17 @@ composer.lock
 # Der Root-Lock kam mit 006-002-0003 dazu.
 !custom/composer.lock
 !/composer.lock
+
+# Die Vendor-Baeume entstehen seit 006-003-0001 beim Build, nicht in Git. Vorher lagen hier
+# 11 208 committete Dateien — eine Notloesung aus der Zeit ohne Root-Manifest; die Begruendung
+# von damals steht in an_project/docs/technical.md.
+#
+# Beide Pfade sind einzeln und verankert genannt. Ein unverankertes "vendor/" wuerde zwar
+# ebenfalls beide erfassen, aber auf JEDER Ebene — auch ein kuenftiges plugins/x/vendor, das
+# vielleicht committet gehoert. Wer eine Regel schreibt, die mehr kann als sie soll, merkt es
+# erst, wenn sie zuschlaegt.
+/vendor/
+/custom/vendor/
 .idea/*
 ansible/*
 # Anchored (leading slash): unanchored 'template' matched vendor dirs on every
