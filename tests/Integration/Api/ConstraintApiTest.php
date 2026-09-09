@@ -111,7 +111,9 @@ class ConstraintApiTest extends IntegrationTestCase
     {
         // sortRestrictTo ist laut dem Befund aus 008-001-0002 das EINZIGE der drei
         // Sortier-Felder mit einem echten Leser im Framework (JoinBidirectionalType).
-        // sortBy und sortOrder stehen nur im Schema und werden von keinem Leser angewandt.
+        // sortBy und sortOrder stehen nur im Schema und werden von keinem Leser angewandt —
+        // mit 000-000-0013 entschieden, dass es dabei bleibt, und in
+        // an_project/docs/pim-annotationen-migration.md entsprechend richtiggestellt.
         $this->assertSame('group', $this->schema()['PIM\\Option']['settings']['sortRestrictTo'],
             'PIM\\Option traegt @PIM\\Config(sortRestrictTo="group") — die Sortierung laeuft '
             .'je Optionsgruppe, nicht global');
