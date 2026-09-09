@@ -482,6 +482,273 @@ Die vollständige Tabelle *vorher → nachher* je Endpunkt steht in
 `an_project/docs/api-envelope.md`. Sie ist die Vorlage für den Migrationsleitfaden aus Epic
 `007` — wer heute einen Client baut, kann sich darauf einstellen.
 
+### Eine `unique`-Verletzung antwortet mit 409 statt 500
+**Seit `009-003-0002` (2026-09-09).**
+
+`Api::doUpdate()` warf bei einer Verletzung von `@PIM\Config(unique=true)`
+`Messages::contentfly_general_record_already_exists`. **Diese Konstante gibt es nicht** — sie
+heisst `…_ressource_…`. Die Zeile war kein Fehlerbericht, sondern ein Fatal; über HTTP
+gemessen kam `{"message":"Undefined constant …","type":"Error","status":500}` an.
+
+Jetzt antwortet der Endpunkt mit **409** und `contentfly_status_ressource_already_exists`, wie
+die drei anderen Fälle in derselben Methode es immer schon taten.
+
+*Was zu tun ist:* Auf 409 prüfen statt auf 500. Ein Client, der den 500 als „gibt es schon"
+gelesen hat, liest ihn jetzt falsch.
+
+## Kernel (Epic `009`)
+
+Der Kernel ist mit Epic `009` von Silex 2 auf Symfony 7.4 gewechselt. **Der Schnitt war so
+angelegt, dass die Oberfläche, die ein Projekt benutzt, stehen bleibt** — was hier steht, ist
+der Rest, der es nicht konnte.
+
+### Was sich für ein Projekt **nicht** ändert
+
+Diese Liste zuerst, weil eine Liste nur der Brüche sich liest, als bräche alles. Alles Folgende
+ist unverändert und durch die Suite aus Epic `008` abgedeckt:
+
+| Weiterhin | Anmerkung |
+|---|---|
+| `$app['schlüssel']` — lesen und setzen | Faule Factory mit `$app` als Argument, wie bei Pimple. Zugesichertes API. |
+| `$app['routeManager']->mount(…)->post(…)->get(…)` | Der Weg, auf dem ein Projekt Routen registriert. Auch das `isSecure`-Flag. |
+| `$app->before()`, `->after()`, `->error()` samt Priorität | Höhere Priorität zuerst, Vorgabe −8, bei gleicher Priorität die frühere Registrierung. |
+| `$app->mount($prefix, $sammlung)` | |
+| `$app->extend($id, $callable)` | Wirft weiterhin, wenn der Dienst schon ausgelesen wurde — siehe unten zum Ausnahmetyp. |
+| `$app['dbs']`, `$app['db']`, `$app['orm.em']`, `$app['mailer']` | |
+| `CustomCommand` und der `custom:`-Präfix | |
+| `custom/app.php`, `custom/config.php`, `index.php`, `.htaccess` | Unverändert. |
+| Alle 27 Routen, 18 davon abgesichert | Dieselben Pfade, dieselbe Absicherung. |
+
+### `getSilexApplication()` gibt es nicht mehr
+**Seit `009-002-0005` (2026-09-09).**
+
+Die Methode war an `Knp\Command\Command` geerbt und ist mit
+`knplabs/console-service-provider` aus dem Baum gefallen. Ein Projekt-Command, der sie ruft,
+bekommt einen `Error`.
+
+*Was zu tun ist:* `anwendung()` rufen. Sie liefert dasselbe Objekt und heisst so, weil der alte
+Name beim neuen Kernel das Falsche beschreibt.
+
+### Ein Projekt-Command muss die Signaturen von Console 7 treffen
+**Seit `009-002-0005` (2026-09-09).**
+
+`symfony/console` 7 deklariert `setName(string $name): static`, `configure(): void` und
+`execute(InputInterface $input, OutputInterface $output): int`. Unter Console 4 war alles drei
+untypisiert. PHP lehnt eine aufweichende Implementierung **beim Laden** ab, nicht beim
+Ausführen — die Konsole startet dann gar nicht.
+
+Im Framework selbst hatte `SetupCommand::execute()` gar kein `return`; unter Console 4 ergab
+das still `null`, was Symfony als 0 las.
+
+*Was zu tun ist:* Die drei Signaturen an jedem eigenen Command angleichen und sicherstellen,
+dass `execute()` einen `int` zurückgibt.
+
+### `$app` ist kein Action-Argument mehr
+**Seit `009-001-0002` (2026-09-09).**
+
+Silex lieferte einer Controller-Action ein Argument, das mit `Silex\Application` typisiert war
+— über `Silex\AppArgumentValueResolver`, der auf die **konkrete** Klasse prüft. Diesen Resolver
+gibt es nicht mehr; im Framework sind dafür sieben Actions im `ApiController` um den Parameter
+gekürzt worden.
+
+*Was zu tun ist:* Den Parameter aus der Action streichen und `$this->app` benutzen. Das ist
+dasselbe Objekt aus derselben Container-Factory.
+
+### `$app['request']` ist entfallen
+**Seit `009-002-0004` (2026-09-09).**
+
+Der Schlüssel war eine Falle: Der Container merkt sich das Ergebnis einer Factory, also hätte er
+ab dem ersten Zugriff **denselben** Request geliefert — auch im nächsten. Genau daran ist der
+Fehlerhandler in `000-000-0006` gestorben.
+
+*Was zu tun ist:* Den Request als Action-Argument entgegennehmen, oder
+`$app['request_stack']->getCurrentRequest()`.
+
+### `$app['controllers_factory']` ist entfallen
+**Seit `009-002-0003` (2026-09-09).**
+
+Silex' `ControllerCollection` gibt es nicht. Ersatz ist
+`Areanet\PIM\Classes\Kernel\Routing\Routensammlung` mit genau `get()`, `post()` und
+`match()` — mehr hat kein Aufrufer im Baum benutzt.
+
+*Was zu tun ist:* `new Routensammlung()` statt `$app['controllers_factory']`. Wer mehr als die
+drei Methoden braucht, baut die `RouteCollection` selbst; `mount()` nimmt beides.
+
+### Ein eigener Controller-Provider: andere Schnittstelle, Rückgabetyp, und `connect()` wird gerufen
+**Seit `009-001-0003` und `009-002-0003` (2026-09-09).**
+
+Drei Änderungen an einer Stelle:
+
+1. `Silex\Api\ControllerProviderInterface` ist ersetzt durch
+   `Areanet\PIM\Classes\Kernel\ControllerProviderInterface`. Der Grund ist zwingend: Silex'
+   Fassung schreibt `connect(Silex\Application $app)` vor, und PHP erlaubt einer
+   Implementierung, den Parametertyp zu **erweitern**, nicht ihn zu ersetzen — solange ein
+   Provider Silex' Schnittstelle implementiert, muss er Silex nennen.
+2. `connect()` hat jetzt einen Rückgabetyp: `Symfony\Component\Routing\RouteCollection`.
+   Bewusst nicht `Routensammlung`, damit ein Projekt seine Routen auch anders bauen kann.
+3. **`mount()` ruft `connect()` nicht mehr selbst.** Silex erkannte einen Provider an seiner
+   Schnittstelle; hier übergibt der Aufrufer die fertige Sammlung.
+
+*Was zu tun ist:* Die Schnittstelle tauschen, den Rückgabetyp setzen und an der Aufrufstelle
+`$app->mount($prefix, $provider->connect($app))` schreiben.
+
+### Der Container ist nicht mehr Pimple
+**Seit `009-002-0002` (2026-09-09).**
+
+`Areanet\PIM\Classes\Kernel\Container` bildet Pimples Vertrag nach, aber nicht seinen vollen
+Umfang. **`share()`, `protect()`, `raw()`, `factory()` und `register()` gibt es nicht** — sie
+kamen im Baum nicht vor.
+
+Zwei davon fallen einem Projekt eher auf die Füsse als die anderen:
+
+- **`protect()`** — ohne es wird eine Closure, die als *Wert* abgelegt werden soll, beim ersten
+  Zugriff aufgerufen. Der Fehler ist laut: Der Aufrufer bekommt den Rückgabewert statt der
+  Closure.
+- **`register()`** — Service-Provider im Pimple-Sinn gibt es nicht mehr. Ein Projekt registriert
+  seine Dienste direkt: `$app['x'] = function ($app) { … };`
+
+Ausserdem sind die **Ausnahmetypen** andere: Ein unbekannter Schlüssel ergibt
+`\InvalidArgumentException`, ein `extend()` auf einen bereits ausgelesenen Dienst
+`\RuntimeException` statt Pimples `FrozenServiceException`.
+
+*Was zu tun ist:* Auf die fünf Methoden verzichten; `catch (FrozenServiceException)` auf
+`\RuntimeException` umstellen.
+
+### `$app->redirect()` und `$app->stream()` sind entfallen
+**Seit `009-001-0004` (2026-09-09).**
+
+Silex' Rümpfe lauteten wörtlich `return new RedirectResponse(...)` beziehungsweise
+`return new StreamedResponse(...)`.
+
+*Was zu tun ist:* Genau diese beiden Klassen direkt zurückgeben.
+
+### `Classes\Event` erbt von den Event-Contracts
+**Seit `009-002-0004` (2026-09-09).**
+
+`Symfony\Component\EventDispatcher\Event` gibt es in Symfony 7 nicht mehr; die Basisklasse ist
+nach `Symfony\Contracts\EventDispatcher\Event` gewandert. Ein Projekt, das ein eigenes
+Ereignis von der alten Klasse ableitet oder sie type-hinted, bricht.
+
+*Was zu tun ist:* Von `Areanet\PIM\Classes\Event` oder direkt von der Contracts-Klasse
+ableiten.
+
+### `dispatch()` hat die umgekehrte Argumentreihenfolge
+**Seit `009-002-0004` (2026-09-09).**
+
+Seit Symfony 4.3 heisst es `dispatch($event, $eventName)` statt `dispatch($eventName, $event)`.
+Im Framework waren 21 Stellen betroffen.
+
+*Was zu tun ist:* Die Argumente jedes eigenen `dispatch()`-Aufrufs drehen. **Der Fehler ist
+still, wenn beide Argumente durchgehen** — deshalb hier und nicht nur im Upgrade-Log von
+Symfony.
+
+### `Application::add()` heisst `addCommand()`
+**Seit `009-003-0002` (2026-09-09).**
+
+`Symfony\Component\Console\Application::add()` ist deprecated.
+
+*Was zu tun ist:* `addCommand()` rufen. Für Projekt-Commands ändert sich nichts — die laufen
+über `$app['consoleManager']->addCommand(…)`, und der Name stimmte dort schon.
+
+### Ein `before()`-Hook verhindert keine spätere Command-Registrierung mehr
+**Seit `009-004-0004` (2026-09-09).**
+
+Zwischen `009-002` und `009-004` war das anders, und zwar kaputt: `before()` las den Dispatcher
+sofort aus und fror den Container-Eintrag ein; jede danach in `custom/app.php` registrierte
+Console-Anmeldung starb mit `RuntimeException: Der Dienst "dispatcher" ist bereits ausgelesen`.
+Silex hatte die Registrierung bis zum Boot verschoben, der Nachbau zunächst nicht.
+
+*Was zu tun ist:* Nichts. Der Eintrag steht hier, weil ein Projekt, das eine Zwischenfassung
+erwischt hat, den Fehler sonst bei sich sucht.
+
+### `symfony/validator` und `symfony/translation` sind aus dem Baum
+**Seit `009-002-0001` (2026-09-09).**
+
+Beide waren angefordert und wurden nicht benutzt — gezählt: 0 Fundstellen im Namensraum, 0
+gelesene Container-Schlüssel, 0 `@Assert`, 0 `trans()`. Der `ValidatorServiceProvider` wurde
+registriert und nie abgeholt.
+
+*Was zu tun ist:* Ein Projekt, das `$app['validator']` oder `trans()` benutzt, fordert das
+Paket in seinem eigenen Manifest an.
+
+## Doctrine (Story `009-005`)
+
+### DBAL 2 → 3
+**Seit `009-005-0001` (2026-09-09).**
+
+`doctrine/dbal` steht auf **3.10.6**. Der Sprung war keine Wahl: `symfony/http-foundation` 7.4
+kollidiert mit DBAL < 3.6, der Kernel-Schnitt hing daran. `doctrine/orm` bleibt bei **2.20.13**.
+
+Was ein Projekt trifft, das die Verbindung direkt benutzt: `fetchAll()` ist entfernt,
+`Statement::execute()` umgebaut. **Nicht** entfernt, entgegen einer verbreiteten Annahme:
+`Connection::exec()`, `QueryBuilder::execute()` und `executeQuery()->rowCount()` gibt es
+weiterhin, nur deprecated.
+
+*Was zu tun ist:* Eigene DBAL-Aufrufe gegen die Upgrade-Notizen von DBAL 3 lesen. Die
+Deprecations fallen im Gate auf, bevor sie in DBAL 4 zu Fehlern werden.
+
+### Neue Ids sind UUID v4 statt v1
+**Seit `009-005-0002` (2026-09-09).**
+
+`Entity\Base` trug `@ORM\GeneratedValue(strategy="UUID")`. Doctrines Generator fragte die
+Datenbank über `AbstractPlatform::getGuidExpression()` — die es in DBAL 3 nicht mehr gibt; **173
+von 249 Tests** fielen daran. Die Id-Erzeugung läuft jetzt in PHP: eigener
+`Areanet\PIM\Classes\ORM\Id\UuidGenerator`, `APPCMS_ID_STRATEGY` auf `CUSTOM`,
+`@ORM\CustomIdGenerator` an `Base` und `Log`.
+
+**Version 4, nicht 1.** Es gab nie eine einheitliche Herkunft — `Api.php` erzeugt für
+i18n-Objekte seit jeher selbst `uuid4()`. Und eine v1-UUID trägt die MAC-Adresse des Servers und
+den Erzeugungszeitpunkt, die damit in jeder API-Antwort stehen.
+
+**Für vorhandene Daten ändert das nichts.** Beide Formen sind 36 Zeichen und stehen in derselben
+Spalte.
+
+*Was zu tun ist:* Eine eigene Entity mit `@ORM\GeneratedValue(strategy="UUID")`, die **nicht**
+von `Base` erbt, bricht — sie braucht denselben `@ORM\CustomIdGenerator`. Wer sich auf die
+Sortierbarkeit von v1-Ids verlassen hat, kann das nicht mehr.
+
+### Die Konsole nimmt Provider statt eines `HelperSet`
+**Seit `009-005-0003` (2026-09-09).**
+
+Bis DBAL 2 kamen die Verbindungen über ein `HelperSet` mit `ConnectionHelper`. Die Klasse gibt es
+nicht mehr; `bin/console.php` starb daran in Zeile 14 und mit ihr die **ganze** Konsole,
+`appcms:install` eingeschlossen. Jetzt `ConnectionProvider` und `EntityManagerProvider`.
+
+Von achtzehn Doctrine-Commands laufen fünfzehn unverändert, zwei brauchen einen Provider, und
+**`ImportCommand` ist entfallen** — entfernt, nicht auskommentiert.
+
+*Was zu tun ist:* Ein eigener Command, der sich die Verbindung aus dem `HelperSet` holt, holt sie
+jetzt aus dem Provider.
+
+### Abfrage- und Metadaten-Cache teilen sich nicht mehr einen Namensraum
+**Seit `009-003-0002` (2026-09-09).**
+
+`new ApcCache('query')` — die Klasse hat gar keinen Konstruktor, das Argument wurde verworfen.
+Vier Cache-Instanzen liefen deshalb in **einem** Namensraum; die Trennung war seit Jahren
+beabsichtigt und griff nicht. Jetzt über `setNamespace()`.
+
+*Was zu tun ist:* Nichts, ausser den Cache beim Deployment einmal leeren. Vorhandene Einträge
+liegen unter den alten Schlüsseln.
+
+### `Entity\Serializable::getId()` ist abstrakt
+**Seit `009-003-0002` (2026-09-09).**
+
+Die Klasse benutzte die Methode, ohne sie zu deklarieren. Jetzt steht die Bedingung im Code, und
+eine Ableitung ohne `getId()` fällt **beim Laden** auf statt beim ersten Aufruf.
+
+*Was zu tun ist:* Eine eigene Klasse, die von `Areanet\PIM\Entity\Serializable` erbt, ohne
+über `Entity\Base` zu gehen, braucht ein eigenes `getId()`.
+
+### `Classes\ApnsPHP\Log\NoLogger` ist gelöscht
+**Seit `009-003-0002` (2026-09-09).**
+
+Die Klasse implementierte eine Schnittstelle, die es im Baum nicht gibt — sie hätte bei der
+ersten Instanziierung einen Fatal geworfen und war nirgends referenziert.
+
+*Was zu tun ist:* Nichts, ausser ein Projekt hat sie selbst benutzt; dann war sie dort schon
+kaputt.
+
+
 ## Annotationen
 
 Die `@PIM`-Annotationen sind mit Epic `012` stark reduziert worden. Die vollständige Liste
