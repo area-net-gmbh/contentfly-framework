@@ -1,7 +1,7 @@
 ---
 id: 009-002-0002
 title: Container und Anwendung ohne Pimple
-status: review
+status: done
 depends_on: [009-002-0001]
 ---
 

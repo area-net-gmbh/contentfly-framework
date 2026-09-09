@@ -1,7 +1,7 @@
 ---
 id: 009-002-0001
 title: Das Manifest auf Symfony 7.4 umstellen
-status: review
+status: done
 depends_on: []
 ---
 

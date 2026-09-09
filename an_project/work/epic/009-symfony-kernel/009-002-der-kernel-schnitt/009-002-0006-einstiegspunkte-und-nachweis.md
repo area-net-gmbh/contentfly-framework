@@ -1,7 +1,7 @@
 ---
 id: 009-002-0006
 title: Die Einstiegspunkte und der Nachweis
-status: review
+status: done
 depends_on: [009-002-0003, 009-002-0004, 009-002-0005]
 ---
 

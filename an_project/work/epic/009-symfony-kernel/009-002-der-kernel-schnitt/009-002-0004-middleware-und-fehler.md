@@ -1,7 +1,7 @@
 ---
 id: 009-002-0004
 title: Middleware und Fehlerbehandlung als Listener
-status: review
+status: done
 depends_on: [009-002-0002]
 ---
 
