@@ -1,7 +1,7 @@
 ---
 id: 009-004-0001
 title: Die Vorlage custom/ auf den neuen Kernel nachziehen
-status: review
+status: done
 depends_on: [009-004-0004]
 ---
 

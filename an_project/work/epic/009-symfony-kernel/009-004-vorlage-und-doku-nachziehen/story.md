@@ -1,7 +1,7 @@
 ---
 id: 009-004-0000
 title: Vorlage und Dokumentation auf den neuen Kernel nachziehen
-status: in-progress
+status: done
 depends_on: [009-002-0000]
 ---
 
@@ -32,7 +32,7 @@ Betroffen:
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 009-004-0004 — before/after/error dürfen den Dispatcher nicht einfrieren
-- [ ] 009-004-0001 — Die Vorlage custom/ auf den neuen Kernel nachziehen
-- [ ] 009-004-0002 — Die Dokumente auf den neuen Kernel nachziehen
-- [ ] 009-004-0003 — Die Bruchstellen des Kernel-Wechsels festhalten
+- [x] 009-004-0004 — before/after/error dürfen den Dispatcher nicht einfrieren
+- [x] 009-004-0001 — Die Vorlage custom/ auf den neuen Kernel nachziehen
+- [x] 009-004-0002 — Die Dokumente auf den neuen Kernel nachziehen
+- [x] 009-004-0003 — Die Bruchstellen des Kernel-Wechsels festhalten

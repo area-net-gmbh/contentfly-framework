@@ -1,7 +1,7 @@
 ---
 id: 009-004-0004
 title: before/after/error dürfen den Dispatcher nicht einfrieren
-status: review
+status: done
 depends_on: []
 ---
 

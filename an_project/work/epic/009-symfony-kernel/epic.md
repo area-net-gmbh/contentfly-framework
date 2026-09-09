@@ -145,4 +145,4 @@ Ebenfalls nicht in diesem Epic:
 - [x] 009-005-0000 — DBAL 2 auf 3 heben — die Vorbedingung des Kernel-Schnitts
 - [x] 009-002-0000 — Der Kernel-Schnitt — Symfony 7.4 statt Silex
 - [x] 009-003-0000 — Das Deprecation-Gate unter Symfony 7.4 scharfstellen
-- [ ] 009-004-0000 — Vorlage und Dokumentation auf den neuen Kernel nachziehen
+- [x] 009-004-0000 — Vorlage und Dokumentation auf den neuen Kernel nachziehen

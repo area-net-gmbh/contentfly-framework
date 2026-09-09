@@ -1,7 +1,7 @@
 ---
 id: 009-004-0003
 title: Die Bruchstellen des Kernel-Wechsels festhalten
-status: review
+status: done
 depends_on: []
 ---
 

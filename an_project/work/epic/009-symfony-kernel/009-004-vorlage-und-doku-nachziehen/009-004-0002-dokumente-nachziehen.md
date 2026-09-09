@@ -1,7 +1,7 @@
 ---
 id: 009-004-0002
 title: Die Dokumente auf den neuen Kernel nachziehen
-status: review
+status: done
 depends_on: []
 ---
 
