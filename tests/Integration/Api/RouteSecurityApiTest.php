@@ -27,11 +27,28 @@ class RouteSecurityApiTest extends IntegrationTestCase
         $this->assertArrayNotHasKey('data', $body, 'Entscheidend ist: es fliessen keine Daten');
     }
 
+    /**
+     * **GET, nicht POST** — geklaert mit `000-000-0020`.
+     *
+     * Diese Zusicherung rief `/api/schema` bis dahin per POST auf. Die Route ist aber seit
+     * dem initialen Import als `$controllers->get('/schema', ...)` definiert; POST war **nie**
+     * Teil des Vertrags. Auch jeder andere Aufrufer im Repo — 19 Stellen in 11 Testdateien —
+     * benutzt GET.
+     *
+     * Dass es trotzdem lange durchging, lag an der Schwaeche der alten Zusicherung: Sie
+     * pruefte `assertNotSame(500, ...)`, und ein „Method Not Allowed" ist 405. Erst seit dem
+     * Stack-Wechsel kommt derselbe Fall als 500 heraus (`MethodNotAllowedHttpException`, vom
+     * Statuscode her ueberschrieben — das ist `000-000-0006`), und damit fiel er auf.
+     *
+     * Die Zusicherung steht jetzt auf dem tatsaechlichen Ergebnis statt auf der Verneinung
+     * eines einzelnen Fehlercodes. Der Zweck dieser Klasse verlangt das: Epic `009` verlaesst
+     * sich auf die `isSecure`-Semantik, und „irgendetwas ausser 500" belegt sie nicht.
+     */
     public function testEineGesicherteRouteAntwortetMitToken(): void
     {
-        [$status] = $this->postJson('/api/schema', array(), $this->token());
+        [$status] = $this->get('/api/schema', $this->token());
 
-        $this->assertNotSame(500, $status, 'Mit Token laeuft die Pruefung durch');
+        $this->assertSame(200, $status, 'Mit Token laeuft die Pruefung durch');
     }
 
     public function testEineLeereListeKommtAls404(): void
