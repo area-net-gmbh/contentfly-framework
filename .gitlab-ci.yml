@@ -95,14 +95,18 @@ check:phpstan:
   # 006-005-0003 zeigt nur, was ein Testlauf AUSGEFUEHRT hat; PHPStan findet deprecated
   # APIs auch in Zweigen, die die Suite nicht betritt.
   #
-  # NICHT BLOCKIEREND, und zwar begruendet: Der erste Lauf meldet 47 Treffer, praktisch
-  # alle Aufrufe in deprecated Doctrine- und Symfony-APIs. Ein Gate, das ab dem ersten Lauf
-  # rot ist und erst von Epic 009/010 gruen gemacht werden kann, wird abgeschaltet statt
-  # abgearbeitet. Die Bedingung zum Scharfschalten steht in phpstan.neon.dist.
+  # BLOCKIEREND SEIT 009-003-0003. Hier stand allow_failure: true, mit der Begruendung, dass
+  # ein Gate, das ab dem ersten Lauf rot ist und erst von Epic 009/010 gruen gemacht werden
+  # kann, abgeschaltet statt abgearbeitet wird. Die Bedingung zum Scharfschalten stand in
+  # phpstan.neon.dist: "Sobald vendor/-fremde Treffer auf null stehen."
+  #
+  # Sie ist erfuellt. Von 115 Meldungen sind 31 uebrig, alle aus Doctrine, und sie stehen in
+  # phpstan.neon.dist als benannte Ausnahmen mit Epic 010 als aufloesendem Ticket. PHPStan
+  # meldet einen Eintrag, der nichts mehr trifft, seinerseits als Fehler — die Liste
+  # ueberwacht sich also selbst, wie die beiden anderen Gates aus 006-005.
   #
   # Der Job braucht kein prepare-test-environment.sh und keine Datenbank — statische
   # Analyse fuehrt nichts aus.
-  allow_failure: true
   before_script:
     - sh tools/ci/install-php-extensions.sh
     - php -r "copy('https://getcomposer.org/installer','/tmp/composer-setup.php');"
@@ -165,7 +169,9 @@ test:php8.3:
 test:php8.4:
   extends: .testlauf
   image: php:8.4-cli
-  # Frühwarnung, kein Gate: Der Silex-Stand ist auf 8.4 nicht erprobt. Was hier rot wird,
-  # ist die Liste dessen, was Epic 006 und 009 auf dem Weg zu PHP 8.5 zu erledigen haben —
-  # aber es darf die Pipeline heute nicht anhalten.
+  # Frühwarnung, kein Gate. Die Begründung hiess bis 009-003-0003 "der Silex-Stand ist auf
+  # 8.4 nicht erprobt" — Silex ist weg, der Satz stimmte nicht mehr. Was bleibt: Der
+  # Symfony-7.4-Stand ist auf 8.4 in dieser Pipeline noch nicht gemessen worden, und was
+  # hier rot wird, ist die Liste dessen, was auf dem Weg zu PHP 8.5 zu erledigen ist. Ob der
+  # Job blockierend werden kann, entscheidet ein Lauf auf 8.4 — nicht diese Zeile.
   allow_failure: true

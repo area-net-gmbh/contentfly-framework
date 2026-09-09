@@ -5,30 +5,32 @@
 # eine deprecated API in einem Zweig, den die Suite nicht betritt, bleibt darin unsichtbar
 # bis zum Upgrade. Diese Konfiguration findet sie ohne Ausführung.
 #
-# LEVEL 0, UND DAS IST ABSICHT.
+# LEVEL 0, UND DAS IST ABSICHT — GEPRÜFT MIT 009-003-0003.
 # Die Deprecation-Regeln aus phpstan/phpstan-deprecation-rules greifen unabhängig vom
-# Level; sie brauchen keinen hohen. Ein höherer Level zöge Typfehler herein, die mit dem
-# Zweck dieses Gates nichts zu tun haben — auf einem Silex-2-Baum mit Doctrine-Annotationen
-# sind das viele —, und eine Liste, in der die Deprecations untergehen, wird nicht gelesen.
+# Level; sie brauchen keinen hohen. Der ursprüngliche Grund für Level 0 war, dass ein
+# höherer Level auf einem Silex-2-Baum viele Typfehler hereinzöge, in denen die
+# Deprecations untergehen.
 #
-# Wer PHPStan später als echte statische Analyse will, hebt den Level in einem eigenen
-# Ticket und mit eigener Begründung. Das ist eine andere Aufgabe als diese hier.
+# Silex ist weg, und die Rechnung sieht jetzt anders aus: Auf Level 0 stehen NULL eigene
+# Typfehler. Die sieben, die es gab, waren keine Formalie — darunter eine Konstante, die
+# es nicht gibt und die eine unique-Verletzung in einen Fatal verwandelte (009-003-0002).
+# Der Level bleibt trotzdem bei 0: Ihn anzuheben ist eine eigene Entscheidung mit eigenem
+# Aufwand, und dieses Gate hat einen anderen Zweck. Wer PHPStan als echte statische Analyse
+# will, hebt den Level in einem eigenen Ticket.
 #
-# KEINE BASELINE, UND DAS IST DER PUNKT.
-# Eine Baseline friert den Ist-Stand ein und macht den Job sofort grün. Sie würde genau die
-# Liste verstecken, deren Sichtbarkeit der Zweck dieses Tasks ist: Epic 009 misst seinen
-# Aufwand daran.
+# KEINE BASELINE, UND DAS IST DER PUNKT — UNVERÄNDERT.
+# Eine Baseline friert den Ist-Stand ein und macht den Job sofort grün. Was hier steht,
+# ist stattdessen eine benannte Liste: je Meldung ein Eintrag mit Grund und auflösendem
+# Epic. Derselbe Aufbau wie tools/ci/deprecations-ausnahmen.txt und wie config.audit.ignore
+# in composer.json (006-005). Und dieselbe Eigenschaft, die dort Regel 3 heisst: PHPStan
+# meldet einen Eintrag, der nichts mehr trifft, als Fehler — eine Erlaubnis ins Leere macht
+# den Lauf rot, statt stillschweigend stehen zu bleiben.
 #
-# Eine Baseline wird richtig, sobald die Liste auf null steht und nur noch NEUE Treffer
-# interessieren — dann ist sie leer und überflüssig. Oder wenn jemand entscheidet, den
-# Level anzuheben: Dann friert eine Baseline die dabei entstehenden Typfehler ein, ohne die
-# Deprecations mit einzufrieren. Vorher nicht.
-#
-# WANN DER JOB BLOCKIEREND WIRD.
-# Sobald `vendor/`-fremde Treffer auf null stehen. Solange die Liste von Silex und den
-# Symfony-4.4-Komponenten dominiert wird, hinge das Gate an Epic 009 — und ein Gate, das
-# eine andere Story erst grün machen muss, wird abgeschaltet. Der Job trägt bis dahin
-# allow_failure: true in .gitlab-ci.yml.
+# DER JOB IST SEIT 009-003-0003 BLOCKIEREND.
+# Die Bedingung, die hier stand, lautete: "Sobald `vendor/`-fremde Treffer auf null stehen."
+# Sie ist erfüllt. Von 115 Meldungen sind 31 übrig, und alle 31 kommen aus Doctrine —
+# Annotationen, cache und die Console-Commands des ORM. Sie stehen unten benannt und
+# fallen mit Epic 010. allow_failure ist aus der .gitlab-ci.yml entfernt.
 
 parameters:
     level: 0
@@ -52,6 +54,34 @@ parameters:
     # Dieselbe Liste wie in tests/bootstrap.php.
     bootstrapFiles:
         - tests/bootstrap.php
+
+    # ── Die benannte Ausnahmeliste (009-003-0003) ────────────────────────────────────
+    #
+    # Jeder Eintrag nennt, was ihn aufloest. Ohne benanntes Epic ist es keine Ausnahme,
+    # sondern ein abgeschaltetes Gate — dieselbe Regel wie bei den Deprecation- und
+    # Audit-Ausnahmen aus 006-005.
+    #
+    # ALLE 31 KOMMEN AUS DOCTRINE und fallen mit Epic 010 (ORM 2 -> 3, Annotationen ->
+    # Attribute, Ersatz fuer das abandoned doctrine/annotations und doctrine/cache).
+    # Sie stehen hier als MELDUNG, nicht als Datei-und-Zeile: Eine Zeilennummer haette die
+    # Liste bei jeder Codeaenderung brechen lassen.
+    ignoreErrors:
+        # doctrine/annotations — abandoned, Ersatz sind PHP-Attribute (Epic 010).
+        - '#Call to deprecated method (registerFile|registerLoader)\(\) of class Doctrine\\Common\\Annotations\\AnnotationRegistry#'
+        - '#Call to deprecated method newDefaultAnnotationDriver\(\) of class Doctrine\\ORM\\Configuration#'
+
+        # doctrine/cache — abandoned, faellt in 2.0 ersatzlos weg (Epic 010).
+        - '#Instantiation of deprecated class Doctrine\\Common\\Cache\\(Apc|Apcu|Filesystem|Memcached)Cache#'
+
+        # doctrine/orm 2.x — Klassen und Methoden, die in ORM 3 entfallen (Epic 010).
+        - '#Instantiation of deprecated class Doctrine\\ORM\\Tools\\Console\\Command\\#'
+        - '#Instantiation of deprecated class Doctrine\\DBAL\\Tools\\Console\\Command\\ReservedWordsCommand#'
+        - '#Call to deprecated method createHelperSet\(\) of class Doctrine\\ORM\\Tools\\Console\\ConsoleRunner#'
+        - '#Call to deprecated method create\(\) of class Doctrine\\ORM\\EntityManager#'
+
+        # doctrine/orm Lexer — die Token-Konstanten sind nach TokenType gewandert (Epic 010).
+        # Betrifft die eigenen DQL-Funktionen unter Classes/ORM/Query und Classes/ORM/Spatial.
+        - '#Fetching deprecated class constant T_[A-Z_]+ of class Doctrine\\ORM\\Query\\Lexer#'
 
 includes:
     - vendor/phpstan/phpstan-deprecation-rules/rules.neon
