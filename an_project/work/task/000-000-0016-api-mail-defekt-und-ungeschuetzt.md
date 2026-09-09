@@ -1,7 +1,7 @@
 ---
 id: 000-000-0016
 title: /api/mail reparieren — aber nicht ohne Schutz
-status: todo
+status: review
 depends_on: [008-004-0004]
 ---
 
@@ -85,15 +85,14 @@ Endpunkt wieder sendet, ist sie das Einzige, was einen Testlauf davon abhält, e
 verschicken. Einrichtung in `tests/README.md`.
 
 ## Acceptance criteria
-- [ ] Entschieden und begründet: Der Endpunkt bleibt oder fällt.
-- [ ] **Fällt er:** Route, Methode und die zugehörigen Tests sind entfernt; `APP_MAILFROM`
+- [x] Entschieden und begründet: Der Endpunkt bleibt oder fällt.
+- [x] **Fällt er:** Route, Methode und die zugehörigen Tests sind entfernt; `APP_MAILFROM`
       ist als Konfigurationsfeld mit gestrichen, falls es keinen anderen Leser hat.
-- [ ] **Bleibt er:** `APP_MAILFROM` wird über `Adapter::getConfig()` gelesen; der Empfänger
-      ist nicht mehr frei wählbar; es gibt eine Begrenzung der Aufrufe und einen
-      Protokolleintrag; die doppelte Kodierung der Antwort ist aufgelöst.
-- [ ] Die Versandfalle aus `008-004-0004` ist unverändert wirksam — nachweislich, nicht
+- [~] **Bleibt er:** entfällt — der Endpunkt fällt. Damit erübrigen sich Empfängerprüfung,
+      Rate-Begrenzung, Protokolleintrag und die doppelte Kodierung der Antwort.
+- [x] Die Versandfalle aus `008-004-0004` ist unverändert wirksam — nachweislich, nicht
       angenommen.
-- [ ] Die Tests aus `008-004-0004`, die das defekte Verhalten festhalten, sind umgedreht oder
+- [x] Die Tests aus `008-004-0004`, die das defekte Verhalten festhalten, sind umgedreht oder
       mit dem Endpunkt entfernt.
 
 ## Verification
@@ -101,3 +100,67 @@ verschicken. Einrichtung in `tests/README.md`.
 `CONTENTFLY_TEST_MAIL_TRAP`; der Postausgang der Falle ist nach dem Lauf leer. Bleibt der
 Endpunkt, kommt ein Nachweis dazu, dass ein Versand an eine **nicht** erlaubte Adresse
 abgewiesen wird.
+
+## Ergebnis
+**Der Endpunkt fällt.** Entschieden von dir, und der Task hatte diesen Ausgang ausdrücklich als
+vollwertige Antwort vorgesehen — als die einfachere. Sie ist es auch aus einem zweiten Grund:
+Die Reparatur hätte in derselben Zeile ein **offenes Mail-Relais hinter einem Token**
+freigeschaltet.
+
+### Was entfernt wurde
+| | |
+|---|---|
+| Route | `$controllers->post('/mail', …)` in `ApiControllerProvider` |
+| Methode | `ApiController::mailAction()` |
+| Konfiguration | `APP_MAILFROM` — nachgeprüft: `mailAction()` war der **einzige** Leser |
+| Tests | neun aus `MailApiTest`, die das defekte Verhalten festhielten |
+
+Kein verwaister apidoc-Block, keine sonstige Fundstelle: `grep` über `lib/`, `custom/` und
+`bin/` nach `mailAction` und `APP_MAILFROM` liefert nichts mehr.
+
+### Was **nicht** entfernt wurde — und warum das der wichtigere Teil ist
+**`$app['mailer']` bleibt.** Der PHPMailer-Dienst aus `bootstrap.php:156` samt allen
+`MAILER_*`-Konfigurationsfeldern ist von diesem Task nicht berührt. Er ist der Weg, auf dem ein
+Projekt Mail verschickt — im Projektcode, wo die Empfängerprüfung hingehört, statt hinter einem
+generischen Endpunkt.
+
+**Die Versandfalle bleibt, und ihr Selbsttest mit ihr.** Das war die Stelle, an der dieser Task
+hätte schiefgehen können: Die Sicherung war für `/api/mail` gebaut, also läge es nahe, sie mit
+ihm zu entfernen. Genau davor warnt der Task-Text — *„Wer den Fehler behebt, soll nicht
+gleichzeitig den Schutz entfernen."* Das gilt beim Entfernen genauso.
+
+`MailApiTest` ist deshalb nicht gelöscht, sondern **aufgelöst**: Der eine Test, der die Falle
+selbst prüft, ist nach `tests/Integration/VersandfalleTest.php` gewandert, samt seiner drei
+Hilfsmittel und der Herkunftsnotiz. Die neun Tests über den Endpunkt sind mit ihm gegangen.
+
+Der Grund steht dort: `$app['mailer']` existiert weiter, `custom/app.php` ist die Vorlage, in
+die ein Projekt den Versand einbaut, und **eine Sicherung, die man mit ihrem ersten Anlass
+abbaut, fehlt beim zweiten**.
+
+### Vier Dokumente nachgezogen
+| Datei | was |
+|---|---|
+| `tests/router.php` | Der Diagnosepfad begründet sich jetzt aus `VersandfalleTest`, nicht aus `/api/mail` |
+| `tests/README.md` | Abschnitt heisst *Die Versandfalle* statt *…für `/api/mail`*; der Hinweis, die Falle sei „streng genommen unnötig", ist durch die Begründung ersetzt, warum sie bleibt |
+| `tests/Integration/UmgebungsWaechterTest.php` | Die Begründungstexte für `CONTENTFLY_TEST_MAIL_TRAP` |
+| `tools/ci/prepare-test-environment.sh` | Der Kommentar über der Falle |
+
+Nach dem Umbau findet `grep` über `tests/`, `tools/` und `an_project/docs/` **keinen**
+`MailApiTest`-Verweis mehr ausser dem in der Herkunftsnotiz.
+
+### Breaking Change
+`an_project/docs/breaking-changes.md` hat einen eigenen Abschnitt bekommen. Er sagt, dass
+praktisch niemand betroffen ist — der Endpunkt verschickte seit dem PHP-8-Sprung nichts —, was
+stattdessen zu benutzen ist (`$app['mailer']`), und **warum entfernt statt repariert**: Der
+Fehler wäre eine Zeile gewesen, das Relais dahinter nicht.
+
+### Verification
+| Prüfung | Ergebnis |
+|---|---|
+| volle Suite mit `CI=true` | **OK (236 tests, 580 assertions)**, 0 übersprungen |
+| davon `VersandfalleTest` | läuft, nicht übersprungen |
+| Postausgang der Versandfalle | 0 Byte |
+| Deprecation-Gate | grün, 1 Paar, 1 ausgenommen |
+
+Die Suite geht von 249 auf 236 Tests. Die 13 sind die neun entfernten Testmethoden plus die
+Datensätze des `@dataProvider` von `testJederFalsyWertGiltAlsFehlendeAdresse()`.

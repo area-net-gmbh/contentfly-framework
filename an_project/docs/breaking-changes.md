@@ -57,6 +57,32 @@ gelesen.
 
 ## API
 
+### `POST /api/mail` entfällt ersatzlos
+**Seit `000-000-0016` (2026-09-09).**
+
+Der Endpunkt ist entfernt, samt Route, Methode und dem Konfigurationsfeld `APP_MAILFROM`. Ein
+Aufruf endet ab jetzt mit „Method Not Allowed" statt mit einem Serverfehler.
+
+**Betroffen ist praktisch niemand.** Der Endpunkt hat seit dem Sprung auf PHP 8 **nichts mehr
+verschickt**: `mailAction()` las die Absenderadresse als nackte Konstante `APP_MAILFROM`, die
+nirgends per `define()` gesetzt war. Unter PHP 8 ist das ein `Error`, und er trat auf, bevor
+`mail()` überhaupt drankam. Wer den Endpunkt aufrief, bekam einen 500 — und das seit Jahren,
+ohne dass es jemandem auffiel.
+
+*Warum entfernen statt reparieren:* Der Fehler wäre in einer Zeile behoben gewesen, und
+dieselbe Zeile hätte ein **offenes Mail-Relais hinter einem Token** freigeschaltet. `mailto`,
+`subject` und der Rumpf kamen unverändert vom Aufrufer, ohne Empfängerprüfung, ohne
+Rate-Begrenzung, ohne Protokolleintrag. Jeder angemeldete Benutzer hätte an jede Adresse mit
+beliebigem Inhalt senden können, mit der Absenderdomäne der Installation.
+
+*Was zu tun ist:* Wer Mail verschicken will, benutzt `$app['mailer']` — den PHPMailer-Dienst,
+den `bootstrap.php` registriert und der von dieser Änderung **nicht** betroffen ist. Er bleibt
+samt aller `MAILER_*`-Konfigurationsfelder. Der Unterschied: Der Versand liegt dann im
+Projektcode, wo die Empfängerprüfung hingehört, statt hinter einem generischen Endpunkt.
+
+Ein `APP_MAILFROM` in der eigenen `custom/config.php` kann entfernt werden; es wird nicht mehr
+gelesen.
+
 ### Der `frontend`-Block schrumpft, in `/api/config` entfällt er ganz
 **Seit `000-000-0010` (2026-09-09).**
 
