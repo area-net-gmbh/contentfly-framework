@@ -28,9 +28,15 @@
 #
 #   148 protokollierte Zeilen, 21 eindeutige Meldungen, 4 Paare aus Datei und Meldung.
 #   Davon 12 Zeilen aus Silex, 9 aus eigenem Code.
+#
+# ── Stand nach 000-000-0023 ───────────────────────────────────────────────────────────
+#
+#   Die drei Eintraege aus eigenem Code sind behoben und deshalb hier gestrichen — das
+#   Gate hat sie selbst als abgelaufen gemeldet und die Streichung eingefordert, genau
+#   wie Regel 3 es vorsieht. Uebrig bleibt EINE Ausnahme, die aus Silex.
+#
+#   Damit steht die Liste auf genau einer Ursache: einem Fremdpaket, das mit Epic 009
+#   faellt. Waechst sie wieder, ist das eine Aussage und keine Gewohnheit.
 
 vendor/silex/silex/src/Silex/ExceptionListenerWrapper.php|Method ReflectionParameter::getClass() is deprecated|Fremdpaket. Silex 2.2.2 ist seit 2018 EOL, es gibt keine Fassung ohne diesen Aufruf. Faellt mit Epic 009 (Silex durch Symfony 7.4 ersetzen).
 
-lib/contentfly/Classes/Controller/Provider/BaseControllerProvider.php|strtolower(): Passing null|Eigener Defekt: null wird an strtolower() uebergeben. Erfasst in 000-000-0023.
-lib/contentfly/Entity/Base.php|explode(): Passing null|Eigener Defekt: null wird an explode() uebergeben. Erfasst in 000-000-0023.
-lib/contentfly/Controller/SystemController.php|method_exists(): Passing null|Eigener Defekt: null wird an method_exists() uebergeben. Erfasst in 000-000-0023.
