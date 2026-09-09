@@ -1,7 +1,7 @@
 ---
 id: 009-005-0000
 title: DBAL 2 auf 3 heben — die Vorbedingung des Kernel-Schnitts
-status: todo
+status: in-progress
 depends_on: []
 ---
 
