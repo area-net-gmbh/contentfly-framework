@@ -242,7 +242,7 @@ Stellen anfasst, weiss, dass kein Test ihn auffängt.**
 | Lücke | Warum | Festgestellt in |
 |---|---|---|
 | `excludeFromSync`, `i18n_universal`, `encoded`, OneJoin-Kaskade, **Schreibprüfung** des `MultijoinType` | Codepfade, die sich mit der Vorlage nicht auslösen lassen; geprüft ist nur die Vorbedingung — sie greifen, wenn jemand das Feature einschaltet | `008-001`, `008-002` |
-| `canExport`, `getExtended` | veröffentlicht, aber nirgends durchgesetzt; ihr einziger Konsument war die gelöschte Oberfläche | `008-003-0005` |
+| ~~`canExport`, `getExtended`~~ | **erledigt mit `000-000-0012`** — beide sind aus dem Schema entfernt, statt weiter etwas zu veröffentlichen, das die API nicht durchsetzt; die Datenbankspalten bleiben | `008-003-0005` |
 | Das Notschloss im `before`-Hook des `SystemController` | nicht scharf geprüft — es verlangt ein absichtlich beschädigtes Schema der gemeinsamen Testdatenbank | `008-004-0003` |
 | Der `before`-Hook der Vorlage | setzt einen Wert, den niemand liest; von aussen nicht nachweisbar | `008-004-0005` |
 | Sprachen und i18n | die Vorlage konfiguriert keine Sprachen und bringt keine konkrete `BaseI18n`-Entity mit; abgedeckt ist nur die Logik im Unit-Test | `008-001-0005` |

@@ -9,15 +9,15 @@ use Tests\Integration\IntegrationTestCase;
  * die `013-001` entfernt, und zwei Berechtigungsfelder, die veröffentlicht, aber nirgends
  * durchgesetzt werden.
  *
- * **`canExport` und `getExtended` sind der fünfte und sechste Fall** eines Musters, das sich
+ * **`canExport` und `getExtended` waren der fünfte und sechste Fall** eines Musters, das sich
  * durch Epic `008` zieht: Felder, deren einzige Nutzer die gelöschte Oberfläche waren. Sie
- * stehen im `permissions`-Block des Schemas (`Api.php:1369-1370` und `1451-1452`) und werden
- * an keiner Stelle geprüft — `canExport`s Konsument war der `ExportController`, gelöscht in
- * `012-001-0003`.
+ * standen im `permissions`-Block des Schemas und wurden an keiner Stelle geprüft.
  *
- * Anders als beim gestrichenen `readonly` haben beide eine **Datenbankspalte**
- * (`pim_permission.export`, `pim_permission.extended`), und ein Client könnte sie aus dem
- * Schema lesen und selbst anwenden. Deshalb sind sie nicht einfach tot — nur wirkungslos.
+ * **Mit `000-000-0012` sind sie aus dem Schema entfernt**, und die Zusicherungen hier sind
+ * bewusst umgedreht: Sie halten jetzt fest, dass die beiden Schlüssel *nicht* mehr kommen und
+ * dass die Datenbankspalten unangetastet geblieben sind. Die Begründung steht im
+ * Klassenkommentar von `Areanet\PIM\Classes\Permission`; kurz: Ein Recht, das der Server
+ * veröffentlicht und nicht durchsetzt, sieht wie eine Zusicherung aus, ist aber keine.
  */
 class UnenforcedPermissionApiTest extends IntegrationTestCase
 {
@@ -72,24 +72,30 @@ class UnenforcedPermissionApiTest extends IntegrationTestCase
             'Gilt nur, weil APP_MASTER_PASSWORD nicht gesetzt ist — siehe den Test darueber');
     }
 
-    // ── canExport und getExtended: veröffentlicht ──────────────────────────────────────
+    // ── canExport und getExtended: nicht mehr veröffentlicht ───────────────────────────
 
-    public function testDerPermissionsBlockDesSchemasFuehrtExportUndExtended(): void
+    public function testDerPermissionsBlockFuehrtNurNochDieDreiDurchgesetztenRechte(): void
     {
+        // Umgedreht mit 000-000-0012. Der Test hiess
+        // testDerPermissionsBlockDesSchemasFuehrtExportUndExtended und hielt fuenf Schluessel
+        // fest, von denen zwei keinen Durchsetzungspunkt hatten.
         [$status, $roh] = $this->get('/api/schema', $this->token());
         $this->assertSame(200, $status);
 
         $rechte = json_decode($roh, true)['permissions'];
 
         $this->assertSame(
-            array('readable', 'writable', 'deletable', 'export', 'extended'),
+            array('readable', 'writable', 'deletable'),
             array_keys($rechte['PIM\\Tag']),
-            'Fuenf Felder je Entity — zwei davon ohne Durchsetzungspunkt'
+            'Drei Felder je Entity — und jedes davon wird geprueft'
         );
     }
 
-    public function testDieBeidenFelderKommenAuchFuerEinenNichtAdminAn(): void
+    public function testAuchFuerEinenNichtAdminKommenDieBeidenFelderNichtMehr(): void
     {
+        // Der Benutzer bekommt beide Spalten ausdruecklich gesetzt. Trotzdem taucht nichts
+        // davon im Schema auf: Der Wert steht in der Datenbank, die API behauptet nichts
+        // mehr darueber.
         [$token] = $this->testbenutzer(array('PIM\\Tag' => array(
             'readable' => Permission::ALL,
             'export'   => 0,
@@ -99,45 +105,41 @@ class UnenforcedPermissionApiTest extends IntegrationTestCase
         [, $roh] = $this->get('/api/schema', $token);
         $rechte  = json_decode($roh, true)['permissions']['PIM\\Tag'];
 
-        $this->assertFalse($rechte['export'], 'Der gesetzte Wert kommt beim Client an');
-        $this->assertSame(array('felder' => array('title')), (array) $rechte['extended'],
-            'extended wird als JSON dekodiert durchgereicht');
+        $this->assertArrayNotHasKey('export', $rechte);
+        $this->assertArrayNotHasKey('extended', $rechte);
+        $this->assertSame(Permission::ALL, $rechte['readable'], 'Die drei anderen sind unveraendert da');
     }
 
-    public function testCanExportKollabiertDieVierStufenAufEinBoolean(): void
+    public function testDieSpaltenBleibenErhaltenUndLesbar(): void
     {
-        // Waehrend readable, writable und deletable ihren Stufenwert als Integer melden
-        // (0 bis 3), hat canExport eine EIGENE Implementierung — nicht Permission::is():
-        //
-        //     if($user->getIsAdmin()) return true;
-        //     …
-        //     return ($permission->getExport() == 2);
-        //
-        // Die Spalte ist ein Integer mit derselben Vierstufen-Semantik, aber nur ALL (2)
-        // gilt als erlaubt. Und weil die Konstanten nicht aufsteigend geordnet sind, ergibt
-        // ausgerechnet GROUP (3) ein false — wer "mehr als ALL" meint, sperrt sich aus.
-        [$tokenAll]   = $this->testbenutzer(array('PIM\\Tag' => array('readable' => Permission::ALL, 'export' => Permission::ALL)));
-        [$tokenGroup] = $this->testbenutzer(array('PIM\\Tag' => array('readable' => Permission::ALL, 'export' => Permission::GROUP)));
+        // Der Gegenbeweis zum Entfernen: Es sind nur die Schluessel im Schema gefallen, nicht
+        // die Daten. Ein Bestandsprojekt hat in pim_permission.export und .extended
+        // moeglicherweise Werte stehen; die wegzuwerfen waere die nicht umkehrbare Richtung.
+        [, , $gruppeId] = $this->testbenutzer(array('PIM\\Tag' => array(
+            'readable' => Permission::ALL,
+            'export'   => Permission::ALL,
+            'extended' => '{"felder":["title"]}',
+        )));
 
-        [, $rohAll]   = $this->get('/api/schema', $tokenAll);
-        [, $rohGroup] = $this->get('/api/schema', $tokenGroup);
+        $zeile = $this->pdo()
+            ->query('SELECT export, extended FROM pim_permission WHERE group_id = '.$this->pdo()->quote($gruppeId))
+            ->fetch(\PDO::FETCH_ASSOC);
 
-        $this->assertTrue(json_decode($rohAll, true)['permissions']['PIM\\Tag']['export'],
-            'ALL (2) ist der einzige Wert, der true ergibt');
-        $this->assertFalse(json_decode($rohGroup, true)['permissions']['PIM\\Tag']['export'],
-            'GROUP (3) ergibt false — obwohl die Zahl groesser ist als ALL');
-
-        // Zum Vergleich: readable meldet seinen Stufenwert unveraendert als Integer.
-        $this->assertSame(Permission::ALL, json_decode($rohAll, true)['permissions']['PIM\\Tag']['readable']);
+        $this->assertSame(Permission::ALL, (int) $zeile['export']);
+        $this->assertSame('{"felder":["title"]}', $zeile['extended']);
     }
 
-    // ── canExport und getExtended: nicht durchgesetzt ──────────────────────────────────
+    // ── Die Spalten bewirken nach wie vor nichts ───────────────────────────────────────
 
     public function testOhneExportRechtLaesstSichTrotzdemAllesTunWasDieApiAnbietet(): void
     {
         // Der Nachweis der Wirkungslosigkeit: export = 0, und der Benutzer kann dennoch
         // lesen, schreiben und loeschen. Es gibt keinen Endpunkt, der das Recht prueft —
         // der ExportController, der es getan haette, ist mit 012-001-0003 gefallen.
+        //
+        // Der Test bleibt nach 000-000-0012 unveraendert stehen, und das ist Absicht: Er hielt
+        // vorher einen Widerspruch fest (die API veroeffentlicht ein Recht und ignoriert es)
+        // und haelt jetzt eine Aussage fest (die Spalte ist Daten des Projekts, sonst nichts).
         [$token] = $this->testbenutzer(array('PIM\\Tag' => array(
             'readable'  => Permission::ALL,
             'writable'  => Permission::ALL,

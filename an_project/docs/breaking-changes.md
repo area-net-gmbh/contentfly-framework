@@ -342,6 +342,48 @@ zufällig richtig geraten, solange die `.htaccess` griff.
 *Was zu tun ist:* In `custom/config.php` `WEB_ROOT` auf `'/unterverzeichnis/'` setzen, mit
 Schrägstrich am Ende. Wer im Wurzelverzeichnis liegt, muss nichts tun.
 
+### `export` und `extended` verschwinden aus dem `permissions`-Block
+**Seit `000-000-0012` (2026-09-09).**
+
+Beide standen im Schema und wurden **an keiner Stelle geprüft**. Ein Benutzer mit `export = 0`
+las, schrieb und löschte unverändert; ein `extended`-Eintrag schränkte keine Antwort ein.
+`canExport`s Konsument war der `ExportController`, gelöscht in `012-001-0003`; `getExtended`
+hatte nie einen Durchsetzungspunkt im Framework.
+
+Die drei Möglichkeiten waren entfernen, durchsetzen oder als Client-Metadaten behalten.
+**Entfernt.** Durchsetzen hätte für `canExport` einen Endpunkt gebraucht, den es nicht mehr
+gibt, und für `getExtended` eine neue Funktion — kein Aufräumen. Behalten wäre das
+gefährlichste gewesen: Ein Recht, das der Server veröffentlicht und nicht durchsetzt, sieht wie
+eine Zusicherung aus. Wer `export: false` liest und den Knopf ausblendet, hält sich für
+abgesichert; wer die API direkt ruft, ist davon unberührt.
+
+**Die Spalten `pim_permission.export` und `pim_permission.extended` bleiben.** In einem
+Bestandsprojekt stehen dort möglicherweise Werte, und Daten wegzuwerfen ist die nicht umkehrbare
+Richtung. Lesbar sind sie weiterhin über `Areanet\PIM\Entity\Permission` — nur ohne Behauptung
+des Frameworks darüber, was sie bewirken. Sie bewirken nichts.
+
+`Areanet\PIM\Classes\Permission::canExport()` und `::getExtended()` sind mit entfallen. Ein
+Projekt, das sie aufruft, bekommt einen Fehler — laut, nicht still.
+
+**Der Schema-Hash ändert sich dadurch.** Ein Client, der ihn zwischenspeichert, lädt das Schema
+einmal neu; genau dafür gibt es ihn.
+
+*Was zu tun ist:* Die Auswertung der beiden Schlüssel entfernen. Wer sie braucht, liest die
+Spalten im eigenen Projekt und setzt sie an einem eigenen Endpunkt durch — dort, wo es einen
+gibt.
+
+### Der Stufen-Kollaps von `canExport` wurde nicht repariert
+**Seit `000-000-0012` (2026-09-09).**
+
+Zur Einordnung, falls jemand den Export zurückholt: `canExport` lautete
+`return ($permission->getExport() == 2)` — nur `ALL` galt als erlaubt. Weil die Konstanten
+nicht aufsteigend geordnet sind (`NONE` 0, `OWN` 1, `ALL` 2, `GROUP` 3), ergab ausgerechnet
+`GROUP` ein `false`: Wer „mehr als ALL" meinte, sperrte sich aus.
+
+Repariert wurde das **nicht**, sondern mit dem Feld entfernt. Jede Reparatur hätte entschieden,
+welche Benutzer künftig dürfen — für ein Recht, das niemand prüft. Wer einen Export baut,
+entscheidet das für einen Endpunkt, den es dann gibt.
+
 ## Annotationen
 
 Die `@PIM`-Annotationen sind mit Epic `012` stark reduziert worden. Die vollständige Liste
