@@ -22,7 +22,7 @@
         "php": "^8.3",
         "doctrine/annotations": "^1.14",
         "doctrine/cache": "^1.13",
-        "doctrine/dbal": "^2.13",
+        "doctrine/dbal": "^3.10",
         "doctrine/orm": "^2.14",
         "knplabs/console-service-provider": "^2.0",
         "phpmailer/phpmailer": "^6.10",
