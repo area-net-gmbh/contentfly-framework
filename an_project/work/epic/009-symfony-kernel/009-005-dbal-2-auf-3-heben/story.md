@@ -1,7 +1,7 @@
 ---
 id: 009-005-0000
 title: DBAL 2 auf 3 heben — die Vorbedingung des Kernel-Schnitts
-status: in-progress
+status: review
 depends_on: []
 ---
 
@@ -57,6 +57,85 @@ DBAL 3 nicht mehr, und die Helper-Konstruktion hat sich geändert.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 009-005-0001 — DBAL 3.10 installieren und den Bruch sichtbar machen
-- [ ] 009-005-0002 — Die entfallenen DBAL-Aufrufe nachziehen
-- [ ] 009-005-0003 — Die Doctrine-Console-Commands und der Nachweis
+- [x] 009-005-0001 — DBAL 3.10 installieren und den Bruch sichtbar machen
+- [x] 009-005-0002 — Die entfallenen DBAL-Aufrufe nachziehen
+- [x] 009-005-0003 — Die Doctrine-Console-Commands und der Nachweis
+
+## Ergebnis
+
+**`doctrine/dbal` steht auf 3.10.6, Silex läuft weiter, und die Suite ist grün:
+`OK (249 tests, 616 assertions)`, 0 übersprungen — ohne eine einzige geänderte Zusicherung.**
+`009-002` ist damit entblockiert; die Gegenprobe steht in `009-005-0003`.
+
+Die Auflösung ist so eng geblieben, wie sie sollte: **zwei** Pakete bewegt (`doctrine/dbal`,
+`doctrine/event-manager`), Gesamtzahl unverändert 78, `doctrine/orm` auf 2.20.13,
+keine `symfony/*`-Komponente gerührt.
+
+### Der Umfang war anders als geschätzt — in beide Richtungen
+
+Die Story wurde mit einer Tabelle von neun Aufrufstellen geschnitten. Die Messung in
+`009-005-0001` hat sie in beiden Richtungen widerlegt, und das war der Zweck des Tasks.
+
+**Grösser, an einer Stelle, die alles überwog.** `Entity\Base` trägt
+`@ORM\GeneratedValue(strategy="UUID")`, und Doctrines `UuidGenerator` fragt die Datenbank über
+`AbstractPlatform::getGuidExpression()` — in DBAL 3 entfallen. Betroffen ist damit jede Entity,
+die von `Base` erbt: **173 von 249 Tests**, nicht neun Aufrufstellen. Dazu zwei weitere
+Bruchstellen, die die Messung selbst nicht gefunden hat, weil sie über die **Plattform** gehen
+statt über die Connection: `ContentflyQuoteStrategy::getColumnAlias()` rief
+`getSQLResultCasing()`, woran jede DQL-Abfrage starb, und `AbstractPlatform::getName()` ist
+deprecated.
+
+**Kleiner, an drei Stellen.** `Connection::exec()`, `QueryBuilder::execute()` und
+`executeQuery()->rowCount()` gibt es in DBAL 3 weiterhin — nur deprecated. Sie sind trotzdem
+nachgezogen, aber sie hielten nichts auf. Und von achtzehn Console-Commands fällt genau **einer**
+weg.
+
+### Die Entscheidungen
+
+**UUID Version 4, obwohl die vorhandenen Ids v1 sind.** Weil `Api.php` für `BaseI18n`-Objekte
+seit jeher selbst `uuid4()` erzeugt — es gab nie eine einheitliche Herkunft —, und weil eine
+v1-UUID die MAC-Adresse des Servers und den Erzeugungszeitpunkt trägt, die in jeder API-Antwort
+stehen. Für vorhandene Daten ändert sich nichts. **v7 erwogen und verworfen:** besser für den
+Index, aber eine Performance-Entscheidung ohne Messung, und eine dritte Id-Form in einem Baum,
+der gerade auf eine gebracht wird.
+
+**`ContentflyQuoteStrategy` erbt jetzt von Doctrines `DefaultQuoteStrategy`** und **erbt**
+`getColumnAlias()`, statt sie abzuschreiben. Geerbt bringt der nächste Doctrine-Sprung sie mit;
+abgeschrieben wäre sie beim übernächsten wieder falsch. Alle übrigen Methoden bleiben
+überschrieben — Doctrine quotiert nur, was als `quoted` markiert ist, dieses Framework
+quotiert grundsätzlich.
+
+**Provider statt `HelperSet`** in der Konsole, auf beiden Seiten. Das ORM-`HelperSet` gäbe es
+noch, ist aber deprecated; zwei Wege nebeneinander wären einer zu viel.
+
+### Vier Befunde, die stehen bleiben
+
+Alle vier sind **älter als diese Story** und keiner hindert den Kernel-Wechsel. Sie gehören als
+eigene Tasks aufgeschrieben.
+
+1. **Die drei `rowCount()`-Stellen** fragen `SELECT 1 FROM …` ab und zählen dann die Zeilen —
+   sie holen den ganzen Treffersatz in den Speicher, um ihn zu zählen. Richtig wäre
+   `SELECT COUNT(*)` mit `fetchOne()`. DBAL sagt ausdrücklich, dass `rowCount()` für ein
+   `SELECT` nicht garantiert ist; mit DBAL 4 könnte daraus eine Bruchstelle werden.
+2. **Der Index `modified_index` fehlt in jeder installierten Datenbank.** `LoadMetadata`
+   schreibt ihn ins Mapping, aber `bootstrap.php` registriert den Listener nur, wenn
+   `is_installed` wahr ist — während `appcms:install` läuft, ist er das nicht. Gegengeprüft an
+   einer DBAL-2-Datenbank: dort fehlt er ebenso.
+3. **`BaseI18nTree` hat eine ungültige Zuordnung** — die Join-Spalten von `treeParent` decken
+   nicht alle Identifier-Spalten (`id, lang`) ab.
+4. **Ein Akzeptanzkriterium war falsch geschnitten.** `009-005-0002` verlangte eine grüne Suite,
+   die es nicht liefern konnte, weil `bin/console.php` zu `009-005-0003` gehört. Richtiggestellt
+   statt falsch abgehakt.
+
+### Nachweis
+
+| | |
+|---|---|
+| Volle Suite | `OK (249 tests, 616 assertions)`, 0 übersprungen |
+| Zwischenstand nach dem Sprung | 173 Failures |
+| `appcms:install` | auf einer frisch angelegten Datenbank durchgelaufen |
+| Erzeugte Id | `4b09ed3e-8403-4ca0-…` — Version 4 |
+| Konsole | 20 Commands, `dbal:run-sql` und `orm:validate-schema` laufen |
+| Deprecation-Gate | grün, 1 Paar, 1 ausgenommen — DBAL 3 bringt keine mit |
+| Postausgang | 0 Byte |
+| Entblockierung | `composer update --dry-run` mit Symfony 7.4 löst auf und entfernt silex und pimple |
