@@ -2,7 +2,7 @@
 id: 009-002-0000
 title: Der Kernel-Schnitt — Symfony 7.4 statt Silex
 status: todo
-depends_on: [009-001-0000]
+depends_on: [009-001-0000, 009-005-0000]
 ---
 
 # Der Kernel-Schnitt — Symfony 7.4 statt Silex
@@ -11,6 +11,12 @@ depends_on: [009-001-0000]
 Der Tausch selbst. Nach dieser Story bootet das Framework über einen Symfony-7.4-Kernel,
 `silex/silex`, `pimple/pimple` und `knplabs/console-service-provider` sind aus `composer.lock`
 verschwunden, und die Suite aus Epic `008` ist grün — **ohne inhaltliche Änderung**.
+
+**Blockiert gewesen und wieder frei, sobald `009-005` steht.** Der erste Versuch von
+`009-002-0001` scheiterte sofort an einem harten Konflikt: `symfony/http-foundation` verträgt
+sich seit v7.1.7 nicht mit `doctrine/dbal <3.6`. Der Kernel-Wechsel erzwingt also DBAL 3 — was
+die Abgrenzung des Epics ausgeschlossen hatte. Der Schritt ist zu `009-005` geworden und läuft
+vorher, weil er sich als einziger Teil des Umbaus mit der vollen grünen Suite prüfen lässt.
 
 **Diese Story ist bewusst eine und nicht fünf.** Silex 2.3 fordert die Symfony-Komponenten auf
 `^4.0`; ein Zwischenstand, in dem Routing schon auf 7.4 und Middleware noch auf Silex läuft,

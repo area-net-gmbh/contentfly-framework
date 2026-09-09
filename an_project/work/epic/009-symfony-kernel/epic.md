@@ -115,8 +115,17 @@ Ebenfalls nicht in diesem Epic:
   Grund: Die Charakterisierungstests sollen genau eine Variable messen. Werden Kernel und
   Struktur gleichzeitig getauscht, ist jede Abweichung mehrdeutig — Umbau oder Umzug? Die
   Aufteilung in Bundles kommt als eigenes Vorhaben nach dem Schnitt. Entschieden am 2026-09-09.
-- **Kein Doctrine-Umbau.** ORM 2 → 3, der Wegfall der Annotationen und der Ersatz des abandoned
-  `doctrine/annotations` sind Epic `010`. `009` lässt Doctrine, wie es ist.
+- **Kein Doctrine-Umbau — mit einer erzwungenen Ausnahme.** ORM 2 → 3, der Wegfall der
+  Annotationen und der Ersatz des abandoned `doctrine/annotations` sind Epic `010`.
+
+  > **Richtiggestellt am 2026-09-09.** Hier stand „`009` lässt Doctrine, wie es ist". Das ist
+  > nicht möglich: `symfony/http-foundation` erklärt seit v7.1.7 einen **harten Konflikt** mit
+  > `doctrine/dbal <3.6`, aufgefallen beim ersten Auflösungsversuch in `009-002-0001`. Der
+  > Kernel-Wechsel erzwingt damit DBAL 2.13 → 3.10. **`doctrine/orm` bleibt auf 2.20** — es
+  > erlaubt `doctrine/dbal ^3.2` bereits —, die Annotationen und der Entity-Layer bleiben
+  > unberührt, und Epic `010` behält seinen Umfang bis auf den DBAL-Teil. Der Schritt liegt in
+  > Story `009-005`, die **vor** dem Schnitt läuft und eigenständig gemergt wird: Silex nagelt
+  > nur `symfony/*` fest, also läuft die volle Suite dabei — als einziger Teil des Umbaus.
 - **Keine Änderung am Antwort-Envelope.** Die Vereinheitlichung auf `data`/`errors`/`meta` ist
   mit `000-000-0014` entschieden und liegt bewusst in Epic `011` — genau deshalb, weil die
   Abnahmegrundlage dieses Epics sonst gleichzeitig mit dem Kernel wandern würde. Siehe
@@ -133,6 +142,7 @@ Ebenfalls nicht in diesem Epic:
 ## Stories
 <!-- Die Stories dieses Epics. Wird von /new-story synchron gehalten. -->
 - [x] 009-001-0000 — Den eigenen Code von den Silex-Typen lösen
+- [ ] 009-005-0000 — DBAL 2 auf 3 heben — die Vorbedingung des Kernel-Schnitts
 - [ ] 009-002-0000 — Der Kernel-Schnitt — Symfony 7.4 statt Silex
 - [ ] 009-003-0000 — Das Deprecation-Gate unter Symfony 7.4 scharfstellen
 - [ ] 009-004-0000 — Vorlage und Dokumentation auf den neuen Kernel nachziehen
