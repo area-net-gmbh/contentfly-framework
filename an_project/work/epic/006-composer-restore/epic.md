@@ -1,7 +1,7 @@
 ---
 id: 006-000-0000
 title: Composer-Wiederherstellung und Dependency-Konsolidierung
-status: in-progress
+status: done
 depends_on: [008-000-0000]
 ---
 
