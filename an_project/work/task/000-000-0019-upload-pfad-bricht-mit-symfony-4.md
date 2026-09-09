@@ -1,7 +1,7 @@
 ---
 id: 000-000-0019
 title: Der Upload-Pfad bricht mit Symfony 4
-status: review
+status: done
 depends_on: [006-002-0003]
 ---
 
