@@ -1,7 +1,7 @@
 ---
 id: 010-001-0000
 title: Annotationen auf PHP-Attribute — noch unter ORM 2.20
-status: in-progress
+status: review
 depends_on: []
 ---
 
@@ -34,8 +34,8 @@ Entity aussieht — bleibt sie auf Annotationen, lehrt sie das Falsche.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 010-001-0001 — Die acht @PIM-Klassen zu Attributklassen erweitern
-- [ ] 010-001-0002 — Den Zugriff auf die eigenen Metadaten an einer Stelle bündeln
-- [ ] 010-001-0003 — Die 21 Framework-Entities auf Attribute umstellen
-- [ ] 010-001-0004 — Die Vorlage umstellen und den Plugin-Pfad entscheiden
-- [ ] 010-001-0005 — doctrine/annotations aus dem Baum nehmen
+- [x] 010-001-0001 — Die acht @PIM-Klassen zu Attributklassen erweitern
+- [x] 010-001-0002 — Den Zugriff auf die eigenen Metadaten an einer Stelle bündeln
+- [x] 010-001-0003 — Die 21 Framework-Entities auf Attribute umstellen
+- [x] 010-001-0004 — Die Vorlage umstellen und den Plugin-Pfad entscheiden
+- [x] 010-001-0005 — doctrine/annotations aus dem Baum nehmen
