@@ -69,8 +69,15 @@ class ConstraintApiTest extends IntegrationTestCase
         [$ersterStatus] = $this->tagAnlegen($titel);
         $this->assertSame(200, $ersterStatus, 'Der erste geht durch');
 
+        // Umgedreht mit 009-003-0002, und die alte Zusicherung hatte die falsche Ursache
+        // benannt: Sie schrieb den 500 dem Befund aus 000-000-0006 zu, also der Fehlerkette.
+        // Tatsaechlich stand in dieser Zeile eine Konstante, die es nicht gibt —
+        // Messages::contentfly_general_record_already_exists statt …_ressource_… —, und der
+        // Aufruf starb an "Undefined constant", nicht an der Antwortverarbeitung. PHPStan hat
+        // es gefunden.
         [$zweiterStatus] = $this->tagAnlegen($titel);
-        $this->assertSame(500, $zweiterStatus, 'Heute 500 statt 409 — siehe 000-000-0006');
+        $this->assertSame(409, $zweiterStatus,
+            'Eine unique-Verletzung ist ein Konflikt, kein Serverfehler');
     }
 
     public function testEineUniqueVerletzungLaesstKeineHalbeZeileZurueck(): void
