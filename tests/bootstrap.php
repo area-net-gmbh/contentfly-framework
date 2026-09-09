@@ -14,6 +14,16 @@
 
 const ROOT_DIR = __DIR__ . '/..';
 
+/*
+ * Dieselbe Reihenfolge wie in `lib/contentfly/bootstrap.php`, und aus demselben Grund: Root
+ * zuerst, `custom/` ergänzend. Bei einem gemeinsamen PSR-4-Präfix gewinnt der Root — eine
+ * Zusicherung seit `006-004-0001`, begründet in `an_project/docs/architecture.md` unter
+ * *Key decisions*. Die Bedingung dahinter — keine Überschneidung — prüft
+ * `tests/Unit/AutoloaderUeberschneidungTest.php`.
+ *
+ * Die Spiegelung ist Absicht: Ein Testlauf, der anders lädt als die Anwendung, prüft eine
+ * andere Anwendung.
+ */
 require_once ROOT_DIR . '/vendor/autoload.php';
 
 if (file_exists(ROOT_DIR . '/custom/vendor/autoload.php')) {
