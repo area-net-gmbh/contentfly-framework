@@ -21,6 +21,33 @@
 
 <!-- Entscheidung · erwogene Alternativen · warum diese. -->
 
+### 2026-09-09 — Der Antwort-Envelope wird vereinheitlicht, aber erst mit dem Release
+
+**Entscheidung.** Die sieben verschiedenen Antwortformen der API werden auf eine gebracht:
+`data`, `errors`, `meta`. Der Umbau gehört in Epic `011`, nicht in `009`. Form und Zeitpunkt
+stehen in `an_project/docs/api-envelope.md`, samt der Tabelle *vorher → nachher* je Endpunkt.
+
+**Erwogene Alternativen.** *Jetzt vereinheitlichen* — verworfen, weil die
+Charakterisierungstests aus Epic `008` die Abnahmegrundlage für den Kernel-Wechsel sind. *Mit
+dem Kernel-Wechsel in `009`* — verworfen aus demselben Grund, verschärft: Wären beide Seiten
+des Vergleichs neu, liesse sich eine Abweichung nicht mehr dem Umbau oder der Absicht
+zuordnen. *Gar nicht vereinheitlichen* — verworfen, weil ein Client sonst für jeden Endpunkt
+eine eigene Auswertung braucht.
+
+**Warum diese.** Erst der Kernel unter unverändertem Vertrag, dann der Vertrag als eine
+bewusste Bruchstelle mit Migrationsleitfaden. `011` vergibt ohnehin eine neue Hauptversion —
+ein Bruch braucht eine Nummer, an der man ihn festmachen kann.
+
+**Der `ApiResponseService` der Vorlage ist das Vorbild, aber nicht wörtlich.** Übernommen:
+gleiche Form für Erfolg und Fehler, `data` immer vorhanden, `meta` für alles, was keine
+Nutzlast ist, `errors` als Liste. Nicht übernommen: `success` und `status`, weil sie den
+HTTP-Statuscode im Rumpf wiederholen und damit zwei Quellen für dieselbe Aussage schaffen; und
+`i18n`, weil ein Übersetzungsschlüssel eine Anforderung des Projekts ist, nicht des Frameworks.
+
+**Revidieren, wenn** ein Bestandsprojekt vor `011` auf den neuen Kernel muss und dabei den
+neuen Vertrag braucht. Dann ist die Reihenfolge zu tauschen und der Vergleich für `009` anders
+abzusichern — nicht stillschweigend.
+
 ### 2026-09-09 — Zwei Composer-Bäume, Root vor `custom/` (nicht ein Autoloader)
 
 **Entscheidung.** Framework und Projekt behalten **je ein eigenes Manifest**.

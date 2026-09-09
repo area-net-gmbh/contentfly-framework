@@ -8,15 +8,16 @@ use \DateTimeImmutable;
 class ApiResponseService
 {
     /**
-     * Generates a standardized successful API response for Usabiq.
+     * Die Erfolgsantwort der Vorlage.
      *
-     * This method should be used for all successful API responses to ensure
-     * a consistent response structure across the platform.
+     * Die Form ist bewusst konsistent: Ein Client wertet jede Antwort gleich aus. Sie ist
+     * das Vorbild fuer den kuenftigen Envelope des Frameworks — nicht woertlich, siehe
+     * an_project/docs/api-envelope.md.
      *
      * @param mixed $data The main data object (e.g., Entity, Array, Collection, etc.)
      * @param string $message Fallback message for systems that do not use i18n
-     * @param string $messageKey ngx-translate key for frontend localization (optional)
-     * @param array $messageParameters Placeholder parameters for ngx-translate (optional)
+     * @param string $messageKey Schluessel fuer die Uebersetzung im Client (optional)
+     * @param array $messageParameters Platzhalter-Werte zu diesem Schluessel (optional)
      * @param array $translations Alternative translations for external systems or logs (optional)
      * @param mixed $meta Additional metadata (optional, e.g., pagination, filters)
      * @param int $status HTTP status code (default: 200 OK)
@@ -44,23 +45,22 @@ class ApiResponseService
             'data' => $data,
             'errors' => null,
             'meta' => $meta,
-            // Task 119: one formatter for every timestamp the API emits, envelope included.
+            // Ein Formatierer fuer jeden Zeitstempel, den die API ausgibt, Envelope eingeschlossen.
             'timestamp' => ApiDateTimeFormatter::format(new DateTimeImmutable())
         ], $status);
     }
 
     /**
-     * Generates a standardized error API response for Usabiq.
+     * Die Fehlerantwort der Vorlage, in derselben Form wie der Erfolgsfall.
      *
-     * This method should be used for all API errors to provide a unified response structure,
-     * making it easier for frontend clients to handle error cases and display localized messages.
+     * Ein Client muss nicht zwei Formate koennen, um zu erfahren, dass etwas schiefging.
      *
      * @param array $errors List of errors, e.g., [
      *     ['code' => 'invalid_input', 'field' => 'email', 'detail' => 'Invalid email address']
      * ]
      * @param string $message Fallback message for systems that do not use i18n
-     * @param string $messageKey ngx-translate key for frontend localization (optional)
-     * @param array $messageParameters Placeholder parameters for ngx-translate (optional)
+     * @param string $messageKey Schluessel fuer die Uebersetzung im Client (optional)
+     * @param array $messageParameters Platzhalter-Werte zu diesem Schluessel (optional)
      * @param array $translations Alternative translations for external systems or logs (optional)
      * @param int $status HTTP status code (default: 400 Bad Request)
      * @param mixed $data Optional additional data object (e.g., for returning context information)
@@ -90,7 +90,7 @@ class ApiResponseService
             'data' => $data,
             'errors' => $errors,
             'meta' => $meta,
-            // Task 119: one formatter for every timestamp the API emits, envelope included.
+            // Ein Formatierer fuer jeden Zeitstempel, den die API ausgibt, Envelope eingeschlossen.
             'timestamp' => ApiDateTimeFormatter::format(new DateTimeImmutable())
         ], $status);
     }

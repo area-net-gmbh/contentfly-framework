@@ -51,20 +51,31 @@ class RouteSecurityApiTest extends IntegrationTestCase
         $this->assertSame(200, $status, 'Mit Token laeuft die Pruefung durch');
     }
 
-    public function testEineLeereListeKommtAls404(): void
+    public function testEineLeereListeKommtAls200(): void
     {
-        // Ueberraschend und in 008-001-0002 nicht aufgefallen, weil dort immer Testdaten
-        // vorhanden waren: Liefert getList() nichts, antwortet listAction() mit
-        // HTTP 404 {"message":"Not found"} — nicht mit einer leeren Liste.
+        // Umgedreht mit 000-000-0014. Der Test hiess testEineLeereListeKommtAls404 und hielt
+        // fest, dass listAction() bei leerem Ergebnis mit HTTP 404 {"message":"Not found"}
+        // antwortet — einer achten Antwortform, die mit keiner der sieben anderen etwas zu
+        // tun hatte. Fuer einen Client waren "keine Treffer" und "Route gibt es nicht"
+        // damit nicht unterscheidbar.
         //
-        // Fuer einen Sync-Client heisst das: "keine Treffer" und "Route gibt es nicht" sind
-        // nicht unterscheidbar. Ist-Zustand, festgehalten.
         // PIM\\Nav ist nach einer frischen Installation leer — kein Loeschen noetig, das
         // wuerde den Datenbestand anderer Tests anfassen.
         [$status, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\Nav'), $this->token());
 
+        $this->assertSame(200, $status);
+        $this->assertSame(array(), $body['data'], 'Eine leere Liste, keine Fehlermeldung');
+        $this->assertSame(0, $body['totalItems']);
+    }
+
+    public function testEineUnbekannteEntityBleibtEin404MitBegruendung(): void
+    {
+        // Die Gegenprobe zum Test darueber: Der Fall, fuer den der 404 gedacht war, meldet
+        // sich weiterhin — und zwar unterscheidbar, mit einer Begruendung im Rumpf.
+        [$status, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\GibtesNicht'), $this->token());
+
         $this->assertSame(404, $status);
-        $this->assertSame(array('message' => 'Not found'), $body);
+        $this->assertSame('contentfly_general_unknown_entity', $body['message']);
     }
 
     // ── isSecure = false ───────────────────────────────────────────────────────────────

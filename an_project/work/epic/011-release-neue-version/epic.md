@@ -26,6 +26,11 @@ tatsächlich einsetzen und auf die es migrieren kann.
   -Command laufen auf der neuen Version und taugen wieder als Referenz.
 - **Doku nachgezogen:** `README.md`, `an_project/docs/runbook.md`, `technical.md`, `dev-guide.md`
   und der Migrationsleitfaden aus 007 beschreiben den neuen Stand, nicht den alten.
+- **Der Antwort-Envelope ist vereinheitlicht:** Die sieben Antwortformen der API sind auf
+  `data`/`errors`/`meta` gebracht, je Endpunkt wie in `an_project/docs/api-envelope.md`
+  beschrieben, und der Bruch steht vollständig im Migrationsleitfaden aus `007`. Entschieden
+  mit `000-000-0014`; bewusst hierher und nicht nach `009` gelegt, weil die
+  Charakterisierungstests aus `008` die Abnahmegrundlage des Kernel-Wechsels sind.
 - **Upgrade-Pfad festgehalten:** Symfony 8.4 LTS (erwartet Nov 2027) als geplanter nächster
   Schritt, abgesichert durch das CI-Gate „0 Deprecations" aus 009.
 
