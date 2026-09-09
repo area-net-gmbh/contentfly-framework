@@ -384,6 +384,73 @@ Repariert wurde das **nicht**, sondern mit dem Feld entfernt. Jede Reparatur hä
 welche Benutzer künftig dürfen — für ein Recht, das niemand prüft. Wer einen Export baut,
 entscheidet das für einen Endpunkt, den es dann gibt.
 
+### Sieben PIM-Entities setzen `excludeFromSync`
+**Seit `000-000-0013` (2026-09-09).**
+
+`Api::getAll()`, `getCount()` und `getDeleted()` trugen jede eine fest verdrahtete
+Ausschlussliste im Code — dieselben Namen, dreimal geschrieben, in keiner Annotation und in
+keiner Konfiguration. Ein Projekt konnte nicht erkennen, warum eine Entity nie synchronisiert
+wird.
+
+`PIM\Folder`, `PIM\Group`, `PIM\Log`, `PIM\Nav`, `PIM\NavItem`, `PIM\Permission` und
+`PIM\ThumbnailSetting` tragen jetzt `@PIM\Config(excludeFromSync=true)`, jede mit ihrer
+Begründung an der Klasse. Zwei Einträge der alten Liste waren tot: `PIM\Token` steht nicht im
+Schema, `PIM\PushToken` gibt es im Baum nicht.
+
+**Am ausgeschlossenen Bestand ändert sich nichts** — dieselben Entities wie vorher. Was sich
+ändert: `settings.excludeFromSync` steht für diese sieben jetzt auf `true` statt auf `false`,
+und der Schema-Hash ändert sich dadurch.
+
+*Was zu tun ist:* Nichts. Wer eine eigene Entity aus der Synchronisation nehmen will, setzt das
+Flag jetzt selbst, statt sich zu fragen, warum es nicht wirkt.
+
+### `/api/deleted` prüft `excludeFromSync`
+**Seit `000-000-0013` (2026-09-09).**
+
+`getDeleted()` hat das Feld **nie** geprüft, es hatte nur seine eigene Liste. Eine Entity, die
+aus dem Bestand ausgeschlossen ist, aber ihre Löschungen meldet, ergibt keinen Sinn: Ein
+Sync-Client bekäme Löschmeldungen zu Objekten, die er nie erhalten hat.
+
+**Betroffen ist ein Projekt, das `excludeFromSync` auf einer eigenen Entity gesetzt hat** und
+sich darauf verlässt, deren Löschungen trotzdem zu bekommen. Das dürfte niemand sein — bis
+`000-000-0007` wirkte das Feld ausschliesslich auf die Bestandsstatistik.
+
+### `/api/deleted` behandelt die Grenzsekunde inklusiv
+**Seit `000-000-0013` (2026-09-09).**
+
+`pim_log.created` ist ein `datetime` mit Sekundenauflösung. Zwei Löschungen in derselben
+Sekunde tragen denselben Zeitstempel. Der Filter lautete `created > ?`: Ein Sync-Client verlor
+damit **jede** Löschung aus der Sekunde, deren Zeitstempel er sich gemerkt hatte. Sie ist nicht
+grösser, also kam sie nie — und nichts wies je darauf hin.
+
+Jetzt `created >= ?`. Die Grenzsekunde wird erneut geliefert. Eine Löschung doppelt zu melden
+ist folgenlos, der Client löscht etwas, das schon weg ist; eine zu verlieren ist es nicht.
+`getAll()` filtert seit jeher mit `modified >= ?` — die beiden Hälften derselben
+Synchronisation lagen auf verschiedenen Seiten der Grenze.
+
+**Betroffen ist ein Client, der jede gemeldete Löschung als neu behandelt** und daraus etwas
+ableitet, das kein zweites Mal passieren darf.
+
+*Was zu tun ist:* Löschmeldungen idempotent verarbeiten. Die eigentliche Lösung wäre eine
+höhere Auflösung oder eine monoton steigende Sequenz; beides braucht eine Spalte und damit eine
+Migration und gehört zum Kernel-Wechsel.
+
+### `sortBy` und `sortOrder` sind Angaben für den Client
+**Klargestellt mit `000-000-0013` (2026-09-09) — keine Verhaltensänderung.**
+
+`an_project/docs/pim-annotationen-migration.md` führte beide unter „Sortierung der
+API-Antworten". Das trifft nicht zu: `Api::getList()` wertet sie nicht aus. Sortiert wird allein
+nach dem `order`-Parameter des Requests; fehlt er, bleibt es bei `ORDER BY id DESC`. Nur
+`sortRestrictTo` hat einen echten Leser.
+
+**Angewandt werden sie ausdrücklich nicht.** `id` ist eindeutig, `created` — die Vorgabe für
+jede Entity ohne eigene Angabe — ist es nicht. Sie anzuwenden hätte eine stabile
+Blätterreihenfolge gegen eine unstabile getauscht, still, für jeden Client, der kein `order`
+schickt.
+
+*Was zu tun ist:* Wer die deklarierte Reihenfolge will, liest sie aus dem Schema und schickt sie
+als `order` mit.
+
 ## Annotationen
 
 Die `@PIM`-Annotationen sind mit Epic `012` stark reduziert worden. Die vollständige Liste

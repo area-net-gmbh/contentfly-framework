@@ -165,9 +165,16 @@ class ReadApiTest extends IntegrationTestCase
 
     public function testListSortiertOhneOrderParameterNachIdAbsteigend(): void
     {
-        // Der Ist-Zustand, und er ueberrascht: Api::getList() wertet sortBy/sortOrder der
-        // Entity NICHT aus. Ohne `order` im Request bleibt es bei `ORDER BY id DESC`.
-        // PIM\Tag traegt sortBy="title", sortOrder="ASC" — wirkungslos fuer diese Antwort.
+        // Api::getList() wertet sortBy/sortOrder der Entity NICHT aus. Ohne `order` im
+        // Request bleibt es bei `ORDER BY id DESC`. PIM\Tag traegt sortBy="title",
+        // sortOrder="ASC" — wirkungslos fuer diese Antwort.
+        //
+        // 000-000-0013 hat entschieden, dass das SO BLEIBT, und die Begruendung steht dort:
+        // `id` ist eindeutig, `created` (die Vorgabe fuer jede Entity ohne eigene Angabe) ist
+        // es nicht — die Sortierung anzuwenden haette eine stabile Blaetterreihenfolge gegen
+        // eine unstabile getauscht, und zwar still, fuer jeden Client, der kein `order`
+        // schickt. Wer die deklarierte Reihenfolge will, liest sie aus dem Schema und
+        // schickt sie als `order` mit.
         [, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'), $this->token());
 
         $ids = array_values(array_intersect(
@@ -186,6 +193,10 @@ class ReadApiTest extends IntegrationTestCase
         // API-Antworten" behalten hat. Sie stehen im Schema und ein Client kann sie lesen,
         // aber kein Leser im Framework wendet sie an — anders als sortRestrictTo, das
         // JoinBidirectionalType tatsaechlich auswertet.
+        //
+        // Die Begruendung aus 012-005-0002 ist mit 000-000-0013 in
+        // an_project/docs/pim-annotationen-migration.md richtiggestellt: Es sind Angaben fuer
+        // den Client, nicht die Sortierung der API-Antworten.
         [, $schema] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'), $this->token());
         [$status, $roh] = $this->get('/api/schema', $this->token());
 

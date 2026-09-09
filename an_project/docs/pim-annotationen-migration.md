@@ -68,13 +68,14 @@ Zu den beiden Feldern, die die Story einzeln geprüft haben wollte:
 
 | Feld | Warum es bleibt |
 |---|---|
-| `excludeFromSync` | nimmt die Entity aus der Sync-API — `Classes/Api.php` |
+| `excludeFromSync` | nimmt die Entity aus der Sync-API — `Classes/Api.php`; seit `000-000-0013` der **einzige** Mechanismus dafür, sieben PIM-Entities setzen ihn |
 | `encoded` | steuert die Verschlüsselung — `StringType`, `TextareaType` |
 | `isFilterable` | gibt die Eigenschaft für API-Filter frei — `Classes/Type.php` |
 | `unique` | Datenmodell |
 | `type` | aktuell nur `tree`; steuert die Baumabfragen in `Classes/Api.php` |
 | `i18n_universal` | Datenmodell (sprachübergreifende Felder) |
-| `sortBy`, `sortOrder`, `sortRestrictTo` | Sortierung der API-Antworten |
+| `sortRestrictTo` | Sortierung der API-Antworten — `JoinBidirectionalType` wertet es aus |
+| `sortBy`, `sortOrder` | **Angaben für den Client, keine Sortierung der API-Antworten.** Die Zeile darüber stand bis `000-000-0013` auch für diese beiden und war falsch: `Api::getList()` wertet sie nicht aus, sortiert wird allein nach dem `order`-Parameter des Requests, und fehlt der, bleibt es bei `ORDER BY id DESC`. Sie bleiben, weil sie die vom Projekt gemeinte Reihenfolge seiner eigenen Daten benennen und ein Client daraus sein `order` bauen kann. Begründung gegen das Anwenden: siehe `000-000-0013` |
 | `labelProperty` | **Abweichung von der ursprünglichen Streichliste.** Der Wert landet als `modelLabel` im `Log` — er wird also *persistiert* — und bestimmt, welches Feld verjointer Objekte die API im `partial`-Select mitliefert. Ohne ihn verlieren Log-Einträge ihr Label und verjointe Objekte im Payload alles außer der `id`. Entschieden am 2026-09-07. |
 
 ## 5. Entfallene Plugin-Schnittstelle

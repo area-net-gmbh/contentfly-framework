@@ -101,12 +101,13 @@ class SyncApiTest extends IntegrationTestCase
         $this->assertSame('PIM\\Tag', $treffer[0]['model_name']);
     }
 
-    public function testDeletedSchliesstEineFesteListeVonEntitiesAus(): void
+    public function testDeletedSchliesstAusWasExcludeFromSyncSetzt(): void
     {
-        // Neben excludeFromSync fuehrt Api::getDeleted() eine **zweite, fest verdrahtete**
-        // Ausschlussliste: Folder, Token, Group, ThumbnailSetting, Permission, Nav, NavItem
-        // und Log werden nie gemeldet. Das steht in keiner Annotation und in keiner
-        // Konfiguration — nur im Code.
+        // Umgedreht mit 000-000-0013. Der Test hiess
+        // testDeletedSchliesstEineFesteListeVonEntitiesAus und hielt eine zweite, fest
+        // verdrahtete Ausschlussliste im Code fest. Die Wirkung ist dieselbe geblieben, die
+        // Ursache ist eine andere: PIM\\Folder traegt jetzt @PIM\\Config(excludeFromSync=true),
+        // und getDeleted() prueft das Feld — was es vorher nie tat.
         $logId  = 'synclog-'.bin2hex(random_bytes(6));
         $ordner = 'sync-f-'.bin2hex(random_bytes(6));
         $this->logZeile($logId, 'PIM\\Folder', $ordner);
@@ -115,7 +116,32 @@ class SyncApiTest extends IntegrationTestCase
 
         $ids = array_column($body['data'], 'model_id');
         $this->assertNotContains($ordner, $ids,
-            'PIM\\Folder steht auf der fest verdrahteten Ausschlussliste von getDeleted()');
+            'PIM\\Folder ist mit excludeFromSync aus der Synchronisation genommen');
+    }
+
+    public function testZweiLoeschungenInDerselbenSekundeKommenBeide(): void
+    {
+        // Der Nachweis zu 000-000-0013 C. pim_log.created hat Sekundenaufloesung; zwei
+        // Loeschungen im selben API-Aufruf tragen denselben Zeitstempel. Mit dem alten
+        // `created > ?` verlor ein Sync-Client jede Loeschung aus der Sekunde, deren
+        // Zeitstempel er sich gemerkt hatte. Jetzt `>=`: lieber doppelt melden als verlieren.
+        $eins = 'synca-'.bin2hex(random_bytes(6));
+        $zwei = 'syncb-'.bin2hex(random_bytes(6));
+
+        $this->logZeile('synclog-'.bin2hex(random_bytes(6)), 'PIM\\Tag', $eins);
+        $this->logZeile('synclog-'.bin2hex(random_bytes(6)), 'PIM\\Tag', $zwei);
+
+        // Der Zeitstempel, den sich ein Client nach diesem Durchgang merken wuerde: der der
+        // zuletzt gemeldeten Zeile. Beide Zeilen tragen ihn.
+        $grenze = (string) $this->pdo()
+            ->query('SELECT created FROM pim_log WHERE model_id = '.$this->pdo()->quote($zwei))
+            ->fetchColumn();
+
+        [, $body] = $this->postJson('/api/deleted', array('lastModified' => $grenze), $this->token());
+
+        $ids = array_column($body['data'], 'model_id');
+        $this->assertContains($zwei, $ids, 'Die Zeile an der Grenze selbst');
+        $this->assertContains($eins, $ids, 'Und die andere aus derselben Sekunde — sonst waere sie fuer immer verloren');
     }
 
     private function logZeile(string $logId, string $entityName, string $modelId): void
@@ -179,18 +205,16 @@ class SyncApiTest extends IntegrationTestCase
 
     // ── excludeFromSync ────────────────────────────────────────────────────────────────
 
-    public function testKeineEntitySetztExcludeFromSync(): void
+    public function testSiebenEntitiesSetzenExcludeFromSync(): void
     {
-        // Story 012-005-0002 hat excludeFromSync als datenrelevant behalten mit der
-        // Begruendung "steuert die Sync-API". Das war nur halb richtig: Bis 000-000-0007
-        // wurde das Feld ausschliesslich in getCount() geprueft — es wirkte auf die
-        // Bestandsstatistik, nie auf den Endpunkt, nach dem es benannt ist. Seit dem Fix
-        // prueft getAll() es ebenfalls.
+        // Umgedreht mit 000-000-0013, und der alte Test hat genau das eingefordert: Er hiess
+        // testKeineEntitySetztExcludeFromSync und schlug an, sobald jemand das Flag setzt.
         //
-        // Was bleibt: **keine einzige Entity setzt das Flag**, im Framework nicht und in der
-        // Vorlage nicht. Die Wirkung ist damit im laufenden Betrieb nicht beobachtbar — sie
-        // ist in 000-000-0007 durch eine Gegenprobe belegt worden. Setzt jemand das Flag,
-        // schlaegt dieser Test an und fordert den regulaeren Nachweis ein.
+        // Vorgeschichte: 012-005-0002 hat excludeFromSync mit der Begruendung "steuert die
+        // Sync-API" behalten. Das war nur halb richtig — bis 000-000-0007 wurde es
+        // ausschliesslich in getCount() geprueft, wirkte also auf die Bestandsstatistik und
+        // nie auf den Endpunkt, nach dem es benannt ist. getAll() prueft es seit dem Fix,
+        // getDeleted() seit 000-000-0013.
         [$status, $roh] = $this->get('/api/schema', $this->token());
         $this->assertSame(200, $status);
 
@@ -206,8 +230,23 @@ class SyncApiTest extends IntegrationTestCase
             }
         }
 
-        $this->assertSame(array(), $mitFlag,
-            'Heute setzt keine Entity excludeFromSync. Aendert sich das, gehoert der '
-            .'Nachweis der Ausnahme in diesen Test.');
+        sort($mitFlag);
+
+        $this->assertSame(
+            array('PIM\\Folder', 'PIM\\Group', 'PIM\\Log', 'PIM\\Nav', 'PIM\\NavItem', 'PIM\\Permission', 'PIM\\ThumbnailSetting'),
+            $mitFlag,
+            'Genau die Entities aus der frueher fest verdrahteten Liste — nicht mehr und nicht weniger'
+        );
+    }
+
+    public function testDieAusschlussliegtNichtMehrImCode(): void
+    {
+        // Der eigentliche Punkt von 000-000-0013 A: Ein Projekt soll sehen koennen, warum
+        // eine Entity nie synchronisiert wird. Solange die Liste im Code stand, konnte es das
+        // nicht. Dieser Test haelt fest, dass sie dort nicht zurueckkehrt.
+        $quelle = file_get_contents(ROOT_DIR.'/lib/contentfly/Classes/Api.php');
+
+        $this->assertStringNotContainsString('$entitiesToExclude', $quelle,
+            'Die fest verdrahteten Ausschlusslisten sind zu excludeFromSync geworden');
     }
 }
