@@ -1,7 +1,7 @@
 ---
 id: 000-000-0009
 title: /api/multiupdate bricht mitten im Stapel ab und meldet nicht, wie weit es kam
-status: review
+status: done
 depends_on: []
 ---
 
