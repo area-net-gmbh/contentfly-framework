@@ -80,14 +80,15 @@ php bin/console.php appcms:install -n \
 
 # ── 3. Versandfalle ────────────────────────────────────────────────────────────────
 #
-# /api/mail ist der einzige Endpunkt mit Aussenwirkung. Kein Testlauf darf eine Mail
-# verschicken — und das gehört nachgewiesen, nicht angenommen. Der Testserver bekommt
-# deshalb ein Fangskript als sendmail_path; MailApiTest prüft beide Hälften: dass das
-# Skript fängt, und dass der Server genau dieses benutzt.
+# Kein Testlauf darf eine Mail verschicken — und das gehört nachgewiesen, nicht
+# angenommen. Der Testserver bekommt deshalb ein Fangskript als sendmail_path;
+# VersandfalleTest prüft beide Hälften: dass das Skript fängt, und dass der Server genau
+# dieses benutzt.
 #
-# Heute scheitert /api/mail ohnehin an einer undefinierten Konstanten (000-000-0016).
-# Die Sicherung hängt bewusst NICHT an diesem Fehler: Wer ihn behebt, soll nicht
-# gleichzeitig den Schutz entfernen.
+# /api/mail war der Anlass und ist mit 000-000-0016 entfernt — er verschickte seit dem
+# Sprung auf PHP 8 ohnehin nichts. Die Falle bleibt: $app['mailer'] steht Projekten weiter
+# zur Verfügung, und eine Sicherung, die man mit ihrem ersten Anlass abbaut, fehlt beim
+# zweiten.
 
 echo "→ Versandfalle unter $CONTENTFLY_TEST_MAIL_TRAP"
 mkdir -p "$CONTENTFLY_TEST_MAIL_TRAP"

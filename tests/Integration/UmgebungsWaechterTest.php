@@ -41,10 +41,10 @@ class UmgebungsWaechterTest extends TestCase
             .'Die Suite meldet dann "OK, but some tests were skipped" — und der Job wird gruen, '
             .'obwohl nichts geprueft wurde.',
         'CONTENTFLY_TEST_MAIL_TRAP' =>
-            'Ohne sie ueberspringen sich die Tests aus MailApiTest, die den Endpunkt mit einer '
-            .'Zieladresse aufrufen. Damit ist der Schutz gegen echten Mailversand nicht '
-            .'nachgewiesen — und sobald /api/mail repariert ist (000-000-0016), koennte ein '
-            .'Lauf tatsaechlich Mail verschicken.',
+            'Ohne sie ueberspringt sich VersandfalleTest. Damit ist der Schutz gegen echten '
+            .'Mailversand nicht nachgewiesen. Der Endpunkt, der ihn noetig machte, ist mit '
+            .'000-000-0016 entfernt — $app[\'mailer\'] steht Projekten aber weiter zur '
+            .'Verfuegung, und custom/app.php ist die Vorlage, in die sie es einbauen.',
         'CONTENTFLY_TEST_ADMIN_PASS' =>
             'Ohne sie greift der Standardwert "admin", die Anmeldung scheitert und jeder '
             .'Integrationstest wird rot — mit der Meldung "Anmeldung fehlgeschlagen", die die '
@@ -203,9 +203,9 @@ class UmgebungsWaechterTest extends TestCase
     public function testEineGesetzteVersandfalleMussEinFangskriptEnthalten(): void
     {
         // Dieselbe Ueberlegung fuer die Mail-Falle: Der Pfad kann gesetzt sein und ins Leere
-        // zeigen. MailApiTest prueft das ebenfalls — aber erst, nachdem er den Endpunkt
-        // aufgerufen hat. Hier faellt es vorher auf, und zwar mit einer Meldung ueber die
-        // Umgebung statt ueber einen Endpunkt.
+        // zeigen. VersandfalleTest prueft das ebenfalls — aber erst, nachdem er das Fangskript
+        // ausgeloest hat. Hier faellt es vorher auf, und zwar mit einer Meldung ueber die
+        // Umgebung statt ueber ein Skript.
         $verzeichnis = getenv('CONTENTFLY_TEST_MAIL_TRAP');
 
         if ($verzeichnis === false || trim((string) $verzeichnis) === '') {

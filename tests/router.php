@@ -16,11 +16,13 @@ $pfad = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 /*
  * Diagnosepfad — nur dieser Router kennt ihn, die Anwendung nicht.
  *
- * `MailApiTest` muss belegen können, dass der Testserver **nicht** an einen echten MTA
+ * `VersandfalleTest` muss belegen können, dass der Testserver **nicht** an einen echten MTA
  * zustellt. Von aussen ist das sonst nicht feststellbar: Ein leerer Postausgang beweist
- * nichts, solange offen ist, ob der Server das Fangskript überhaupt benutzt. Solange
- * `/api/mail` an einer undefinierten Konstanten scheitert, ist die Lücke folgenlos — wer den
- * Endpunkt repariert, verschickt ohne diese Prüfung beim nächsten Testlauf echte Mail.
+ * nichts, solange offen ist, ob der Server das Fangskript überhaupt benutzt.
+ *
+ * Der Endpunkt, der die Falle nötig machte, ist mit `000-000-0016` entfernt. Sie bleibt
+ * trotzdem: `$app['mailer']` steht Projekten weiter zur Verfügung, und eine Sicherung, die man
+ * mit ihrem ersten Anlass abbaut, fehlt beim zweiten.
  *
  * Bewusst hier und nicht in der Anwendung: Der Router gehört zur Testinfrastruktur und läuft
  * in keiner Installation mit.

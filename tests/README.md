@@ -62,9 +62,9 @@ CONTENTFLY_TEST_MAIL_TRAP="$FALLE" \
 git checkout HEAD -- custom/config.php
 ```
 
-Ohne Schritt 2 und `CONTENTFLY_TEST_MAIL_TRAP` überspringen sich drei Tests aus `MailApiTest`;
-in einer Pipeline wird der Lauf dann rot (siehe *Der Wächter* weiter unten). Die ausführliche
-Fassung der Versandfalle steht im Abschnitt darunter.
+Ohne Schritt 2 und `CONTENTFLY_TEST_MAIL_TRAP` überspringt sich `VersandfalleTest`; in einer
+Pipeline wird der Lauf dann rot (siehe *Der Wächter* weiter unten). Die ausführliche Fassung
+der Versandfalle steht im Abschnitt darunter.
 
 **`tests/router.php` ist nicht optional.** Ohne ihn schickt der eingebaute Server *jede* Anfrage
 durch `index.php` — auch die für eine Datei, die auf der Platte liegt. Apache tut das nicht, und
@@ -149,11 +149,10 @@ sh tools/ci/audit-ausnahmen-pruefen.sh   # meldet Ausnahmen, die nicht mehr grei
 Was diese Gates prüfen und was bei einem Fund zu tun ist, steht in
 `an_project/docs/deployment.md` unter *Die Gates*.
 
-## Die Versandfalle für `/api/mail`
+## Die Versandfalle
 
-`/api/mail` ist der einzige Endpunkt mit Aussenwirkung. **Kein Testlauf darf eine Mail
-verschicken** — und das gehört nachgewiesen, nicht angenommen. Dafür bekommt der Testserver
-ein Fangskript als `sendmail_path`:
+**Kein Testlauf darf eine Mail verschicken** — und das gehört nachgewiesen, nicht angenommen.
+Dafür bekommt der Testserver ein Fangskript als `sendmail_path`:
 
 ```sh
 FALLE=/tmp/contentfly-mailfalle
@@ -178,7 +177,7 @@ CONTENTFLY_TEST_MAIL_TRAP="$FALLE" \
   ./vendor/bin/phpunit
 ```
 
-`MailApiTest` prüft die Sicherung selbst, in beide Richtungen:
+`VersandfalleTest` prüft die Sicherung selbst, in beide Richtungen:
 
 - **Fängt das Skript?** Der Test löst es einmal absichtlich über einen eigenen PHP-Prozess aus
   und schneidet den Eintrag danach wieder heraus.
@@ -186,13 +185,15 @@ CONTENTFLY_TEST_MAIL_TRAP="$FALLE" \
   `tests/router.php` beantwortet und den es in keiner Installation gibt. Läuft der Server ohne
   die Umleitung, scheitert der Test und nennt den echten MTA.
 
-**Ohne `CONTENTFLY_TEST_MAIL_TRAP` werden die betroffenen Tests übersprungen, nicht
-durchgewinkt.** Das ist Absicht: Solange der Nachweis fehlt, wird der Endpunkt nicht mit einer
-Zieladresse aufgerufen.
+**Ohne `CONTENTFLY_TEST_MAIL_TRAP` wird der Test übersprungen, nicht durchgewinkt.** Das ist
+Absicht: Solange der Nachweis fehlt, gilt die Sicherung als nicht belegt.
 
-> Heute ist die Falle streng genommen unnötig — `/api/mail` scheitert an einer undefinierten
-> Konstanten, bevor `mail()` überhaupt drankommt (`000-000-0016`). Die Sicherung hängt bewusst
-> **nicht** an diesem Fehler: Wer ihn behebt, soll nicht gleichzeitig den Schutz entfernen.
+> **Der Anlass ist weg, die Sicherung bleibt.** `/api/mail` war der einzige Endpunkt mit
+> Aussenwirkung und ist mit `000-000-0016` entfernt — er verschickte seit dem Sprung auf PHP 8
+> ohnehin nichts. Die Falle hing nie an ihm: `$app['mailer']` steht Projekten weiter zur
+> Verfügung, und `custom/app.php` ist die Vorlage, in die sie es einbauen. Eine Sicherung mit
+> ihrem ersten Anlass abzubauen hiesse, sie in dem Moment aufzugeben, in dem niemand mehr
+> hinsieht.
 
 ### 4. Die Vorlage wiederherstellen — fester Schritt, nicht Kür
 
