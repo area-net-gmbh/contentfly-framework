@@ -56,3 +56,8 @@ Begründung: Der Sprung auf Symfony 8.4 LTS soll später ein reiner Constraint-B
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
+- [ ] 006-005-0001 — composer audit als blockierendes Gate mit begründeter Ausnahmeliste
+- [ ] 006-005-0002 — Eine Ausnahme, die nicht mehr greift, macht den Lauf rot
+- [ ] 006-005-0003 — Das „0 Deprecations"-Gate aus dem Laufzeit-Log
+- [ ] 006-005-0004 — PHPStan-Grundgerüst mit Deprecation-Regeln, zunächst nicht blockierend
+- [ ] 006-005-0005 — deployment.md beschreibt die Gates und den Umgang mit einem Fund
