@@ -100,6 +100,37 @@ class HookReihenfolgeTest extends TestCase
         $this->assertSame(array(Request::class, true), $gesehen);
     }
 
+    public function testEinHookVerhindertKeineSpaetereCommandRegistrierung(): void
+    {
+        /*
+         * DIE ABFOLGE, DIE DEN FEHLER AUSGELOEST HAT (009-004-0004).
+         *
+         * `custom/app.php` tut beides: Es registriert Middleware und danach Console-Commands.
+         * Griffe `before()` direkt auf `$app['dispatcher']` zu, waere der Dienst danach
+         * eingefroren, und der ConsoleManager — der ihn ueber `extend()` erweitern muss —
+         * bekaeme:
+         *
+         *     RuntimeException: Der Dienst "dispatcher" ist bereits ausgelesen …
+         *
+         * Aufgefallen ist das erst, als die Vorlage in 009-004-0001 ihren eigenen
+         * dokumentierten Weg tatsaechlich ging. Silex hat die Registrierung vor dem Boot
+         * verschoben; beim Nachbau ging das verloren, weil kein Test diese Reihenfolge abdeckte.
+         */
+        $app = new Application();
+        $app['orm.em'] = null;
+
+        $app->before(static function (): void {});
+
+        $manager = new \Areanet\PIM\Classes\Manager\ConsoleManager($app);
+        $manager->addCommand(new class extends \Areanet\PIM\Classes\Command\CustomCommand {});
+
+        $this->assertCount(
+            1,
+            $app['dispatcher']->getListeners(\Areanet\PIM\Classes\Kernel\ConsoleEvents::INIT),
+            'Der Command ist angemeldet, obwohl vorher ein before-Hook registriert wurde'
+        );
+    }
+
     public function testAfterHooksLaufenNachPrioritaetUndSehenDieAntwort(): void
     {
         $reihe = array();
