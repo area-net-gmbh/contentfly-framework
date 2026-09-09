@@ -5,7 +5,7 @@ use Areanet\PIM\Classes\Command\CustomCommand;
 use Areanet\PIM\Classes\Controller\Provider\Base\CustomControllerProvider;
 use Areanet\PIM\Classes\Manager\ConsoleManager;
 use Areanet\PIM\Classes\Manager\RouteManager;
-use Knp\Console\ConsoleEvents;
+use Areanet\PIM\Classes\Kernel\ConsoleEvents;
 use Pimple\Exception\FrozenServiceException;
 use PHPUnit\Framework\TestCase;
 use Areanet\PIM\Classes\Kernel\Application;
