@@ -1,7 +1,7 @@
 ---
 id: 000-000-0006
 title: Fehlerantworten und WEB_ROOT — 404 wird zu 500, Redirects sind umgebungsabhängig
-status: review
+status: done
 depends_on: []
 ---
 
