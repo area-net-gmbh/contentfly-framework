@@ -112,12 +112,21 @@ class RouteSecurityApiTest extends IntegrationTestCase
 
         $config = json_decode($roh, true);
 
-        $this->assertSame(array('frontend', 'devmode', 'version', 'hash'), array_keys($config),
+        // UMGEDREHT MIT 000-000-0010, nicht geloescht.
+        //
+        // Bis dahin hielt dieser Test fest, dass der oeffentliche Endpunkt weiterhin
+        // customLogo bewirbt — eine Eigenschaft der Oberflaeche, die Epic 012 entfernt hat.
+        // Der Kommentar lautete: "Festgehalten, nicht bereinigt — das waere ein eigener
+        // Task." Das ist dieser Task.
+        //
+        // Der frontend-Schluessel ist ganz entfallen, nicht geleert: Ein Schluessel, der
+        // nichts mehr traegt, laedt dazu ein, wieder etwas hineinzulegen. Vermerkt als
+        // Breaking Change in an_project/docs/breaking-changes.md.
+        $this->assertSame(array('devmode', 'version', 'hash'), array_keys($config),
             'Ein eigener Envelope, der siebte — ohne data und ohne ts');
 
-        // Rest der geloeschten Oberflaeche: Der oeffentliche Endpunkt bewirbt weiterhin
-        // customLogo. Festgehalten, nicht bereinigt — das waere ein eigener Task.
-        $this->assertSame(array('customLogo' => false), $config['frontend']);
+        $this->assertArrayNotHasKey('frontend', $config,
+            'Der oeffentliche Endpunkt bewirbt nichts mehr aus der geloeschten Oberflaeche');
     }
 
     // ── Die Middleware der Vorlage ─────────────────────────────────────────────────────
