@@ -1,6 +1,7 @@
 <?php
 namespace Tests\Unit\Manager;
 
+use Doctrine\ORM\Mapping\Driver\AttributeDriver;
 use Areanet\PIM\Classes\Exceptions\ContentflyException;
 use Areanet\PIM\Classes\Manager\PluginManager;
 use Areanet\PIM\Classes\Manager\TypeManager;
@@ -220,12 +221,21 @@ PHP
             'getEntities() liefert erst etwas, wenn das Plugin useORM() aufgerufen hat');
     }
 
-    public function testUseOrmRegistriertEinenAnnotationDriverFuerDasPluginVerzeichnis(): void
+    public function testUseOrmRegistriertEinenAttributeDriverFuerDasPluginVerzeichnis(): void
     {
-        // Der Kern der Erweiterbarkeit: useORM() haengt einen Annotation-Driver fuer
+        // Der Kern der Erweiterbarkeit: useORM() haengt einen Metadaten-Treiber fuer
         // plugins/<Key>/Entity unter dem Namespace Plugins\<Key>\Entity in die
         // Doctrine-Konfiguration. Beobachtet ueber einen Spion auf der Konfiguration —
         // ein echter EntityManager waere hier nicht ehrlicher, nur langsamer.
+        //
+        // ES IST SEIT 010-001-0004 EIN AttributeDriver, vorher ein Annotation-Driver. Das ist
+        // ein Verhaltenswechsel und keine Umformulierung: Ein Plugin, dessen Entities noch
+        // Docblock-Annotationen tragen, wird ab hier nicht mehr gelesen.
+        //
+        // Die Umstellung war nicht wahlfrei. Eine Plugin-Entity erbt von
+        // Areanet\PIM\Entity\Base, und bei einer MappedSuperclass setzt Doctrine an den
+        // geerbten Feldern kein `inherited` — der Treiber der Unterklasse liest sie neu und
+        // faende an der umgestellten Base nichts mehr. Gemessen in 010-001-0003.
         $key = $this->pluginSchreiben('    public function init(){ $this->useORM(); }');
 
         $spion = new OrmKonfigurationsSpion();
@@ -239,9 +249,14 @@ PHP
             $spion->namespace,
             'Der Driver wird unter dem Entity-Namespace des Plugins eingehaengt'
         );
+        $this->assertInstanceOf(
+            AttributeDriver::class,
+            $spion->treiber,
+            'und ist ein AttributeDriver, kein Annotation-Driver'
+        );
         $this->assertSame(
             array(ROOT_DIR.'/plugins/'.$key.'/Entity'),
-            $spion->pfade,
+            $spion->treiber->getPaths(),
             'und zeigt auf das Entity-Verzeichnis des Plugins'
         );
     }
@@ -315,15 +330,18 @@ RUMPF
 class OrmKonfigurationsSpion
 {
     public ?string $namespace = null;
-    /** @var array<int,string>|null */
-    public ?array $pfade = null;
 
-    public function newDefaultAnnotationDriver(array $pfade, bool $simple)
-    {
-        $this->pfade = $pfade;
-
-        return new \stdClass();
-    }
+    /**
+     * Der Treiber, den Plugin::initORM() eingehaengt hat.
+     *
+     * Vorher fing der Spion stattdessen `newDefaultAnnotationDriver()` ab und merkte sich
+     * dessen Pfade. Die Methode wird nicht mehr gerufen (010-001-0004), und sie steht hier
+     * bewusst NICHT mehr: Rufe der Code sie doch, staerbe der Spion an einer undefinierten
+     * Methode — laut ist besser als still.
+     *
+     * @var object|null
+     */
+    public $treiber = null;
 
     public function getMetadataDriverImpl(): self
     {
@@ -332,6 +350,7 @@ class OrmKonfigurationsSpion
 
     public function addDriver($driver, string $namespace): void
     {
+        $this->treiber   = $driver;
         $this->namespace = $namespace;
     }
 }
