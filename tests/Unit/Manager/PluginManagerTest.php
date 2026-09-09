@@ -164,20 +164,27 @@ PHP
 
     // ── Der Fehlerpfad von getPlugin() — siehe 000-000-0011 ────────────────────────────
 
-    public function testGetPluginVerliertDenPluginNamenAusDerFehlermeldung(): void
+    /**
+     * **Umgedreht mit `000-000-0011`, nicht geloescht.**
+     *
+     * Der Test hiess `testGetPluginVerliertDenPluginNamenAusDerFehlermeldung()` und hielt den
+     * Defekt fest: Der Fehlerpfad warf
+     *
+     *     throw new ContentflyException(Messages::contentfly_general_unknown_plugin, $key);
+     *
+     * `$key` gab es in dieser Methode nicht — gemeint war `$pluginName`. Unter PHP 8 ist das
+     * keine Ausnahme, sondern eine **Warning**, und der Ausdruck ergibt null: Die Exception kam
+     * wie vorgesehen, aber **ohne den Namen des gesuchten Plugins**.
+     *
+     * Jetzt traegt sie ihn. Der Error-Handler bleibt trotzdem stehen — er ist nicht mehr die
+     * Zusicherung, sondern ihre Gegenprobe: `assertSame(array(), $warnungen)` faellt auf, wenn
+     * jemand die Variable wieder verliert. `phpunit.xml.dist` setzt `failOnWarning`, eine
+     * ungefangene Warning faerbte den Lauf ohnehin rot — hier wird sie gezaehlt statt nur
+     * verhindert.
+     */
+    public function testGetPluginNenntDenGesuchtenPluginNamen(): void
     {
-        // Ist-Zustand, festgehalten fuer Task 000-000-0011. Der Fehlerpfad lautet
-        //
-        //     throw new ContentflyException(Messages::contentfly_general_unknown_plugin, $key);
-        //
-        // `$key` existiert in dieser Methode nicht — gemeint ist `$pluginName`. Unter PHP 8
-        // ist das keine Ausnahme, sondern eine **Warning**; der Ausdruck ergibt null. Die
-        // ContentflyException wird also geworfen wie vorgesehen, aber **ohne den Namen des
-        // gesuchten Plugins**. Wer den Fehler sucht, erfaehrt nicht, wonach gesucht wurde.
-        //
-        // Der Test faengt die Warning selbst ab: phpunit.xml.dist setzt failOnWarning, ein
-        // ungefangener Hinweis wuerde den Lauf rot faerben.
-        $manager  = new PluginManager($this->app());
+        $manager   = new PluginManager($this->app());
         $warnungen = array();
 
         set_error_handler(function (int $stufe, string $meldung) use (&$warnungen): bool {
@@ -191,13 +198,13 @@ PHP
             $this->fail('Es haette eine ContentflyException kommen muessen');
         } catch (ContentflyException $e) {
             $this->assertSame('contentfly_general_unknown_plugin', $e->getMessage());
+            $this->assertSame('GibtesNicht', $e->getValue(),
+                'Wer den Fehler untersucht, muss erfahren, wonach gesucht wurde');
         } finally {
             restore_error_handler();
         }
 
-        $this->assertCount(1, $warnungen, 'Genau eine Warning');
-        $this->assertStringContainsString('Undefined variable $key', $warnungen[0],
-            'Der Name des gesuchten Plugins geht dabei verloren — siehe 000-000-0011');
+        $this->assertSame(array(), $warnungen, 'Keine Warning mehr — die Variable ist definiert');
     }
 
     // ── Entities ───────────────────────────────────────────────────────────────────────
