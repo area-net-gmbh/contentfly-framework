@@ -1,7 +1,7 @@
 ---
 id: 009-000-0000
 title: Silex durch Symfony 7.4 ersetzen
-status: todo
+status: in-progress
 depends_on: [006-000-0000, 008-000-0000, 012-000-0000]
 ---
 
