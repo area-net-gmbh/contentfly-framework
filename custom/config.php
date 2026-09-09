@@ -5,7 +5,7 @@
  *
  * Diese Datei ist eine **Vorlage**. Die `$SET_*`-Platzhalter unten sind kein Versehen:
  * `php bin/console.php appcms:install` ersetzt sie durch die eingegebenen Zugangsdaten.
- * Solange `DB_HOST` auf `127.0.0.1` steht, gilt das System als **nicht installiert**
+ * Solange `DB_HOST` auf `$SET_DB_HOST` steht, gilt das System als **nicht installiert**
  * (`$app['is_installed']` in `lib/contentfly/bootstrap.php`) — die Installation prüft
  * genau darauf.
  */
@@ -76,12 +76,12 @@ $configDefault = new Config();
  * Platzhalter; danach die echten Werte. Nicht von Hand ändern, solange die
  * Installation noch aussteht: Ein gesetzter DB_HOST lässt den Installer abbrechen.
  */
-$configDefault->DB_HOST                 = '127.0.0.1';
-$configDefault->DB_PORT                 = 3327;
-$configDefault->DB_NAME                 = 'contentfly';
-$configDefault->DB_USER                 = 'contentfly';
-$configDefault->DB_PASS                 = 'contentfly';
-$configDefault->DB_GUID_STRATEGY        = true;
+$configDefault->DB_HOST                 = '$SET_DB_HOST';
+$configDefault->DB_PORT                 = '$SET_DB_PORT';
+$configDefault->DB_NAME                 = '$SET_DB_NAME';
+$configDefault->DB_USER                 = '$SET_DB_USER';
+$configDefault->DB_PASS                 = '$SET_DB_PASS';
+$configDefault->DB_GUID_STRATEGY        = '$SET_DB_GUID_STRATEGY';
 
 /*
  * APP_DEBUG steuert ausführliche Fehlerausgabe inklusive vollständiger Stacktraces in
