@@ -67,8 +67,18 @@ parameters:
     # Liste bei jeder Codeaenderung brechen lassen.
     ignoreErrors:
         # doctrine/annotations — abandoned, Ersatz sind PHP-Attribute (Epic 010).
+        # Die AnnotationRegistry faellt mit 010-001-0005; bis dahin steht sie im Bootstrap
+        # und im TypeManager.
         - '#Call to deprecated method (registerFile|registerLoader)\(\) of class Doctrine\\Common\\Annotations\\AnnotationRegistry#'
-        - '#Call to deprecated method newDefaultAnnotationDriver\(\) of class Doctrine\\ORM\\Configuration#'
+
+        # `newDefaultAnnotationDriver()` ist mit 010-001-0003 aus der EntityManagerFactory
+        # verschwunden, und das Muster traf sonst nichts mehr — Regel 3 hat es eingefordert.
+        #
+        # ES BLEIBT EINE BLINDE STELLE: `Classes/Plugin.php` ruft die Methode weiterhin. PHPStan
+        # meldet sie dort NICHT, weil `$this->app['orm.em']` ueber ArrayAccess `mixed` liefert
+        # und der Typ der Konfiguration damit unbekannt ist. Das Muster hat diese Stelle also nie
+        # abgedeckt; sein Wegfall verdeckt nichts. Der Plugin-Pfad wird mit 010-001-0004
+        # entschieden.
 
         # doctrine/cache — abandoned, faellt in 2.0 ersatzlos weg (Epic 010).
         - '#Instantiation of deprecated class Doctrine\\Common\\Cache\\(Apc|Apcu|Filesystem|Memcached)Cache#'

@@ -6,14 +6,6 @@ use Areanet\PIM\Classes\Annotations as PIM;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * @ORM\Entity
- * @ORM\Table(name="example_entity", indexes={
- *     @ORM\Index(name="idx_example_slug", columns={"slug"}),
- *     @ORM\Index(name="idx_example_state", columns={"state"}),
- * }, uniqueConstraints={
- *     @ORM\UniqueConstraint(name="uniq_example_slug", columns={"slug"})
- * })
- *
  * Die Beispiel-Entity der Vorlage. Sie fuehrt vor, wie ein Projekt eigene Entities anlegt:
  * Ableitung von `Base`, Doctrine-Annotationen fuer die Spalten, `@PIM`-Annotationen fuer
  * das, was die API darueber hinaus wissen muss.
@@ -22,7 +14,17 @@ use Doctrine\ORM\Mapping as ORM;
  * sie Kommentare aus dem Kundenprojekt, aus dem diese Vorlage einmal herausgeschnitten
  * wurde: Mandanten-Lebenszyklen, ein `TrialExpiryChecker`, eine Stripe-Steuerbefreiung.
  * Nichts davon gab es je in diesem Baum.
+ *
+ * **Index und UniqueConstraint stehen als eigene Attribute**, nicht mehr verschachtelt in
+ * `Table`. Doctrine liest sie seit jeher als eigenstaendige Angaben; als Annotation mussten
+ * sie mangels Wiederholbarkeit in ein Array unter `Table`. Ein Attribut darf sich
+ * wiederholen (`Attribute::IS_REPEATABLE`), also stehen sie jetzt nebeneinander.
  */
+#[ORM\Entity]
+#[ORM\Table(name: 'example_entity')]
+#[ORM\Index(name: 'idx_example_slug', columns: ['slug'])]
+#[ORM\Index(name: 'idx_example_state', columns: ['state'])]
+#[ORM\UniqueConstraint(name: 'uniq_example_slug', columns: ['slug'])]
 class Example extends Base {
 
 	/**
@@ -36,20 +38,15 @@ class Example extends Base {
 	 * Die Werteliste selbst bleibt unveraendert: Sie ist Teil des Schemas, das die
 	 * Charakterisierungstests aus `008-004-0005` zusichern. Umbenennen waere eine
 	 * Datenaenderung, nicht das Entfernen eines Kommentars.
-	 *
-	 * @ORM\Column(type="string", length=32, options={"default": "active"})
-	 * @PIM\Select(options="provisioning,active,trial_expired,suspended,deactivated")
 	 */
+	#[ORM\Column(type: 'string', length: 32, options: ['default' => 'active'])]
+	#[PIM\Select(options: 'provisioning,active,trial_expired,suspended,deactivated')]
 	protected $state = 'active';
 
-	/**
-	 * @ORM\Column(type="string", length=255, nullable=true)
-	 */
+	#[ORM\Column(type: 'string', length: 255, nullable: true)]
 	protected $name;
 
-	/**
-	 * @ORM\Column(type="string", length=255, nullable=true)
-	 */
+	#[ORM\Column(type: 'string', length: 255, nullable: true)]
 	protected $slug;
 
 	/**
@@ -66,16 +63,14 @@ class Example extends Base {
 	 *   "titel": "Beispiel",
 	 *   "merkmale": ["a", "b"]
 	 * }
-	 *
-	 * @ORM\Column(type="json", nullable=true)
 	 */
+	#[ORM\Column(type: 'json', nullable: true)]
 	protected $jsonExample;
 
 	/**
 	 * Ein boolesches Feld mit Vorgabewert.
-	 *
-	 * @ORM\Column(type="boolean", options={"default": false})
 	 */
+	#[ORM\Column(type: 'boolean', options: ['default' => false])]
 	protected $boolExample = false;
 
 }
