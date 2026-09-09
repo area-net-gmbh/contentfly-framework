@@ -108,8 +108,9 @@ chmod +x "$CONTENTFLY_TEST_MAIL_TRAP/sendmail"
 # Anfrage durch index.php, auch die für eine Datei, die auf der Platte liegt. Apache
 # tut das nicht, und die Dateiauslieferung hängt genau daran.
 #
-# APP_DEBUG=0 verhindert, dass der Debug-Exception-Handler die Antworten der
-# Anwendung überdeckt (000-000-0006).
+# APP_DEBUG=0 ist die Produktionseinstellung: Die Suite soll messen, was eine Installation
+# ausliefert. Dass ein PHP-Fehler dabei als JSON-Antwort der Anwendung ankommt und nicht als
+# Symfonys „Whoops"-Seite, ist seit 000-000-0006 unabhängig davon zugesichert.
 #
 # display_errors=Off ist NICHT kosmetisch, sondern Voraussetzung dafür, dass die Suite
 # überhaupt misst, was sie zu messen glaubt:

@@ -48,13 +48,14 @@ class FileApiTest extends IntegrationTestCase
     /**
      * Die Auslieferung antwortet mit einem **Redirect** auf den Pfad unter `data/files/`,
      * nicht mit dem Dateiinhalt. Unter Apache greift danach die `.htaccess`, die vorhandene
-     * Dateien direkt ausliefert.
+     * Dateien direkt ausliefert; unter dem Testserver tut das `tests/router.php`.
      *
-     * Der Redirect ist **relativ** aufgebaut und haengt an `Config::WEB_ROOT`, das
-     * `bootstrap-web.php` aus `$_SERVER['PHP_SELF']` ableitet. Unter dem eingebauten
-     * PHP-Server ergibt das einen anderen Wert als unter Apache, weshalb hier bewusst nur
-     * der Redirect selbst geprueft wird und nicht, wo er landet. Der Ausbau zu einer
-     * belastbaren Auslieferungspruefung gehoert zu Epic 008 (siehe Task 000-000-0006).
+     * **Seit `000-000-0006` steht das Ziel fest.** Vorher leitete `bootstrap-web.php`
+     * `Config::WEB_ROOT` bei jedem Request aus `$_SERVER['PHP_SELF']` ab; unter dem
+     * eingebauten PHP-Server kam dabei `/index.php/file/get/data/files/…` heraus — ein Pfad
+     * ins Leere. Deshalb liess sich hier nur pruefen, DASS umgeleitet wird, nicht WOHIN. Jetzt
+     * kommt der Mountpunkt aus der Konfiguration, und `testAuslieferungLiefertDenInhalt()`
+     * folgt der Umleitung bis zur Datei.
      */
     public function testAuslieferungAntwortetMitRedirectAufDieDatei(): void
     {
@@ -67,8 +68,38 @@ class FileApiTest extends IntegrationTestCase
         // dem initialen Import, und so in der README dokumentiert. Die Zusicherung stand bis
         // 000-000-0019 auf 302; siehe den Kommentar an testAuslieferungBrauchtKeinenToken.
         $this->assertSame(301, $status);
-        $this->assertStringContainsString('data/files/', (string) $location);
-        $this->assertStringContainsString('ausgeliefert.txt', (string) $location);
+        $this->assertSame(
+            '/data/files/'.$antwort['data']['id'].'/ausgeliefert.txt',
+            (string) $location,
+            'Absolut ab WEB_ROOT, nicht mehr aus PHP_SELF abgeleitet — 000-000-0006'
+        );
+    }
+
+    /**
+     * Die Auslieferung end-to-end: hochladen, der Umleitung folgen, den Inhalt vergleichen.
+     *
+     * **Das war bis `000-000-0006` nicht pruefbar**, und das ist der Grund, warum es diesen
+     * Test gibt: Ein Testnetz, das die Auslieferung nicht abdeckt, laesst beim Kernel-Wechsel
+     * (Epic `009`) genau die Funktion ungeprueft, die jeder Client braucht. Der Redirect selbst
+     * sagt darueber nichts — er kann formal richtig aussehen und trotzdem ins Leere zeigen,
+     * und genau das tat er.
+     */
+    public function testAuslieferungLiefertDenInhalt(): void
+    {
+        $inhalt  = "erste Zeile\nzweite Zeile\n";
+        $antwort = $this->upload('e2e.txt', $inhalt, $this->token());
+
+        $ch = curl_init(self::$baseUrl.'/file/get/'.$antwort['data']['id']);
+        curl_setopt_array($ch, array(
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+        ));
+        $rumpf  = (string) curl_exec($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        $this->assertSame(200, $status, 'Der Umleitung gefolgt kommt die Datei, kein Irrlaeufer');
+        $this->assertSame($inhalt, $rumpf, 'Byte-gleich zu dem, was hochgeladen wurde');
     }
 
     /**
@@ -100,13 +131,12 @@ class FileApiTest extends IntegrationTestCase
     }
 
     /**
-     * Eine unbekannte ID endet heute mit **500**, nicht mit 404 — obwohl
-     * `bootstrap-web.php` fuer `FileNotFoundException` ausdruecklich einen 404 vorsieht.
-     * Der Debug-Exception-Handler faengt die Ausnahme vorher ab, auch mit APP_DEBUG=0.
+     * Eine unbekannte ID endet mit **404**.
      *
-     * Charakterisierung heisst festhalten, was ist. Dass das falsch ist, steht in
-     * Task 000-000-0006; dieser Test schlaegt an, sobald es sich aendert - dann ist die
-     * Erwartung hier nachzuziehen.
+     * Der Test hielt eine Zeitlang 500 fest, weil der Debug-Exception-Handler die
+     * `FileNotFoundException` vor dem Handler der Anwendung abfing. Der Stack-Wechsel
+     * (`006-002-0003`) hat das behoben, `000-000-0006` die verbliebene Haelfte auf der
+     * API-Seite.
      */
     public function testUnbekannteIdLiefertKeineDatei(): void
     {

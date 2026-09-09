@@ -170,16 +170,17 @@ Erwartet wird der Standard-Envelope mit `"success":true` und einem Zeitstempel i
 API-Format. Kommt stattdessen eine HTML-Fehlerseite, steht die Ursache in deren
 `exception-message` — meist eine Klasse, die die Vorlage referenziert, aber nicht mitbringt.
 
-**Auf `/` und auf unbekannten Pfaden kommt heute `HTTP 500`, nicht 405.** Die Ursache ist
-harmlos und erwartet: Der OPTIONS-Catch-All (`{anything}`) in
-`lib/contentfly/bootstrap-web.php` fängt jeden Pfad ab, sodass GET dort „Method Not Allowed"
-bedeutet — im Rumpf steht es auch so. Nur der Statuscode kommt falsch heraus. Das ist Task
-`000-000-0006`; **kein Grund, den Smoke-Test für gescheitert zu halten.** Massgeblich ist die
-Antwort auf `/api/v1/example/bootstrap` oben.
+**Auf `/` und auf unbekannten Pfaden kommt `HTTP 405` mit einer JSON-Antwort.** Der
+OPTIONS-Catch-All (`{anything}`) in `lib/contentfly/bootstrap-web.php` fängt jeden Pfad ab,
+sodass GET dort „Method Not Allowed" bedeutet. Das ist erwartet und **kein Grund, den
+Smoke-Test für gescheitert zu halten**; massgeblich ist die Antwort auf
+`/api/v1/example/bootstrap` oben.
 
-Mit `tests/router.php` und `APP_DEBUG=0` — so fährt die Suite — wird aus demselben Aufruf ein
-`302` auf `/`, also eine Umleitung auf sich selbst. Auch das gehört zu `000-000-0006`
-(WEB_ROOT). Nachgemessen beim Nachspielen dieser Anleitung in `006-003-0003`.
+Bis `000-000-0006` kam an dieser Stelle `500`, und mit `tests/router.php` und `APP_DEBUG=0` —
+so fährt die Suite — sogar ein `302` auf `/`, also eine Umleitung auf sich selbst. Beides ist
+behoben: Der Statuscode kommt jetzt aus `getStatusCode()`, wenn die Ausnahme keinen eigenen
+trägt, und die Umleitung auf `/` ist entfallen — sie stammte aus der Zeit, als dort die
+PIM-Oberfläche lag.
 
 ## 4b. Tests ausführen
 

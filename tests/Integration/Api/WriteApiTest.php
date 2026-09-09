@@ -181,7 +181,7 @@ class WriteApiTest extends IntegrationTestCase
         $this->assertSame(0, $anzahl, 'Die Zeile ist wirklich weg — gegen die Datenbank geprueft');
     }
 
-    public function testNachDemLoeschenLiefertSingleDasLeereHeadersArtefakt(): void
+    public function testNachDemLoeschenLiefertSingleEinen404(): void
     {
         $body = $this->tagAnlegen('Nachher-Probe');
         $this->postJson('/api/delete', array('entity' => 'PIM\\Tag', 'id' => $body['id']), $this->token());
@@ -192,9 +192,11 @@ class WriteApiTest extends IntegrationTestCase
             $this->token()
         );
 
-        // Dasselbe Artefakt wie bei einer nie existierenden Id, siehe 008-001-0002.
-        $this->assertSame(200, $status);
-        $this->assertSame(array('headers' => array()), $single['data']);
+        // Umgedreht mit 000-000-0006: dasselbe wie bei einer nie existierenden Id — vorher das
+        // `headers`-Artefakt mit 200, jetzt ein 404. Der Test hiess bis dahin
+        // testNachDemLoeschenLiefertSingleDasLeereHeadersArtefakt.
+        $this->assertSame(404, $status);
+        $this->assertArrayNotHasKey('data', $single);
     }
 
     public function testDeleteMitUnbekannterIdWirdAbgewiesen(): void
@@ -205,7 +207,10 @@ class WriteApiTest extends IntegrationTestCase
             $this->token()
         );
 
-        $this->assertSame(500, $status, 'Heute 500 statt 404 — siehe 000-000-0006');
+        // Seit 000-000-0006 der gemeinte Code. Vorher lief doUpdate()/doDelete() an der
+        // eigenen Nicht-gefunden-Pruefung vorbei, weil getSingle() eine JsonResponse
+        // zurueckgab, und starb weiter unten an einem TypeError.
+        $this->assertSame(404, $status);
     }
 
     public function testDeleteOhneTokenLoeschtNichts(): void

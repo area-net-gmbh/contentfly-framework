@@ -6,11 +6,12 @@ use Tests\Integration\IntegrationTestCase;
 /**
  * Charakterisierungstests für die lesenden Endpunkte `/api/single` und `/api/list`.
  *
- * **Charakterisierung heißt: festhalten, was ist.** Mehrere Zusicherungen hier beschreiben
- * ausdrücklich fragwürdiges Verhalten — ein Zugriff ohne Token endet mit HTTP 500 statt 401,
- * eine unbekannte Id liefert 200 mit einem leeren `headers`-Objekt. Das ist kein Versehen in
- * den Tests, sondern der Ist-Zustand, den Epic `009` beim Kernel-Tausch reproduzieren muss.
- * Wer das repariert (Task `000-000-0006`), dreht diese Tests bewusst um.
+ * **Charakterisierung heißt: festhalten, was ist** — auch das Fragwürdige. Zwei der hier
+ * festgehaltenen Merkwürdigkeiten sind inzwischen behoben und die Zusicherungen bewusst
+ * umgedreht: Ein Zugriff ohne Token endet seit dem Stack-Wechsel (`006-002-0003`) mit 401
+ * statt 500, und eine unbekannte Id liefert seit `000-000-0006` einen 404 statt eines 200 mit
+ * leerem `headers`-Objekt. Was bleibt, beschreibt weiter den Ist-Zustand, den Epic `009` beim
+ * Kernel-Tausch reproduzieren muss.
  *
  * Testdaten entstehen über `pdo()`, nicht über die Schreib-Endpunkte: Story `008-001` soll
  * nicht von `008-002` abhängen, und eine Vorbedingung über den ungeprüften Schreibpfad würde
@@ -106,18 +107,22 @@ class ReadApiTest extends IntegrationTestCase
         $this->assertArrayNotHasKey('pass', $verjoint, 'Der Passwort-Hash wird nicht ausgeliefert');
     }
 
-    public function testUnbekannteIdLiefert200MitLeeremHeadersObjekt(): void
+    public function testUnbekannteIdLiefert404(): void
     {
-        // Fragwuerdig, aber der Ist-Zustand: kein 404, sondern 200 mit einem Artefakt
-        // als Rumpf. Siehe Task 000-000-0006.
+        // Umgedreht mit 000-000-0006. Vorher hiess dieser Test
+        // testUnbekannteIdLiefert200MitLeeremHeadersObjekt und hielt fest, dass der Endpunkt
+        // mit 200 und `data: {"headers": {}}` antwortet — dem Artefakt aus einer JsonResponse,
+        // die Api::getSingle() als "nicht gefunden" zurueckgab und singleAction() als Nutzlast
+        // weiterreichte.
         [$status, $body] = $this->postJson(
             '/api/single',
             array('entity' => 'PIM\\Tag', 'id' => 'gibtesnicht'),
             $this->token()
         );
 
-        $this->assertSame(200, $status, 'Heute kein 404 — siehe 000-000-0006');
-        $this->assertSame(array('headers' => array()), $body['data']);
+        $this->assertSame(404, $status);
+        $this->assertSame('contentfly_general_not_found', $body['message']);
+        $this->assertArrayNotHasKey('data', $body);
     }
 
     public function testUnbekannteEntityLiefert500(): void

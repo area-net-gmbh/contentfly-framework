@@ -125,8 +125,11 @@ class SystemControllerApiTest extends IntegrationTestCase
     {
         [$status] = $this->get('/system/do?method=listTokens', $this->token());
 
-        $this->assertSame(302, $status,
-            'Der Fehler-Handler in bootstrap-web.php leitet ohne JSON-Content-Type auf / um; unter Symfony 3.4 war er wirkungslos. Siehe 000-000-0006');
+        // 405 seit 000-000-0006. Vorher 302: Der Fehler-Handler leitete ohne
+        // JSON-Content-Type auf `/` um. Die MethodNotAllowedHttpException traegt ihren Code
+        // in getStatusCode(), nicht in getCode() — deshalb kam er vorher auch dann nicht
+        // durch, wenn die Umleitung nicht griff.
+        $this->assertSame(405, $status);
     }
 
     // ── B: Der Dispatch und seine Antwortform ──────────────────────────────────────────

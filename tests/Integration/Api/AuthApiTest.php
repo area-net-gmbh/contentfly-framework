@@ -77,10 +77,13 @@ class AuthApiTest extends IntegrationTestCase
         [$status, $body] = $this->get('/api/schema', null);
 
         $this->assertNotSame(200, $status);
-        // Heute 500 statt 401: Der Debug-Exception-Handler faengt die Ausnahme der Anwendung
-        // ab, bevor deren eigener Fehler-Handler sie sieht. Siehe Task 000-000-0006.
-        $this->assertSame(302, $status,
-            'Der Fehler-Handler in bootstrap-web.php leitet ohne JSON-Content-Type auf / um; unter Symfony 3.4 war er wirkungslos. Siehe 000-000-0006');
+        // Zweimal umgedreht. Erst hielt der Test 500 fest — der Debug-Exception-Handler fing
+        // die Ausnahme vor dem Handler der Anwendung ab. Dann 302: Der Handler leitete ohne
+        // JSON-Content-Type auf `/` um, und dieser Aufruf schickt keinen mit. Seit
+        // 000-000-0006 gibt es diese Umleitung nicht mehr — es gibt kein Zuhause, in das man
+        // einen Browser schicken koennte, seit die Oberflaeche entfallen ist —, und der Code
+        // der Ausnahme kommt durch.
+        $this->assertSame(401, $status);
         $this->assertStringNotContainsString('"data"', $body);
     }
 
