@@ -1,7 +1,7 @@
 ---
 id: 009-005-0002
 title: Die entfallenen DBAL-Aufrufe nachziehen
-status: review
+status: done
 depends_on: [009-005-0001]
 ---
 

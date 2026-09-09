@@ -1,7 +1,7 @@
 ---
 id: 009-005-0001
 title: DBAL 3.10 installieren und den Bruch sichtbar machen
-status: review
+status: done
 depends_on: []
 ---
 

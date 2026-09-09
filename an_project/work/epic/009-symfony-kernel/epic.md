@@ -142,7 +142,7 @@ Ebenfalls nicht in diesem Epic:
 ## Stories
 <!-- Die Stories dieses Epics. Wird von /new-story synchron gehalten. -->
 - [x] 009-001-0000 — Den eigenen Code von den Silex-Typen lösen
-- [ ] 009-005-0000 — DBAL 2 auf 3 heben — die Vorbedingung des Kernel-Schnitts
+- [x] 009-005-0000 — DBAL 2 auf 3 heben — die Vorbedingung des Kernel-Schnitts
 - [ ] 009-002-0000 — Der Kernel-Schnitt — Symfony 7.4 statt Silex
 - [ ] 009-003-0000 — Das Deprecation-Gate unter Symfony 7.4 scharfstellen
 - [ ] 009-004-0000 — Vorlage und Dokumentation auf den neuen Kernel nachziehen

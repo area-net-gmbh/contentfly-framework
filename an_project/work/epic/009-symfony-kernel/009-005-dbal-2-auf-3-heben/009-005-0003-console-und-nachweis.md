@@ -1,7 +1,7 @@
 ---
 id: 009-005-0003
 title: Die Doctrine-Console-Commands und der Nachweis
-status: review
+status: done
 depends_on: [009-005-0002]
 ---
 
