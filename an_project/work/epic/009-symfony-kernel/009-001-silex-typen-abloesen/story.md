@@ -33,3 +33,8 @@ Er ist ein zugesichertes API für Bestandsprojekte (`custom/app.php` registriert
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
+- [ ] 009-001-0001 — Die Anwendungsschnittstelle schneiden und dazwischenlegen
+- [ ] 009-001-0002 — Die reinen Container-Nutzer auf die Schnittstelle umstellen
+- [ ] 009-001-0003 — Controller-Provider und Manager von Silex lösen
+- [ ] 009-001-0004 — Die Silex-Hilfsmethoden in den Controllern ablösen
+- [ ] 009-001-0005 — Ein Wächter gegen die Rückkehr der Silex-Typen
