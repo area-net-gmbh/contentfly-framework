@@ -1,7 +1,7 @@
 ---
 id: 006-005-0001
 title: composer audit als blockierendes Gate mit begründeter Ausnahmeliste
-status: review
+status: done
 depends_on: []
 ---
 

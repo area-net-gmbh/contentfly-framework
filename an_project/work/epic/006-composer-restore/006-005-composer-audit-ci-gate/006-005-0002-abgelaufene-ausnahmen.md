@@ -1,7 +1,7 @@
 ---
 id: 006-005-0002
 title: Eine Ausnahme, die nicht mehr greift, macht den Lauf rot
-status: review
+status: done
 depends_on: [006-005-0001]
 ---
 

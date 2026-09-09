@@ -1,7 +1,7 @@
 ---
 id: 006-005-0005
 title: deployment.md beschreibt die Gates und den Umgang mit einem Fund
-status: review
+status: done
 depends_on: [006-005-0004]
 ---
 

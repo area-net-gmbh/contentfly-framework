@@ -1,7 +1,7 @@
 ---
 id: 006-005-0003
 title: Das „0 Deprecations"-Gate aus dem Laufzeit-Log
-status: review
+status: done
 depends_on: [006-005-0002]
 ---
 
