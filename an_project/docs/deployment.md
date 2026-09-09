@@ -20,7 +20,8 @@ einzige Quelle der Wahrheit für Abhängigkeiten.
   (`composer install --no-dev --optimize-autoloader`) und als Teil des Deployment-Artefakts
   ausgeliefert. In `006-003-0002` gegen einen frischen Klon geprüft: **49 Pakete, 2 694 Dateien,
   22 MB**, Console und HTTP booten daraus.
-- `composer audit --locked` läuft als CI-Gate gegen den Lock. Steht noch aus — Story `006-005`.
+- `composer audit --locked` läuft als **blockierendes** CI-Gate gegen den Lock (Story `006-005`).
+  Was es prüft und was bei einem Fund zu tun ist, steht unten unter *Die Gates*.
 
 **Was das für jeden Checkout heisst:** Ohne `composer install` ist er nicht lauffähig. Der
 Ablauf steht in `an_project/docs/runbook.md`, Schritt 1.
@@ -101,17 +102,80 @@ Was das kostet, ist in `006-003-0002` im Pipeline-Image gemessen:
 Der Installationsschritt ist der kleinste Posten. Ein Composer-Cache in der Pipeline lohnt an
 dieser Stelle nicht — was der Lauf kostet, kostet das Herrichten des Images.
 
-> **Der Schritt läuft heute nicht durch.** `php:8.3-cli` hat weder die `zip`-Extension noch
-> `unzip`, `7z` oder `git`, und `tools/ci/install-php-extensions.sh` baut nur `pdo_mysql` und
-> `gd`. Damit scheitern beide Wege — `--prefer-dist` findet keinen Entpacker, der Quell-Fallback
-> bräuchte `git`. Der Bruch entstand mit `006-002-0004` und fiel erst in `006-003-0002` auf, weil
-> dort das Image zum ersten Mal seit `008-005-0001` wieder von Null gefahren wurde. Behoben wird
-> er in `000-000-0021`; mit nachgerüstetem `unzip` und `git` läuft er durch — die Messung oben ist
-> mit dieser Ergänzung entstanden.
+> **Erledigt mit `000-000-0021`.** Der Schritt lief eine Zeit lang gar nicht: `php:8.3-cli` hat
+> weder die `zip`-Extension noch `unzip`, `7z` oder `git`, und `install-php-extensions.sh` baute
+> nur `pdo_mysql` und `gd` — damit waren beide Wege zu. Der Bruch entstand mit `006-002-0004`
+> und fiel erst in `006-003-0002` auf, weil dort das Image zum ersten Mal seit `008-005-0001`
+> wieder von Null gefahren wurde. `unzip` gehört seitdem zum Skript; `git` bewusst nicht, die
+> Begründung steht dort.
 
-`composer audit --locked` und das „0 Deprecations"-Gate kommen mit `006-005` in dieselbe
-Pipeline — die Stage-Struktur hat dafür Platz.
+## Die Gates
 
-### Die Suite ist die Abnahmegrundlage
+Vier Prüfungen, verankert mit Story `006-005`. Zwei blockieren, zwei melden:
+
+| Prüfung | prüft | blockiert | wo |
+|---|---|---|---|
+| `composer audit --locked` | den Lock gegen die Advisory-Datenbank | **ja** | `tools/ci/audit.sh` |
+| abgelaufene Audit-Ausnahmen | ob jede Ausnahme noch greift | **ja** | `tools/ci/audit-ausnahmen-pruefen.sh` |
+| Deprecations zur Laufzeit | das Serverlog nach dem Testlauf | **ja** auf PHP 8.3, melden auf 8.4 | `tools/ci/deprecations-pruefen.sh` |
+| PHPStan | deprecated APIs ohne Ausführung | nein (`allow_failure`) | `phpstan.neon.dist` |
+
+Alle vier laufen mit demselben Aufruf lokal in Docker. Eine Pipeline-Definition, deren Schritte
+man nur in der Pipeline ausprobieren kann, ist beim Suchen eines Fehlers nutzlos.
+
+Die beiden Ausnahmelisten liegen getrennt, weil sie Verschiedenes ausnehmen:
+`config.audit.ignore` in `composer.json` für die CVEs, `tools/ci/deprecations-ausnahmen.txt`
+für die Deprecations. Beide werden nach demselben Muster geprüft — und in beiden macht ein
+Eintrag, der nicht mehr greift, den Lauf rot.
+
+### Wenn ein Gate anschlägt
+
+**In dieser Reihenfolge fragen.** Wer gleich bei Frage 3 anfängt, schafft das Gate ab.
+
+1. **Gibt es ein Release, das die Meldung behebt?** Dann Constraint anheben — und die
+   Constraint-Kette aus `006-001-0003` gegenrechnen, bevor irgendetwas committet wird. Silex und
+   `knplabs/console-service-provider` deckeln Symfony auf 4.4; wer daran vorbeigeht, bricht die
+   Suite.
+2. **Kein Release, aber ein Weg um die Nutzung herum?** Dann ist es ein Code-Ticket, kein
+   Manifest-Ticket. Die drei `null`-Übergaben aus `000-000-0023` sind so ein Fall.
+3. **Weder noch → Ausnahme.** Einzeln nach Kennung, **nie paketweise**, mit Begründung und dem
+   Ticket oder Epic, das sie auflöst.
+
+> **Eine Ausnahme ohne benannten Auflöser ist keine Ausnahme, sondern ein abgeschaltetes Gate.**
+
+`symfony/http-foundation` als Ganzes auszunehmen wäre bequem und falsch: Es verschluckt auch
+jede **künftige** Meldung dieses Pakets. Die CVE-Kennung ist die kleinste Einheit, die den Zweck
+erfüllt; beim Deprecation-Gate ist es das Paar aus Datei und Meldung.
+
+### Die heutigen Ausnahmen als Präzedenzfall
+
+Wer nur die Listen sieht, hält Ausnehmen für den Normalweg. Deshalb hier, warum es heute neun
+Einträge gibt und warum sie **alle zusammen** verschwinden:
+
+| Liste | Einträge | Ursache | verschwindet mit |
+|---|---|---|---|
+| `config.audit.ignore` | 5 CVEs in `symfony/http-foundation`, `-routing`, `-validator` | Symfony 4.4 ist seit Nov 2023 EOL; jede Meldung betrifft die **gesamte** 4.x-Linie, es gibt keinen Fix | Epic `009` |
+| `deprecations-ausnahmen.txt` | 1 aus `silex/silex` | `ReflectionParameter::getClass()`, deprecated seit PHP 8.0; Silex 2.2.2 ist seit 2018 EOL | Epic `009` |
+| `deprecations-ausnahmen.txt` | 3 aus eigenem Code | `null` an `strtolower()`, `explode()`, `method_exists()` | `000-000-0023` |
+
+Acht der neun hängen an **einer** Ursache: einem Stack, der bis zum Kernel-Tausch festliegt. Das
+ist der Unterschied zu einer gewachsenen Ausnahmeliste — und der Grund, warum sie sich nicht
+vermehren darf.
+
+Dazu `--abandoned=ignore` beim Audit: Fünf Pakete des Ist-Stacks sind abandoned
+(`silex/silex`, `doctrine/annotations`, `doctrine/cache`, `knplabs/console-service-provider`,
+`symfony/debug`). Das ist kein Sicherheitsbefund, sondern die Beschreibung des Altbestands.
+**Auf `fail` umstellen, sobald Epic `010` durch ist.**
+
+### Was die Gates heute melden
+
+| | Stand |
+|---|---|
+| `composer audit --locked` | grün, 5 Meldungen ausgenommen |
+| Deprecations auf PHP 8.3 | grün, 4 Stellen ausgenommen (148 protokollierte Zeilen) |
+| Deprecations auf PHP 8.4 | 46 Stellen ohne Ausnahme — Frühwarnung für Epic `009` |
+| PHPStan | 47 Treffer, davon rund 34 an Doctrine-APIs — der Aufwand liegt bei Epic `010` |
+
+## Die Suite ist die Abnahmegrundlage
 Was ein roter Test beim Kernel-Tausch bedeutet, ist in `an_project/docs/technical.md`
 festgelegt — einschliesslich der Liste dessen, was die Suite **nicht** abdeckt.

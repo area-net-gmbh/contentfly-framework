@@ -1,0 +1,36 @@
+# Bekannte Deprecations, die das Gate aus 006-005-0003 durchlaesst.
+#
+# Format je Zeile, mit "|" getrennt:
+#
+#     <datei relativ zur Projektwurzel>|<Anfang der Meldung>|<Begruendung + aufloesendes Ticket>
+#
+# Leerzeilen und Zeilen mit fuehrendem # werden uebersprungen.
+#
+# ── Die Regeln, nach denen hier etwas landet ──────────────────────────────────────────
+#
+# 1. EINE NEUE MELDUNG MACHT DEN LAUF ROT. Diese Liste ist die Ausnahme, nicht der Weg.
+#    Wer hier eintraegt, statt zu beheben, braucht einen Grund und ein Ticket.
+#
+# 2. JEDE ZEILE NENNT, WAS SIE AUFLOEST. Ohne benanntes Ticket oder Epic ist es keine
+#    Ausnahme, sondern ein abgeschaltetes Gate — dieselbe Regel wie bei den
+#    Audit-Ausnahmen in composer.json (006-005-0001).
+#
+# 3. EINE ZEILE, DIE NICHT MEHR GREIFT, MACHT DEN LAUF EBENFALLS ROT. Verschwindet eine
+#    Meldung, gehoert ihre Ausnahme gestrichen. Sonst bliebe eine Erlaubnis ins Leere
+#    stehen, die spaeter stillschweigend wieder greift (006-005-0002 macht dasselbe fuer
+#    die CVE-Ausnahmen).
+#
+# 4. SCHLUESSEL IST DATEI + MELDUNG, NICHT DIE ZEILENNUMMER. Auf PHP 8.3 ergaben 148
+#    protokollierte Zeilen genau VIER solcher Paare — die Zeilennummer haette die Liste
+#    bei jeder Codeaenderung brechen lassen.
+#
+# ── Stand bei der Einrichtung (PHP 8.3, gemessen in 006-005-0003) ─────────────────────
+#
+#   148 protokollierte Zeilen, 21 eindeutige Meldungen, 4 Paare aus Datei und Meldung.
+#   Davon 12 Zeilen aus Silex, 9 aus eigenem Code.
+
+vendor/silex/silex/src/Silex/ExceptionListenerWrapper.php|Method ReflectionParameter::getClass() is deprecated|Fremdpaket. Silex 2.2.2 ist seit 2018 EOL, es gibt keine Fassung ohne diesen Aufruf. Faellt mit Epic 009 (Silex durch Symfony 7.4 ersetzen).
+
+lib/contentfly/Classes/Controller/Provider/BaseControllerProvider.php|strtolower(): Passing null|Eigener Defekt: null wird an strtolower() uebergeben. Erfasst in 000-000-0023.
+lib/contentfly/Entity/Base.php|explode(): Passing null|Eigener Defekt: null wird an explode() uebergeben. Erfasst in 000-000-0023.
+lib/contentfly/Controller/SystemController.php|method_exists(): Passing null|Eigener Defekt: null wird an method_exists() uebergeben. Erfasst in 000-000-0023.

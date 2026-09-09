@@ -64,6 +64,57 @@ check:template-config:
   script:
     - sh tools/check-template-config.sh
 
+check:audit:
+  stage: check
+  image: php:8.3-cli
+  # Das Sicherheits-Gate aus 006-005-0001. Es braucht KEIN composer install: `--locked`
+  # prueft den committeten Lock, nicht ein installiertes vendor/. Damit laeuft es auch
+  # dann, wenn der Testlauf an etwas anderem scheitert — ein Sicherheitsbefund soll nicht
+  # davon abhaengen, ob die Suite gruen ist.
+  #
+  # Die fuenf heute unbehebbaren Symfony-4.4-Meldungen stehen einzeln nach CVE-Kennung in
+  # composer.json unter config.audit.ignore, jede mit Begruendung. Eine SECHSTE Meldung
+  # macht diesen Job sofort rot — das ist der Unterschied zwischen einer Ausnahme und
+  # einem abgeschalteten Gate.
+  #
+  # Der Ablauf steht in tools/ci/audit.sh, damit man ihn lokal nachspielen kann.
+  before_script:
+    - php -r "copy('https://getcomposer.org/installer','/tmp/composer-setup.php');"
+    - php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer --quiet
+  script:
+    - sh tools/ci/audit.sh
+    # Zweite Haelfte des Gates (006-005-0002): Eine Ausnahme, die nicht mehr greift, macht
+    # den Lauf rot. Sonst waere die Liste aus config.audit.ignore nach Epic 009 eine
+    # Erlaubnis ins Leere, die stillschweigend weiterwirkt.
+    - sh tools/ci/audit-ausnahmen-pruefen.sh
+
+check:phpstan:
+  stage: check
+  image: php:8.3-cli
+  # Die statische Haelfte des "0 Deprecations"-Gates (006-005-0004). Das Laufzeit-Log aus
+  # 006-005-0003 zeigt nur, was ein Testlauf AUSGEFUEHRT hat; PHPStan findet deprecated
+  # APIs auch in Zweigen, die die Suite nicht betritt.
+  #
+  # NICHT BLOCKIEREND, und zwar begruendet: Der erste Lauf meldet 47 Treffer, praktisch
+  # alle Aufrufe in deprecated Doctrine- und Symfony-APIs. Ein Gate, das ab dem ersten Lauf
+  # rot ist und erst von Epic 009/010 gruen gemacht werden kann, wird abgeschaltet statt
+  # abgearbeitet. Die Bedingung zum Scharfschalten steht in phpstan.neon.dist.
+  #
+  # Der Job braucht kein prepare-test-environment.sh und keine Datenbank — statische
+  # Analyse fuehrt nichts aus.
+  allow_failure: true
+  before_script:
+    - sh tools/ci/install-php-extensions.sh
+    - php -r "copy('https://getcomposer.org/installer','/tmp/composer-setup.php');"
+    - php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer --quiet
+    - composer install --no-interaction --no-progress --prefer-dist
+  script:
+    # --memory-limit=512M ist nicht willkuerlich: Mit dem PHP-Standard von 128M bricht ein
+    # Worker bei KALTEM Ergebnis-Cache ab, und PHPStan meldet dann "Result is incomplete"
+    # mit WENIGER Treffern — das saehe aus wie Fortschritt. In der CI ist der Cache immer
+    # kalt. Nachgemessen in 006-005-0004: 128M kalt unvollstaendig, 512M kalt vollstaendig.
+    - ./vendor/bin/phpstan analyse --no-progress --memory-limit=512M
+
 # ── Die Testsuiten ─────────────────────────────────────────────────────────────────────
 
 .testlauf:
@@ -93,7 +144,14 @@ check:template-config:
   script:
     # Ohne --testsuite laufen beide: `unit` ohne Datenbank, `integration` gegen die eben
     # aufgebaute Instanz. Die Trennung ist Absicht und in phpunit.xml.dist begründet.
-    - $PHPUNIT
+    #
+    # Der Exit-Code wird aufgehoben statt sofort wirksam: Das Deprecation-Gate darunter
+    # liest das Serverlog und MUSS auch dann laufen, wenn die Suite rot ist — sonst waere
+    # es genau dann blind, wenn am meisten passiert ist. GitLab bricht die script-Liste
+    # beim ersten Fehlschlag ab, deshalb der Umweg (006-005-0003).
+    - set +e; $PHPUNIT; PHPUNIT_EXIT=$?; set -e
+    - sh tools/ci/deprecations-pruefen.sh
+    - exit $PHPUNIT_EXIT
   after_script:
     # Der Postausgang der Versandfalle gehört ins Log, auch wenn der Lauf grün war: Eine
     # nicht leere Datei hiesse, dass ein Testlauf zuzustellen versucht hat.

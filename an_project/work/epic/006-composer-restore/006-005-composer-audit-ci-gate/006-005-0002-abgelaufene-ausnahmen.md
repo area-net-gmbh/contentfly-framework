@@ -1,7 +1,7 @@
 ---
 id: 006-005-0002
 title: Eine Ausnahme, die nicht mehr greift, macht den Lauf rot
-status: todo
+status: done
 depends_on: [006-005-0001]
 ---
 
@@ -57,12 +57,12 @@ Keine Änderung am Gate selbst. Keine Ausnahme hinzufügen oder entfernen — di
 bis Epic `009` sie auflöst.
 
 ## Acceptance criteria
-- [ ] Eine ausgenommene Kennung, die nicht mehr gemeldet wird, lässt den Lauf fehlschlagen und
+- [x] Eine ausgenommene Kennung, die nicht mehr gemeldet wird, lässt den Lauf fehlschlagen und
       nennt sie beim Namen.
-- [ ] Die Meldung sagt, was zu tun ist — Kennung streichen —, nicht nur, dass etwas nicht stimmt.
-- [ ] Die Ausnahmeliste steht an **einer** Stelle; wo sie liegt, ist begründet.
-- [ ] Auf dem Ist-Stand ist die Prüfung grün: Alle fünf Ausnahmen greifen noch.
-- [ ] Der Schritt läuft ohne `vendor/`, wie das Gate selbst.
+- [x] Die Meldung sagt, was zu tun ist — Kennung streichen —, nicht nur, dass etwas nicht stimmt.
+- [x] Die Ausnahmeliste steht an **einer** Stelle; wo sie liegt, ist begründet.
+- [x] Auf dem Ist-Stand ist die Prüfung grün: Alle fünf Ausnahmen greifen noch.
+- [x] Der Schritt läuft ohne `vendor/`, wie das Gate selbst.
 
 ## Verification
 In beide Richtungen belegt, nach derselben Regel wie die Versandfalle aus `008-004-0004` und die
@@ -77,3 +77,72 @@ In beide Richtungen belegt, nach derselben Regel wie die Versandfalle aus `008-0
    aus wie Erfolg.
 
 Gefahren wird lokal in Docker mit demselben Image wie die Pipeline.
+
+## Ergebnis
+**Die Ausnahmeliste kann nicht mehr einschlafen.**
+`tools/ci/audit-ausnahmen-pruefen.sh` läuft im selben Job direkt hinter dem Gate und macht den
+Lauf rot, sobald eine eingetragene Kennung nicht mehr gemeldet wird.
+
+### Wie verglichen wird
+`composer audit --format=json` trennt selbst zwischen `advisories` (nicht ausgenommen — das
+fängt bereits `006-005-0001`) und `ignored-advisories` (ausgenommen, greift also noch). Der
+Vergleich läuft gegen die zweite Liste:
+
+| Fall | Ergebnis |
+|---|---|
+| Kennung in `composer.json`, aber **nicht** in `ignored-advisories` | abgelaufen → rot |
+| Kennung in `advisories`, nicht ausgenommen | fängt das Gate selbst |
+
+Eingesammelt werden **beide** Schreibweisen, die Composer je Meldung führt: die CVE-Kennung und
+die composer-eigene `advisoryId` (`PKSA-…`). Damit darf die Ausnahmeliste jede von beiden
+enthalten, ohne dass die Prüfung fälschlich anschlägt.
+
+**Die Liste bleibt nur in `composer.json`.** Eine zweite Kopie im Skript müsste mitgepflegt
+werden und liefe auseinander — derselbe Grund, aus dem `006-004-0001` die Einordnungsregel nicht
+nach `architecture.md` kopiert hat.
+
+**PHP statt `jq`** für den Vergleich: `jq` liegt in keinem der CI-Images, PHP per Definition in
+jedem.
+
+### Ablauf in der Sache, nicht im Kalender
+Eine Ausnahme fällt, wenn ihr Grund wegfällt — nicht an einem Datum. Ein Ablaufdatum wäre die
+schwächere Lösung: Es greift entweder zu früh (die CVE ist noch offen) oder zu spät (Epic `009`
+kam schneller), und beides hängt an einer Schätzung von heute. Hebt Epic `009` Symfony auf 7.4,
+verschwinden die fünf Meldungen, und derselbe Lauf, der sie überflüssig macht, fordert ihre
+Streichung ein.
+
+### Vier Richtungen, gemessen in `php:8.3-cli`
+| Lauf | Exit | Beleg |
+|---|---|---|
+| Ist-Stand | **0** | `5 Ausnahme(n) eingetragen, 5 greifen noch.` |
+| sechste, erfundene Kennung eingetragen | **1** | nennt `CVE-1999-00000` und sagt, dass sie zu streichen ist |
+| `composer` durch eine Attrappe ersetzt, die nichts ausgibt | **1** | `✗ composer audit hat nichts geliefert.` |
+| Composer 2.7.7 | **1** | `✗ Composer 2.7.7 ist zu alt für dieses Gate (nötig: >= 2.8.0)` |
+
+Die dritte Zeile ist die wichtigste. Liefert der Aufruf nichts, sähe „keine abgelaufene
+Ausnahme gefunden" aus wie Erfolg — genau der stille Durchwinker, gegen den `008-005-0002` den
+Umgebungswächter gebaut hat. Die Prüfung bricht deshalb ab, statt eine leere Datenlage als
+Ergebnis auszugeben.
+
+### Eine Korrektur an `006-005-0001`
+Beim Bauen dieser Prüfung ist aufgefallen, dass die Begründung der Versionsschranke aus dem
+Vorgänger-Task **falsch war**. Sie lautete: `config.audit.ignore` gebe es erst ab Composer 2.7,
+ältere Fassungen übergingen den Block stillschweigend.
+
+Nachgemessen über vier Fassungen stimmt das nicht:
+
+| Composer | `config.audit.ignore` | `--abandoned` |
+|---|---|---|
+| 2.6.6 | **beachtet** (`advisories: 0`) | fehlt |
+| 2.7.0 | beachtet | fehlt |
+| 2.7.7 | beachtet | fehlt |
+| 2.8.0 | beachtet | **vorhanden** |
+
+Die Schranke hängt an `--abandoned`, nicht an der Ausnahmeliste — und sie stand mit **2.7.0 zu
+niedrig**: Eine 2.7.x wäre durch die Prüfung gekommen und danach an `--abandoned` gescheitert,
+mit genau der Meldung, die die Schranke verhindern sollte.
+
+Korrigiert auf **2.8.0**, samt Begründung im Skript und einer Korrekturnotiz im Ergebnis von
+`006-005-0001`. Der Fehler kam daher, dass ich die Schranke aus dem Verhalten meines eigenen
+Skripts abgelesen habe, statt Composer selbst zu befragen — die Absage im Testlauf stammte von
+meiner Versionsprüfung, nicht von Composer.

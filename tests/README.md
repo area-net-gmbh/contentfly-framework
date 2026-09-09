@@ -123,17 +123,31 @@ Integrationslaufs, nicht jeden denkbaren Übersprung.
 **lokal in Docker nachspielen kann** — eine Pipeline-Definition, deren Schritte man nur in der
 Pipeline ausprobieren kann, ist beim Suchen eines Fehlers nutzlos.
 
+Der Testlauf selbst:
+
 ```sh
-sh tools/ci/install-php-extensions.sh    # nur im Container nötig: pdo_mysql und gd
+sh tools/ci/install-php-extensions.sh    # pdo_mysql, gd und unzip
 composer install                          # seit 006-003 die einzige Quelle des Baums
 sh tools/ci/prepare-test-environment.sh  # warten, installieren, Versandfalle, Server
 ./vendor/bin/phpunit
+sh tools/ci/deprecations-pruefen.sh      # liest das Serverlog, NICHT die Ausgabe oben
 ```
 
-> **Der `composer install` läuft im CI-Image heute nicht durch.** `php:8.3-cli` bringt weder die
-> `zip`-Extension noch `unzip`, `7z` oder `git` mit, und `install-php-extensions.sh` rüstet nur
-> `pdo_mysql` und `gd` nach. Festgehalten in Task `000-000-0021`. Wer den Ablauf jetzt nachspielen
-> will, ergänzt vorher `apt-get install -y unzip git`.
+**Der letzte Schritt gehört dazu, auch wenn PHPUnit rot war.** Die `.gitlab-ci.yml` hebt den
+Exit-Code von PHPUnit deshalb auf und macht ihn erst danach wirksam — sonst bräche GitLab die
+Liste beim ersten Fehlschlag ab, und das Deprecation-Gate wäre genau dann blind, wenn am meisten
+passiert ist.
+
+Die beiden Prüfungen der Stage `check` brauchen weder Datenbank noch Testserver:
+
+```sh
+sh tools/ci/audit.sh                     # composer audit --locked, blockierend
+sh tools/ci/audit-ausnahmen-pruefen.sh   # meldet Ausnahmen, die nicht mehr greifen
+./vendor/bin/phpstan analyse --memory-limit=512M   # nicht blockierend
+```
+
+Was diese Gates prüfen und was bei einem Fund zu tun ist, steht in
+`an_project/docs/deployment.md` unter *Die Gates*.
 
 ## Die Versandfalle für `/api/mail`
 
