@@ -183,36 +183,57 @@ class SystemControllerApiTest extends IntegrationTestCase
         $this->assertSame(500, $status);
     }
 
-    public function testDasTorIstMethodExistsUndNichtEineErlaubnisliste(): void
+    /**
+     * **Umgedreht mit `000-000-0015`, nicht geloescht.**
+     *
+     * Der Test hiess `testDasTorIstMethodExistsUndNichtEineErlaubnisliste()`: Erreichbar war
+     * alles, was `method_exists()` bejahte — auch `setEM` und `__construct` aus
+     * `BaseController`. Sie wurden aufgerufen und scheiterten erst an ihrer Typpruefung; die
+     * Grenze zog die Signatur, nicht der Endpunkt.
+     *
+     * Jetzt zieht sie eine ausgeschriebene Liste.
+     */
+    public function testDasTorIstEineErlaubnislisteUndNichtMethodExists(): void
     {
-        // Erreichbar ist alles, was method_exists() bejaht — auch was BaseController
-        // mitbringt. setEM und __construct scheitern erst an ihrer Typprüfung, nicht an
-        // einer Prüfung des Endpunkts. Heute folgenlos, weil beide ein Objekt verlangen und
-        // ein Request keines ist; die Grenze zieht damit die Signatur, nicht der Controller.
-        $this->assertTrue(method_exists(SystemController::class, 'setEM'), 'Vorbedingung');
+        $this->assertTrue(method_exists(SystemController::class, 'setEM'),
+            'Vorbedingung: die Methode gibt es weiterhin');
 
-        [$statusSetEm]      = $this->systemDo('setEM');
-        [$statusConstruct]  = $this->systemDo('__construct');
+        [$statusSetEm]     = $this->systemDo('setEM');
+        [$statusConstruct] = $this->systemDo('__construct');
 
-        $this->assertSame(500, $statusSetEm, 'Wird aufgerufen und scheitert am Typ, nicht am Tor');
+        $this->assertSame(500, $statusSetEm, 'Abgewiesen am Tor, nicht am Typ');
         $this->assertSame(500, $statusConstruct);
+
+        // Der Unterschied zu vorher steht in der Meldung: Sie kommt jetzt aus doAction,
+        // nicht aus einer Typpruefung tief in der Basisklasse.
+        [, $body] = $this->postJson('/system/do', array('method' => 'setEM'), $this->token());
+        $this->assertSame('Methode setEM nicht verfügbar.', $body['message'] ?? null);
     }
 
-    public function testDoActionRuftSichSelbstAufUndWirdDeshalbNichtScharfGeprueft(): void
+    /**
+     * **Umgedreht mit `000-000-0015`, nicht geloescht.**
+     *
+     * Der Test hiess `testDoActionRuftSichSelbstAufUndWirdDeshalbNichtScharfGeprueft()` und
+     * pruefte die **Ursache** statt der Wirkung: `doAction` ist public, bestand
+     * `method_exists()` und schickte den Controller in eine Endlosrekursion. Mit dem
+     * Standard-Limit endete sie nach ~0,2 s in einem Fatal Error, **ohne** Limit gar nicht —
+     * der Ausgang haengt an einer Einstellung ausserhalb der Suite, deshalb wurde sie nie
+     * ausgeloest.
+     *
+     * Jetzt laesst sie sich gefahrlos ausloesen: Die Erlaubnisliste kennt `doAction` nicht.
+     * `doAction` ist weiterhin public — das muss es sein, Silex ruft es als Route auf.
+     */
+    public function testDoActionRuftSichNichtMehrSelbstAuf(): void
     {
-        // doAction ist public und besteht method_exists() — method: "doAction" schickt den
-        // Controller in eine Endlosrekursion, die erst am memory_limit endet. Ein Aufruf im
-        // Testlauf wuerde mit dem Standard-Limit (128 MB) nach ~0,2 s in einem Fatal Error
-        // enden; **ohne** Limit (memory_limit = -1, in Containern nicht unueblich) liefe er
-        // dagegen unbegrenzt weiter und wuerde den Testserver mitnehmen. Der Ausgang haengt
-        // also an einer Einstellung ausserhalb der Suite — deshalb wird hier die Ursache
-        // geprueft und nicht die Wirkung ausgeloest.
-        //
-        // Notiert als Befund in 000-000-0015.
         $doAction = new \ReflectionMethod(SystemController::class, 'doAction');
-
         $this->assertTrue($doAction->isPublic(),
-            'doAction ist oeffentlich und damit ueber sich selbst erreichbar');
+            'weiterhin oeffentlich — Silex ruft es als Route auf');
+
+        [$status, $body] = $this->postJson('/system/do', array('method' => 'doAction'), $this->token());
+
+        $this->assertSame(500, $status);
+        $this->assertSame('Methode doAction nicht verfügbar.', $body['message'] ?? null,
+            'Abgewiesen, statt sich selbst aufzurufen');
     }
 
     // ── C: Die Token-Verwaltung ────────────────────────────────────────────────────────
@@ -258,12 +279,21 @@ class SystemControllerApiTest extends IntegrationTestCase
         $this->assertSame($this->adminId(), $gefunden['user_id']);
     }
 
-    public function testAddTokenSchreibtDenLogeintragMitEinemDeutschenModusStattDerKonstanten(): void
+    /**
+     * **Umgedreht mit `000-000-0015`, nicht geloescht.**
+     *
+     * Der Test hiess `testAddTokenSchreibtDenLogeintragMitEinemDeutschenModusStattDerKonstanten()`:
+     * `addToken` setzte `'Erstellt'`, `deleteToken` `'Gelöscht'`. In `pim_log.mode` standen
+     * damit zwei Vokabulare nebeneinander, und wer nach `Log::INSERTED` filterte, fand die
+     * Token-Vorgaenge nicht.
+     *
+     * **Der Altbestand bleibt, wie er ist** — bewusst. `pim_log` ist ein Protokoll; alte
+     * Zeilen nachtraeglich umzuschreiben hiesse, die Aufzeichnung zu aendern. Wer historisch
+     * auswertet, sucht fuer Token-Vorgaenge vor diesem Stand nach den deutschen Werten. Der
+     * Vermerk steht in `an_project/docs/breaking-changes.md`.
+     */
+    public function testAddTokenSchreibtDenLogeintragMitDerKonstanten(): void
     {
-        // Log::INSERTED ist 'INS'. addToken setzt stattdessen die deutsche Zeichenkette
-        // 'Erstellt', deleteToken analog 'Gelöscht'. Damit stehen in pim_log.mode zwei
-        // Vokabulare nebeneinander, und wer nach Log::INSERTED filtert, findet die
-        // Token-Vorgaenge nicht. Befund, notiert in 000-000-0015.
         $wert = 'test-'.bin2hex(random_bytes(16));
 
         [, $body] = $this->tokenAnlegen($wert);
@@ -272,10 +302,10 @@ class SystemControllerApiTest extends IntegrationTestCase
         $log->execute(array('n' => 'PIM\\Token', 'i' => (string) $body['message']['id']));
         $eintrag = $log->fetch(\PDO::FETCH_ASSOC);
 
-        $this->assertSame('Erstellt', $eintrag['mode'], "Nicht Log::INSERTED ('INS')");
+        $this->assertSame('INS', $eintrag['mode'], "Log::INSERTED, nicht 'Erstellt'");
         $this->assertSame('PIM\\Token', $eintrag['model_name']);
         $this->assertSame($wert, $eintrag['model_label'],
-            'Der Token steht im Klartext im Protokoll — auch das gehoert zu 013-003');
+            'Der Token steht im Klartext im Protokoll — das gehoert zu 013-003');
     }
 
     public function testAddTokenBrauchtReferrerTokenUndBenutzer(): void
@@ -343,33 +373,57 @@ class SystemControllerApiTest extends IntegrationTestCase
         }
     }
 
-    public function testDeleteTokenIstDurchEinenFalschenNamensraumUnbrauchbar(): void
+    /**
+     * **Umgedreht mit `000-000-0015`, nicht geloescht.**
+     *
+     * Der Test hiess `testDeleteTokenIstDurchEinenFalschenNamensraumUnbrauchbar()`. Die
+     * Methode suchte in `Areanet\Contently\Entity\Token` — „Contently" statt „PIM", die
+     * einzige Stelle im ganzen Baum mit diesem Namen. Doctrine kannte die Klasse nicht, und
+     * die Methode endete vor ihrer ersten fachlichen Zeile: **Ein API-Token liess sich ueber
+     * die API nicht wieder loswerden.**
+     *
+     * Der alte Test forderte das Umdrehen woertlich ein — „dann muss die Zeile verschwinden
+     * und ein Logeintrag mit `Log::DELETED` entstehen". Genau das steht hier.
+     *
+     * Der Rest der Methode lief bis dahin **nie**. Geprueft wird deshalb nicht nur der
+     * Repository-Aufruf, sondern was danach kommt.
+     */
+    public function testDeleteTokenEntferntDieZeileUndProtokolliertEs(): void
     {
-        // deleteToken sucht in
-        //
-        //     $this->em->getRepository('Areanet\\Contently\\Entity\\Token')
-        //
-        // "Contently" statt "PIM" — die einzige Stelle im ganzen Baum, an der dieser Name
-        // vorkommt. Doctrine kennt die Klasse nicht, die Methode endet vor der ersten
-        // Zeile ihrer Logik. **Es gibt heute keinen Weg, einen API-Token ueber die API
-        // wieder loszuwerden.** Befund, notiert in 000-000-0015.
-        //
-        // Wer ihn repariert, dreht diesen Test um: dann muss die Zeile verschwinden und ein
-        // Logeintrag mit Log::DELETED entstehen.
         $wert = 'test-'.bin2hex(random_bytes(16));
 
         [, $body] = $this->tokenAnlegen($wert);
         $id       = $body['message']['id'];
 
         [$status] = $this->systemDo('deleteToken', array('id' => $id));
-
-        $this->assertSame(500, $status);
+        $this->assertSame(200, $status);
 
         $zeile = $this->pdo()->prepare('SELECT COUNT(*) FROM pim_token WHERE id = :id');
         $zeile->execute(array('id' => $id));
+        $this->assertSame('0', (string) $zeile->fetchColumn(), 'Die Zeile ist weg');
 
-        $this->assertSame('1', (string) $zeile->fetchColumn(),
-            'Die Zeile steht noch — geloescht wird nichts');
+        $log = $this->pdo()->prepare(
+            'SELECT mode, model_label FROM pim_log WHERE model_name = :n AND model_id = :i AND mode = :m'
+        );
+        $log->execute(array('n' => 'PIM\\Token', 'i' => (string) $id, 'm' => 'DEL'));
+        $eintrag = $log->fetch(\PDO::FETCH_ASSOC);
+
+        $this->assertNotFalse($eintrag, 'und ein Logeintrag mit Log::DELETED steht da');
+        $this->assertSame($wert, $eintrag['model_label']);
+    }
+
+    public function testDeleteTokenMeldetEinenUnbekanntenToken(): void
+    {
+        // Die zweite Haelfte, die der Task verlangt: Der Fall "Token unbekannt". Er lief
+        // vorher aus demselben Grund nie — die Methode kam gar nicht bis zur Pruefung.
+        [$status, $body] = $this->postJson(
+            '/system/do',
+            array('method' => 'deleteToken', 'id' => 'gibtesnicht-'.bin2hex(random_bytes(4))),
+            $this->token()
+        );
+
+        $this->assertSame(500, $status);
+        $this->assertSame('Token ungültig', $body['message'] ?? null);
     }
 
     public function testDerAnmeldeTokenDesLaufsUeberstehtDieTokenMethoden(): void
@@ -383,6 +437,63 @@ class SystemControllerApiTest extends IntegrationTestCase
         [$status] = $this->get('/api/schema', $this->token());
 
         $this->assertSame(200, $status, 'Der Anmeldetoken gilt weiterhin');
+    }
+
+    /**
+     * Der Aufraeumweg zu Punkt 5 aus `000-000-0015`.
+     *
+     * `pim_token` wuchs unbegrenzt: Aufgeraeumt wurde nur traege, wenn ein abgelaufener Token
+     * noch einmal vorgezeigt wurde. Wer den Browser schliesst, hinterlaesst eine Zeile fuer
+     * immer.
+     *
+     * **Der Task liess offen, ob `013-003` die Tabelle ohnehin ersetzt. Tut es nicht:** Die
+     * Story behaelt den opaquen DB-Token ausdruecklich als Refresh-Token. Also braucht es den
+     * Aufraeumlauf — `appcms:token:cleanup`.
+     *
+     * Geprueft wird ueber die Datenbank, nicht ueber den Command-Aufruf: Die Suite laeuft
+     * gegen einen Testserver, der Command in einem eigenen Prozess. Was zaehlt, ist die
+     * Rechnung, nach der er entscheidet — und die ist dieselbe wie in `checkToken()`.
+     */
+    public function testAbgelaufeneAnmeldetokenLassenSichAufraeumen(): void
+    {
+        $benutzerId = $this->pdo()->query("SELECT id FROM pim_user WHERE alias = 'admin'")->fetchColumn();
+
+        // Ein abgelaufener Anmeldetoken (kein referrer) und ein API-Token (mit referrer).
+        $abgelaufen = 'alt-'.bin2hex(random_bytes(16));
+        $apiToken   = 'api-'.bin2hex(random_bytes(16));
+
+        // pim_token.id ist eine Integer-Spalte mit Auto-Increment — anders als die Entities,
+        // die von Base erben und eine GUID tragen. Die Id kommt deshalb von MySQL.
+        $einfuegen = $this->pdo()->prepare(
+            'INSERT INTO pim_token (user_id, token, referrer, created, modified)'
+            .' VALUES (:u, :t, :r, :c, :m)'
+        );
+        $alt = (new \DateTime('-30 days'))->format('Y-m-d H:i:s');
+
+        $einfuegen->execute(array('u' => $benutzerId, 't' => $abgelaufen, 'r' => null, 'c' => $alt, 'm' => $alt));
+        $idAbgelaufen = $this->pdo()->lastInsertId();
+
+        $einfuegen->execute(array('u' => $benutzerId, 't' => $apiToken, 'r' => 'https://example.invalid', 'c' => $alt, 'm' => $alt));
+        $idApi = $this->pdo()->lastInsertId();
+
+        $this->nachTestLoeschen('pim_token', $idAbgelaufen);
+        $this->nachTestLoeschen('pim_token', $idApi);
+
+        $ausgabe = array();
+        exec(
+            sprintf('%s %s appcms:token:cleanup 2>&1', escapeshellarg(PHP_BINARY), escapeshellarg(ROOT_DIR.'/bin/console.php')),
+            $ausgabe
+        );
+
+        $zaehlen = $this->pdo()->prepare('SELECT COUNT(*) FROM pim_token WHERE id = :id');
+
+        $zaehlen->execute(array('id' => $idAbgelaufen));
+        $this->assertSame('0', (string) $zaehlen->fetchColumn(),
+            'Der abgelaufene Anmeldetoken ist weg — '.implode(' ', $ausgabe));
+
+        $zaehlen->execute(array('id' => $idApi));
+        $this->assertSame('1', (string) $zaehlen->fetchColumn(),
+            'Der API-Token mit referrer bleibt: Er verfaellt nicht ueber die Zeit');
     }
 
     public function testJedeAnmeldungLegtEineZeileAnDieNurBeimNaechstenGebrauchVerfaellt(): void
@@ -456,27 +567,39 @@ class SystemControllerApiTest extends IntegrationTestCase
 
     // ── D: Das Notschloss ──────────────────────────────────────────────────────────────
 
-    public function testValidateORMStehtInDerAusnahmelisteExistiertAberNicht(): void
+    /**
+     * **Umgedreht mit `000-000-0015`, nicht geloescht.**
+     *
+     * Der Test hiess `testValidateORMStehtInDerAusnahmelisteExistiertAberNicht()`: Das
+     * Notschloss liess `validateORM` und `updateDatabase` **ohne Token und ohne Adminrecht**
+     * durch — und die erste der beiden gab es im Controller nicht. Eine Ausnahme ins Leere.
+     *
+     * **Gestrichen statt wiederhergestellt.** Doctrine braechte mit `SchemaValidator` alles
+     * mit, und der Import steht noch oben in der Datei — aber eine wiederhergestellte Methode
+     * waere ein zweiter Endpunkt ohne Token und ohne Adminrecht. Ein Notschloss soll so klein
+     * sein wie moeglich.
+     */
+    public function testDasNotschlossKenntNurNochUpdateDatabase(): void
     {
-        // Der before-Hook laesst bei kaputtem Schema 'validateORM' und 'updateDatabase'
-        // ungeprueft durch. Die erste der beiden Methoden gibt es im Controller nicht mehr —
-        // die Ausnahme fuehrt also ins Leere. Befund, notiert in 000-000-0015.
         $this->assertFalse(method_exists(SystemController::class, 'validateORM'),
-            'validateORM existiert nicht');
+            'validateORM existiert weiterhin nicht');
 
         $quelle = file_get_contents(ROOT_DIR.'/lib/contentfly/Classes/Controller/Provider/Base/SystemControllerProvider.php');
-        $this->assertStringContainsString("\$request->get('method') == 'validateORM'", $quelle,
-            'steht aber in der Ausnahmeliste');
+        $this->assertStringNotContainsString("== 'validateORM'", $quelle,
+            'und steht nicht mehr in der Ausnahmeliste');
+        $this->assertStringContainsString("\$request->get('method') == 'updateDatabase'", $quelle,
+            'updateDatabase bleibt — ein kaputtes Schema muss reparierbar sein');
 
         [$status] = $this->systemDo('validateORM');
-        $this->assertSame(500, $status, 'und endet als unbekannte Methode');
+        $this->assertSame(500, $status, 'und wird als unbekannte Methode abgewiesen');
     }
 
     public function testDasNotschlossGreiftNurBeiEinerInvalidFieldNameException(): void
     {
         // Der Ausnahmezweig haengt an genau einer Doctrine-Ausnahme: Faellt eine Spalte weg,
-        // die checkToken() liest, kommt eine InvalidFieldNameException — und dann sind
-        // validateORM und updateDatabase **ohne Token und ohne Adminrecht** erreichbar. Der
+        // die checkToken() liest, kommt eine InvalidFieldNameException — und dann ist
+        // updateDatabase **ohne Token und ohne Adminrecht** erreichbar (seit 000-000-0015 nur
+        // noch diese eine Methode; validateORM stand hier ebenfalls und existierte nicht). Der
         // Sinn ist erkennbar (ein kaputtes Schema muss reparierbar bleiben, ohne dass man
         // sich anmelden kann); der Preis ist eine ungesicherte Schreiboperation auf dem
         // Schema.
@@ -495,6 +618,6 @@ class SystemControllerApiTest extends IntegrationTestCase
         $this->assertStringContainsString('catch(InvalidFieldNameException $e)', $quelle,
             'Nur diese eine Ausnahme oeffnet das Notschloss');
         $this->assertStringContainsString('throw $e;', $quelle,
-            'Jede andere Methode fliegt weiter — das Schloss oeffnet nur fuer die zwei');
+            'Jede andere Methode fliegt weiter — das Schloss oeffnet nur fuer diese eine');
     }
 }
