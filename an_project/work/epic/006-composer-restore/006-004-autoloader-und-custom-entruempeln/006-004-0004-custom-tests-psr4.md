@@ -1,7 +1,7 @@
 ---
 id: 006-004-0004
 title: Custom\Tests\ durch ein PSR-4-Mapping im Root ersetzen
-status: review
+status: done
 depends_on: [006-004-0003]
 ---
 

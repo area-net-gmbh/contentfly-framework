@@ -1,7 +1,7 @@
 ---
 id: 006-004-0003
 title: Den Bootstrap festzurren und eine Überschneidung auffallen lassen
-status: review
+status: done
 depends_on: [006-004-0002]
 ---
 

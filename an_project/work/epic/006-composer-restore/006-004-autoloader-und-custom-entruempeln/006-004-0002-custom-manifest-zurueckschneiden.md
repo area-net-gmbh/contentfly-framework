@@ -1,7 +1,7 @@
 ---
 id: 006-004-0002
 title: custom/composer.json auf den Projekt-Slot zurückschneiden
-status: review
+status: done
 depends_on: [006-004-0001]
 ---
 

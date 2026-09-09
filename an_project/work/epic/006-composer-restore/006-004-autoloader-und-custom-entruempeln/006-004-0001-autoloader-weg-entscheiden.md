@@ -1,7 +1,7 @@
 ---
 id: 006-004-0001
 title: Den Autoloader-Weg entscheiden und begründen
-status: review
+status: done
 depends_on: []
 ---
 
