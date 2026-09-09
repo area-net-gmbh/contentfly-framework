@@ -1,7 +1,7 @@
 ---
 id: 000-000-0021
 title: Das CI-Image kann composer install nicht ausführen
-status: review
+status: done
 depends_on: [006-003-0002]
 ---
 
