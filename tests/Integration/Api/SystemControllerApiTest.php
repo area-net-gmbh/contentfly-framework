@@ -224,13 +224,13 @@ class SystemControllerApiTest extends IntegrationTestCase
      * ausgeloest.
      *
      * Jetzt laesst sie sich gefahrlos ausloesen: Die Erlaubnisliste kennt `doAction` nicht.
-     * `doAction` ist weiterhin public — das muss es sein, Silex ruft es als Route auf.
+     * `doAction` ist weiterhin public — das muss es sein, der Router ruft es als Route auf.
      */
     public function testDoActionRuftSichNichtMehrSelbstAuf(): void
     {
         $doAction = new \ReflectionMethod(SystemController::class, 'doAction');
         $this->assertTrue($doAction->isPublic(),
-            'weiterhin oeffentlich — Silex ruft es als Route auf');
+            'weiterhin oeffentlich — der Router ruft es als Route auf');
 
         [$status, $body] = $this->postJson('/system/do', array('method' => 'doAction'), $this->token());
 

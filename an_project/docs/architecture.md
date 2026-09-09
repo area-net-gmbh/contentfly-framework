@@ -123,3 +123,11 @@ Auflösen des Dev-Branch-Pins `doctrine/orm dev-bugfix-many2many` und der Ersatz
 **Revidieren, wenn:** PHP ≥ 8.4 bei allen Bestandsprojekten gesetzt ist, das Versprechen „läuft
 auf Standard-Providern" aus dem README entfällt **und** ein verbindliches Upgrade-Fenster alle
 6 Monate eingeplant ist.
+
+**Eingelöst mit Epic `009` (2026-09-09).** Der Kernel steht auf Symfony 7.4, Silex und Pimple
+sind aus dem Baum, und die Zusicherung „deprecation-frei" ist gemessen statt zugesagt: 0
+Deprecations auf PHP 8.3 **und** 8.4, PHPStan blockierend und ohne Befund im eigenen Code, 0
+Advisories. Der Text oben bleibt so stehen, wie er am 2026-09-04 geschrieben wurde — das Argument
+„Silex läuft hier immer noch" war zu diesem Zeitpunkt richtig und ist der Grund, warum die
+Entscheidung so ausfiel. Eine Begründung nachträglich in die Vergangenheitsform zu setzen, macht
+sie unlesbar.
