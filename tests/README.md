@@ -71,7 +71,10 @@ durch `index.php` — auch die für eine Datei, die auf der Platte liegt. Apache
 die Auslieferung von Dateien hängt genau daran.
 
 **`APP_DEBUG=0`** verhindert, dass der Debug-Exception-Handler die Antworten der Anwendung
-überdeckt. Ganz behoben ist das damit nicht — siehe Task `000-000-0006`.
+überdeckt. Der Rest davon ist mit `000-000-0006` behoben: Ein PHP-Fehler kommt seither als
+JSON-Antwort der Anwendung an und nicht mehr als Symfonys „Whoops"-Seite. `APP_DEBUG=0`
+bleibt trotzdem gesetzt, weil es die Produktionseinstellung ist und die Suite messen soll,
+was eine Installation ausliefert.
 
 **`display_errors=Off` ist nicht kosmetisch.** PHP schreibt eine Deprecation direkt in den
 Antwortstrom. Passiert das, bevor Silex den Statuscode setzt, sind die Header schon unterwegs

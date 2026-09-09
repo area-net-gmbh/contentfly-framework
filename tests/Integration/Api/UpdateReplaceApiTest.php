@@ -124,7 +124,8 @@ class UpdateReplaceApiTest extends IntegrationTestCase
             $this->token()
         );
 
-        $this->assertSame(500, $status, 'Heute 500 statt 404 — siehe 000-000-0006');
+        // Seit 000-000-0006 der gemeinte Code, vorher 500.
+        $this->assertSame(404, $status);
 
         $anzahl = (int) $this->pdo()
             ->query('SELECT COUNT(*) FROM pim_tag WHERE id = '.$this->pdo()->quote($unbekannt))

@@ -107,10 +107,8 @@ class MultiupdateApiTest extends IntegrationTestCase
             array('entity' => 'PIM\\Tag', 'id' => $this->letzterTag, 'data' => array('title' => 'Nach-dem-Fehler')),
         )), $this->token());
 
-        // Heute 500 statt der 404, die doUpdate() wirft — siehe 000-000-0006: die Ausnahme
-        // erreicht den Fehlerhandler der Anwendung nicht. Der Code ist unveraendert der von
-        // vorher; was sich mit 000-000-0009 aendert, steht in der Datenbank.
-        $this->assertSame(500, $status);
+        // 404 seit 000-000-0006; bis dahin kam die Ausnahme aus doUpdate() als 500 an.
+        $this->assertSame(404, $status, 'Der Code des gescheiterten Eintrags, durchgereicht');
 
         $this->assertSame('Erster', $this->titel($this->ersterTag),
             'Das vor dem Fehler verarbeitete Objekt ist zurueckgerollt');
@@ -137,16 +135,15 @@ class MultiupdateApiTest extends IntegrationTestCase
 
     public function testDerFehlerfallMeldetKeineGeaendertenObjekte(): void
     {
-        // Die Antwort im Fehlerfall wird hier bewusst NICHT umgebaut: der Rumpf ist Sache von
-        // 000-000-0006 (er kommt heute gar nicht aus dem Fehlerhandler der Anwendung), die
-        // Vereinheitlichung der Envelopes ist 000-000-0014. Was 000-000-0009 zusichert, steht
-        // in der Datenbank — und genau das wird hier geprueft.
+        // Die Antwort im Fehlerfall wird hier bewusst NICHT umgebaut — die Vereinheitlichung
+        // der Envelopes ist 000-000-0014. Was 000-000-0009 zusichert, steht in der Datenbank,
+        // und genau das wird hier geprueft. Der Code ist seit 000-000-0006 der der Ausnahme.
         [$status, $body] = $this->postJson('/api/multiupdate', array('objects' => array(
             array('entity' => 'PIM\\Tag', 'id' => $this->ersterTag, 'data' => array('title' => 'Egal')),
             array('entity' => 'PIM\\Tag', 'id' => 'gibtesnicht',    'data' => array('title' => 'Scheitert')),
         )), $this->token());
 
-        $this->assertSame(500, $status);
+        $this->assertSame(404, $status);
         $this->assertArrayNotHasKey('data', $body,
             'Die Fehlerantwort behauptet keine Aenderung');
         $this->assertSame('Erster', $this->titel($this->ersterTag),

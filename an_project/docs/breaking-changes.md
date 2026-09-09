@@ -280,6 +280,68 @@ einen kaputten Request hin eine falsche Auskunft.
 *Was zu tun ist:* `objects` mitschicken — auch für einen leeren Stapel, als `[]`. Der leere
 Stapel bleibt ausdrücklich erlaubt.
 
+### Eine unbekannte Id beantwortet die API mit 404
+**Seit `000-000-0006` (2026-09-09).**
+
+`Api::getSingle()` gab bei „nicht gefunden" eine fertige `JsonResponse` zurück — eine
+HTTP-Antwort aus einer Klasse, die kein Controller ist. Jeder interne Aufrufer prüft mit
+`if(!$object)`, und ein Objekt ist wahr; die Prüfung lief also ins Leere. Die Folgen, je nach
+Endpunkt:
+
+- `POST /api/single` antwortete mit **200** und `data: {"headers": {}}` — der serialisierten
+  Antwort, die der Endpunkt als Nutzlast weiterreichte.
+- `POST /api/update` und `POST /api/delete` liefen an ihrer eigenen 404-Prüfung vorbei und
+  starben weiter unten an einem Typfehler. Beim Aufrufer kam **500** an.
+
+Jetzt liefert `getSingle()` `null`, und alle drei antworten mit **404** und
+`contentfly_general_not_found`.
+
+**Betroffen ist jeder Client, der auf 200 oder 500 prüft**, um „gibt es nicht" zu erkennen —
+insbesondere einer, der `data.headers` als Erkennungsmerkmal benutzt hat.
+
+*Was zu tun ist:* Auf 404 prüfen. Das `headers`-Artefakt gibt es nicht mehr.
+
+### `GET /` und unbekannte Pfade antworten mit 405 statt 302
+**Seit `000-000-0006` (2026-09-09).**
+
+Der Fehlerhandler leitete jede Anfrage ohne JSON-Content-Type auf `/` um. Das stammt aus der
+Zeit, als unter `/` die PIM-Oberfläche lag: Ein Browser, der irgendwo einen Fehler auslöste,
+wurde nach Hause geschickt. Die Oberfläche ist mit Epic `012` entfallen — die Umleitung zeigte
+seither auf sich selbst, `GET /` beantwortete die Anwendung mit einer endlosen Kette von
+`302`.
+
+Die Umleitung ist entfallen. Wer ohne JSON-Content-Type anfragt, bekommt die JSON-Antwort der
+API; im Debug-Modus weiterhin die Ausnahme im Klartext. Zugleich kommt der Statuscode jetzt aus
+`getStatusCode()`, wenn die Ausnahme keinen eigenen trägt — `GET /` ergibt damit **405** statt
+**500**.
+
+*Was zu tun ist:* Nichts, sofern der Client kein HTML erwartet. Ein Browser, der auf die
+Umleitung gebaut hat, findet unter `/` ohnehin nichts mehr.
+
+### Der Statuscode steht im Fehlerrumpf unter `status`
+**Seit `000-000-0006` (2026-09-09).**
+
+Für alles, was weder `ContentflyException` noch `ContentflyI18NException` ist — also für jeden
+PHP-Fehler — stand der Code als **schlüsselloser** Eintrag im Rumpf und kam deshalb als `"0"`
+beim Client an. In den beiden anderen Zweigen hiess das Feld schon immer `status`.
+
+*Was zu tun ist:* `status` lesen statt `0`.
+
+### Die Dateiauslieferung leitet auf einen Pfad ab `WEB_ROOT` um
+**Seit `000-000-0006` (2026-09-09).**
+
+`bootstrap-web.php` hat `Config::WEB_ROOT` bei jedem Request aus `$_SERVER['PHP_SELF']`
+überschrieben. Das traf unter Apache mit der mitgelieferten `.htaccess` zu und sonst nirgends;
+unter dem eingebauten PHP-Server zeigte `GET /file/get/<id>` anschliessend auf
+`/index.php/file/get/data/files/…` — ins Leere. Jetzt kommt der Wert aus der Konfiguration,
+Vorgabe `/`.
+
+**Betroffen ist eine Installation in einem Unterverzeichnis.** Bisher hat PHP_SELF das
+zufällig richtig geraten, solange die `.htaccess` griff.
+
+*Was zu tun ist:* In `custom/config.php` `WEB_ROOT` auf `'/unterverzeichnis/'` setzen, mit
+Schrägstrich am Ende. Wer im Wurzelverzeichnis liegt, muss nichts tun.
+
 ## Annotationen
 
 Die `@PIM`-Annotationen sind mit Epic `012` stark reduziert worden. Die vollständige Liste
