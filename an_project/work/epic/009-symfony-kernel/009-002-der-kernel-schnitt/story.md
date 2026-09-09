@@ -35,3 +35,9 @@ Was in ihr steckt, in dieser Reihenfolge:
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
+- [ ] 009-002-0001 — Das Manifest auf Symfony 7.4 umstellen
+- [ ] 009-002-0002 — Container und Anwendung ohne Pimple
+- [ ] 009-002-0003 — Routing auf Symfony Routing
+- [ ] 009-002-0004 — Middleware und Fehlerbehandlung als Listener
+- [ ] 009-002-0005 — Console ohne knplabs
+- [ ] 009-002-0006 — Die Einstiegspunkte und der Nachweis
