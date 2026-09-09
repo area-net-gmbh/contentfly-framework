@@ -55,6 +55,42 @@ Benennung ist ein Erbe, kein Hinweis auf ihren Zweck.
 *Was zu tun ist:* Die acht Zeilen aus `custom/config.php` entfernen; sie werden nicht mehr
 gelesen.
 
+### Das Framework erzwingt `display_errors=Off` in Produktion
+**Seit `000-000-0018` (2026-09-09).**
+
+Bisher setzte das Framework die Fehlerausgabe **nur im Debug-Modus**; ohne `APP_DEBUG` galt,
+was die `php.ini` der Maschine sagte. In einer Umgebung ohne `php.ini` — das offizielle
+`php:*`-Image lädt keine — gilt dann der Compile-Default `display_errors=On`, und eine
+Produktionsinstanz liefert Deprecations, Warnings und Dateipfade an jeden Aufrufer aus.
+
+Ab jetzt setzt das Framework bei `APP_DEBUG=false` ausdrücklich `display_errors=0`,
+`display_startup_errors=0` und `log_errors=1`.
+
+**Betroffen ist ein Projekt, das sich darauf verlassen hat, die Ausgabe selbst zu steuern** —
+etwa über `php.ini` oder `ini_set()` vor dem Bootstrap. Diese Einstellungen werden jetzt
+überschrieben.
+
+*Was zu tun ist:* Wer Fehlerausgabe im Browser braucht, setzt `APP_DEBUG=true` — dafür ist der
+Schalter da. Wer sie in Produktion braucht, hat ein anderes Problem. Fehler stehen weiterhin im
+Log; `log_errors` wird ausdrücklich eingeschaltet.
+
+*Nebeneffekt, der als Verbesserung gemeint ist:* Statuscodes stimmen wieder. Eine Deprecation
+im Antwortstrom schickte die Header los, bevor Silex den Code setzen konnte — die Antwort trug
+dann `200`, obwohl die Anwendung `405` oder `500` meinte. Beim ersten CI-Lauf sind daran sechs
+Tests gescheitert, die lokal grün waren.
+
+### `error_reporting` steht auf `E_ALL`, auch im Debug-Modus
+**Seit `000-000-0018` (2026-09-09).**
+
+Vorher `E_ALL ^E_NOTICE ^E_DEPRECATED` — Deprecations wurden ausgerechnet im Debug-Modus
+unterdrückt, also dort, wo ein Entwickler sie sehen will.
+
+**Betroffen ist, wer im Debug-Modus entwickelt:** Es erscheinen jetzt Notices und Deprecations,
+die vorher unsichtbar waren. Das ist kein neuer Code, nur neu sichtbarer.
+
+*Was zu tun ist:* Sie abarbeiten. `an_project/docs/tech-stack.md` macht deprecation-freies Bauen
+zur Pflicht — der spätere Sprung auf Symfony 8.4 LTS ist nur dann ein reiner Constraint-Bump.
+
 ## API
 
 ### `@PIM\Select` prüft jetzt beim Schreiben
