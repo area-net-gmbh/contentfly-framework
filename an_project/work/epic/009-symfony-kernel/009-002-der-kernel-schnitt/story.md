@@ -1,7 +1,7 @@
 ---
 id: 009-002-0000
 title: Der Kernel-Schnitt — Symfony 7.4 statt Silex
-status: todo
+status: in-progress
 depends_on: [009-001-0000, 009-005-0000]
 ---
 
