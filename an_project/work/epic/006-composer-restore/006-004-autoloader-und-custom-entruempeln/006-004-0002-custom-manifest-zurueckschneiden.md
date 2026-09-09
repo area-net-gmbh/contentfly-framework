@@ -1,7 +1,7 @@
 ---
 id: 006-004-0002
 title: custom/composer.json auf den Projekt-Slot zurückschneiden
-status: todo
+status: done
 depends_on: [006-004-0001]
 ---
 
@@ -71,14 +71,14 @@ Entfernung des `class_exists(\Dotenv\Dotenv::class)`-Schutzes in `custom/config.
 mit `006-004-0003` betrachtet, wo der Autoloader-Weg festgezurrt ist.
 
 ## Acceptance criteria
-- [ ] `custom/composer.json` enthält keine `require`- und keine `require-dev`-Pakete mehr.
-- [ ] Jede Entfernung deckt sich mit `tools/dependency-assignment.json`; Abweichungen sind
+- [x] `custom/composer.json` enthält keine `require`- und keine `require-dev`-Pakete mehr.
+- [x] Jede Entfernung deckt sich mit `tools/dependency-assignment.json`; Abweichungen sind
       begründet.
-- [ ] Der Umgang mit `custom/composer.lock` ist entschieden, umgesetzt und begründet; die
+- [x] Der Umgang mit `custom/composer.lock` ist entschieden, umgesetzt und begründet; die
       `.gitignore`-Ausnahme aus `006-002-0003` passt danach dazu.
-- [ ] Die Datei erklärt sich selbst — ein Kommentar sagt, was hier hineingehört und was nicht.
-- [ ] Ein `composer install` in `custom/` erzeugt **kein** Paket in `custom/vendor`.
-- [ ] Die Anwendung bootet und die Suite liefert unverändert die 7 bekannten Failures.
+- [x] Die Datei erklärt sich selbst — ein Kommentar sagt, was hier hineingehört und was nicht.
+- [x] Ein `composer install` in `custom/` erzeugt **kein** Paket in `custom/vendor`.
+- [x] Die Anwendung bootet und die Suite liefert unverändert die 7 bekannten Failures.
 
 ## Verification
 Die entscheidende Gegenprobe ist die, die das Risiko nachstellt:
@@ -90,3 +90,89 @@ cd custom && composer install --no-interaction && find vendor -type f | wc -l   
 Dazu der volle Ablauf aus `an_project/docs/runbook.md` bis zur Suite: 247 Tests, genau die 7
 bekannten Failures aus `000-000-0019` und `000-000-0020`, 0 übersprungen. Mehr wäre ein Befund
 über den Schnitt.
+
+## Ergebnis
+**Neun Pakete raus, null übrig.** `custom/composer.json` fordert nichts mehr an; ein
+`composer install` in `custom/` installiert kein einziges Paket. Die Entscheidung aus
+`006-004-0001` ist damit keine Behauptung mehr — der zweite Baum kann nicht mehr entstehen.
+
+| | vorher | jetzt |
+|---|---|---|
+| `require` | 7 Pakete | **0** |
+| `require-dev` | 2 Pakete | **0** |
+| `custom/composer.lock` | 20 + 28 dev | **0 + 0** |
+| installierte Pakete in `custom/vendor` | — | **0** |
+
+Jede der neun Entfernungen deckt sich mit `tools/dependency-assignment.json`. Es gab keine
+Abweichung zu begründen: zwei nach Root (`phpmailer/phpmailer`, `vlucas/phpdotenv`, beide dort
+bereits vorhanden), eines lag schon im Root-`require-dev` (`phpunit/phpunit`), sechs entfallen.
+
+### Der Lock: neu erzeugt, nicht gelöscht
+Beide Wege waren offen. Gewählt ist **neu erzeugen**, aus einem Grund, der erst beim Ausprobieren
+sichtbar wurde: Composer prüft beim Installieren, ob der Lock zum Manifest passt, und meldet
+sonst einen Stand, der nicht mehr stimmt. Ein Manifest ohne Lock daneben erzeugt genau diese
+Reibung bei jedem, der die Vorlage anfasst — für eine Datei, die als Referenz gelesen wird, ist
+das der falsche erste Eindruck.
+
+Die `.gitignore`-Ausnahme `!custom/composer.lock` aus `006-002-0003` bleibt deshalb stehen und
+zeigt weiter auf eine existierende Datei. **Sie hätte auch bei der Löschung bleiben müssen** —
+das war beim Schreiben des Tasks noch anders gedacht: Sobald ein Projekt sein erstes Paket
+einträgt, ist sie es, die den Lock in die Historie lässt. Eine Regel, die man beim Leeren
+entfernt und beim ersten Paket wieder braucht, gehört nicht entfernt.
+
+### Die Vorlage erklärt sich jetzt
+Ein leeres `require` ohne ein Wort dazu liest sich wie ein Versehen. Der Hinweis steht in
+`extra.hinweis`, im selben Format, das das Root-Manifest seit `006-002-0002` benutzt — JSON
+kennt keine Kommentare, und eine Vorlage, deren Begründung nur im Changelog steht, wird beim
+Lesen nicht gefunden.
+
+Er sagt vier Dinge: dass der Slot **absichtlich** leer ist; was hier hineingehört und was ins
+Root; was vorher darin stand und warum es weg ist; und dass die fünfstufige Einordnungsregel
+in `tools/dependency-assignment.json` steht — verwiesen, nicht verdoppelt.
+
+### Ein Nebeneffekt, mit dem der Task nicht gerechnet hat
+`composer install` in `custom/` erzeugt trotz null Paketen ein **`custom/vendor/autoload.php`**
+— Composers eigenes Gerüst, 11 Dateien. Damit ist der zweite Autoloader wieder **da**, obwohl
+kein Paket darin liegt: Das `file_exists`-Tor in `lib/contentfly/bootstrap.php:6` greift
+wieder.
+
+Das ist kein Schaden, aber es korrigiert eine Aussage aus `006-004-0001`. Dort steht, das Tor sei
+geschlossen — das galt nur, solange niemand in `custom/` installiert hatte. Nachgemessen, was
+der zweite Autoloader jetzt registriert:
+
+```
+'Custom\Tests\' => array($baseDir . '/../tests'),
+```
+
+**Ein einziges Präfix, gegen 50 im Root, Überschneidung: keine.** Programmatisch verglichen, nicht
+per Augenschein. Und dieses eine Präfix verschwindet mit `006-004-0004` — danach ist auch
+`autoload-dev` leer.
+
+Für `006-004-0003` heisst das: Die Prüfung darf sich **nicht** darauf verlassen, dass
+`custom/vendor` fehlt. Sie muss den Fall „zweiter Autoloader vorhanden, aber ohne
+Überschneidung" als grünen Normalfall behandeln — genau der Fall, der jetzt eingetreten ist.
+
+### Tote Reste des alten Baums entfernt
+In `custom/vendor/` lagen noch sechs Dateien aus dem eingefrorenen Stand: vier verschachtelte
+`composer.lock` in `mockery/`, `phpunit/`, `phar-io/` und `theseer/` sowie zwei Werkzeugdateien.
+Sie überlebten `006-003`, weil die alte `.gitignore` sie nie erfasst hatte — Verzeichnisse mit
+einem Paketnamen, aber ohne Paket darin. Entfernt; sie liegen nur lokal und sind in keinem
+Klon.
+
+### Verification
+Der Ablauf aus dem Runbook, gegen eine eigene Wegwerf-Datenbank auf Port 3327 — der Container
+des Hauptarbeitsverzeichnisses blieb unberührt und ist nach dem Lauf unverändert.
+
+| Prüfung | Ergebnis |
+|---|---|
+| `php bin/console.php list` | Exit 0 |
+| `appcms:install` | Schema und Basisdaten angelegt |
+| Testserver `/__test/sendmail-path` | HTTP 200 |
+| Suite mit `CI=true` | **247 Tests / 595 Assertions, 7 Failures, 0 übersprungen** |
+| Postausgang der Versandfalle | 0 Byte |
+| `cd custom && composer install` | 0 Pakete, 11 Dateien (nur Composer-Gerüst) |
+| `custom/config.php` nach dem Lauf | über `git checkout HEAD --` wiederhergestellt |
+
+Die 7 Failures sind unverändert die bekannten aus `000-000-0019` und `000-000-0020`. Der Schnitt
+hat nichts angefasst, was die Suite sieht — was zu erwarten war, weil keines der neun Pakete
+benutzt wurde.

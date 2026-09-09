@@ -36,6 +36,11 @@
             "Plugins\\": "plugins/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
     "extra": {
         "hinweis": [
             "BEVOR JEMAND DIE CONSTRAINTS ANFASST — die Zahlen sind nicht gewaehlt, sondern",

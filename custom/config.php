@@ -30,6 +30,21 @@ use Areanet\PIM\Classes\Config\Factory;
  * Wert aus der Prozessumgebung schlägt eine veraltete Datei. `safeLoad()` wirft nicht,
  * wenn die Datei fehlt oder kaputt ist — eine defekte Secrets-Datei darf die Anwendung
  * nicht beim Start umbringen.
+ *
+ * DAS `class_exists` BLEIBT — geprüft und bewusst behalten (`006-004-0003`).
+ *
+ * `tools/dependency-assignment.json` hält fest, der Schutz sei nur nötig gewesen, solange
+ * `vlucas/phpdotenv` in `custom/` lag und fehlen konnte, und erübrige sich im Root. Für
+ * *dieses* Repo stimmt das: Seit `006-002` steht das Paket im Root-Manifest, der Zweig ist
+ * hier immer wahr.
+ *
+ * Diese Datei ist aber die **Vorlage**, die ein Bestandsprojekt bekommt — und dessen
+ * Root-Manifest kennt `vlucas/phpdotenv` erst, wenn es migriert ist. Ohne den Schutz stürbe
+ * genau dort die Anwendung beim Start, mit einem `Class not found` statt mit einer Aussage
+ * über die fehlende Abhängigkeit. Der Weg dorthin ist Epic `007` und noch nicht entschieden.
+ *
+ * Behalten ist die umkehrbare Wahl, Entfernen nicht. Revidieren, wenn `007` festgelegt hat,
+ * wie ein Projekt an das Root-Manifest kommt.
  */
 if (class_exists(\Dotenv\Dotenv::class)) {
     $envFile = $_ENV['CONTENTFLY_ENV_FILE'] ?? getenv('CONTENTFLY_ENV_FILE') ?: null;

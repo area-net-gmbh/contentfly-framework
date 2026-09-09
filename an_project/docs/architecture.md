@@ -21,6 +21,47 @@
 
 <!-- Entscheidung · erwogene Alternativen · warum diese. -->
 
+### 2026-09-09 — Zwei Composer-Bäume, Root vor `custom/` (nicht ein Autoloader)
+
+**Entscheidung.** Framework und Projekt behalten **je ein eigenes Manifest**.
+`lib/contentfly/bootstrap.php` lädt `vendor/autoload.php` zuerst und
+`custom/vendor/autoload.php` danach, falls es existiert. Bei einem PSR-4-Präfix, das beide
+führen, **gewinnt der Root** — ab jetzt als Zusicherung, nicht als Nebenwirkung der
+Ladereihenfolge. Bedingung dafür ist, dass sich die Bäume nicht überschneiden, und diese
+Bedingung wird **geprüft** (`006-004-0003`).
+
+**Erwogene Alternative: ein Autoloader.** `custom/` bekäme kein eigenes `vendor/` mehr;
+projektspezifische Pakete stünden im Root-Manifest.
+
+**Warum zwei Bäume.**
+
+1. **Epic `007` braucht die Grenze.** Ein migrierendes Bestandsprojekt muss unterscheiden
+   können, was es mitgeliefert bekommt und was es selbst deklariert. Ein gemeinsames Manifest
+   löscht genau diese Linie — und mit ihr die Antwort auf die Frage, was beim nächsten
+   Framework-Update überschrieben werden darf.
+2. **`custom/` ist die Vorlage, nicht ein halbes Projekt** (`an_project/docs/technical.md`).
+   Ein leerer, aber vorhandener Slot lehrt, wohin projektspezifische Pakete gehören. Ein
+   fehlender lehrt nichts.
+3. **Der Preis ist klein geworden.** Nach `006-001-0004` gehört **kein einziges** der neun
+   `custom/`-Pakete dorthin; nach `006-003` wird der zweite Baum nicht mehr gebaut. Die
+   Doppelung, gegen die die Regel schützt, existiert heute nicht — die Regel hält sie fern.
+
+**Der Preis, ausgesprochen.** Eine Bedingung, die niemand prüft, ist keine Zusicherung. Genau
+daran ist der alte Zustand gescheitert: `psr/log` lag in 1.1.3 und 3.0.2 gleichzeitig im
+Prozess, dazu zwei `symfony/polyfill-*` in unvereinbaren Ständen und ein handkopiertes
+`PHPMailer\PHPMailer\`, das in keiner `installed.json` stand. Jahrelang, ohne dass es jemandem
+auffiel. Die Zusicherung dieser Entscheidung hängt deshalb **vollständig** an der Prüfung aus
+`006-004-0003`; fällt die weg, fällt die Entscheidung mit.
+
+**Wie ein neues Paket eingeordnet wird.** Nicht hier, sondern in
+`tools/dependency-assignment.json` — dort steht die fünfstufige Regel (benutzt `lib/` es? ·
+benutzt die ausgelieferte Vorlage es? · nur Projektcode? · nur Tests? · niemand?) samt der
+Begründung für jedes bereits eingeordnete Paket. Eine zweite Fassung hier würde auseinanderlaufen.
+
+**Revidieren, wenn:** Epic `007` entscheidet, das Framework als Composer-Paket auszuliefern
+statt als kopierten `lib/`-Baum. Dann verschiebt sich die Grenze vom Verzeichnis auf die
+Paketgrenze, und ein zweites Manifest im Projekt hat einen anderen Zuschnitt als heute.
+
 ### 2026-09-04 — Ziel-Kernel: Symfony 7.4 LTS (nicht Symfony 8.x)
 
 **Entscheidung.** Der neue Kernel wird auf **Symfony 7.4 LTS** gebaut. Verbindlich

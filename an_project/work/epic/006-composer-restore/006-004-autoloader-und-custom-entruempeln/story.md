@@ -1,7 +1,7 @@
 ---
 id: 006-004-0000
 title: Autoloader klären und custom/ entrümpeln
-status: todo
+status: done
 depends_on: [006-002-0000]
 ---
 

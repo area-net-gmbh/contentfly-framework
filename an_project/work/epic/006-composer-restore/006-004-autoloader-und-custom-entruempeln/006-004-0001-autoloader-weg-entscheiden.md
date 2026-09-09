@@ -1,7 +1,7 @@
 ---
 id: 006-004-0001
 title: Den Autoloader-Weg entscheiden und begründen
-status: todo
+status: done
 depends_on: []
 ---
 
@@ -60,12 +60,12 @@ Auch **keine** Korrektur des Story-Textes: Eine Story wird nicht rückwirkend um
 sich seit ihrem Schnitt geändert hat, steht im Ergebnis dieses Tasks.
 
 ## Acceptance criteria
-- [ ] Der Ist-Stand der vier genannten Überschneidungen ist gemessen und festgehalten — je mit
+- [x] Der Ist-Stand der vier genannten Überschneidungen ist gemessen und festgehalten — je mit
       der Quelle, aus der die Zahl stammt.
-- [ ] `an_project/docs/architecture.md` trägt unter *Key decisions* die Entscheidung für zwei
+- [x] `an_project/docs/architecture.md` trägt unter *Key decisions* die Entscheidung für zwei
       Bäume, mit der verworfenen Alternative und ihrer Begründung.
-- [ ] Festgehalten, dass die Zusicherung an der Prüfung aus `006-004-0003` hängt.
-- [ ] Der Widerspruch zwischen Story-Text und `006-001-0004` ist benannt, damit die
+- [x] Festgehalten, dass die Zusicherung an der Prüfung aus `006-004-0003` hängt.
+- [x] Der Widerspruch zwischen Story-Text und `006-001-0004` ist benannt, damit die
       Folge-Tasks nicht der überholten Liste folgen.
 
 ## Verification
@@ -80,3 +80,68 @@ grep -n "PHPMailer" vendor/composer/autoload_psr4.php
 
 Und die Gegenprobe, dass das Risiko real ist: `custom/composer.json` und `custom/composer.lock`
 listen die Pakete noch, `git ls-files custom/composer.lock` liefert einen Treffer.
+
+## Ergebnis
+**Alle vier Überschneidungen aus dem Story-Text bestehen nicht mehr.** Der Lock aus `006-002`
+hat sie aufgelöst, und zwar durchweg zugunsten der neueren Fassung — nicht, wie die alte
+Ladereihenfolge es getan hätte, zugunsten der älteren.
+
+| Paket | Story-Text: Root / `custom/` | gemessen im Root | Quelle |
+|---|---|---|---|
+| `psr/log` | 1.1.3 / 3.0.2 | **2.0.0** | `vendor/composer/installed.json` |
+| `symfony/polyfill-ctype` | v1.14.0 / v1.37.0 | **v1.37.0** | dieselbe |
+| `symfony/polyfill-mbstring` | v1.14.0 / v1.38.2 | **v1.38.2** | dieselbe |
+| `phpmailer/phpmailer` | handkopiert / ^6.10 | **v6.12.0** | `installed.json` + `vendor/phpmailer/phpmailer/composer.json` |
+
+Die vierte Zeile ist die aussagekräftigste. `vendor/composer/autoload_psr4.php:40` führt
+`PHPMailer\PHPMailer\` heute auf `$vendorDir . '/phpmailer/phpmailer/src'`, und dort liegt ein
+`composer.json` — das Verzeichnis ist also von Composer verwaltet, nicht mehr von Hand
+hineinkopiert. Genau das, was `006-001-0004` als Nebeneffekt der Root-Zuordnung angekündigt hat.
+
+**Der zweite Autoloader wird zur Laufzeit nicht mehr geladen.** `custom/vendor/` enthält noch
+sieben Reste des alten Baums — sechs verschachtelte `composer.lock` und ein
+`tmp-*.zip~` —, aber **kein `autoload.php`**. Das `file_exists`-Tor in
+`lib/contentfly/bootstrap.php:6` ist damit geschlossen. Es ist geschlossen, weil `006-003` den
+Baum nicht mehr baut, nicht weil jemand es entschieden hätte.
+
+### Das Risiko besteht unverändert
+Genau darum geht es bei dieser Entscheidung. `custom/composer.json` fordert weiterhin an:
+
+```
+require:     firebase/php-jwt, phpmailer/phpmailer, sentry/sentry, stripe/stripe-php,
+             vlucas/phpdotenv, onelogin/php-saml, robrichards/xmlseclibs
+require-dev: phpunit/phpunit, mockery/mockery
+```
+
+Daneben liegt ein versionierter `custom/composer.lock` mit **20 Paketen plus 28 dev-Paketen**.
+Ein `composer install` in `custom/` baut den zweiten Baum in Sekunden wieder auf — mitsamt
+`sentry/sentry`, das `psr/log ^3` zieht, während der Root auf 2.0.0 steht. Die Doppelung wäre
+zurück, und nach der Ladereihenfolge gewänne wieder der Root, also die *ältere* Fassung.
+
+### Die Entscheidung
+Festgehalten in `an_project/docs/architecture.md` unter *Key decisions*, datiert 2026-09-09:
+**zwei Bäume, Root vor `custom/`**, mit der verworfenen Alternative „ein Autoloader" und drei
+Gründen — Epic `007` braucht die Grenze zwischen Framework und Projekt, `custom/` ist die
+Vorlage und lehrt nur als vorhandener Slot, und der Preis ist klein geworden, weil nach
+`006-001-0004` ohnehin kein Paket dorthin gehört.
+
+Ausdrücklich mit aufgenommen ist der **Preis**: Die Zusicherung hängt vollständig an der
+Prüfung aus `006-004-0003`. Fällt die weg, fällt die Entscheidung mit — eine Bedingung, die
+niemand prüft, ist keine Zusicherung. Der alte Zustand ist genau daran gescheitert, jahrelang
+und ohne dass es auffiel.
+
+Die Einordnungsregel für ein neues Paket wurde **nicht** nach `architecture.md` kopiert. Sie
+steht als fünfstufige Entscheidung in `tools/dependency-assignment.json`, zusammen mit der
+Begründung je Paket; eine zweite Fassung liefe auseinander.
+
+### Der Widerspruch, dem die Folge-Tasks nicht folgen dürfen
+Abschnitt C der Story lässt `stripe/stripe-php`, `onelogin/php-saml` und
+`robrichards/xmlseclibs` in `custom/`. `006-001-0004` hat später **alle drei als entfallend**
+eingeordnet, jedes mit eigener Begründung — der Stripe-Treffer im Baum ist wörtlich einer der
+projektfremden Kommentare aus `000-000-0017`.
+
+Maßgeblich ist `tools/dependency-assignment.json`, nicht der Story-Text. Nach ihr bleibt in
+`custom/composer.json` **kein einziges Paket**. Das steht so in `006-004-0002`, damit der
+Schnitt dort nicht der überholten Liste folgt.
+
+Der Story-Text selbst bleibt unverändert — eine Story wird nicht rückwirkend umgeschrieben.
