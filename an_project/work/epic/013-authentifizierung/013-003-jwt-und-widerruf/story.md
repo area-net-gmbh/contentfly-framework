@@ -1,7 +1,7 @@
 ---
 id: 013-003-0000
 title: JWT ausstellen und widerrufen
-status: in-progress
+status: review
 depends_on: [013-002-0000]
 ---
 
