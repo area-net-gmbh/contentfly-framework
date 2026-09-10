@@ -44,10 +44,9 @@ use Areanet\PIM\Command\InstallCommand;
 use Areanet\PIM\Command\SetupCommand;
 use Areanet\PIM\Command\TokenCleanupCommand;
 use Areanet\PIM\Classes\ORM\EntityManagerFactory;
-use Doctrine\Common\Cache\ApcCache;
-use Doctrine\Common\Cache\ApcuCache;
-use Doctrine\Common\Cache\FilesystemCache;
-use Doctrine\Common\Cache\MemcachedCache;
+use Symfony\Component\Cache\Adapter\ApcuAdapter;
+use Symfony\Component\Cache\Adapter\MemcachedAdapter;
+use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\ORM\Events;
 use Areanet\PIM\Classes\Kernel\ConsoleEvents;
@@ -246,7 +245,91 @@ if($app['is_installed']) {
     // Ersetzt dflydev/doctrine-orm-service-provider (006-002-0005). Der Provider ist seit
     // 2018 unverändert und benutzt einen Namensraum, den doctrine/persistence 2.0 verschoben
     // hat — er blockierte damit jedes PHP-8-taugliche ORM. Uebergangsloesung bis Epic 009.
-    $app['orm.em'] = function ($app) {
+    /**
+     * Waehlt die beiden Caches — oder keine.
+     *
+     * Sie werden der Factory UEBERGEBEN statt hinterher auf der Konfiguration gesetzt: Der
+     * Metadaten-Cache wird in `EntityManager::__construct()` genau einmal gelesen, alles
+     * danach sieht die ClassMetadataFactory nie (010-002-0005).
+     *
+     * Kein Cache im Debug-Modus und nicht auf der Konsole: Dort soll ein Entwickler nicht
+     * gegen veraltete Metadaten arbeiten. Diese Bedingung stand vorher weiter unten und ist
+     * unveraendert.
+     *
+     * @return array{0: ?\Psr\Cache\CacheItemPoolInterface, 1: ?\Psr\Cache\CacheItemPoolInterface}
+     */
+    $cachesWaehlen = static function (): array {
+        if (Adapter::getConfig()->APP_DEBUG || defined('APPCMS_CONSOLE')) {
+            return array(null, null);
+        }
+
+        switch (Adapter::getConfig()->APP_CACHE_DRIVER) {
+            case 'apc':
+                // ENTFALLEN MIT 010-002-0002 — und ausdruecklich abgewiesen, nicht
+                // stillschweigend auf die Vorgabe zurueckgefallen.
+                //
+                // Der Zweig benutzte `Doctrine\Common\Cache\ApcCache`, und die ruft
+                // `apc_fetch()`. Die APC-Erweiterung gibt es fuer PHP 7 und 8 nicht mehr;
+                // gemessen ist `function_exists('apc_fetch')` false. Er konnte auf keiner
+                // unterstuetzten Version laufen — eine Falle, keine Einstellung.
+                //
+                // Ein stiller Rueckfall auf `filesystem` waere bequemer und falsch: Der
+                // Betreiber haette weiter geglaubt, sein Cache liege im geteilten Speicher.
+                throw new \RuntimeException(
+                    'APP_CACHE_DRIVER = "apc" gibt es nicht mehr. Die APC-Erweiterung ist mit '
+                    .'PHP 7 entfallen; der Nachfolger heisst "apcu". Siehe '
+                    .'an_project/docs/breaking-changes.md.'
+                );
+            case 'apcu':
+                // Die Pruefung ist der Unterschied zwischen einer Meldung und einem Fatal
+                // beim ersten Zugriff.
+                if (!ApcuAdapter::isSupported()) {
+                    throw new \RuntimeException(
+                        'APP_CACHE_DRIVER = "apcu" verlangt die Erweiterung apcu; sie ist in '
+                        .'diesem PHP nicht geladen.'
+                    );
+                }
+
+                return array(new ApcuAdapter('query'), new ApcuAdapter('metadata'));
+            case 'memcached':
+                if (!MemcachedAdapter::isSupported()) {
+                    throw new \RuntimeException(
+                        'APP_CACHE_DRIVER = "memcached" verlangt die Erweiterung memcached; sie '
+                        .'ist in diesem PHP nicht geladen.'
+                    );
+                }
+
+                // EIN SERVER STEHT JETZT IN DER KONFIGURATION (010-002-0002).
+                //
+                // Vorher: `new Memcached()` ohne einen einzigen `addServer()`. Ein solcher
+                // Client speichert nichts — der Zweig war selbst mit vorhandener Erweiterung
+                // wirkungslos, und zwar lautlos.
+                //
+                // Und er teilte sich EINE Instanz fuer beide Caches, waehrend die anderen
+                // Zweige trennen. Hier trennen jetzt die Namensraeume, wie bei apcu.
+                $verbindung = MemcachedAdapter::createConnection(
+                    Adapter::getConfig()->APP_CACHE_MEMCACHED_DSN
+                );
+
+                return array(
+                    new MemcachedAdapter($verbindung, 'query'),
+                    new MemcachedAdapter($verbindung, 'metadata')
+                );
+            case 'filesystem':
+            default:
+                // Namensraum leer, Verzeichnis ausdruecklich: Die Trennung liegt hier in den
+                // Pfaden, wie bisher. Ein zusaetzlicher Namensraum wuerde nur eine weitere
+                // Ebene darunter anlegen.
+                return array(
+                    new FilesystemAdapter('', 0, ROOT_DIR . '/data/cache/query'),
+                    new FilesystemAdapter('', 0, ROOT_DIR . '/data/cache/metadata')
+                );
+        }
+    };
+
+    $app['orm.em'] = function ($app) use ($cachesWaehlen) {
+        [$abfrageCache, $metadatenCache] = $cachesWaehlen();
+
         return EntityManagerFactory::erzeugen(
             $app['dbs']['pim'],
             array(
@@ -255,50 +338,14 @@ if($app['is_installed']) {
             ),
             ROOT_DIR . '/data/cache/doctrine',
             (bool) Adapter::getConfig()->APP_AUTOGENERATE_PROXIES,
-            array('Find_In_Set' => '\Areanet\PIM\Classes\ORM\Query\Mysql\FindInSet')
+            array('Find_In_Set' => '\Areanet\PIM\Classes\ORM\Query\Mysql\FindInSet'),
+            $abfrageCache,
+            $metadatenCache
         );
     };
 
     $config = $app['orm.em']->getConfiguration();
     $config->setQuoteStrategy(new ContentflyQuoteStrategy());
-
-    if (!Adapter::getConfig()->APP_DEBUG && !defined('APPCMS_CONSOLE')) {
-        switch (Adapter::getConfig()->APP_CACHE_DRIVER) {
-            /*
-             * setNamespace() statt eines Konstruktor-Arguments (009-003-0002).
-             *
-             * Hier stand `new ApcCache('query')`. Die Klasse hat gar keinen Konstruktor — das
-             * Argument wurde stillschweigend verworfen, und beide Caches teilten sich
-             * denselben Namensraum. Gemeint war offensichtlich eine Trennung; PHPStan hat es
-             * gemeldet ("does not have a constructor and must be instantiated without any
-             * parameters"), und die Absicht laesst sich mit setNamespace() ausdruecken.
-             */
-            case 'apc':
-                $config->setQueryCacheImpl($cacheImpl = new ApcCache());
-                $cacheImpl->setNamespace('query');
-                $config->setMetadataCacheImpl($cacheImpl = new ApcCache());
-                $cacheImpl->setNamespace('metadata');
-                break;
-            case 'apcu':
-                $config->setQueryCacheImpl($cacheImpl = new ApcuCache());
-                $cacheImpl->setNamespace('query');
-                $config->setMetadataCacheImpl($cacheImpl = new ApcuCache());
-                $cacheImpl->setNamespace('metadata');
-                break;
-            case 'memcached':
-                $cache = new MemcachedCache();
-                $cache->setMemcached(new Memcached());
-
-                $config->setQueryCacheImpl($cache);
-                $config->setMetadataCacheImpl($cache);
-                break;
-            case 'filesystem':
-            default:
-                $config->setQueryCacheImpl(new FilesystemCache(ROOT_DIR . '/data/cache/query'));
-                $config->setMetadataCacheImpl(new FilesystemCache(ROOT_DIR . '/data/cache/metadata'));
-                break;
-        }
-    }
 
     $app['typeManager'] = function ($app) {
         return new TypeManager($app);

@@ -75,8 +75,10 @@ parameters:
         # abgedeckt; sein Wegfall verdeckt nichts. Der Plugin-Pfad wird mit 010-001-0004
         # entschieden.
 
-        # doctrine/cache — abandoned, faellt in 2.0 ersatzlos weg (Epic 010).
-        - '#Instantiation of deprecated class Doctrine\\Common\\Cache\\(Apc|Apcu|Filesystem|Memcached)Cache#'
+        # doctrine/cache: Das Muster fuer die vier Cache-Klassen ist mit 010-002-0002
+        # entfallen — der Bootstrap instanziiert keine mehr. Regel 3 hat es eingefordert:
+        # Ein Muster, das nichts mehr trifft, macht den Lauf rot. Das Paket selbst nimmt
+        # 010-002-0004 aus dem Manifest.
 
         # doctrine/orm 2.x — Klassen und Methoden, die in ORM 3 entfallen (Epic 010).
         - '#Instantiation of deprecated class Doctrine\\ORM\\Tools\\Console\\Command\\#'
