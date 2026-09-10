@@ -733,6 +733,47 @@ Attributklasse muss autoladbar sein. Unter `Custom\` (auf `custom/`) und `Plugin
 *Was zu tun ist:* Die eigene `getAnnotationFile()` kann weg. Sicherstellen, dass eigene
 Attributklassen über PSR-4 gefunden werden.
 
+### `APP_CACHE_DRIVER = 'apc'` gibt es nicht mehr
+**Seit `010-002-0002` (2026-09-10).**
+
+Der Zweig benutzte `Doctrine\Common\Cache\ApcCache`, und die ruft `apc_fetch()`. **Die
+APC-Erweiterung gibt es für PHP 7 und 8 nicht mehr** — gemessen ist `function_exists('apc_fetch')`
+schlicht `false`. Der Zweig konnte auf keiner unterstützten PHP-Version laufen; er war eine
+Falle, keine Einstellung.
+
+Eine Instanz mit `apc` **startet jetzt nicht mehr**, statt stillschweigend auf `filesystem`
+zurückzufallen. Das ist Absicht: Ein stiller Rückfall hätte den Betreiber weiter glauben lassen,
+sein Cache liege im geteilten Speicher.
+
+*Was zu tun ist:* Auf `apcu` umstellen — den Nachfolger, den der Bootstrag seit jeher behandelt,
+der aber nie in der Dokumentation von `APP_CACHE_DRIVER` stand.
+
+### `APP_CACHE_DRIVER = 'memcached'` braucht jetzt einen Server
+**Seit `010-002-0002` (2026-09-10).**
+
+Vorher baute der Bootstrap ein blankes `new Memcached()` — einen Client **ohne einen einzigen
+Server**. Ein solcher Client speichert nichts; der Zweig war also selbst dort wirkungslos, wo
+die Erweiterung vorhanden war, und zwar lautlos.
+
+Der Server steht jetzt in `APP_CACHE_MEMCACHED_DSN`, Vorgabe `memcached://localhost:11211`.
+Ausserdem trennen Abfrage- und Metadaten-Cache jetzt über Namensräume; vorher teilten sie sich
+**eine** Instanz, während alle anderen Zweige trennten.
+
+Fehlt die Erweiterung, meldet sich die Anwendung beim Start, statt beim ersten Zugriff mit einem
+Fatal zu sterben.
+
+*Was zu tun ist:* Den DSN setzen, falls der Server nicht lokal auf dem Standardport läuft. Wer
+sich auf den bisherigen Zustand verlassen hat, hat in Wahrheit ohne Cache gearbeitet.
+
+### Query- und Metadaten-Cache liegen in einem anderen Format
+**Seit `010-002-0001` (2026-09-10).**
+
+Die Adapter kommen aus `symfony/cache` statt aus `doctrine/cache`. Die Verzeichnisse bleiben
+(`data/cache/query`, `data/cache/metadata`), der Inhalt hat ein anderes Layout.
+
+*Was zu tun ist:* Beim Deployment einmal leeren. Alte Dateien werden nicht gelesen und nicht
+aufgeräumt.
+
 ## Doctrine (Story `009-005`)
 
 ### DBAL 2 → 3
