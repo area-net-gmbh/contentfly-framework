@@ -546,6 +546,60 @@ class SystemControllerApiTest extends IntegrationTestCase
         $this->assertSame(200, $statusSchema, 'Das Schema wird danach neu aufgebaut');
     }
 
+    public function testFlushSchemaCacheLeertDenAbfrageCacheWirklich(): void
+    {
+        // NEU MIT 010-002-0003, weil die beiden Tests darueber und darunter die Methode nur
+        // zur Haelfte zusichern: Sie pruefen die Meldung und die Datei
+        // data/cache/schema.cache — nicht die Doctrine-Caches, um die es der Methode
+        // eigentlich geht. Ein Umbau von deleteAll() auf clear() waere daran nicht
+        // aufgefallen, und ein Aufruf, der gar nichts mehr leert, ebensowenig.
+        //
+        // Beobachtet wird das Verzeichnis, nicht der Cache selbst: Der Testlauf sieht die
+        // Anwendung nur ueber HTTP, und der Abfrage-Cache liegt bei der ausgelieferten
+        // Konfiguration unter data/cache/query. Der Metadaten-Cache bleibt aussen vor — er
+        // schreibt nichts, und zwar aus einem eigenen Grund (010-002-0005).
+        //
+        // GEPRUEFT WIRD, DASS KEINE DATEI VON VORHER UEBERLEBT — nicht, dass das Verzeichnis
+        // danach leer ist. Der Unterschied ist gemessen: Nach dem Flush stehen dort wieder
+        // Dateien, aber andere. Der Request laeuft nach der Action weiter und stellt dabei
+        // erneut Abfragen; ein leeres Verzeichnis zu verlangen hiesse, dem Endpunkt etwas
+        // zuzuschreiben, was er gar nicht zusagt.
+        $verzeichnis = ROOT_DIR.'/data/cache/query';
+
+        // Etwas in den Cache bringen: /api/list stellt eine DQL-Abfrage.
+        $this->postJson('/api/list', array('entity' => 'PIM\\User'), $this->token());
+
+        $vorher = $this->dateienAuflisten($verzeichnis);
+        $this->assertNotEmpty($vorher, 'Vorbedingung: der Abfrage-Cache traegt Eintraege');
+
+        $this->systemDo('flushSchemaCache');
+
+        $ueberlebt = array_intersect($vorher, $this->dateienAuflisten($verzeichnis));
+
+        $this->assertSame(array(), array_values($ueberlebt),
+            'Keine der Dateien von vorher hat den Flush ueberlebt');
+    }
+
+    /** Listet die Dateien unterhalb eines Verzeichnisses; fehlt es, ist die Liste leer. */
+    private function dateienAuflisten(string $verzeichnis): array
+    {
+        if (!is_dir($verzeichnis)) {
+            return array();
+        }
+
+        $dateien = array();
+
+        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($verzeichnis, \FilesystemIterator::SKIP_DOTS)) as $eintrag) {
+            if ($eintrag->isFile()) {
+                $dateien[] = $eintrag->getPathname();
+            }
+        }
+
+        sort($dateien);
+
+        return $dateien;
+    }
+
     public function testFlushSchemaCacheMeldetErfolgAuchWennEsNichtsZuLoeschenGibt(): void
     {
         // Die Methode raeumt zwei Dinge: die Datei data/cache/schema.cache und die
