@@ -1,7 +1,7 @@
 ---
 id: 010-002-0002
 title: Die nicht lauffähigen Treiberzweige entscheiden
-status: review
+status: done
 depends_on: [010-002-0001]
 ---
 

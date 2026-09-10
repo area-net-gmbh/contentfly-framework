@@ -1,7 +1,7 @@
 ---
 id: 010-002-0004
 title: doctrine/cache aus dem Baum nehmen
-status: review
+status: done
 depends_on: [010-002-0002, 010-002-0003]
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: 010-002-0000
 title: doctrine/cache durch einen PSR-6-Cache ersetzen
-status: review
+status: done
 depends_on: []
 ---
 

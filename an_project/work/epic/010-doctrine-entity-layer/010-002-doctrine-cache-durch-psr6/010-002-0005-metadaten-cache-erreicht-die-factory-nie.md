@@ -1,7 +1,7 @@
 ---
 id: 010-002-0005
 title: Der Metadaten-Cache erreicht die Factory nie
-status: review
+status: done
 depends_on: [010-002-0001]
 ---
 

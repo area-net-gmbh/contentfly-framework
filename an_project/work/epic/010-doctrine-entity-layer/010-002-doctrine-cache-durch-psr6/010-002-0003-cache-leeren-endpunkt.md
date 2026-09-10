@@ -1,7 +1,7 @@
 ---
 id: 010-002-0003
 title: Den Cache-Leeren-Endpunkt auf PSR-6 bringen
-status: review
+status: done
 depends_on: [010-002-0001]
 ---
 
