@@ -1,7 +1,7 @@
 ---
 id: 013-001-0000
 title: Auth-Härtung — Passwörter, Master-Passwort, Rate-Limiting, Token-Speicherung
-status: todo
+status: done
 depends_on: []
 ---
 
@@ -124,8 +124,8 @@ Datenbank bleibt, bis jede Sitzung einmal benutzt wurde, und ungenutzte Tokens f
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 013-001-0001 — Passwörter auf password_hash, mit Umschlüsselung beim Login
-- [ ] 013-001-0002 — Das Master-Passwort ersatzlos entfernen
-- [ ] 013-001-0003 — Rate-Limiting am Login, pro Kennung und pro IP
-- [ ] 013-001-0004 — Tokens nur noch gehasht speichern
-- [ ] 013-001-0005 — Die funktionalen Defekte und die Bruchstellen
+- [x] 013-001-0001 — Passwörter auf password_hash, mit Umschlüsselung beim Login
+- [x] 013-001-0002 — Das Master-Passwort ersatzlos entfernen
+- [x] 013-001-0003 — Rate-Limiting am Login, pro Kennung und pro IP
+- [x] 013-001-0004 — Tokens nur noch gehasht speichern
+- [x] 013-001-0005 — Die funktionalen Defekte und die Bruchstellen

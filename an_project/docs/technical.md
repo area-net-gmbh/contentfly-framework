@@ -61,7 +61,7 @@ Nachbau zuerst gescheitert.
 |---|---|
 | **Session-Write-Close** | Das Framework startet bei **jedem** Request eine PHP-Session (`Auth::init()`), und PHP hält darauf einen exklusiven Lock bis Skriptende. Da alle Browser-Tabs eine PHPSESSID teilen, serialisieren gleichzeitige API-Aufrufe dahinter. Das Projekt schloss die Session für `/api/v1/*` **sofort beim Require**, nicht in einer Middleware — eine ganze Bootstrap-Phase früher. Gemessen: Nebenläufigkeit von ~2,8× auf Richtung ~3,7×. Mit Story `012-004` entfällt die Session ganz, damit auch dieser Workaround. |
 | **Trusted Proxies** | `Request::setTrustedProxies(<Proxy-Range>, HEADER_X_FORWARDED_FOR)` — bewusst **nur** X-Forwarded-For, nicht Host/Proto, damit CORS und Tenant-Subdomain-Auflösung unverändert bleiben. Ohne das liefert `getClientIp()` die Proxy-IP, und Login-Ratelimit wie Audit-Log werden wertlos. |
-| **Master-Password neutralisiert** | `Adapter::getConfig()->APP_MASTER_PASSWORD = null` direkt nach dem Bootstrap — die Framework-Hintertür wird unabhängig von Konfiguration und Umgebung inert gesetzt. |
+| ~~**Master-Password neutralisiert**~~ | **Erledigt mit `013-001-0002`, und zwar an der Wurzel.** Das Kundenprojekt setzte `APP_MASTER_PASSWORD` beim Bootstrap auf `null`, um die Framework-Hintertür inert zu machen — es kannte das Problem und schützte sich davor. Die Konstante ist jetzt **ersatzlos entfallen**; es gibt nichts mehr zu neutralisieren. Wer dieses Muster portiert, kann die Zeile streichen. |
 | **Security-Header** | HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy als After-Hook auf jeder Antwort; CSP zunächst im Report-Only-Modus und erst nach sauberen Reports scharf geschaltet. |
 | **CORS-Allowlist** | In Produktion werden `Access-Control-Allow-Origin`/`-Credentials` entfernt, wenn keine Allowlist gesetzt ist — Fail-closed. In Entwicklung bleibt der Reflect-Origin-Fallback des Frameworks, damit lokales Arbeiten nicht bricht. |
 | **Refresh-Token als HttpOnly-Cookie** | Der Refresh-Token wurde zusätzlich als HttpOnly-Cookie ausgeliefert (host-only, SameSite=Lax, Secure nur über HTTPS), damit die SPA ihn nicht im localStorage halten muss — wo ein XSS ihn zu einer dauerhaften Kontoübernahme machen kann. |
@@ -130,20 +130,30 @@ fremden Code, keine vorhandene Funktion.
 
 | # | Befund | Wirkung |
 |---|---|---|
-| A-1 | Passwörter sind `hash("sha256", $pass.$salt)` (`Entity/User.php:122`). Salt pro Benutzer ist da, aber SHA-256 hat keinen Arbeitsfaktor | Geleakte Benutzertabelle ist in Stunden geknackt |
-| A-2 | `APP_MASTER_PASSWORD` akzeptiert den Login für **jeden** Benutzer (`Controller/AuthController.php:82-88`) | Vollzugriff über eine Konfigurationszeile |
-| A-3 | Kein Rate-Limiting — `CHECK_LOGIN_INTERVAL` ist eine `false`-Konstante | Brute Force gegen A-1 ungebremst |
-| A-4 | `pim_token.token` steht im Klartext | Ein Lesezugriff auf die DB übergibt alle laufenden Sitzungen |
+| ~~A-1~~ | ~~Passwörter sind `hash("sha256", $pass.$salt)`. SHA-256 hat keinen Arbeitsfaktor.~~ **Behoben mit `013-001-0001`:** Argon2id über `password_hash()`; Bestandshashes werden beim ersten Login des jeweiligen Benutzers ersetzt, der alte Weg wird nur noch gelesen. |
+| ~~A-2~~ | ~~`APP_MASTER_PASSWORD` akzeptiert den Login für **jeden** Benutzer.~~ **Behoben mit `013-001-0002`:** ersatzlos entfernt, nicht abschaltbar gemacht. |
+| ~~A-3~~ | ~~Kein Rate-Limiting — `CHECK_LOGIN_INTERVAL` ist eine `false`-Konstante.~~ **Behoben mit `013-001-0003`:** Anmeldebremse pro Kennung **und** pro IP, mit ansteigender Verzögerung (60 s → 900 s → 3600 s). Beide Konstanten und der tote Zweig sind entfallen; `setTrustedProxies()` ist konfigurierbar, damit die Achse IP hinter einem Proxy den Richtigen trifft. |
+| ~~A-4~~ | ~~`pim_token.token` steht im Klartext.~~ **Behoben mit `013-001-0004`:** gespeichert wird ein SHA-256, nachgeschlagen wird der Hash. Der Token verlässt das System genau einmal, bei der Anmeldung. Auch `pim_log.model_label` trug ihn im Klartext — dort steht jetzt ebenfalls der Hash. |
 | A-5 | `referrer`-Tokens laufen nie ab, und der Token-String kommt beim Anlegen vom Client (`Controller/SystemController.php:159`) | Ratbare Dauerschlüssel möglich |
 | A-6 | `LoginManager::createManagedUser()` setzt `setPass($alias)` — das Passwort ist der Benutzername | Latente Übernahme aller SSO-Konten |
 
-**Funktionale Defekte:** `POST /api/login` und `/api/logout` zeigen auf Methoden, die im
-`ApiController` nicht existieren · der Plugin-Zweig der LoginManager-Auflösung prüft
-`substr($name, 7) == 'Plugins'` statt der ersten sieben Zeichen und greift deshalb nie ·
-die Auflösung existiert doppelt (`Auth.php` und `AuthController.php`) und ist auseinandergelaufen.
+**Funktionale Defekte — behoben mit `013-001-0005`:**
 
-Behandelt wird das in Epic `013`; die Härtung (A-1 bis A-4 und die Defekte) hängt in Story
-`013-001` bewusst an nichts und wird vor dem Kernel-Wechsel umgesetzt.
+- ~~`POST /api/login` und `/api/logout` zeigen auf Methoden, die im `ApiController` nicht
+  existieren.~~ Beim Nachmessen war es schlimmer und harmloser zugleich: Sie erreichten den
+  Router **nie**. `Routensammlung` zählt ihre Routen je Provider durch, `/api/login` hiess
+  `login_0` und wurde beim Mounten von `/auth/login` gleichen Namens verdrängt — 30 registrierte
+  Routen, 29 in der Sammlung. Die Namen tragen jetzt den Mountpunkt, die beiden toten Routen
+  sind entfernt statt umgebogen.
+- ~~Der Plugin-Zweig der LoginManager-Auflösung prüft `substr($name, 7) == 'Plugins'` statt der
+  ersten sieben Zeichen und greift deshalb nie.~~ Jetzt `str_starts_with()`. **Einschränkung:**
+  Der Pfad ist mangels Plugin nicht end-to-end prüfbar; geprüft wird die Auflösung selbst.
+- ~~Die Auflösung existiert doppelt (`Auth.php` und `AuthController.php`).~~ Bereits beim
+  Refinement am 2026-09-10 erledigt vorgefunden: `Auth::getLoginProvider()` gibt es nicht mehr,
+  gefallen irgendwo in Epic `009` oder `012`.
+
+Behandelt wurde das in Epic `013`, Story `013-001` — bewusst an nichts hängend und vor dem
+Kernel-Wechsel umgesetzt.
 
 ## Warum `vendor/` in Git *lag*
 

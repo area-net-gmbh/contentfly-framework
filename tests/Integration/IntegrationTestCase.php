@@ -243,7 +243,8 @@ abstract class IntegrationTestCase extends TestCase
     }
 
     /** Entfernt ein Verzeichnis samt Inhalt; ein fehlendes ist kein Fehler. */
-    private function verzeichnisEntfernen(string $pfad): void
+    /** Protected seit 013-001-0003: AnmeldebremseApiTest raeumt damit den Speicher der Bremse. */
+    protected function verzeichnisEntfernen(string $pfad): void
     {
         if (!is_dir($pfad)) {
             return;

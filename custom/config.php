@@ -124,6 +124,25 @@ $configDefault->APP_ENABLE_SCHEMA_CACHE = false;
 // $configDefault->WEB_ROOT             = '/unterverzeichnis/';
 
 /*
+ * APP_TRUSTED_PROXIES — hinter welchen Proxies die Anwendung steht. Vorgabe: keine.
+ *
+ * Nur zu setzen, wenn ein Reverse Proxy oder Loadbalancer davorsteht. Ohne diese Angabe hält
+ * die Anwendung dessen Adresse für die des Aufrufers — die Anmeldebremse aus `013-001-0003`
+ * bremste dann ihn und damit alle Benutzer dahinter, während der Angreifer ungebremst
+ * weiterrät.
+ *
+ * NUR EINTRAGEN, WEM MAN TRAUT. Ein vertrauter Absender darf sagen, wer der Aufrufer ist —
+ * wer hier ein zu weites Netz einträgt, lässt sich die Adresse vom Angreifer diktieren.
+ * 'REMOTE_ADDR' bedeutet „der unmittelbare Absender, wer immer das ist" und passt für eine
+ * Anwendung, die ausschliesslich über einen Proxy erreichbar ist, dessen Adresse wechselt.
+ *
+ * APP_TRUSTED_HEADERS wählt, welchen Weiterleitungs-Headern dabei geglaubt wird:
+ * 'x-forwarded' (Vorgabe) oder 'forwarded' nach RFC 7239. Nicht beide gleichzeitig.
+ */
+// $configDefault->APP_TRUSTED_PROXIES  = ['10.0.0.0/8'];
+// $configDefault->APP_TRUSTED_HEADERS  = 'x-forwarded';
+
+/*
  * SECURITY — Schlüssel für die Verschlüsselung von Feldern mit `@PIM\Config(encoded=true)`.
  *
  * **Kein Standardwert, mit Absicht.** Ein im Repository hinterlegter Schlüssel ist kein

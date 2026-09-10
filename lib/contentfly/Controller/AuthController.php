@@ -15,8 +15,19 @@ use Symfony\Component\HttpFoundation\Request;
 
 class AuthController extends BaseController
 {
-    const MIN_LOGIN_INTERVAL = 60;
-    const CHECK_LOGIN_INTERVAL = false;
+    /*
+     * CHECK_LOGIN_INTERVAL UND MIN_LOGIN_INTERVAL SIND ENTFALLEN (013-001-0003).
+     *
+     * Hier standen zwei Konstanten und weiter unten ein Zweig, der nie lief:
+     * `CHECK_LOGIN_INTERVAL` war fest `false`. Selbst eingeschaltet waere es ein
+     * 60-Sekunden-Abstand pro Benutzer gewesen, gemessen am zuletzt ausgestellten Token —
+     * gegen das Raten ueber viele Konten hinweg wirkungslos, und gegen das Raten vieler
+     * Passwoerter zu EINEM Konto nur dann, wenn zwischendurch ein Token entstand. Ein
+     * Angreifer, der nie richtig raet, stellt nie einen Token aus.
+     *
+     * An die Stelle tritt `Areanet\PIM\Classes\Security\Anmeldebremse`: pro Kennung UND pro
+     * IP, mit ansteigender Verzoegerung, und ohne Schalter, der sie ausknipst.
+     */
 
     /**
      * @apiVersion 1.3.0
@@ -49,59 +60,114 @@ class AuthController extends BaseController
      *      }
      *   }
      * @apiError 401 Ungültiger Benutzername | Der Benutzer ist gesperrt | Benutzername und/oder Passwort fehlerhaft
+     * @apiError 429 Zu viele Anmeldeversuche - die Bremse greift pro Kennung und pro IP (013-001-0003)
      */
     public function loginAction(Request $request)
     {
+        $kennung = ($request->request->all()['alias'] ?? null);
+        $ip      = $request->getClientIp();
+
+        /** @var \Areanet\PIM\Classes\Security\Anmeldebremse $bremse */
+        $bremse = $this->app['loginbremse'];
+
+        /*
+         * ERST BREMSEN, DANN PRUEFEN (013-001-0003).
+         *
+         * Die Reihenfolge ist der Punkt: Wer ueber der Grenze ist, kommt gar nicht erst bis zur
+         * Datenbankabfrage und zum Passwortvergleich. Stuende die Bremse hinter der Pruefung,
+         * kostete jeder abgewiesene Versuch weiterhin einen Argon2id-Durchlauf — die Sperre
+         * waere dann selbst der Hebel fuer eine Ueberlastung.
+         *
+         * DIE ANTWORT SAGT NICHTS UEBER DIE KENNUNG. Sie faellt fuer einen bekannten und einen
+         * erfundenen Benutzernamen gleich aus; andernfalls waere die Bremse ein Orakel dafuer,
+         * welche Konten es gibt. `Retry-After` nennt nur, wie lange zu warten ist — das steht
+         * dem legitimen Benutzer zu, der sich dreimal vertippt hat.
+         */
+        if (($wartezeit = $bremse->wartezeit($kennung, $ip)) !== null) {
+            return new JsonResponse(
+                array('message' => 'Zu viele Anmeldeversuche. Bitte später erneut versuchen.'),
+                429,
+                array('Retry-After' => $wartezeit)
+            );
+        }
+
+        /*
+         * JEDER FEHLSCHLAG GEHT DURCH DIESE EINE STELLE.
+         *
+         * Vorher standen fuenf `return new JsonResponse(..., 401)` nebeneinander. Wer der Reihe
+         * nach jedem einzelnen ein `$bremse->fehlversuch(...)` voranstellt, vergisst
+         * irgendwann eines — und ein einziger ungezaehlter Zweig ist der Weg, an der Bremse
+         * vorbeizuraten.
+         */
+        $abweisen = function ($meldung) use ($bremse, $kennung, $ip) {
+            $bremse->fehlversuch($kennung, $ip);
+
+            return new JsonResponse(array('message' => $meldung), 401);
+        };
 
         $loginProviderClass = ($request->request->all()['loginManager'] ?? null);
         if(($loginProvider = $this->getLoginProvider($request, $loginProviderClass))){
             try {
                 $user = $loginProvider->auth();
                 if(!($user instanceof User)){
-                    return new JsonResponse(array('message' => 'Ungültiger Benutzer vom LoginManager'), 401);
+                    return $abweisen('Ungültiger Benutzer vom LoginManager');
                 }
             }catch(\Exception $e){
-                return new JsonResponse(array('message' => $e->getMessage()), 401);
+                return $abweisen($e->getMessage());
             }
         }else{
 
-            $user = $this->em->getRepository('Areanet\PIM\Entity\User')->findOneBy(array('alias' => ($request->request->all()['alias'] ?? null)));
+            $user = $this->em->getRepository('Areanet\PIM\Entity\User')->findOneBy(array('alias' => $kennung));
             if(!$user){
-                return new JsonResponse(array('message' => 'Ungültiger Benutzername.'), 401);
+                return $abweisen('Ungültiger Benutzername.');
             }
 
             if(!$user->getIsActive()){
-                return new JsonResponse(array('message' => 'Der Benutzer ist gesperrt.'), 401);
+                return $abweisen('Der Benutzer ist gesperrt.');
             }
 
             if($user->getLoginManager()){
-                return new JsonResponse(array('message' => 'Der Benutzer ist nur über LoginManager authorisierbar.'), 401);
+                return $abweisen('Der Benutzer ist nur über LoginManager authorisierbar.');
             }
 
-            $globalPass = Adapter::getConfig()->APP_MASTER_PASSWORD;
-
-            if($globalPass){
-                if(!$user->isPass(($request->request->all()['pass'] ?? null)) && $globalPass != ($request->request->all()['pass'] ?? null)){
-                    return new JsonResponse(array('message' => 'Benutzername und/oder Passwort fehlerhaft.'), 401);
-                }
-            }else{
-                if(!$user->isPass(($request->request->all()['pass'] ?? null))){
-                    return new JsonResponse(array('message' => 'Benutzername und/oder Passwort fehlerhaft.'), 401);
-                }
-            }
-        }
-
-        if(self::CHECK_LOGIN_INTERVAL) {
-            $lastToken = $this->em->getRepository('Areanet\PIM\Entity\Token')->findOneBy(array('user' => $user), array('created' => 'DESC'));
-            if ($lastToken) {
-                $created = $lastToken->getCreated()->getTimestamp();
-                $now = (new \DateTime())->getTimestamp();
-                $diff = $now - $created;
-                if ($diff < self::MIN_LOGIN_INTERVAL) {
-                    return new JsonResponse(array('message' => 'Login Intervall Error', 'remaining' => self::MIN_LOGIN_INTERVAL - $diff), 401);
-                }
+            /*
+             * EIN ZWEIG, KEINE FALLUNTERSCHEIDUNG (013-001-0002).
+             *
+             * Hier stand eine zweite Bedingung: Ist APP_MASTER_PASSWORD gesetzt, genuegte
+             * dieser eine Wert fuer JEDEN Benutzer. Die Konstante ist ersatzlos entfallen —
+             * ein Schalter, der Vollzugriff gewaehrt, ist auch ausgeschaltet eine Hintertuer.
+             */
+            if(!$user->isPass(($request->request->all()['pass'] ?? null))){
+                return $abweisen('Benutzername und/oder Passwort fehlerhaft.');
             }
         }
+
+        /*
+         * UMSCHLUESSELUNG BEIM LOGIN (013-001-0001).
+         *
+         * Passt das Passwort und liegt der Hash noch im alten SHA-256-Format — oder mit
+         * veralteten Parametern —, wird er hier ersetzt. Kein Zwangs-Reset, keine Migration im
+         * Voraus: Nach dem ersten Login jedes Benutzers ist der alte Hash weg.
+         *
+         * ES STEHT HIER UND NICHT IN `isPass()`: Eine Pruefung darf nichts schreiben. Sonst
+         * haette jeder Aufruf eine Nebenwirkung, auch der aus `Api::doUpdate()`, wo das
+         * bisherige Passwort nur bestaetigt wird.
+         *
+         * Der Weg ueber den LoginManager ist ausgenommen — dort prueft ein Fremdsystem, und
+         * `$user->getPass()` steht in keinem Zusammenhang mit dem eingegebenen Wort.
+         */
+        if (!$loginProvider && $user->brauchtNeuenHash()) {
+            $user->setPass(($request->request->all()['pass'] ?? null));
+            $this->em->flush();
+        }
+
+        /*
+         * DIE GELUNGENE ANMELDUNG LOESCHT DEN ZAEHLER DIESER KENNUNG (013-001-0003).
+         *
+         * Nur den der Kennung, nicht den der IP: Sonst genuegte einem Angreifer ein einziges
+         * gueltiges Konto — sein eigenes —, um sich nach jedem Block wieder freizuschalten.
+         */
+        $bremse->entsperren($kennung);
 
         $token = new Token();
         $token->setUser($user);
@@ -113,7 +179,10 @@ class AuthController extends BaseController
 
         $response = array(
             'message' => 'Login successful',
-            'token' => $token->getToken(),
+            // getKlartext(), nicht getToken(): In der Spalte steht seit 013-001-0004 nur der
+            // Hash. Dies ist die einzige Stelle und der einzige Zeitpunkt, an dem der Token
+            // selbst das System verlaesst — danach existiert er nur noch beim Client.
+            'token' => $token->getKlartext(),
             'user' => $user->toValueObject($this->app, 'PIM\User', false)
         );
 
@@ -155,7 +224,7 @@ class AuthController extends BaseController
             return null;
         }
 
-        $loginProviderClass = substr($loginProviderClassName, 7) == 'Plugins' ? $loginProviderClassName : "Custom\Classes\\$loginProviderClassName";
+        $loginProviderClass = self::providerKlasse($loginProviderClassName);
 
         if(!class_exists($loginProviderClass)){
             return null;
@@ -167,5 +236,27 @@ class AuthController extends BaseController
         }
 
         return $loginProvider;
+    }
+
+    /**
+     * Loest den Namen eines LoginManagers zur Klasse auf (013-001-0005).
+     *
+     * DIE BEDINGUNG WAR VERDREHT. Hier stand `substr($name, 7) == 'Plugins'` — das schneidet
+     * **ab** Position 7, statt die ersten sieben Zeichen zu pruefen. Fuer
+     * `Plugins\Auth\Ldap` ergibt das `\Auth\Ldap`, die Bedingung greift nie, und der Name
+     * wurde faelschlich zu `Custom\Classes\Plugins\Auth\Ldap`. **LoginManager aus Plugins
+     * funktionierten dadurch nicht** — und es fiel niemandem auf, weil `plugins/` leer ist.
+     *
+     * Ein Name mit `Plugins`-Praefix bleibt jetzt, wie er ist; jeder andere wird unter
+     * `Custom\Classes\` gesucht.
+     *
+     * Herausgezogen als eigene Methode, damit die Aufloesung ohne laufende Anwendung pruefbar
+     * ist: Ein end-to-end-Nachweis braeuchte ein Plugin, und es gibt keines.
+     */
+    public static function providerKlasse(string $name): string
+    {
+        return str_starts_with($name, 'Plugins')
+            ? $name
+            : 'Custom\Classes\\'.$name;
     }
 }

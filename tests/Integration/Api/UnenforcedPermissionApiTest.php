@@ -37,39 +37,38 @@ class UnenforcedPermissionApiTest extends IntegrationTestCase
 
     // ── Das Master-Passwort ────────────────────────────────────────────────────────────
 
-    public function testDasMasterPasswortIstInDerVorlageNichtGesetzt(): void
+    public function testDasMasterPasswortGibtEsNichtMehr(): void
     {
-        // AuthController prueft:
+        // UMGEDREHT MIT 013-001-0002, wie der alte Test es angekuendigt hat.
         //
-        //     $globalPass = Adapter::getConfig()->APP_MASTER_PASSWORD;
-        //     if($globalPass){ … $globalPass != $request->get('pass') … }
+        // Er hiess `testDasMasterPasswortIstInDerVorlageNichtGesetzt` und sicherte zu, dass der
+        // Standardwert `null` ist — "die Hintertuer ist zu, aber vorhanden". Sie ist jetzt weg:
+        // `APP_MASTER_PASSWORD` existiert weder in `Classes/Config.php` noch im
+        // `AuthController`.
         //
-        // Ist es gesetzt, genuegt es **fuer jeden Benutzer**. Story 013-001 entfernt das
-        // ersatzlos: "Ein Schalter, der Vollzugriff gewaehrt, ist auch ausgeschaltet eine
-        // Hintertuer."
-        //
-        // Ein Integrationstest kann die Konfiguration zur Laufzeit nicht aendern — pruefbar
-        // ist deshalb die Vorbedingung, nicht die Wirkung. Dass eine falsche Anmeldung
-        // scheitert (AuthApiTest), gilt *nur* deshalb, weil kein Master-Passwort gesetzt ist.
-        //
-        // Wer 013-001 umsetzt, dreht diesen Test bewusst um — der Standardwert faellt dann
-        // ersatzlos weg.
-        $vorlage = file_get_contents(ROOT_DIR.'/lib/contentfly/Classes/Config.php');
+        // Geprueft wird der Quelltext und nicht das Verhalten, weil es kein Verhalten mehr gibt
+        // — man kann nichts konfigurieren, was es nicht gibt. Das ist der Unterschied zwischen
+        // "abgeschaltet" und "entfernt", und genau darum ging es.
+        foreach (array('lib/contentfly/Classes/Config.php', 'lib/contentfly/Controller/AuthController.php') as $datei) {
+            $quelle = file_get_contents(ROOT_DIR.'/'.$datei);
 
-        $this->assertMatchesRegularExpression(
-            '/\$APP_MASTER_PASSWORD\s*=\s*null;/',
-            $vorlage,
-            'Der Standardwert ist null — die Hintertuer ist zu, aber vorhanden. Siehe 013-001.'
-        );
+            // Der Name darf in ERKLAERUNGEN stehen — sie beschreiben, was entfallen ist.
+            $ohneKommentare = preg_replace('#/\*.*?\*/|//[^\n]*#s', '', $quelle);
+
+            $this->assertStringNotContainsString('APP_MASTER_PASSWORD', (string) $ohneKommentare,
+                $datei.' nennt das Master-Passwort nur noch in Erklaerungen, nicht im Code');
+        }
     }
 
-    public function testEineFalscheAnmeldungScheitertSolangeKeinMasterPasswortGesetztIst(): void
+    public function testEineFalscheAnmeldungScheitert(): void
     {
+        // Der Zusatz "solange kein Master-Passwort gesetzt ist" ist mit 013-001-0002 entfallen.
+        // Vorher galt diese Zusicherung nur unter einer Bedingung, die eine Konfigurationszeile
+        // aufheben konnte. Jetzt gilt sie.
         [$status, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => 'falsch'));
 
         $this->assertSame(401, $status);
-        $this->assertArrayNotHasKey('token', $body,
-            'Gilt nur, weil APP_MASTER_PASSWORD nicht gesetzt ist — siehe den Test darueber');
+        $this->assertArrayNotHasKey('token', $body);
     }
 
     // ── canExport und getExtended: nicht mehr veröffentlicht ───────────────────────────
