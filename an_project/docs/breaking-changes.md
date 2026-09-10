@@ -765,6 +765,26 @@ Fatal zu sterben.
 *Was zu tun ist:* Den DSN setzen, falls der Server nicht lokal auf dem Standardport läuft. Wer
 sich auf den bisherigen Zustand verlassen hat, hat in Wahrheit ohne Cache gearbeitet.
 
+### Der Metadaten-Cache greift jetzt wirklich
+**Seit `010-002-0005` (2026-09-10).**
+
+Er war konfiguriert und wirkungslos: `bootstrap.php` setzte ihn auf der Konfiguration,
+**nachdem** der EntityManager gebaut war, und `EntityManager::__construct()` liest ihn genau
+einmal. Gemessen — Cache vor dem EntityManager gesetzt: 2 Cache-Dateien nach einer
+Metadaten-Abfrage; danach gesetzt: **0**.
+
+**Für ein Bestandsprojekt ist das eine Verhaltensänderung, auch wenn nichts an der
+Konfiguration zu ändern ist.** Wer bisher eine Entity änderte, sah die Änderung sofort, weil die
+Metadaten bei jedem Request neu gelesen wurden. Ab jetzt liegen sie im Cache, und ein
+Deployment muss ihn räumen.
+
+Im Debug-Modus und auf der Konsole bleibt der Cache aus — das war schon so und ändert sich
+nicht.
+
+*Was zu tun ist:* Das Deployment um einen Schritt ergänzen, der `data/cache/metadata` leert —
+oder `POST /system/do` mit `method=flushSchemaCache` aufruft. Siehe
+`an_project/docs/deployment.md`.
+
 ### Query- und Metadaten-Cache liegen in einem anderen Format
 **Seit `010-002-0001` (2026-09-10).**
 

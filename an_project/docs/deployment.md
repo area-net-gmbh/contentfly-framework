@@ -113,6 +113,33 @@ dieser Stelle nicht — was der Lauf kostet, kostet das Herrichten des Images.
 > wieder von Null gefahren wurde. `unzip` gehört seitdem zum Skript; `git` bewusst nicht, die
 > Begründung steht dort.
 
+## Der Cache beim Deployment
+
+**Beide Doctrine-Caches müssen beim Ausrollen geleert werden.** Das war vorher nur zur Hälfte
+wahr und ist es seit `010-002` ganz.
+
+| Cache | Ort bei `APP_CACHE_DRIVER = 'filesystem'` | Inhalt |
+|---|---|---|
+| Abfrage | `data/cache/query` | übersetzte DQL |
+| Metadaten | `data/cache/metadata` | die Zuordnung Entity → Tabelle |
+
+**Warum es jetzt zählt:** Bis `010-002-0005` hat der Metadaten-Cache **nie gegriffen**. Der
+Bootstrap setzte ihn auf der Konfiguration, nachdem der EntityManager schon gebaut war — und
+`EntityManager::__construct()` liest ihn genau einmal. Wer eine Entity änderte, bekam die
+Änderung sofort, weil die Metadaten bei jedem Request neu gelesen wurden. **Das ist vorbei.**
+Ein Deployment, das den Cache stehen lässt, arbeitet danach gegen die alte Zuordnung.
+
+Ausserdem hat sich mit `010-002-0001` das **Format** geändert — Symfonys Adapter statt
+`doctrine/cache`. Alte Dateien werden weder gelesen noch aufgeräumt.
+
+*Zwei Wege, den Cache zu räumen:* Die Verzeichnisse löschen, oder `POST /system/do` mit
+`method=flushSchemaCache` aufrufen. Der Endpunkt leert beide Caches und die Datei
+`data/cache/schema.cache`.
+
+Im **Debug-Modus** und auf der **Konsole** ist kein Cache aktiv — dort soll niemand gegen
+veraltete Metadaten arbeiten. Das gilt unverändert und ist der Grund, warum `appcms:install`
+nichts in die Cache-Verzeichnisse schreibt.
+
 ## Die Gates
 
 Vier Prüfungen, verankert mit Story `006-005`. Zwei blockieren, zwei melden:
