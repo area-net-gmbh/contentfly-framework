@@ -4,6 +4,7 @@ namespace Tests\Unit\Security;
 use Areanet\PIM\Classes\Config;
 use Areanet\PIM\Classes\Config\Factory;
 use Areanet\PIM\Classes\Security\Tokenhandler;
+use Areanet\PIM\Classes\Security\Zugangstoken;
 use Areanet\PIM\Entity\Group;
 use Areanet\PIM\Entity\Token;
 use Areanet\PIM\Entity\User;
@@ -106,7 +107,11 @@ class TokenhandlerTest extends TestCase
 
     private function jwt(array $claims): string
     {
-        return JWT::encode($claims + array('exp' => time() + 600), self::GEHEIMNIS, 'HS256');
+        return JWT::encode(
+            $claims + array('iss' => Zugangstoken::AUSGEBER, 'exp' => time() + 600),
+            self::GEHEIMNIS,
+            'HS256'
+        );
     }
 
     // ── Der opaque Zweig ───────────────────────────────────────────────────────────────
@@ -314,6 +319,53 @@ class TokenhandlerTest extends TestCase
 
         $this->expectException(AuthenticationException::class);
         $handler->getUserBadgeFrom($token);
+    }
+
+    /**
+     * Ein fremder Ausgeber wird abgewiesen (013-003-0001).
+     *
+     * Die Bibliothek prüft Signatur und Ablauf, den `iss` nicht. Ohne die eigene Prüfung gälte
+     * hier jedes Token, das mit demselben Geheimnis signiert wurde — auch eines, das eine ganz
+     * andere Anwendung für einen ganz anderen Zweck ausgestellt hat.
+     */
+    public function testEinTokenMitFremdemAusgeberWirdAbgewiesen(): void
+    {
+        $fremd = JWT::encode(
+            array('sub' => 'admin', 'iss' => 'eine-andere-anwendung', 'exp' => time() + 600),
+            self::GEHEIMNIS,
+            'HS256'
+        );
+        $handler = new Tokenhandler($this->emDerWirft());
+
+        $this->expectException(AuthenticationException::class);
+        $handler->getUserBadgeFrom($fremd);
+    }
+
+    public function testEinTokenOhneAusgeberWirdAbgewiesen(): void
+    {
+        $ohne = JWT::encode(array('sub' => 'admin', 'exp' => time() + 600), self::GEHEIMNIS, 'HS256');
+        $handler = new Tokenhandler($this->emDerWirft());
+
+        $this->expectException(AuthenticationException::class);
+        $handler->getUserBadgeFrom($ohne);
+    }
+
+    /**
+     * **Ein Refresh-Token ist kein Zugangstoken (013-003-0001).**
+     *
+     * Es ist eine gewöhnliche Zeile in `pim_token`, und dieser Zweig nahm bis dahin jede Zeile
+     * an. Ein Refresh-Token gilt länger als ein Access-JWT — das ist sein Zweck —, und ohne
+     * diese Prüfung wäre es damit ein langlebiger Generalschlüssel für die ganze API.
+     */
+    public function testEinRefreshTokenOeffnetDieApiNicht(): void
+    {
+        $zeile = $this->zeile($this->benutzer());
+        $zeile->setPurpose(Token::ZWECK_REFRESH);
+
+        $handler = new Tokenhandler($this->em($zeile));
+
+        $this->expectException(AuthenticationException::class);
+        $handler->getUserBadgeFrom('ein-refresh-token');
     }
 
     // ── Die Verzweigung selbst ─────────────────────────────────────────────────────────

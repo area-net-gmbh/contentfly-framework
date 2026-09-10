@@ -48,6 +48,14 @@ variables:
   CONTENTFLY_TEST_BASE_URL: "http://127.0.0.1:8145"
   CONTENTFLY_TEST_MAIL_TRAP: "$CI_PROJECT_DIR/.ci-mailfalle"
 
+  # Signaturgeheimnis fuer die JWT-Tests (013-003-0001). Ein fester Wert ist hier richtig: Die
+  # Pipeline faehrt gegen eine Wegwerf-Datenbank und einen Testserver, die mit dem Job
+  # verschwinden. Ein Geheimnis, das nichts schuetzt, muss auch nicht geheim sein — und ein
+  # variabler Wert machte den Lauf schwerer nachzuspielen.
+  #
+  # Mindestens 32 Byte: firebase/php-jwt weist fuer HS256 kuerzere Schluessel ab.
+  CONTENTFLY_TEST_JWT_SECRET: "ci-only-jwt-secret-mit-genug-laenge-32"
+
   GIT_DEPTH: "1"
 
 # ── Prüfungen, die keine Umgebung brauchen ─────────────────────────────────────────────

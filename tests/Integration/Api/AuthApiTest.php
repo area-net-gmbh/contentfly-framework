@@ -395,4 +395,92 @@ class AuthApiTest extends IntegrationTestCase
 
         return $status;
     }
+
+    // ── Ausstellung von JWT (013-003-0001) ────────────────────────────────────────────
+
+    /**
+     * **Ohne Anforderung ändert sich nichts.**
+     *
+     * Die Zusage dieser Story: Ein Bestandsclient merkt nichts. Deshalb entscheidet der
+     * Aufrufer je Anfrage und nicht ein Konfigurationsschalter, der die Antwort für alle auf
+     * einmal kippen würde.
+     */
+    public function testOhneAnforderungBleibtEsBeimOpaquenToken(): void
+    {
+        [, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => $this->pass()));
+
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{128}$/', $body['token'] ?? '');
+        $this->assertArrayNotHasKey('refreshToken', $body);
+        $this->assertArrayNotHasKey('expiresIn', $body);
+    }
+
+    public function testAufAnforderungLiefertDerLoginEinJwtUndEinRefreshToken(): void
+    {
+        $body = $this->jwtAnmeldung();
+
+        $this->assertCount(3, explode('.', $body['token']), 'Drei punktgetrennte Segmente');
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{128}$/', $body['refreshToken'] ?? '',
+            'Das Refresh-Token ist ein gewoehnlicher opaquer Token');
+        $this->assertGreaterThan(0, $body['expiresIn'] ?? 0);
+        $this->assertLessThanOrEqual(900, $body['expiresIn']);
+    }
+
+    public function testDasAusgestellteJwtOeffnetEineGeschuetzteRoute(): void
+    {
+        $body = $this->jwtAnmeldung();
+
+        $this->assertSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$body['token']));
+        $this->assertSame(200, $this->getMitKopfzeile('/api/schema', 'appcms-token: '.$body['token']),
+            'Auch ueber die Altquellen — die Verzweigung entscheidet nach der Form, nicht nach der Quelle');
+    }
+
+    /**
+     * **Ein Refresh-Token ist kein Zugangstoken.**
+     *
+     * Es ist eine gewöhnliche Zeile in `pim_token`, und der opaque Zweig nahm bis `013-003-0001`
+     * jede Zeile an. Ein Refresh-Token gilt länger als ein Access-JWT — das ist sein Zweck —,
+     * und ohne diese Trennung wäre es ein langlebiger Generalschlüssel für die ganze API.
+     */
+    public function testDasRefreshTokenOeffnetKeineGeschuetzteRoute(): void
+    {
+        $body = $this->jwtAnmeldung();
+
+        $this->assertNotSame(200, $this->getMitKopfzeile('/api/schema', 'appcms-token: '.$body['refreshToken']));
+        $this->assertNotSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$body['refreshToken']));
+    }
+
+    /**
+     * Der Claim-Satz am ausgelieferten Token — gelesen, nicht angenommen.
+     *
+     * Rollen, Gruppen und Berechtigungen können sich ändern, während der Token gilt. Stünden sie
+     * darin, wirkte eine Rechteänderung erst nach dessen Ablauf.
+     */
+    public function testDasAusgestellteJwtTraegtNurDenFestgelegtenClaimSatz(): void
+    {
+        $body   = $this->jwtAnmeldung();
+        $claims = json_decode(base64_decode(strtr(explode('.', $body['token'])[1], '-_', '+/')), true);
+
+        $namen = array_keys($claims);
+        sort($namen);
+
+        $this->assertSame(array('exp', 'iat', 'iss', 'jti', 'sub'), $namen);
+        $this->assertSame('admin', $claims['sub']);
+        $this->assertSame('contentfly', $claims['iss']);
+    }
+
+    /** Meldet sich mit `tokenType: jwt` an und liefert den Antwortrumpf. */
+    private function jwtAnmeldung(): array
+    {
+        [$status, $body] = $this->postJson('/auth/login', array(
+            'alias'     => 'admin',
+            'pass'      => $this->pass(),
+            'tokenType' => 'jwt',
+        ));
+
+        if ($status !== 200 || !isset($body['token'], $body['refreshToken'])) {
+            $this->fail('JWT-Anmeldung fehlgeschlagen: '.json_encode($body));
+        }
+
+        return $body;
+    }
 }
