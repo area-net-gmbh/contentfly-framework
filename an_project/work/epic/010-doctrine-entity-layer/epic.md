@@ -1,7 +1,7 @@
 ---
 id: 010-000-0000
 title: Doctrine und Entity-Layer modernisieren
-status: in-progress
+status: done
 depends_on: [006-000-0000, 012-000-0000]
 ---
 
@@ -127,4 +127,81 @@ eigenes Epic ein Vorhaben mit einer einzigen Story.
 - [x] 010-002-0000 — doctrine/cache durch einen PSR-6-Cache ersetzen
 - [x] 010-003-0000 — Der ORM-3-Sprung
 - [x] 010-004-0000 — StringType von AES-CBC auf AEAD heben
-- [ ] 010-005-0000 — Die Gates leeren und die Altbefunde aus Epic 009 abräumen
+- [x] 010-005-0000 — Die Gates leeren und die Altbefunde aus Epic 009 abräumen
+
+## Ergebnis (2026-09-10)
+
+**Doctrine steht auf ORM 3.7, die Entities tragen PHP-Attribute, die Caches laufen über PSR-6,
+und die Feldverschlüsselung ist authentifiziert.** Die Suite wächst von 268 auf **282**, auf
+PHP 8.3 wie auf 8.4.
+
+### Die Erfolgskriterien, gemessen
+
+| Kriterium | Stand |
+|---|---|
+| ORM auf einer releasten, gepflegten Version | **3.7.0**; DBAL unverändert 3.10.6 |
+| Annotationen → PHP-Attribute | 202 Angaben umgestellt; im Baum steht keine Annotation mehr als Metadatum |
+| `doctrine/annotations` weg | ja, mit `010-001-0005` |
+| `Base` und die eigenen Typen bleiben öffentliche API | unverändert; was sich ändert, steht in `breaking-changes.md` |
+| Krypto auf AEAD | XChaCha20-Poly1305, mit `appcms:security:reencrypt` samt Trockenlauf |
+| Konstanten in Attributen | funktionieren **besser** als vorher — ein Attribut ist PHP-Code |
+| Ausnahmelisten der Gates leer | `composer audit` 0 abandoned, PHPStan **eine** Ausnahme (aus DBAL) |
+| Testnetz grün | `OK (282 tests, 692 assertions)`, 0 übersprungen |
+
+### Was der Schnitt getragen hat
+
+Vier von fünf Stories folgten derselben Regel: **vorbereiten unter der alten Version, dann
+umlegen.** `010-001` brachte die Attribute unter ORM 2.20, `010-002` den PSR-6-Cache ebenfalls,
+`010-003-0001` alles, was ORM 3 nicht brauchte. Erst danach der Sprung.
+
+Der Nutzen ist an einer Zahl abzulesen: Beim Sprung selbst standen **196 von 268** Tests rot,
+und die Ursachen liessen sich einzeln benennen, weil alles andere schon gemessen war.
+
+### Sechs Befunde, die ohne dieses Epic nicht sichtbar geworden wären
+
+1. **Ein Trait trug `@ORM\Column` ohne `use`-Import** und funktionierte nur, weil
+   `getDeclaringClass()` bei einer Trait-Eigenschaft die benutzende Klasse liefert. Als Attribut
+   fiel das Feld **still** aus dem Schema (`010-001-0003`).
+2. **Der Metadaten-Cache hat nie gegriffen** — er wurde nach dem EntityManager gesetzt, und der
+   liest ihn genau einmal (`010-002-0005`).
+3. **Der `apc`-Treiber konnte auf keiner unterstützten PHP-Version laufen**, und `memcached`
+   hatte **nie einen Server** (`010-002-0002`).
+4. **Ein Metadaten-Cache aus ORM 2 macht ORM 3 unbrauchbar** — mit einer Meldung, die nirgends
+   auf den Cache zeigt (`010-003-0002`).
+5. **AES-CBC ohne MAC ist manipulierbar**, an einem Beispielsatz vorgeführt: ein Block Müll, der
+   Rest intakt, und die Anwendung liefert es aus (`010-004-0001`).
+6. **Der `modified_index` wurde nie angelegt**, weil sein Listener nur bei `is_installed`
+   registriert wurde (`010-005-0002`).
+
+### Ein Muster, dreimal derselbe Fehler
+
+Drei der sechs Befunde haben dieselbe Form: **Eine Angabe, die für jeden EntityManager gelten
+muss, stand neben der Factory statt darin.**
+
+| Fall | Task |
+|---|---|
+| Der Metadaten-Cache erreichte die `ClassMetadataFactory` nie | `010-002-0005` |
+| Der Installer wiederholte den Mapping-Block, und die Wiederholung wich ab | `010-003-0002` |
+| Der `modified_index`-Listener griff beim Installieren nicht | `010-005-0002` |
+
+Die Regel steht jetzt im Code der Factory. Sie war teurer zu lernen als aufzuschreiben.
+
+### Regel 3 hat sich sieben Mal gemeldet
+
+Keine der acht PHPStan-Ausnahmen wurde weggeräumt. Jede wurde in dem Task gegenstandslos, der
+ihre Ursache beseitigte, und der Lauf wurde rot, bis sie verschwand. Genau dafür gibt es die
+Regel — die Liste räumt sich nicht von allein, aber sie meldet sich.
+
+### Was das Epic verlässt, mit benanntem Auflöser
+
+- **`000-000-0025`** — `BaseI18nTree`: Die Beziehung passt nicht zum zusammengesetzten
+  Schlüssel. Nicht behoben, weil niemand von der Klasse erbt und die Frage fachlich ist:
+  Trägt ein Elternknoten dieselbe Sprache? Semantik für unbenutzten Code zu erfinden und dabei
+  ein Tabellenschema zu ändern, ist die falsche Reihenfolge.
+- **`000-000-0024`** — Eine Ausnahme aus dem Bootstrap antwortet mit einer leeren 500, weil sie
+  anfällt, bevor der Kernel existiert.
+- **Die eine PHPStan-Ausnahme** für `ReservedWordsCommand` kommt aus **DBAL**, nicht aus dem
+  ORM. Epic `010` löst sie nicht auf; sie steht mit ihrem Vermerk in `phpstan.neon.dist`.
+- **20 ungenutzte Imports im `ApiController`** (`010-001-0002`) — ein Aufräum-Task, kein Befund.
+- **Die Doppelung des Mapping-Blocks in `InstallCommand`** ist entschärft, aber nicht
+  aufgelöst (`010-003-0002`).

@@ -1,7 +1,7 @@
 ---
 id: 010-005-0000
 title: Die Gates leeren und die Altbefunde aus Epic 009 abräumen
-status: todo
+status: done
 depends_on: [010-003-0000]
 ---
 
@@ -65,6 +65,6 @@ und dabei das Schema einer Tabelle zu ändern. Sie verlässt das Epic mit benann
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 010-005-0001 — Die rowCount-Stellen auf COUNT(*) bringen
-- [ ] 010-005-0002 — Den modified_index-Listener in die Factory ziehen
-- [ ] 010-005-0003 — Die Abnahme des Epics
+- [x] 010-005-0001 — Die rowCount-Stellen auf COUNT(*) bringen
+- [x] 010-005-0002 — Den modified_index-Listener in die Factory ziehen
+- [x] 010-005-0003 — Die Abnahme des Epics
