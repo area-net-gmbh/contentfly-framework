@@ -1,7 +1,7 @@
 ---
 id: 013-002-0000
 title: access_token-Authenticator mit verzweigendem TokenHandler
-status: review
+status: done
 depends_on: [013-001-0000, 009-000-0000]
 ---
 
@@ -78,7 +78,7 @@ Thema und gehört nicht in diese Story.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 013-002-0001 — Der Unterbau: security-http ohne Firewall-YAML
-- [ ] 013-002-0002 — Die Extractoren, samt dem für Bestandsclients
-- [ ] 013-002-0003 — Der verzweigende TokenHandler
-- [ ] 013-002-0004 — Umschalten und checkToken() entfernen
+- [x] 013-002-0001 — Der Unterbau: security-http ohne Firewall-YAML
+- [x] 013-002-0002 — Die Extractoren, samt dem für Bestandsclients
+- [x] 013-002-0003 — Der verzweigende TokenHandler
+- [x] 013-002-0004 — Umschalten und checkToken() entfernen

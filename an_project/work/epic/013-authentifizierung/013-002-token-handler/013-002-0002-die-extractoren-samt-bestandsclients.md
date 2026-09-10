@@ -1,7 +1,7 @@
 ---
 id: 013-002-0002
 title: Die Extractoren, samt dem für Bestandsclients
-status: review
+status: done
 depends_on: [013-002-0001]
 ---
 

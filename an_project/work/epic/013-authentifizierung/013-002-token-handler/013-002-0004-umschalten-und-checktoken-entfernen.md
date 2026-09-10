@@ -1,7 +1,7 @@
 ---
 id: 013-002-0004
 title: Umschalten und checkToken() entfernen
-status: review
+status: done
 depends_on: [013-002-0002, 013-002-0003]
 ---
 
