@@ -132,6 +132,11 @@ Ein Deployment, das den Cache stehen lässt, arbeitet danach gegen die alte Zuor
 Ausserdem hat sich mit `010-002-0001` das **Format** geändert — Symfonys Adapter statt
 `doctrine/cache`. Alte Dateien werden weder gelesen noch aufgeräumt.
 
+**Beim Sprung auf ORM 3 war das Leeren keine Empfehlung, sondern die Bedingung.** Ein
+Metadaten-Cache aus ORM 2 wird von ORM 3 gelesen und liefert Unsinn — der Fehler lautet
+`TypeRegistry::get(): Argument #1 ($name) must be of type string, null given` und zeigt nirgends
+auf den Cache. 191 von 268 Tests standen rot; nach dem Leeren drei.
+
 *Zwei Wege, den Cache zu räumen:* Die Verzeichnisse löschen, oder `POST /system/do` mit
 `method=flushSchemaCache` aufrufen. Der Endpunkt leert beide Caches und die Datei
 `data/cache/schema.cache`.

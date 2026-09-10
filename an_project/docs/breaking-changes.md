@@ -794,6 +794,85 @@ Die Adapter kommen aus `symfony/cache` statt aus `doctrine/cache`. Die Verzeichn
 *Was zu tun ist:* Beim Deployment einmal leeren. Alte Dateien werden nicht gelesen und nicht
 aufgeräumt.
 
+## Doctrine ORM 3 (Story `010-003`)
+
+### Der Metadaten-Cache muss vor dem Upgrade geleert werden
+**Seit `010-003-0002` (2026-09-10).**
+
+**Das ist der wichtigste Punkt dieses Abschnitts, weil er sich als etwas ganz anderes tarnt.**
+ORM 3 speichert Metadaten in einer anderen Form als ORM 2. Ein Cache aus ORM 2 wird gelesen und
+liefert Unsinn — nicht als Fehlermeldung, sondern als:
+
+```
+TypeError: Doctrine\DBAL\Types\TypeRegistry::get(): Argument #1 ($name)
+must be of type string, null given
+```
+
+Beim Umstieg im Framework selbst standen damit **191 von 268 Tests** rot; nach dem Leeren des
+Caches waren es 3. Wer diesen Fehler sieht, sucht ihn beim Mapping und findet ihn dort nie.
+
+*Was zu tun ist:* `data/cache/metadata` und `data/cache/query` leeren, bevor die neue Version
+zum ersten Mal läuft. Siehe `an_project/docs/deployment.md`.
+
+### Eine Entity darf ein geerbtes Feld nicht wortgleich wiederholen
+**Seit `010-003-0002` (2026-09-10).**
+
+ORM 2 hat es stillschweigend überschrieben, ORM 3 lehnt es ab:
+
+```
+Duplicate definition of column 'id' on entity '…' in a field or discriminator column mapping.
+```
+
+Im Framework traf das `Entity\Log` (die Felder `id`, `users`, `created`, `userCreated`) und
+`Entity\BaseI18n` (die Spaltendefinition von `id`). Eine Projekt-Entity, die von
+`Areanet\PIM\Entity\Base` erbt und eines seiner Felder erneut deklariert, bricht genauso.
+
+*Was zu tun ist:* Die Wiederholung streichen. Soll ein geerbtes Feld **abweichen**, bleibt nur
+die Abweichung stehen — `BaseI18n` behält so seinen `#[ORM\Id]` mit
+`#[ORM\GeneratedValue('NONE')]`, ohne die Spalte noch einmal zu beschreiben.
+
+### `pim_log.created` bekommt einen Vorgabewert
+**Seit `010-003-0002` (2026-09-10).**
+
+Die einzige Schemaänderung des ganzen Sprungs, gemessen über zwei Installationen: **211 Spalten
+und 67 Indizes, ein Unterschied.**
+
+`Entity\Log` wiederholte `created` aus `Base`, dabei aber **ohne**
+`options: ['default' => 'CURRENT_TIMESTAMP']`. Die Abweichung war nirgends begründet und sieht
+nach einer unvollständigen Kopie aus. Mit dem Wegfall der Wiederholung gilt jetzt der Wert aus
+`Base`, wie bei jeder anderen Tabelle.
+
+*Was zu tun ist:* Nichts, oder ein `ALTER TABLE`. Ein Schema-Abgleich meldet die Spalte;
+vorhandene Zeilen bleiben unberührt.
+
+### Eigene DQL-Funktionen müssen `getSql(): string` deklarieren
+**Seit `010-003-0002` (2026-09-10).**
+
+`FunctionNode::getSql()` ist in ORM 3 typisiert. Eine Ableitung ohne Rückgabetyp wird **beim
+Laden** abgelehnt — und das passiert erst, wenn eine Abfrage die Funktion benutzt. Im Framework
+sind daran drei Berechtigungstests gescheitert, nachdem alles andere schon grün war.
+
+*Was zu tun ist:* `: string` ergänzen, und `Lexer::T_*` durch `TokenType::T_*` ersetzen.
+
+### Fünf Doctrine-Console-Commands sind entfallen
+**Seit `010-003-0002` (2026-09-10).**
+
+`ConvertDoctrine1Schema`, `ConvertMapping`, `EnsureProductionSettings`, `GenerateEntities` und
+`GenerateRepositories`. Von sechzehn registrierten Commands laufen elf weiter.
+
+*Was zu tun ist:* Nichts, ausser ein Projekt hat sie in einem Skript benutzt. `ConvertMapping`
+und `GenerateEntities` erzeugten Mapping-Dateien und Entity-Klassen aus einer Datenbank — dieser
+Weg ist in ORM 3 aufgegeben.
+
+### `ConsoleRunner::createHelperSet()` ist entfallen
+**Seit `010-003-0002` (2026-09-10).**
+
+Betrifft `bin/cli-config.php`, den Einstiegspunkt für `vendor/bin/doctrine`. ORM 3 erwartet dort
+einen `EntityManagerProvider` — dieselbe Umstellung, die `009-005-0003` für die eigene Konsole
+schon gemacht hat.
+
+*Was zu tun ist:* `return new SingleManagerProvider($app['orm.em']);`
+
 ## Doctrine (Story `009-005`)
 
 ### DBAL 2 → 3

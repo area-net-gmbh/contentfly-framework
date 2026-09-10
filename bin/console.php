@@ -37,12 +37,19 @@ if ($app['is_installed']) {
         new \Doctrine\ORM\Tools\Console\Command\SchemaTool\CreateCommand($entityManager),
         new \Doctrine\ORM\Tools\Console\Command\SchemaTool\DropCommand($entityManager),
         new \Doctrine\ORM\Tools\Console\Command\SchemaTool\UpdateCommand($entityManager),
-        new \Doctrine\ORM\Tools\Console\Command\ConvertDoctrine1SchemaCommand(),
-        new \Doctrine\ORM\Tools\Console\Command\ConvertMappingCommand($entityManager),
-        new \Doctrine\ORM\Tools\Console\Command\EnsureProductionSettingsCommand($entityManager),
-        new \Doctrine\ORM\Tools\Console\Command\GenerateEntitiesCommand($entityManager),
+        // FUENF COMMANDS SIND MIT ORM 3 ENTFALLEN (010-003-0002), gezaehlt statt geschaetzt:
+        // ConvertDoctrine1Schema, ConvertMapping, EnsureProductionSettings, GenerateEntities
+        // und GenerateRepositories. Von den sechzehn frueher registrierten laufen elf weiter.
+        //
+        // Entfernt statt auskommentiert — wie ImportCommand in 009-005-0003. Ein
+        // auskommentierter Command sieht aus wie etwas, das zurueckkommt.
+        //
+        // Was sie taten und was an ihre Stelle tritt: ConvertMapping und GenerateEntities
+        // erzeugten Mapping-Dateien und Entity-Klassen aus einer Datenbank — dieser Weg ist in
+        // ORM 3 aufgegeben; GenerateRepositories erzeugte Repository-Ruempfe, die man in einer
+        // Zeile selbst schreibt; EnsureProductionSettings prueft Einstellungen, die es so nicht
+        // mehr gibt; ConvertDoctrine1Schema stammte aus einer Doctrine-Generation vor dieser.
         new \Doctrine\ORM\Tools\Console\Command\GenerateProxiesCommand($entityManager),
-        new \Doctrine\ORM\Tools\Console\Command\GenerateRepositoriesCommand($entityManager),
         new \Doctrine\ORM\Tools\Console\Command\InfoCommand($entityManager),
         new \Doctrine\ORM\Tools\Console\Command\RunDqlCommand($entityManager),
         new \Doctrine\ORM\Tools\Console\Command\ValidateSchemaCommand($entityManager),

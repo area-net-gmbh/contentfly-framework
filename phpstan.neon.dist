@@ -87,11 +87,12 @@ parameters:
         # 2.20 bereits, die Umstellung brauchte den Versionssprung also nicht — und Regel 3
         # hat die Muster sofort eingefordert.
         #
-        # Was bleibt, sind die Console-Commands: Sie fallen mit dem Sprung selbst
-        # (010-003-0002), und bis dahin sind sie hier deprecated und in Benutzung.
-        - '#Instantiation of deprecated class Doctrine\\ORM\\Tools\\Console\\Command\\#'
+        # Mit dem Sprung selbst (010-003-0002) sind zwei weitere weggefallen: Die
+        # ORM-Console-Commands sind in ORM 3 nicht mehr deprecated, sondern gewoehnlich, und
+        # `createHelperSet()` gibt es nicht mehr — `bin/cli-config.php` benutzt einen Provider.
+        #
+        # Uebrig ist genau eine Ausnahme, und sie kommt aus DBAL, nicht aus dem ORM.
         - '#Instantiation of deprecated class Doctrine\\DBAL\\Tools\\Console\\Command\\ReservedWordsCommand#'
-        - '#Call to deprecated method createHelperSet\(\) of class Doctrine\\ORM\\Tools\\Console\\ConsoleRunner#'
 
 includes:
     - vendor/phpstan/phpstan-deprecation-rules/rules.neon
