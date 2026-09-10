@@ -832,6 +832,44 @@ darf. Ein abgeschnittener Hash fällt nicht beim Speichern auf, sondern beim nä
 `pim_user.pass` direkt schreiben, muss sie auf `password_hash()` umstellen — der alte
 SHA-256-Weg wird nur noch **gelesen**.
 
+### Der Login antwortet jetzt mit `429`
+**Seit `013-001-0003` (2026-09-10).**
+
+`POST /auth/login` kannte bisher genau zwei Ausgänge: `200` mit Token oder `401`. Dazu kommt
+**`429 Too Many Requests`**, mit einem `Retry-After`-Kopf. Ein Client, der jede Antwort ungleich
+`200` als „Passwort falsch" auslegt, zeigt seinem Benutzer ab jetzt die falsche Meldung.
+
+Gebremst wird **pro Kennung und pro IP**, gestaffelt: fünf Fehlversuche je Kennung und Minute,
+zwanzig je Adresse und Minute, darüber je ein Fenster über eine Viertelstunde und über eine
+Stunde. Die Wartezeit wächst dadurch mit der Hartnäckigkeit — gemessen 60 s, 900 s, 3600 s.
+Nur Fehlversuche zählen; eine gelungene Anmeldung löscht den Zähler der Kennung.
+
+**`AuthController::CHECK_LOGIN_INTERVAL` und `MIN_LOGIN_INTERVAL` sind entfallen.** Beide waren
+`public` und damit theoretisch von aussen lesbar. Wirkung hatten sie keine: Die erste war fest
+`false`, der Zweig dahinter lief nie.
+
+*Was zu tun ist:* Clients, die auf den Statuscode reagieren, um `429` ergänzen. Wer den Login in
+einem Skript aufruft, das absichtlich falsche Anmeldungen erzeugt, läuft jetzt in die Bremse.
+
+### Hinter einem Proxy gehört `APP_TRUSTED_PROXIES` gesetzt
+**Seit `013-001-0003` (2026-09-10).**
+
+`setTrustedProxies()` wurde vorher im ganzen Baum **nirgends** gerufen. Das war folgenlos,
+solange niemand die Adresse des Aufrufers auswertete. Mit der Bremse pro IP ist es das nicht
+mehr: Steht ein Reverse Proxy oder Loadbalancer davor, hält die Anwendung ohne diese Angabe
+**dessen** Adresse für die des Aufrufers — die Bremse träfe ihn und damit alle Benutzer
+dahinter, während der Angreifer ungebremst weiterrät.
+
+**Ohne Eintrag ändert sich nichts.** Der Vorgabewert ist leer; dann wird `setTrustedProxies()`
+gar nicht erst gerufen und die Anwendung verhält sich wie bisher. Wer keine Proxies
+konfiguriert, betreibt sie direkt — dann stimmt die Adresse ohnehin.
+
+*Was zu tun ist:* Wer hinter einem Proxy läuft, trägt ihn in `custom/config.php` ein; die
+Vorlage führt den Block auskommentiert mit. **Nur eintragen, wem man traut** — ein vertrauter
+Absender darf sagen, wer der Aufrufer ist. `APP_TRUSTED_HEADERS` wählt zwischen den
+X-Forwarded-*-Headern (Vorgabe) und `Forwarded` nach RFC 7239; ein unbekannter Wert wird
+abgewiesen statt stillschweigend auf die Vorgabe zurückgeführt.
+
 ## Feldverschlüsselung (Story `010-004`)
 
 ### Verschlüsselt wird mit XChaCha20-Poly1305 statt AES-CBC

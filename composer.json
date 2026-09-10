@@ -25,6 +25,7 @@
         "symfony/event-dispatcher": "^7.4",
         "symfony/http-foundation": "^7.4",
         "symfony/http-kernel": "^7.4",
+        "symfony/rate-limiter": "^7.4",
         "symfony/routing": "^7.4",
         "vlucas/phpdotenv": "^5.6"
     },
