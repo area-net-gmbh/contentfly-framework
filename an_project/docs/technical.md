@@ -133,7 +133,7 @@ fremden Code, keine vorhandene Funktion.
 | ~~A-1~~ | ~~Passwörter sind `hash("sha256", $pass.$salt)`. SHA-256 hat keinen Arbeitsfaktor.~~ **Behoben mit `013-001-0001`:** Argon2id über `password_hash()`; Bestandshashes werden beim ersten Login des jeweiligen Benutzers ersetzt, der alte Weg wird nur noch gelesen. |
 | ~~A-2~~ | ~~`APP_MASTER_PASSWORD` akzeptiert den Login für **jeden** Benutzer.~~ **Behoben mit `013-001-0002`:** ersatzlos entfernt, nicht abschaltbar gemacht. |
 | ~~A-3~~ | ~~Kein Rate-Limiting — `CHECK_LOGIN_INTERVAL` ist eine `false`-Konstante.~~ **Behoben mit `013-001-0003`:** Anmeldebremse pro Kennung **und** pro IP, mit ansteigender Verzögerung (60 s → 900 s → 3600 s). Beide Konstanten und der tote Zweig sind entfallen; `setTrustedProxies()` ist konfigurierbar, damit die Achse IP hinter einem Proxy den Richtigen trifft. |
-| A-4 | `pim_token.token` steht im Klartext | Ein Lesezugriff auf die DB übergibt alle laufenden Sitzungen |
+| ~~A-4~~ | ~~`pim_token.token` steht im Klartext.~~ **Behoben mit `013-001-0004`:** gespeichert wird ein SHA-256, nachgeschlagen wird der Hash. Der Token verlässt das System genau einmal, bei der Anmeldung. Auch `pim_log.model_label` trug ihn im Klartext — dort steht jetzt ebenfalls der Hash. |
 | A-5 | `referrer`-Tokens laufen nie ab, und der Token-String kommt beim Anlegen vom Client (`Controller/SystemController.php:159`) | Ratbare Dauerschlüssel möglich |
 | A-6 | `LoginManager::createManagedUser()` setzt `setPass($alias)` — das Passwort ist der Benutzername | Latente Übernahme aller SSO-Konten |
 

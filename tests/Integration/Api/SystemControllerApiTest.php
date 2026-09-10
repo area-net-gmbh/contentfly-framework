@@ -53,8 +53,9 @@ class SystemControllerApiTest extends IntegrationTestCase
             'user'     => $this->adminId(),
         ));
 
+        // Gesucht wird ueber den HASH: In der Spalte steht seit 013-001-0004 nichts anderes.
         $zeile = $this->pdo()->prepare('SELECT id FROM pim_token WHERE token = :t');
-        $zeile->execute(array('t' => $tokenString));
+        $zeile->execute(array('t' => hash('sha256', $tokenString)));
 
         if ($id = $zeile->fetchColumn()) {
             $this->nachTestLoeschen('pim_token', (string) $id);
@@ -278,7 +279,16 @@ class SystemControllerApiTest extends IntegrationTestCase
         $zeile->execute(array('id' => $body['message']['id']));
         $gefunden = $zeile->fetch(\PDO::FETCH_ASSOC);
 
-        $this->assertSame($wert, $gefunden['token'], 'Der Token steht im Klartext in der Tabelle');
+        /*
+         * UMGEDREHT MIT 013-001-0004.
+         *
+         * Hier stand `assertSame($wert, $gefunden['token'], 'Der Token steht im Klartext in
+         * der Tabelle')` — festgehalten als das, was galt, mit dem Vermerk, dass es zu
+         * Story 013-001 gehoert. Jetzt steht dort ein SHA-256, und der Klartext steht
+         * nirgends.
+         */
+        $this->assertNotSame($wert, $gefunden['token'], 'Der Klartext steht NICHT in der Tabelle');
+        $this->assertSame(hash('sha256', $wert), $gefunden['token'], 'sondern sein SHA-256');
         $this->assertSame($this->adminId(), $gefunden['user_id']);
     }
 
@@ -307,8 +317,16 @@ class SystemControllerApiTest extends IntegrationTestCase
 
         $this->assertSame('INS', $eintrag['mode'], "Log::INSERTED, nicht 'Erstellt'");
         $this->assertSame('PIM\\Token', $eintrag['model_name']);
-        $this->assertSame($wert, $eintrag['model_label'],
-            'Der Token steht im Klartext im Protokoll — das gehoert zu 013-003');
+        /*
+         * AUCH DAS UMGEDREHT MIT 013-001-0004.
+         *
+         * Der Test hielt fest: „Der Token steht im Klartext im Protokoll — das gehoert zu
+         * 013-003." Es gehoerte in Wahrheit hierher: `pim_log` lebt laenger als die Sitzung,
+         * die es beschreibt, und ein Dump des Protokolls uebergab dieselben Sitzungen wie ein
+         * Dump der Tokentabelle. Als Kennzeichen taugt der Hash genauso.
+         */
+        $this->assertNotSame($wert, $eintrag['model_label'], 'Kein Klartext-Token im Protokoll');
+        $this->assertSame(hash('sha256', $wert), $eintrag['model_label']);
     }
 
     public function testAddTokenBrauchtReferrerTokenUndBenutzer(): void
@@ -367,13 +385,37 @@ class SystemControllerApiTest extends IntegrationTestCase
         $this->assertSame(200, $status);
 
         $werte = array_column($body['message'], 'token');
-        $this->assertContains($wert, $werte, 'Der API-Token mit Referrer wird gelistet');
-        $this->assertNotContains($this->token(), $werte, 'Der Anmeldetoken des Testlaufs nicht');
+        /*
+         * `token` ist seit 013-001-0004 der HASH. Der Token selbst laesst sich nicht mehr
+         * nachschlagen — auch nicht vom Betreiber. Wer einen in der Hand haelt, hasht ihn
+         * selbst und findet so seine Zeile.
+         */
+        $this->assertNotContains($wert, $werte, 'Der Klartext wird nicht ausgeliefert');
+        $this->assertContains(hash('sha256', $wert), $werte, 'sein Hash benennt die Zeile');
+        $this->assertNotContains($this->token(), $werte, 'Der Anmeldetoken des Testlaufs taucht nicht auf');
 
         foreach ($body['message'] as $eintrag) {
             $this->assertSame(array('id', 'token', 'referrer', 'user'), array_keys($eintrag));
             $this->assertNotSame('', $eintrag['referrer']);
         }
+    }
+
+    /**
+     * Der Referrer-Token funktioniert weiterhin (013-001-0004).
+     *
+     * Er ist der zweite Weg in die API — ein Dauerschluessel ohne Timeout, den ein Betreiber
+     * selbst waehlt und ueber `addToken` hinterlegt. Beim Hashen der Tokentabelle ist genau er
+     * der Fall, den man uebersehen kann: Sein Wert kommt vom Aufrufer und nicht aus dem
+     * Konstruktor, er wird also ueber `setToken()` gesetzt statt beim Anlegen erzeugt.
+     */
+    public function testEinReferrerTokenOeffnetDieApiWeiterhin(): void
+    {
+        $wert = 'test-'.bin2hex(random_bytes(16));
+        $this->tokenAnlegen($wert, 'https://referrer.example');
+
+        [$status] = $this->get('/api/schema', $wert);
+
+        $this->assertSame(200, $status, 'Der selbst gewaehlte API-Token wird angenommen');
     }
 
     /**
@@ -412,7 +454,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         $eintrag = $log->fetch(\PDO::FETCH_ASSOC);
 
         $this->assertNotFalse($eintrag, 'und ein Logeintrag mit Log::DELETED steht da');
-        $this->assertSame($wert, $eintrag['model_label']);
+        $this->assertSame(hash('sha256', $wert), $eintrag['model_label'], 'mit dem Hash als Kennzeichen');
     }
 
     public function testDeleteTokenMeldetEinenUnbekanntenToken(): void

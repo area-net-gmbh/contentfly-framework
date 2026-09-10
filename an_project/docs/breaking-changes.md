@@ -870,6 +870,51 @@ Absender darf sagen, wer der Aufrufer ist. `APP_TRUSTED_HEADERS` wählt zwischen
 X-Forwarded-*-Headern (Vorgabe) und `Forwarded` nach RFC 7239; ein unbekannter Wert wird
 abgewiesen statt stillschweigend auf die Vorgabe zurückgeführt.
 
+### Alle Sitzungen enden mit dem Update
+**Seit `013-001-0004` (2026-09-10).**
+
+`pim_token.token` trug 128 Hex im Klartext. Ein Lesezugriff auf die Datenbank — ein Backup, eine
+SQL-Injection, ein Dump im Ticketsystem — übergab damit **sämtliche laufenden Sitzungen**,
+sofort verwendbar. Gespeichert wird jetzt ein SHA-256; beim Prüfen wird der vorgezeigte Token
+gehasht und der Hash nachgeschlagen.
+
+**Bestehende Zeilen werden dadurch unbrauchbar.** Ein gespeicherter Klartext-Token trifft nie
+auf den Hash eines vorgezeigten. Wer angemeldet ist, meldet sich einmal neu an; ein
+**Referrer-Token muss neu hinterlegt werden**, sonst schliesst sich die Schnittstelle, die ihn
+benutzt.
+
+Sie beim Update mitzuhashen war die verworfene Alternative: Das hiesse, sie noch einmal im
+Klartext zu lesen — und ein Backup von gestern enthält sie ohnehin.
+
+*Was zu tun ist:* Nach dem Update `DELETE FROM pim_token;`. Die Zeilen sind wertlos, und eine
+leere Tabelle sagt deutlicher, was passiert ist, als eine voller Einträge, die niemanden mehr
+einlassen. Referrer-Tokens danach über `POST /system/do` mit `addToken` neu anlegen — mit
+**neuen** Werten, denn die alten standen im Klartext in Datenbank und Protokoll.
+
+### `listTokens` liefert den Hash, nicht den Token
+**Seit `013-001-0004` (2026-09-10).**
+
+Das Feld `token` in der Antwort von `listTokens` — und in der von `addToken` bei einem späteren
+Aufruf — ist der gespeicherte Hash. **Der Token selbst lässt sich nicht mehr nachschlagen, auch
+nicht vom Betreiber.** Er wird genau einmal zurückgegeben: in der Antwort auf `addToken`, die
+ihn anlegt, beziehungsweise auf `/auth/login`.
+
+Das Feld bleibt stehen, weil es die Zeile eindeutig benennt und weil, wer einen Token in der
+Hand hält, ihn selbst hashen und so seinen Eintrag finden kann. Ein Client, der den Wert
+versehentlich als Token vorzeigt, bekommt `401` — er fällt zu, nicht auf.
+
+### `pim_log.model_label` trägt bei Token-Vorgängen den Hash
+**Seit `013-001-0004` (2026-09-10).**
+
+`addToken` und `deleteToken` schrieben den Token im Klartext ins Protokoll. `pim_log` lebt
+länger als die Sitzung, die es beschreibt — ein Dump des Protokolls übergab dieselben
+Sitzungen wie ein Dump der Tokentabelle. Als Kennzeichen taugt der Hash genauso.
+
+**Der Altbestand bleibt, wie er ist.** `pim_log` ist ein Protokoll; alte Zeilen nachträglich
+umzuschreiben hiesse, die Aufzeichnung zu ändern — dieselbe Linie wie bei den deutschen
+`mode`-Werten aus `000-000-0015`. Wer alte Protokollzeilen aufbewahrt, sollte wissen, dass darin
+verwendbare Token stehen, und sie entsprechend behandeln.
+
 ## Feldverschlüsselung (Story `010-004`)
 
 ### Verschlüsselt wird mit XChaCha20-Poly1305 statt AES-CBC

@@ -234,4 +234,60 @@ class AuthApiTest extends IntegrationTestCase
             );
         }
     }
+
+    // ── Der Token steht nur noch gehasht in der Tabelle (013-001-0004) ─────────────────
+
+    /**
+     * Der Nachweis, um den es in `013-001-0004` geht.
+     *
+     * Vorher lagen in `pim_token.token` 128 Hex im Klartext. Ein Lesezugriff auf die Datenbank
+     * — ein Backup, eine SQL-Injection, ein Dump im Ticketsystem — uebergab damit saemtliche
+     * laufenden Sitzungen, sofort verwendbar.
+     */
+    public function testDerAusgelieferteTokenStehtNichtInDerTabelle(): void
+    {
+        $token = $this->login();
+
+        $zaehlen = $this->pdo()->prepare('SELECT COUNT(*) FROM pim_token WHERE token = :t');
+
+        $zaehlen->execute(array('t' => $token));
+        $this->assertSame('0', (string) $zaehlen->fetchColumn(), 'Der Klartext steht nirgends');
+
+        $zaehlen->execute(array('t' => hash('sha256', $token)));
+        $this->assertSame('1', (string) $zaehlen->fetchColumn(), 'sein SHA-256 genau einmal');
+    }
+
+    /**
+     * Und die andere Haelfte: Die Anmeldung funktioniert unveraendert.
+     *
+     * Ein gehashter Token, mit dem sich niemand mehr anmelden kann, waere kein Fortschritt.
+     */
+    public function testDerAusgelieferteTokenFunktioniertWeiterhin(): void
+    {
+        $token = $this->login();
+
+        [$status] = $this->get('/api/schema', $token);
+        $this->assertSame(200, $status);
+
+        [$abmelden] = $this->get('/auth/logout', $token);
+        $this->assertSame(200, $abmelden);
+
+        [$danach] = $this->get('/api/schema', $token);
+        $this->assertNotSame(200, $danach, 'Nach dem Abmelden ist er weg');
+    }
+
+    /**
+     * Der Hash selbst ist kein Token.
+     *
+     * Wer ihn aus der Tabelle oder aus `listTokens` abschreibt und vorzeigt, kommt nicht durch:
+     * Er wuerde beim Pruefen ein zweites Mal gehasht.
+     */
+    public function testDerHashLaesstSichNichtAlsTokenVorzeigen(): void
+    {
+        $token = $this->login();
+
+        [$status] = $this->get('/api/schema', hash('sha256', $token));
+
+        $this->assertNotSame(200, $status);
+    }
 }
