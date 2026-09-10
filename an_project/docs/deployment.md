@@ -246,7 +246,7 @@ Paket im Lock Exit 1 mit Nennung des Namens.
 
 ### Was die Gates heute melden
 
-Gemessen am 2026-09-09, nach Epic `009`:
+Gemessen am 2026-09-10, nach Epic `010`:
 
 | | Stand |
 |---|---|
@@ -254,14 +254,14 @@ Gemessen am 2026-09-09, nach Epic `009`:
 | Deprecations auf PHP 8.3 | grün, **0 protokollierte Zeilen bei 0 Ausnahmen** |
 | Deprecations auf PHP 8.4 | grün, **0 protokollierte Zeilen bei 0 Ausnahmen** |
 | PHPStan | `[OK] No errors`, blockierend; **eine** Ausnahme übrig, und die kommt aus DBAL |
-| Suite auf PHP 8.3 | `OK (267 tests, 640 assertions)` |
-| Suite auf PHP 8.4 | `OK (267 tests, 639 assertions)`, 0 übersprungen, Postausgang 0 Byte |
+| Suite auf PHP 8.3 | `OK (282 tests, 692 assertions)` |
+| Suite auf PHP 8.4 | `OK (282 tests, 692 assertions)`, 0 übersprungen, Postausgang 0 Byte |
+| `orm:validate-schema` | Datenbank **in sync**; ein Mapping-Fehler übrig (`000-000-0025`) |
 
-**Der 8.4-Lauf beantwortet die Frage, die in der `.gitlab-ci.yml` offen stand.** Dort steht als
-Begründung für `allow_failure: true`, der Symfony-7.4-Stand sei auf 8.4 noch nicht gemessen
-worden. Er ist es jetzt — im Pipeline-Image `php:8.4-cli` gegen einen `mysql:8.0`-Service, mit
-dem Wortlaut des Jobs —, und er ist grün. Den Schalter zu ziehen ist damit eine Entscheidung,
-die anliegt; sie gehört in ein eigenes Ticket, nicht in eine Dokumentationsänderung.
+**Die Pipeline hat kein `allow_failure` mehr.** Der PHP-8.4-Job ist mit `010-003-0003`
+blockierend geworden — die `.gitlab-ci.yml` hatte die Bedingung selbst benannt („Ob der Job
+blockierend werden kann, entscheidet ein Lauf auf 8.4"), und der Lauf liegt inzwischen dreimal
+vor: mit Symfony 7.4 und ORM 2.20, mit ORM 3.7, und auf dem Endstand von Epic `010`.
 
 ## Die Suite ist die Abnahmegrundlage
 Was ein roter Test beim Kernel-Tausch bedeutet, ist in `an_project/docs/technical.md`
