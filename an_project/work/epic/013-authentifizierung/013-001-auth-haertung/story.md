@@ -1,7 +1,7 @@
 ---
 id: 013-001-0000
 title: Auth-Härtung — Passwörter, Master-Passwort, Rate-Limiting, Token-Speicherung
-status: todo
+status: in-progress
 depends_on: []
 ---
 

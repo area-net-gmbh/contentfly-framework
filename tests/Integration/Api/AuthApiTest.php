@@ -107,6 +107,97 @@ class AuthApiTest extends IntegrationTestCase
         $this->assertNotSame(200, $nachher, 'Nach dem Abmelden darf derselbe Token nicht mehr gelten');
     }
 
+    // ── Passwort-Hashing (013-001-0001) ────────────────────────────────────────────────
+
+    public function testEinAltesPasswortWirdBeimLoginUmgeschluesselt(): void
+    {
+        // `testbenutzer()` legt den Benutzer zwar mit einem SHA-256-Hash an, MELDET IHN ABER
+        // GLEICH AN, um den Token zu liefern — und damit ist er schon umgeschluesselt, bevor
+        // dieser Test etwas sieht. (Nebenbei heisst das: Jeder Test, der den Helfer benutzt,
+        // laeuft ueber den Altformat-Zweig. Er ist also breit abgedeckt, nur nicht zugesichert.)
+        //
+        // Fuer die Zusicherung wird der alte Hash deshalb ausdruecklich wiederhergestellt.
+        [, $userId] = $this->testbenutzer();
+        $this->altenHashSetzen($userId);
+
+        $vorher = $this->passHashLesen($userId);
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $vorher,
+            'Vorbedingung: der Hash liegt im alten SHA-256-Format');
+
+        [$status] = $this->postJson('/auth/login', array(
+            'alias' => $this->aliasZu($userId),
+            'pass'  => self::TEST_PASSWORT,
+        ));
+        $this->assertSame(200, $status, 'Ein Bestandspasswort meldet sich weiterhin an');
+
+        $nachher = $this->passHashLesen($userId);
+        $this->assertStringStartsWith('$', $nachher,
+            'und der Hash ist danach ersetzt — password_hash() beginnt mit $');
+        $this->assertNotSame($vorher, $nachher);
+    }
+
+    public function testNachDemUmschluesselnGehtDieAnmeldungWeiterhin(): void
+    {
+        // Ein umgeschluesselter Hash muss beim naechsten Mal ueber den NEUEN Zweig geprueft
+        // werden. Faende `isPass()` dort nicht zurecht, waere der Benutzer nach genau einem
+        // erfolgreichen Login ausgesperrt — und der Test darueber waere trotzdem gruen.
+        [, $userId] = $this->testbenutzer();
+        $this->altenHashSetzen($userId);
+        $alias = $this->aliasZu($userId);
+
+        $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORT));
+
+        [$status, $body] = $this->postJson('/auth/login', array(
+            'alias' => $alias,
+            'pass'  => self::TEST_PASSWORT,
+        ));
+
+        $this->assertSame(200, $status);
+        $this->assertNotEmpty($body['token'] ?? null);
+    }
+
+    public function testEinFalschesPasswortScheitertAuchNachDemUmschluesseln(): void
+    {
+        [, $userId] = $this->testbenutzer();
+        $this->altenHashSetzen($userId);
+        $alias = $this->aliasZu($userId);
+
+        $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORT));
+
+        [$status] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => 'falsch'));
+
+        $this->assertSame(401, $status);
+    }
+
+    /** Schreibt den alten SHA-256-Hash zurueck, wie ihn ein Bestandsprojekt traegt. */
+    private function altenHashSetzen(string $userId): void
+    {
+        $s = $this->pdo()->prepare('SELECT salt FROM pim_user WHERE id = :id');
+        $s->execute(array('id' => $userId));
+        $salt = (string) $s->fetchColumn();
+
+        $this->pdo()->prepare('UPDATE pim_user SET pass = :pass WHERE id = :id')->execute(array(
+            'pass' => hash('sha256', self::TEST_PASSWORT.$salt),
+            'id'   => $userId,
+        ));
+    }
+
+    private function passHashLesen(string $userId): string
+    {
+        $s = $this->pdo()->prepare('SELECT pass FROM pim_user WHERE id = :id');
+        $s->execute(array('id' => $userId));
+
+        return (string) $s->fetchColumn();
+    }
+
+    private function aliasZu(string $userId): string
+    {
+        $s = $this->pdo()->prepare('SELECT alias FROM pim_user WHERE id = :id');
+        $s->execute(array('id' => $userId));
+
+        return (string) $s->fetchColumn();
+    }
+
     public function testJedeAnmeldungLiefertEinenNeuenToken(): void
     {
         $this->assertNotSame($this->login(), $this->login(), 'Tokens werden pro Anmeldung erzeugt, nicht wiederverwendet');
