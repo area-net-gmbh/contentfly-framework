@@ -5,41 +5,42 @@ use Areanet\PIM\Controller\AuthController;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Die Namensauflösung für LoginManager (013-001-0005).
+ * Wie ein Anmeldeprovider ausgewählt wird — **umgedreht mit `013-004-0001`, nicht gelöscht.**
  *
- * **Die Bedingung war verdreht.** `substr($name, 7) == 'Plugins'` schneidet *ab* Position 7,
- * statt die ersten sieben Zeichen zu prüfen. Für `Plugins\Auth\Ldap` ergibt das `\Auth\Ldap`;
- * die Bedingung griff nie, und der Name wurde fälschlich zu `Custom\Classes\Plugins\Auth\Ldap`.
- * LoginManager aus Plugins funktionierten dadurch nicht.
+ * Der Test hiess vorher dasselbe und prüfte etwas anderes: `AuthController::providerKlasse()`,
+ * die einen Namen aus dem Request zu `Custom\Classes\<Name>` auflöste. Er entstand mit
+ * `013-001-0005`, weil die Bedingung dort verdreht war (`substr($name, 7)` statt der ersten
+ * sieben Zeichen) und Plugin-Provider deshalb nie funktionierten.
  *
- * **Einschränkung, ausdrücklich:** Dieser Pfad ist nicht end-to-end prüfbar. `plugins/` ist
- * leer, und ein Plugin nur für einen Test anzulegen hiesse, die Lücke mit Testcode zu füllen,
- * statt sie zu benennen. Geprüft wird deshalb die Auflösung selbst — genau die Stelle, die
- * falsch war. Dass ein aufgelöster Name danach über `class_exists()` und die
- * `LoginManager`-Prüfung läuft, deckt `LoginManagerApiTest` für den `Custom\Classes`-Weg ab.
+ * **Die Auflösung selbst ist jetzt weg**, und das war der Punkt: Welche Klasse eine Anwendung
+ * instanziiert, ist eine Entscheidung des Betreibers und nicht des Aufrufers. Was bleibt, ist
+ * die Zusicherung, dass sie weg ist — ein Test, der eine entfernte Mechanik festhält, ist die
+ * einzige Art, zu merken, wenn jemand sie zurückbaut.
  */
 class LoginProviderAufloesungTest extends TestCase
 {
-    public function testEinNameMitPluginsPraefixBleibtWieErIst(): void
+    public function testDieAufloesungUeberKlassennamenGibtEsNichtMehr(): void
     {
-        $this->assertSame('Plugins\Auth\Ldap', AuthController::providerKlasse('Plugins\Auth\Ldap'));
-    }
+        $this->assertFalse(
+            method_exists(AuthController::class, 'providerKlasse'),
+            'providerKlasse() loeste einen Request-Parameter zu einer Klasse auf — entfallen mit 013-004-0001'
+        );
 
-    public function testJederAndereNameWirdUnterCustomClassesGesucht(): void
-    {
-        $this->assertSame('Custom\Classes\MeinLogin', AuthController::providerKlasse('MeinLogin'));
+        $this->assertFalse(
+            method_exists(AuthController::class, 'getLoginProvider'),
+            'getLoginProvider() instanziierte diese Klasse — ebenfalls entfallen'
+        );
     }
 
     /**
-     * Der Nachweis, dass der alte Fehler weg ist — und nicht nur, dass das Ergebnis stimmt.
+     * Und der Nachweis, dass die alte Mechanik nicht heimlich woanders lebt: Im ganzen Baum
+     * wird kein Klassenname mehr aus einem Request-Parameter zusammengesetzt.
      */
-    public function testDerAlteFehlerIstWeg(): void
+    public function testKeinKlassennameWirdMehrAusEinemParameterGebaut(): void
     {
-        $alt = substr('Plugins\Auth\Ldap', 7) == 'Plugins'
-            ? 'Plugins\Auth\Ldap'
-            : 'Custom\Classes\\'.'Plugins\Auth\Ldap';
+        $quelle = file_get_contents(ROOT_DIR.'/lib/contentfly/Controller/AuthController.php');
 
-        $this->assertSame('Custom\Classes\Plugins\Auth\Ldap', $alt, 'So lief es vorher');
-        $this->assertNotSame($alt, AuthController::providerKlasse('Plugins\Auth\Ldap'));
+        $this->assertStringNotContainsString("'Custom\\Classes\\\\'", $quelle);
+        $this->assertStringNotContainsString('class_exists(', $quelle);
     }
 }

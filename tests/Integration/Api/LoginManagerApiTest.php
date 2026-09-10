@@ -95,4 +95,65 @@ class LoginManagerApiTest extends IntegrationTestCase
             'Derselbe externe Name aus zwei Providern ergibt zwei Konten — die '
             .'unique-Bedingung auf alias schlaegt nicht zu');
     }
+
+    // ── Die Auswahl kommt aus einer Allowlist (013-004-0001) ──────────────────────────
+
+    /**
+     * **Ein Klassenname im Request wählt keine Klasse mehr aus.**
+     *
+     * Bis `013-004-0001` wurde der Parameter `loginManager` zu `Custom\Classes\<Name>`
+     * aufgelöst und die Klasse instanziiert. Der Präfix und eine `instanceof`-Prüfung
+     * begrenzten den Schaden — aber die Auswahl lag beim Aufrufer. Jetzt benennt der Parameter
+     * einen Eintrag im Verzeichnis, und ein Klassenname steht dort nicht.
+     */
+    public function testEinKlassennameWaehltKeineKlasseMehrAus(): void
+    {
+        foreach (array(
+            'Custom\\Classes\\LoginManager\\Beispiel',
+            'Plugins\\Auth\\Ldap',
+            'Areanet\\PIM\\Classes\\Manager\\LoginManager',
+        ) as $klassenname) {
+            [$status, $body] = $this->postJson('/auth/login', array(
+                'alias'        => 'admin',
+                'pass'         => $this->pass(),
+                'loginManager' => $klassenname,
+            ));
+
+            $this->assertSame(401, $status, $klassenname.' darf nichts oeffnen');
+            $this->assertArrayNotHasKey('token', $body);
+        }
+    }
+
+    /**
+     * Ein unbekannter Name wird abgewiesen und **nicht** auf die Passwortprüfung
+     * zurückgeführt.
+     *
+     * Sonst wäre ein Tippfehler im Providernamen eine stille Anmeldung über den falschen Weg —
+     * mit richtigem Passwort sogar eine erfolgreiche.
+     */
+    public function testEinUnbekannterProvidernameFaelltNichtAufDasPasswortZurueck(): void
+    {
+        [$status, $body] = $this->postJson('/auth/login', array(
+            'alias'        => 'admin',
+            'pass'         => $this->pass(),
+            'loginManager' => 'gibtesnicht',
+        ));
+
+        $this->assertSame(401, $status);
+        $this->assertArrayNotHasKey('token', $body);
+    }
+
+    /**
+     * Und die Gegenprobe: Ohne den Parameter läuft die Anmeldung wie immer.
+     *
+     * Das Verzeichnis ist im ausgelieferten Zustand leer — solange nichts eingetragen ist, gibt
+     * es keinen Weg an der Passwortprüfung vorbei, aber auch keinen zusätzlichen Riegel davor.
+     */
+    public function testOhneProvidernameLaeuftDieAnmeldungWieImmer(): void
+    {
+        [$status, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => $this->pass()));
+
+        $this->assertSame(200, $status);
+        $this->assertArrayHasKey('token', $body);
+    }
 }
