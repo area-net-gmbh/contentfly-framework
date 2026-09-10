@@ -137,9 +137,30 @@ Damit ist „stateful oder stateless" keine Endpunkt-Entscheidung mehr, sondern 
 des ausgestellten Tokens. Der Sliding-Expiration-Write passiert nur noch im opaquen Zweig; der
 JWT-Zweig fasst `pim_token` nicht an.
 
-**JWT werden verifiziert, aber noch nicht ausgestellt.** `firebase/php-jwt` steht seit
-`013-002-0003` im Root-Manifest, auf `^7.0` — die 6er-Reihe trägt CVE-2025-45769. Ausstellung,
-Refresh-Modell, Widerruf und Schlüsselwechsel sind Story `013-003`.
+### Seit `013-003`: JWT werden ausgestellt, erneuert und widerrufen
+
+Der Login gibt auf `tokenType: "jwt"` ein kurzlebiges Access-JWT plus ein Refresh-Token aus.
+**Ohne diese Angabe bleibt es beim opaquen Token** — ein Bestandsclient merkt nichts.
+
+| Stück | wo |
+|---|---|
+| Claims und Ausstellung | `Classes/Security/Zugangstoken` — `sub`, `iss`, `iat`, `exp`, `jti`, mehr nicht |
+| Erneuerung | `POST /auth/refresh`, mit Rotation des Refresh-Tokens |
+| Widerruf | `GET /auth/logout` + Sperrliste `pim_revoked_token` für das Restfenster |
+| Schlüsselwechsel | `kid` im Header, zwei Schlüssel während einer Übergangszeit |
+
+**Rollen, Gruppen und Berechtigungen stehen nicht im Token.** Sie können sich ändern, während es
+gilt; stünden sie darin, wirkte eine Rechteänderung erst nach dessen Ablauf. Der Benutzer wird
+deshalb bei jedem Request aus `pim_user` geladen — womit eine Sperrung sofort wirkt, ohne
+Sperrliste.
+
+Das Refresh-Token ist eine `pim_token`-Zeile mit `purpose = refresh`. Es öffnet die API
+**nicht**: Der opaque Zweig weist es ab, sonst wäre es ein langlebiger Generalschlüssel.
+
+Betrieb, Schlüsselwechsel und die nötigen Umgebungsvariablen stehen in
+`an_project/docs/deployment.md`.
+
+`firebase/php-jwt` steht auf `^7.0` — die 6er-Reihe trägt CVE-2025-45769.
 Seit `006-003` wird dieser Baum nicht mehr gebaut — das Paket ist also auch physisch weg.
 `006-001-0004` hat es zum Streichen vorgesehen; `013-003` nimmt JWT bewusst neu auf. Was oben unter *Pro-Tenant-JWT-Secret* steht, beschreibt
 fremden Code, keine vorhandene Funktion.
