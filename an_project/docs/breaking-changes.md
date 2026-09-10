@@ -794,6 +794,54 @@ Die Adapter kommen aus `symfony/cache` statt aus `doctrine/cache`. Die Verzeichn
 *Was zu tun ist:* Beim Deployment einmal leeren. Alte Dateien werden nicht gelesen und nicht
 aufgeräumt.
 
+## Feldverschlüsselung (Story `010-004`)
+
+### Verschlüsselt wird mit XChaCha20-Poly1305 statt AES-CBC
+**Seit `010-004-0002` (2026-09-10).**
+
+Das alte Verfahren war **unauthentifiziert**. Gemessen an einem Beispielsatz: Ein gekipptes Byte
+im Chiffretext ging durch und lieferte einen anderen Klartext — ein Block Müll, der Rest intakt.
+Die Anwendung merkte nichts und lieferte ihn aus.
+
+**Bestandsdaten bleiben lesbar.** Das Format steht am Chiffretext, nicht in der Konfiguration:
+Ein neuer Wert beginnt mit `PIM1:`, alles ohne dieses Präfix ist das alte Format. Eine frisch
+aktualisierte Instanz liest ihre Daten also weiter, ohne dass jemand etwas umstellt.
+
+**Geschrieben wird ausschliesslich neu.** Es gibt keinen Schalter zurück — er wäre ein Weg, auf
+das schwächere Verfahren zurückzudrängen, und die Migration wäre nie abgeschlossen.
+
+*Was zu tun ist:* Nichts Zwingendes. Jeder Wert stellt sich beim nächsten Schreiben um. Wer es
+auf einen Schlag will, nimmt `appcms:security:reencrypt` — siehe `an_project/docs/deployment.md`.
+
+### Ein manipulierter Wert wirft jetzt, statt Unsinn zu liefern
+**Seit `010-004-0002` (2026-09-10).**
+
+Das ist der Zweck der Umstellung und zugleich eine Verhaltensänderung: Wo die Anwendung bisher
+irgendetwas zurückgab, verweigert sie jetzt. Ein Projekt, dessen Datenbank beschädigte
+Chiffretexte enthält, bemerkt das ab sofort — vorher nicht.
+
+*Was zu tun ist:* Nichts. Wer die Meldung sieht, hat ein Problem, das vorher unsichtbar war.
+
+### `SECURITY_CIPHER_KEY` wird abgeleitet statt durchgereicht
+**Seit `010-004-0002` (2026-09-10).**
+
+Der konfigurierte Wert ging bisher **roh** an OpenSSL. Eine Passphrase beliebiger Länge ist kein
+Schlüssel; OpenSSL füllte oder kürzte stillschweigend. Jetzt entsteht daraus mit BLAKE2b ein
+Schlüssel von genau 32 Byte.
+
+*Was zu tun ist:* Nichts. Die Ableitung ist deterministisch — derselbe konfigurierte Wert ergibt
+denselben Schlüssel, und Bestandsdaten im alten Format werden weiterhin mit dem rohen Wert
+gelesen.
+
+### `ext-sodium` und `ext-openssl` sind jetzt angefordert
+**Seit `010-004-0002` (2026-09-10).**
+
+Beide wurden immer gebraucht, aber `composer.json` hatte **keine einzige** `ext-*`-Angabe. Wer
+sie nicht hat, erfährt es jetzt beim `composer install` statt beim ersten verschlüsselten Feld.
+
+*Was zu tun ist:* Nichts auf üblichen Installationen — beide sind in PHP 8 Standard. Ein
+minimal gebautes PHP braucht sie nachinstalliert.
+
 ## Doctrine ORM 3 (Story `010-003`)
 
 ### Der Metadaten-Cache muss vor dem Upgrade geleert werden

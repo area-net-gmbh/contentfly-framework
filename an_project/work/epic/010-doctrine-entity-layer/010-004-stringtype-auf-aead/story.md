@@ -1,7 +1,7 @@
 ---
 id: 010-004-0000
 title: StringType von AES-CBC auf AEAD heben
-status: todo
+status: done
 depends_on: []
 ---
 
@@ -55,7 +55,7 @@ Voraussetzung des Updates statt zu einem Schritt danach).
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 010-004-0001 — Den doppelten Krypto-Code an eine Stelle ziehen
-- [ ] 010-004-0002 — XChaCha20-Poly1305 einführen, altes Format weiter lesen
-- [ ] 010-004-0003 — Der Re-Encrypt-Befehl mit Trockenlauf und Rückweg
-- [ ] 010-004-0004 — Manifest, Dokumente und Bruchstellen
+- [x] 010-004-0001 — Den doppelten Krypto-Code an eine Stelle ziehen
+- [x] 010-004-0002 — XChaCha20-Poly1305 einführen, altes Format weiter lesen
+- [x] 010-004-0003 — Der Re-Encrypt-Befehl mit Trockenlauf und Rückweg
+- [x] 010-004-0004 — Manifest, Dokumente und Bruchstellen
