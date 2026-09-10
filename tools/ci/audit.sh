@@ -14,21 +14,24 @@
 # anderem scheitert — ein Sicherheitsbefund soll nicht davon abhängen, ob die Suite grün
 # ist), und er prüft genau das, was auch deployt wird.
 #
-# ── Warum --abandoned=ignore ──────────────────────────────────────────────────────────
+# ── Warum --abandoned=fail ────────────────────────────────────────────────────────────
 #
-# Zwei Pakete sind abandoned: doctrine/annotations und doctrine/cache. Das ist kein
-# Sicherheitsbefund, sondern der bekannte Restbestand — doctrine/annotations trägt die
-# @PIM- und @ORM-Annotationen, und beide fallen mit Epic 010.
+# SEIT 010-003-0003, UND DER SCHALTER IST EINGELÖST, NICHT VERLÄNGERT WORDEN.
 #
-# Es waren fünf. silex/silex, knplabs/console-service-provider und symfony/debug sind mit
-# Epic 009 aus dem Baum; die Begründung steht bei jedem einzelnen in
-# tools/dependency-assignment.json.
+# Hier stand `ignore`, mit dem Vermerk „auf fail umstellen, sobald Epic 010 durch ist".
+# Der Weg dahin, je Paket:
 #
-# Ohne das Flag wäre der Job dauerhaft rot für einen Zustand, den heute niemand ändern
-# kann — und ein Gate, das immer rot ist, wird nach zwei Läufen abgeschaltet.
+#   silex/silex, knplabs/console-service-provider, symfony/debug   Epic 009
+#   doctrine/annotations                                           010-001-0005
+#   doctrine/cache                                                 010-003-0002, mit ORM 3
 #
-# AUF "fail" UMSTELLEN, sobald Epic 010 durch ist: Dann ist ein abandoned Paket wieder
-# eine Aussage und keine Beschreibung des Altbestands.
+# Fünf Pakete, null übrig. `composer audit --locked` meldet weder ein Advisory noch ein
+# abandoned Paket — die Ausnahmeliste in composer.json steht auf {}.
+#
+# WAS `fail` BEDEUTET: Ein abandoned Paket macht den Lauf rot. Das ist wieder eine Aussage
+# statt einer Beschreibung des Altbestands — genau die Eigenschaft, die `ignore` gekostet
+# hat. Wer ein solches Paket aufnehmen muss, trägt es einzeln unter config.audit.ignore ein,
+# mit Begründung und dem Ticket, das es auflöst.
 #
 # ── Die Ausnahmeliste steht in composer.json ──────────────────────────────────────────
 #
@@ -79,6 +82,6 @@ if [ "$(printf '%s\n%s\n' "$MINDESTVERSION" "$VERSION" | sort -V | head -1)" != 
 fi
 
 echo "→ composer audit --locked (Composer $VERSION)"
-composer audit --locked --abandoned=ignore --no-interaction
+composer audit --locked --abandoned=fail --no-interaction
 
 echo "✓ Keine unausgenommene Sicherheitsmeldung im Lock."

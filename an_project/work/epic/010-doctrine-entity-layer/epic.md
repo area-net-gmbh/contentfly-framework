@@ -125,6 +125,6 @@ eigenes Epic ein Vorhaben mit einer einzigen Story.
 <!-- Die Stories dieses Epics. Wird von /new-story synchron gehalten. -->
 - [x] 010-001-0000 — Annotationen auf PHP-Attribute — noch unter ORM 2.20
 - [x] 010-002-0000 — doctrine/cache durch einen PSR-6-Cache ersetzen
-- [ ] 010-003-0000 — Der ORM-3-Sprung
+- [x] 010-003-0000 — Der ORM-3-Sprung
 - [ ] 010-004-0000 — StringType von AES-CBC auf AEAD heben
 - [ ] 010-005-0000 — Die Gates leeren und die Altbefunde aus Epic 009 abräumen

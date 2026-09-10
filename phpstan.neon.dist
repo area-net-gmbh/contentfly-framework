@@ -81,14 +81,18 @@ parameters:
         # 010-002-0004 aus dem Manifest.
 
         # doctrine/orm 2.x — Klassen und Methoden, die in ORM 3 entfallen (Epic 010).
-        - '#Instantiation of deprecated class Doctrine\\ORM\\Tools\\Console\\Command\\#'
+        #
+        # Zwei Muster sind mit 010-003-0001 weggefallen, weil die Aufrufe es sind:
+        # `EntityManager::create()` und die Lexer-Token-Konstanten. Beide Ziele gibt es in ORM
+        # 2.20 bereits, die Umstellung brauchte den Versionssprung also nicht — und Regel 3
+        # hat die Muster sofort eingefordert.
+        #
+        # Mit dem Sprung selbst (010-003-0002) sind zwei weitere weggefallen: Die
+        # ORM-Console-Commands sind in ORM 3 nicht mehr deprecated, sondern gewoehnlich, und
+        # `createHelperSet()` gibt es nicht mehr — `bin/cli-config.php` benutzt einen Provider.
+        #
+        # Uebrig ist genau eine Ausnahme, und sie kommt aus DBAL, nicht aus dem ORM.
         - '#Instantiation of deprecated class Doctrine\\DBAL\\Tools\\Console\\Command\\ReservedWordsCommand#'
-        - '#Call to deprecated method createHelperSet\(\) of class Doctrine\\ORM\\Tools\\Console\\ConsoleRunner#'
-        - '#Call to deprecated method create\(\) of class Doctrine\\ORM\\EntityManager#'
-
-        # doctrine/orm Lexer — die Token-Konstanten sind nach TokenType gewandert (Epic 010).
-        # Betrifft die eigenen DQL-Funktionen unter Classes/ORM/Query und Classes/ORM/Spatial.
-        - '#Fetching deprecated class constant T_[A-Z_]+ of class Doctrine\\ORM\\Query\\Lexer#'
 
 includes:
     - vendor/phpstan/phpstan-deprecation-rules/rules.neon
