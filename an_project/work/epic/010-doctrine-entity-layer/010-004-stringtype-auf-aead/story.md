@@ -27,5 +27,35 @@ ansehen und nicht zurücknehmen kann, wird nicht ausgeführt.
 Bestandsdaten müssen lesbar bleiben, solange sie nicht umgeschlüsselt sind — das Verfahren ist
 am Chiffretext zu erkennen, nicht an der Konfiguration.
 
+## Ausgangslage, gemessen am 2026-09-10
+
+| | |
+|---|---|
+| Entities mit `encoded=true` | **null** — die Verschlüsselung ist heute nicht auslösbar |
+| `SECURITY_CIPHER_KEY` | Vorgabe `null`; `StringType` wirft dann von sich aus |
+| Verschlüsselungscode | **doppelt**, in `StringType` und `TextareaType`, Zeile für Zeile gleich |
+| libsodium in `php:8.3-cli` und `php:8.4-cli` | vorhanden, XChaCha20-Poly1305 verfügbar |
+| `ext-sodium` / `ext-openssl` im Manifest | **nicht angefordert** |
+
+`ConstraintApiTest::testKeineEntityNutztDieEncodedVerschluesselung` hält den Zustand fest und
+schlägt an, sobald jemand das Flag setzt. Das bestimmt den Zuschnitt: Der neue Code lässt sich
+**nur über eigene Tests** belegen, nicht über die vorhandene Suite, und der Re-Encrypt-Befehl
+braucht eine eigene Testentity.
+
+### Entschieden am 2026-09-10, mit dem Auftraggeber
+
+**Altes Format: lesen ja, schreiben nein.** Ein vorhandener Chiffretext wird weiter
+entschlüsselt, jeder neue Schreibvorgang benutzt AEAD. Das Verfahren steht am Chiffretext, nicht
+in der Konfiguration — ein Bestandsprojekt migriert damit im laufenden Betrieb, und der Befehl
+beschleunigt es nur.
+
+Verworfen: das alte Format nur hinter einem Schalter zu lesen (ein Bestandsprojekt startet nach
+dem Update dann erstmal mit unlesbaren Daten) und der harte Schnitt (die Migration würde zur
+Voraussetzung des Updates statt zu einem Schritt danach).
+
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
+- [ ] 010-004-0001 — Den doppelten Krypto-Code an eine Stelle ziehen
+- [ ] 010-004-0002 — XChaCha20-Poly1305 einführen, altes Format weiter lesen
+- [ ] 010-004-0003 — Der Re-Encrypt-Befehl mit Trockenlauf und Rückweg
+- [ ] 010-004-0004 — Manifest, Dokumente und Bruchstellen
