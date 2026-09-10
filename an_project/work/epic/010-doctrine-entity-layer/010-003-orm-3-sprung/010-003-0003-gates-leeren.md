@@ -1,7 +1,7 @@
 ---
 id: 010-003-0003
 title: Die Gates auf den neuen Stand bringen
-status: review
+status: done
 depends_on: [010-003-0002]
 ---
 

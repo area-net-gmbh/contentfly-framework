@@ -1,7 +1,7 @@
 ---
 id: 010-003-0001
 title: Was sich unter ORM 2.20 vorbereiten lässt
-status: review
+status: done
 depends_on: []
 ---
 
