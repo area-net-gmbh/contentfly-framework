@@ -61,7 +61,7 @@ Nachbau zuerst gescheitert.
 |---|---|
 | **Session-Write-Close** | Das Framework startet bei **jedem** Request eine PHP-Session (`Auth::init()`), und PHP hält darauf einen exklusiven Lock bis Skriptende. Da alle Browser-Tabs eine PHPSESSID teilen, serialisieren gleichzeitige API-Aufrufe dahinter. Das Projekt schloss die Session für `/api/v1/*` **sofort beim Require**, nicht in einer Middleware — eine ganze Bootstrap-Phase früher. Gemessen: Nebenläufigkeit von ~2,8× auf Richtung ~3,7×. Mit Story `012-004` entfällt die Session ganz, damit auch dieser Workaround. |
 | **Trusted Proxies** | `Request::setTrustedProxies(<Proxy-Range>, HEADER_X_FORWARDED_FOR)` — bewusst **nur** X-Forwarded-For, nicht Host/Proto, damit CORS und Tenant-Subdomain-Auflösung unverändert bleiben. Ohne das liefert `getClientIp()` die Proxy-IP, und Login-Ratelimit wie Audit-Log werden wertlos. |
-| **Master-Password neutralisiert** | `Adapter::getConfig()->APP_MASTER_PASSWORD = null` direkt nach dem Bootstrap — die Framework-Hintertür wird unabhängig von Konfiguration und Umgebung inert gesetzt. |
+| ~~**Master-Password neutralisiert**~~ | **Erledigt mit `013-001-0002`, und zwar an der Wurzel.** Das Kundenprojekt setzte `APP_MASTER_PASSWORD` beim Bootstrap auf `null`, um die Framework-Hintertür inert zu machen — es kannte das Problem und schützte sich davor. Die Konstante ist jetzt **ersatzlos entfallen**; es gibt nichts mehr zu neutralisieren. Wer dieses Muster portiert, kann die Zeile streichen. |
 | **Security-Header** | HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy als After-Hook auf jeder Antwort; CSP zunächst im Report-Only-Modus und erst nach sauberen Reports scharf geschaltet. |
 | **CORS-Allowlist** | In Produktion werden `Access-Control-Allow-Origin`/`-Credentials` entfernt, wenn keine Allowlist gesetzt ist — Fail-closed. In Entwicklung bleibt der Reflect-Origin-Fallback des Frameworks, damit lokales Arbeiten nicht bricht. |
 | **Refresh-Token als HttpOnly-Cookie** | Der Refresh-Token wurde zusätzlich als HttpOnly-Cookie ausgeliefert (host-only, SameSite=Lax, Secure nur über HTTPS), damit die SPA ihn nicht im localStorage halten muss — wo ein XSS ihn zu einer dauerhaften Kontoübernahme machen kann. |
@@ -131,7 +131,7 @@ fremden Code, keine vorhandene Funktion.
 | # | Befund | Wirkung |
 |---|---|---|
 | A-1 | Passwörter sind `hash("sha256", $pass.$salt)` (`Entity/User.php:122`). Salt pro Benutzer ist da, aber SHA-256 hat keinen Arbeitsfaktor | Geleakte Benutzertabelle ist in Stunden geknackt |
-| A-2 | `APP_MASTER_PASSWORD` akzeptiert den Login für **jeden** Benutzer (`Controller/AuthController.php:82-88`) | Vollzugriff über eine Konfigurationszeile |
+| ~~A-2~~ | ~~`APP_MASTER_PASSWORD` akzeptiert den Login für **jeden** Benutzer.~~ **Behoben mit `013-001-0002`:** ersatzlos entfernt, nicht abschaltbar gemacht. |
 | A-3 | Kein Rate-Limiting — `CHECK_LOGIN_INTERVAL` ist eine `false`-Konstante | Brute Force gegen A-1 ungebremst |
 | A-4 | `pim_token.token` steht im Klartext | Ein Lesezugriff auf die DB übergibt alle laufenden Sitzungen |
 | A-5 | `referrer`-Tokens laufen nie ab, und der Token-String kommt beim Anlegen vom Client (`Controller/SystemController.php:159`) | Ratbare Dauerschlüssel möglich |

@@ -794,6 +794,44 @@ Die Adapter kommen aus `symfony/cache` statt aus `doctrine/cache`. Die Verzeichn
 *Was zu tun ist:* Beim Deployment einmal leeren. Alte Dateien werden nicht gelesen und nicht
 aufgeräumt.
 
+## Authentifizierung (Story `013-001`)
+
+### `APP_MASTER_PASSWORD` gibt es nicht mehr
+**Seit `013-001-0002` (2026-09-10).**
+
+Ein hier gesetzter Wert akzeptierte den Login **für jeden Benutzer** — eine Konfigurationszeile
+mit Vollzugriff auf jedes Konto.
+
+**Ersatzlos entfernt, nicht abschaltbar gemacht.** Ein Schalter, der Vollzugriff gewährt, ist
+auch ausgeschaltet eine Hintertür: Er kann versehentlich gesetzt werden, er steht in
+Konfigurationsbeispielen, und er lädt dazu ein, ihn „nur kurz" zu benutzen.
+
+Dass das Problem bekannt war, ist aktenkundig: Das Kundenprojekt, aus dem dieses Framework
+herausgeschnitten wurde, setzte den Wert beim Bootstrap ausdrücklich auf `null`.
+
+*Was zu tun ist:* Die Zeile aus `custom/config.php` streichen — sie hat keine Wirkung mehr, und
+PHP meldet ein Schreiben auf eine nicht deklarierte Eigenschaft. Wer sich auf den Zugang
+verlassen hat, braucht das Passwort des jeweiligen Benutzers oder setzt es zurück.
+
+### Passwörter werden mit Argon2id gehasht
+**Seit `013-001-0001` (2026-09-10).**
+
+Vorher `hash('sha256', $pass.$salt)` — ein Verfahren **ohne Arbeitsfaktor**. Eine GPU prüft
+Milliarden Kandidaten pro Sekunde.
+
+**Bestandsdaten wandern beim Login mit.** Ein alter Hash wird weiterhin akzeptiert und dabei
+ersetzt; nach dem ersten Login jedes Benutzers ist er weg. Kein Zwangs-Reset, keine Migration
+im Voraus.
+
+**Die Spalte `pim_user.pass` fasst jetzt 255 statt 100 Zeichen.** Ein Argon2id-Hash ist rund 96
+— es hätte knapp gepasst und war trotzdem zu eng, weil PHP Algorithmus und Parameter wechseln
+darf. Ein abgeschnittener Hash fällt nicht beim Speichern auf, sondern beim nächsten Login, als
+„Passwort falsch".
+
+*Was zu tun ist:* Ein Schema-Abgleich meldet die Spalte. Wer eigene Stellen hat, die
+`pim_user.pass` direkt schreiben, muss sie auf `password_hash()` umstellen — der alte
+SHA-256-Weg wird nur noch **gelesen**.
+
 ## Feldverschlüsselung (Story `010-004`)
 
 ### Verschlüsselt wird mit XChaCha20-Poly1305 statt AES-CBC
