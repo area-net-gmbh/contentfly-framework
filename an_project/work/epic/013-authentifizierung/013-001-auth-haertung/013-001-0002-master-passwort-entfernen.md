@@ -1,7 +1,7 @@
 ---
 id: 013-001-0002
 title: Das Master-Passwort ersatzlos entfernen
-status: review
+status: done
 depends_on: []
 ---
 

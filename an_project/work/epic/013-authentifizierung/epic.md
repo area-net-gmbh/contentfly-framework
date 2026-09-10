@@ -52,7 +52,7 @@ zu laufen.
 
 ## Stories
 <!-- Die Stories dieses Epics. Wird von /new-story synchron gehalten. -->
-- [ ] 013-001-0000 — Auth-Härtung: Passwörter, Master-Passwort, Rate-Limiting, Token-Speicherung
+- [x] 013-001-0000 — Auth-Härtung: Passwörter, Master-Passwort, Rate-Limiting, Token-Speicherung
 - [ ] 013-002-0000 — access_token-Authenticator mit verzweigendem TokenHandler
 - [ ] 013-003-0000 — JWT ausstellen und widerrufen
 - [ ] 013-004-0000 — Nachfolger des LoginManagers

@@ -1,7 +1,7 @@
 ---
 id: 013-001-0005
 title: Die funktionalen Defekte und die Bruchstellen
-status: review
+status: done
 depends_on: [013-001-0001, 013-001-0002, 013-001-0003, 013-001-0004]
 ---
 

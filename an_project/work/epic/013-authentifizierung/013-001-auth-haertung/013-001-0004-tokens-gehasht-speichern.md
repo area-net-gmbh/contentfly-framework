@@ -1,7 +1,7 @@
 ---
 id: 013-001-0004
 title: Tokens nur noch gehasht speichern
-status: review
+status: done
 depends_on: []
 ---
 
