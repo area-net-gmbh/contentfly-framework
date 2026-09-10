@@ -14,6 +14,7 @@
 #   CONTENTFLY_TEST_BASE_URL       Adresse, unter der der Testserver antwortet
 #   CONTENTFLY_TEST_MAIL_TRAP      Verzeichnis der Versandfalle
 #   CONTENTFLY_TEST_ADMIN_PASS     Passwort des Admin-Benutzers
+#   CONTENTFLY_TEST_JWT_SECRET     Signaturgeheimnis fuer die JWT-Tests (mind. 32 Byte)
 
 set -eu
 
@@ -27,7 +28,8 @@ fehlt() {
 
 for name in CONTENTFLY_TEST_DB_HOST CONTENTFLY_TEST_DB_PORT CONTENTFLY_TEST_DB_NAME \
             CONTENTFLY_TEST_DB_USER CONTENTFLY_TEST_DB_PASSWORD \
-            CONTENTFLY_TEST_BASE_URL CONTENTFLY_TEST_MAIL_TRAP CONTENTFLY_TEST_ADMIN_PASS; do
+            CONTENTFLY_TEST_BASE_URL CONTENTFLY_TEST_MAIL_TRAP CONTENTFLY_TEST_ADMIN_PASS \
+            CONTENTFLY_TEST_JWT_SECRET; do
     eval "wert=\${$name:-}"
     [ -n "$wert" ] || fehlt "$name"
 done
@@ -129,8 +131,15 @@ chmod +x "$CONTENTFLY_TEST_MAIL_TRAP/sendmail"
 
 ADRESSE=$(echo "$CONTENTFLY_TEST_BASE_URL" | sed 's#^https\{0,1\}://##')
 
+# SECURITY_JWT_SECRET kommt aus der Umgebung, wie in Produktion (013-003-0001). Die
+# ausgelieferte custom/config.php liest den Wert von dort; ohne ihn stellt der Login keine JWT
+# aus, und die Tests dafuer haetten nichts zu messen.
+#
+# Der Name unterscheidet sich absichtlich: CONTENTFLY_TEST_* ist die Umgebung des Testlaufs,
+# SECURITY_JWT_SECRET die der Anwendung. Sie hier gleichzusetzen ist eine Entscheidung dieser
+# Datei und keine, die in der Anwendung steht.
 echo "→ Testserver auf $ADRESSE"
-APP_ENV=production APP_DEBUG=0 php \
+APP_ENV=production APP_DEBUG=0 SECURITY_JWT_SECRET="$CONTENTFLY_TEST_JWT_SECRET" php \
     -d display_errors=Off \
     -d log_errors=On \
     -d sendmail_path="$CONTENTFLY_TEST_MAIL_TRAP/sendmail" \

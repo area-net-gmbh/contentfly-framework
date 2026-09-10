@@ -1029,6 +1029,78 @@ Constraint.
 `custom/composer.json` führt — das Kundenprojekt tat das —, muss den Eintrag mit dem Root-Stand
 in Einklang bringen.
 
+## Authentifizierung, Teil 3 (Story `013-003`)
+
+### `pim_token` bekommt eine Spalte, und es gibt eine neue Tabelle
+**Seit `013-003` (2026-09-10).**
+
+`pim_token.purpose` (nullable) unterscheidet ein Refresh-Token von einem gewöhnlichen
+Zugangstoken. `pim_revoked_token` nimmt die `jti` widerrufener Access-JWT auf, bis diese ohnehin
+ablaufen.
+
+**Warum die Spalte sein muss:** Ein Refresh-Token ist eine `pim_token`-Zeile, und der opaque
+Zweig nahm bis dahin jede Zeile als Zugangstoken an. Ein Refresh-Token gilt länger als ein
+Access-JWT — das ist sein Zweck —, und ohne die Trennung wäre es ein langlebiger
+Generalschlüssel für die ganze API gewesen.
+
+*Was zu tun ist:* Schema abgleichen (`POST /system/do` mit `updateDatabase`, oder ein
+Doctrine-Schema-Update). Bestehende Zeilen bekommen `purpose = NULL` und verhalten sich
+unverändert.
+
+### Der Login kennt `tokenType`
+**Seit `013-003-0001` (2026-09-10).**
+
+`POST /auth/login` gibt auf `tokenType: "jwt"` ein Access-JWT im Feld `token` aus, dazu
+`refreshToken` und `expiresIn`. **Ohne die Angabe ändert sich nichts** — ein Bestandsclient
+bekommt das opaque Token wie bisher.
+
+Bewusst kein Konfigurationsschalter: Ein solcher kippte die Antwort für jeden Client auf einmal.
+
+*Was zu tun ist:* Nichts, solange der Client nichts anfordert. Wer umsteigt, ändert einen
+Feldwert und keinen Feldnamen — `token` bleibt das, was vorgezeigt wird.
+
+### `POST /auth/refresh` ist neu
+**Seit `013-003-0002` (2026-09-10).**
+
+Tauscht ein Refresh-Token gegen ein frisches Access-JWT und **ersetzt dabei das Refresh-Token**.
+Ein zweiter Gebrauch desselben Refresh-Tokens wird abgewiesen.
+
+Der Endpunkt hängt nicht hinter der Anmeldung — er wird ja gerade dann gebraucht, wenn das
+Access-JWT abgelaufen ist — prüft dafür selbst und unterliegt der Anmeldebremse (pro Adresse).
+
+*Was zu tun ist:* Ein Client, der JWT benutzt, muss den Rückgabewert `refreshToken` bei jedem
+Refresh **ersetzen**. Wer den alten weiterverwendet, fliegt beim zweiten Mal heraus.
+
+### `GET /auth/logout` nimmt `refreshToken` entgegen
+**Seit `013-003-0003` (2026-09-10).**
+
+Der Parameter ist optional. Mit ihm wird beim Abmelden zusätzlich das Refresh-Token entzogen;
+ohne ihn wird nur das vorgezeigte Access-JWT gesperrt, und die Refresh-Zeile verfällt über ihr
+eigenes Zeitlimit.
+
+Ein mitgeschicktes Refresh-Token **eines anderen Benutzers** wird nicht angerührt.
+
+*Was zu tun ist:* Ein Client, der JWT benutzt, hängt sein Refresh-Token an den Logout-Aufruf.
+
+### `appcms:token:cleanup` räumt zusätzlich die Sperrliste
+**Seit `013-003-0003` (2026-09-10).**
+
+Derselbe Befehl, ein zweiter Satz in der Ausgabe. Wer ihn im Cron hat, muss nichts ändern; wer
+ihn noch nicht hat, braucht ihn jetzt für zwei Tabellen statt einer.
+
+### Ein JWT ohne `kid` wird abgewiesen
+**Seit `013-003-0004` (2026-09-10).**
+
+Jedes ausgestellte Token trägt die Kennung seines Signaturschlüssels im Header. Ohne Kennung
+müsste die Anwendung raten, welcher Schlüssel gemeint ist — und alle der Reihe nach zu probieren
+hebt den Sinn eines Schlüsselwechsels auf.
+
+**Folgenlos für Bestandsprojekte:** Ausgestellt wurde ein Token ohne `kid` nie. Die Ausstellung
+entstand mit `013-003-0001`, die Kennung mit `013-003-0004`, und dazwischen lag kein Release.
+
+*Was zu tun ist:* Nichts. Wer selbst Tokens für diese Anwendung signiert, setzt `kid` auf den
+Wert von `SECURITY_JWT_KEY_ID`.
+
 ## Feldverschlüsselung (Story `010-004`)
 
 ### Verschlüsselt wird mit XChaCha20-Poly1305 statt AES-CBC

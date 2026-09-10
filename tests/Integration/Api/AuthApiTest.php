@@ -395,4 +395,372 @@ class AuthApiTest extends IntegrationTestCase
 
         return $status;
     }
+
+    // ── Ausstellung von JWT (013-003-0001) ────────────────────────────────────────────
+
+    /**
+     * **Ohne Anforderung ändert sich nichts.**
+     *
+     * Die Zusage dieser Story: Ein Bestandsclient merkt nichts. Deshalb entscheidet der
+     * Aufrufer je Anfrage und nicht ein Konfigurationsschalter, der die Antwort für alle auf
+     * einmal kippen würde.
+     */
+    public function testOhneAnforderungBleibtEsBeimOpaquenToken(): void
+    {
+        [, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => $this->pass()));
+
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{128}$/', $body['token'] ?? '');
+        $this->assertArrayNotHasKey('refreshToken', $body);
+        $this->assertArrayNotHasKey('expiresIn', $body);
+    }
+
+    public function testAufAnforderungLiefertDerLoginEinJwtUndEinRefreshToken(): void
+    {
+        $body = $this->jwtAnmeldung();
+
+        $this->assertCount(3, explode('.', $body['token']), 'Drei punktgetrennte Segmente');
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{128}$/', $body['refreshToken'] ?? '',
+            'Das Refresh-Token ist ein gewoehnlicher opaquer Token');
+        $this->assertGreaterThan(0, $body['expiresIn'] ?? 0);
+        $this->assertLessThanOrEqual(900, $body['expiresIn']);
+    }
+
+    public function testDasAusgestellteJwtOeffnetEineGeschuetzteRoute(): void
+    {
+        $body = $this->jwtAnmeldung();
+
+        $this->assertSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$body['token']));
+        $this->assertSame(200, $this->getMitKopfzeile('/api/schema', 'appcms-token: '.$body['token']),
+            'Auch ueber die Altquellen — die Verzweigung entscheidet nach der Form, nicht nach der Quelle');
+    }
+
+    /**
+     * **Ein Refresh-Token ist kein Zugangstoken.**
+     *
+     * Es ist eine gewöhnliche Zeile in `pim_token`, und der opaque Zweig nahm bis `013-003-0001`
+     * jede Zeile an. Ein Refresh-Token gilt länger als ein Access-JWT — das ist sein Zweck —,
+     * und ohne diese Trennung wäre es ein langlebiger Generalschlüssel für die ganze API.
+     */
+    public function testDasRefreshTokenOeffnetKeineGeschuetzteRoute(): void
+    {
+        $body = $this->jwtAnmeldung();
+
+        $this->assertNotSame(200, $this->getMitKopfzeile('/api/schema', 'appcms-token: '.$body['refreshToken']));
+        $this->assertNotSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$body['refreshToken']));
+    }
+
+    /**
+     * Der Claim-Satz am ausgelieferten Token — gelesen, nicht angenommen.
+     *
+     * Rollen, Gruppen und Berechtigungen können sich ändern, während der Token gilt. Stünden sie
+     * darin, wirkte eine Rechteänderung erst nach dessen Ablauf.
+     */
+    public function testDasAusgestellteJwtTraegtNurDenFestgelegtenClaimSatz(): void
+    {
+        $body   = $this->jwtAnmeldung();
+        $claims = json_decode(base64_decode(strtr(explode('.', $body['token'])[1], '-_', '+/')), true);
+
+        $namen = array_keys($claims);
+        sort($namen);
+
+        $this->assertSame(array('exp', 'iat', 'iss', 'jti', 'sub'), $namen);
+        $this->assertSame('admin', $claims['sub']);
+        $this->assertSame('contentfly', $claims['iss']);
+    }
+
+    /** Meldet sich mit `tokenType: jwt` an und liefert den Antwortrumpf. */
+    private function jwtAnmeldung(): array
+    {
+        [$status, $body] = $this->postJson('/auth/login', array(
+            'alias'     => 'admin',
+            'pass'      => $this->pass(),
+            'tokenType' => 'jwt',
+        ));
+
+        if ($status !== 200 || !isset($body['token'], $body['refreshToken'])) {
+            $this->fail('JWT-Anmeldung fehlgeschlagen: '.json_encode($body));
+        }
+
+        return $body;
+    }
+
+    // ── Der Refresh-Weg (013-003-0002) ────────────────────────────────────────────────
+
+    public function testEinRefreshTokenLiefertEinFrischesAccessJwt(): void
+    {
+        $anmeldung = $this->jwtAnmeldung();
+
+        [$status, $body] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['refreshToken']));
+
+        $this->assertSame(200, $status);
+        $this->assertCount(3, explode('.', $body['token'] ?? ''));
+        $this->assertNotSame($anmeldung['token'], $body['token'], 'Ein frisches Token, nicht dasselbe');
+        $this->assertSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$body['token']));
+    }
+
+    /**
+     * **Rotation: Das vorgezeigte Refresh-Token gilt danach nicht mehr.**
+     *
+     * Ein Refresh-Token, das mehrfach gilt, ist ein langlebiges Geheimnis — wer es abgreift,
+     * holt sich damit beliebig lange frische Zugangstokens, und niemand sieht es. Wird es bei
+     * jedem Gebrauch getauscht, fällt ein zweiter Gebrauch auf.
+     */
+    public function testDasVorgezeigteRefreshTokenWirdErsetzt(): void
+    {
+        $anmeldung = $this->jwtAnmeldung();
+
+        [, $erstes] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['refreshToken']));
+        $this->assertNotSame($anmeldung['refreshToken'], $erstes['refreshToken'] ?? null, 'Ein neues Refresh-Token');
+
+        [$zweiter] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['refreshToken']));
+        $this->assertSame(401, $zweiter, 'Das alte gilt nicht mehr');
+
+        [$mitNeuem] = $this->postJson('/auth/refresh', array('refreshToken' => $erstes['refreshToken']));
+        $this->assertSame(200, $mitNeuem, 'Das neue schon');
+    }
+
+    /**
+     * Ein Access-JWT taugt nicht als Refresh-Token — die Gegenrichtung zu
+     * `testDasRefreshTokenOeffnetKeineGeschuetzteRoute`.
+     */
+    public function testEinAccessJwtTaugtNichtAlsRefreshToken(): void
+    {
+        $anmeldung = $this->jwtAnmeldung();
+
+        [$status] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['token']));
+
+        $this->assertSame(401, $status);
+    }
+
+    /**
+     * Ein opaques Anmeldetoken auch nicht: Es ist eine `pim_token`-Zeile ohne `purpose`.
+     */
+    public function testEinOpaquesAnmeldetokenTaugtNichtAlsRefreshToken(): void
+    {
+        $opaque = $this->login();
+
+        [$status] = $this->postJson('/auth/refresh', array('refreshToken' => $opaque));
+
+        $this->assertSame(401, $status);
+    }
+
+    public function testEinUnbekanntesRefreshTokenWirdAbgewiesen(): void
+    {
+        [$status, $body] = $this->postJson('/auth/refresh', array('refreshToken' => bin2hex(random_bytes(64))));
+
+        $this->assertSame(401, $status);
+        $this->assertArrayNotHasKey('token', $body);
+    }
+
+    public function testOhneRefreshTokenWirdAbgewiesen(): void
+    {
+        [$status] = $this->postJson('/auth/refresh', array());
+
+        $this->assertSame(401, $status);
+    }
+
+    /**
+     * Alle Fehlschläge sehen gleich aus.
+     *
+     * Wer hier unterscheidet, sagt einem Angreifer, welcher seiner Versuche näher dran war.
+     */
+    public function testJederFehlschlagAmRefreshSiehtGleichAus(): void
+    {
+        $anmeldung = $this->jwtAnmeldung();
+
+        [, $unbekannt] = $this->postJson('/auth/refresh', array('refreshToken' => bin2hex(random_bytes(64))));
+        [, $falscheArt] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['token']));
+        [, $ohne]      = $this->postJson('/auth/refresh', array());
+
+        $this->assertSame($unbekannt['message'], $falscheArt['message']);
+        $this->assertSame($unbekannt['message'], $ohne['message']);
+    }
+
+    /**
+     * Ein gesperrter Benutzer bekommt kein neues Access-JWT.
+     *
+     * Das ist der Fall, den das Refresh-Modell tragen muss: Der Zugang endet spätestens mit dem
+     * laufenden Access-Token, weil danach niemand mehr ein neues bekommt.
+     */
+    public function testEinGesperrterBenutzerBekommtKeinNeuesAccessJwt(): void
+    {
+        [, $userId] = $this->testbenutzer();
+
+        [$status, $anmeldung] = $this->postJson('/auth/login', array(
+            'alias'     => $this->aliasZu($userId),
+            'pass'      => self::TEST_PASSWORT,
+            'tokenType' => 'jwt',
+        ));
+        $this->assertSame(200, $status);
+
+        $sperren = $this->pdo()->prepare('UPDATE pim_user SET isActive = 0 WHERE id = :id');
+        $sperren->execute(array('id' => $userId));
+
+        [$nachSperrung] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['refreshToken']));
+
+        $this->assertSame(401, $nachSperrung);
+    }
+
+    // ── Widerruf (013-003-0003) ───────────────────────────────────────────────────────
+
+    /**
+     * **Der Kern der Story.** Nach dem Abmelden gilt das Access-JWT nicht mehr — obwohl sein
+     * `exp` noch in der Zukunft liegt.
+     *
+     * Ohne die Sperrliste wäre das nicht so: Ein zustandsloses Token lässt sich nicht
+     * zurückrufen, solange es gilt. Bei einem Token, das jemand abgegriffen hat, ist genau das
+     * der Schaden.
+     */
+    public function testNachDemAbmeldenGiltDasAccessJwtNichtMehr(): void
+    {
+        $anmeldung = $this->jwtAnmeldung();
+        $jwt       = $anmeldung['token'];
+
+        $this->assertSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$jwt));
+        $this->assertGreaterThan(0, $anmeldung['expiresIn'], 'Das Token gilt noch');
+
+        [$abmelden] = $this->get('/auth/logout', $jwt);
+        $this->assertSame(200, $abmelden);
+
+        $this->assertNotSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$jwt),
+            'Dasselbe, noch nicht abgelaufene Token oeffnet nichts mehr');
+
+        $this->sperrlisteAufraeumenLassen();
+    }
+
+    /**
+     * Das mitgeschickte Refresh-Token wird entzogen.
+     *
+     * Sonst holt sich der Inhaber gleich ein neues Access-JWT, und die Sperre war umsonst. Der
+     * Client muss es mitschicken, weil das Access-JWT nicht sagt, zu welcher Refresh-Zeile es
+     * gehört — die Verbindung stünde sonst als sechster Claim darin, und der Claim-Satz ist
+     * absichtlich klein.
+     */
+    public function testDasAbmeldenEntziehtDasMitgeschickteRefreshToken(): void
+    {
+        $anmeldung = $this->jwtAnmeldung();
+
+        [$abmelden] = $this->get('/auth/logout?refreshToken='.$anmeldung['refreshToken'], $anmeldung['token']);
+        $this->assertSame(200, $abmelden);
+
+        [$status] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['refreshToken']));
+        $this->assertSame(401, $status, 'Das Refresh-Token ist weg');
+
+        $this->sperrlisteAufraeumenLassen();
+    }
+
+    /**
+     * Ohne mitgeschicktes Refresh-Token bleibt es stehen — und das ist die dokumentierte Lage,
+     * kein Versehen.
+     */
+    public function testOhneMitgeschicktesRefreshTokenBleibtEsBestehen(): void
+    {
+        $anmeldung = $this->jwtAnmeldung();
+
+        $this->get('/auth/logout', $anmeldung['token']);
+
+        [$status] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['refreshToken']));
+        $this->assertSame(200, $status, 'Es verfaellt ueber sein eigenes Zeitlimit, nicht beim Abmelden');
+
+        $this->sperrlisteAufraeumenLassen();
+    }
+
+    /**
+     * **Nur das eigene.** Ohne diese Prüfung wäre `logout` ein Endpunkt, mit dem ein beliebiger
+     * angemeldeter Benutzer fremde Sitzungen beenden könnte.
+     */
+    public function testEinFremdesRefreshTokenLaesstSichNichtAbmelden(): void
+    {
+        [, $userId] = $this->testbenutzer();
+
+        [, $fremd] = $this->postJson('/auth/login', array(
+            'alias'     => $this->aliasZu($userId),
+            'pass'      => self::TEST_PASSWORT,
+            'tokenType' => 'jwt',
+        ));
+
+        $eigene = $this->jwtAnmeldung();
+
+        $this->get('/auth/logout?refreshToken='.$fremd['refreshToken'], $eigene['token']);
+
+        [$status] = $this->postJson('/auth/refresh', array('refreshToken' => $fremd['refreshToken']));
+        $this->assertSame(200, $status, 'Das fremde Refresh-Token gilt weiterhin');
+
+        $this->sperrlisteAufraeumenLassen();
+    }
+
+    /**
+     * **Eine Benutzersperrung wirkt schon ohne Sperrliste sofort — gemessen.**
+     *
+     * Der Story-Text nannte die Sperrung als Anwendungsfall der Liste. Sie ist es seit
+     * `013-002-0001` nicht mehr: Der JWT-Zweig gibt sein `UserBadge` ohne eigenen Lader zurück,
+     * also lädt der `Benutzerlader` den Benutzer aus `pim_user` und weist einen gesperrten mit
+     * derselben Ausnahme ab wie einen unbekannten.
+     *
+     * Der Test steht hier, damit die Zusicherung nicht unbelegt dasteht — und damit auffällt,
+     * wenn jemand den Ladeweg umbaut und dabei die Sperrung mit abschaltet.
+     */
+    public function testEineBenutzersperrungWirktSofortUndOhneSperrliste(): void
+    {
+        [, $userId] = $this->testbenutzer();
+
+        [, $anmeldung] = $this->postJson('/auth/login', array(
+            'alias'     => $this->aliasZu($userId),
+            'pass'      => self::TEST_PASSWORT,
+            'tokenType' => 'jwt',
+        ));
+
+        $this->assertSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$anmeldung['token']));
+
+        $sperren = $this->pdo()->prepare('UPDATE pim_user SET isActive = 0 WHERE id = :id');
+        $sperren->execute(array('id' => $userId));
+
+        $this->assertSame(0, (int) $this->pdo()->query('SELECT COUNT(*) FROM pim_revoked_token')->fetchColumn(),
+            'Kein Eintrag in der Sperrliste — die Sperrung wirkt ohne sie');
+        $this->assertNotSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$anmeldung['token']));
+    }
+
+    /**
+     * Die Sperrliste bleibt klein: Ein Eintrag verfällt mit dem Token, das er sperrt, und
+     * `appcms:token:cleanup` räumt ihn weg — kein zweiter Aufräumweg.
+     */
+    public function testGegenstandsloseSperrEintraegeWerdenAufgeraeumt(): void
+    {
+        $jti = 'test-'.bin2hex(random_bytes(8));
+
+        $this->pdo()->prepare(
+            'INSERT INTO pim_revoked_token (jti, expiresAt, created, modified) VALUES (:j, :e, :c, :c)'
+        )->execute(array(
+            'j' => $jti,
+            'e' => (new \DateTime('-1 hour'))->format('Y-m-d H:i:s'),
+            'c' => (new \DateTime('-2 hours'))->format('Y-m-d H:i:s'),
+        ));
+
+        $this->sperrlisteAufraeumenLassen();
+
+        $zaehlen = $this->pdo()->prepare('SELECT COUNT(*) FROM pim_revoked_token WHERE jti = :j');
+        $zaehlen->execute(array('j' => $jti));
+
+        $this->assertSame('0', (string) $zaehlen->fetchColumn());
+    }
+
+    /**
+     * Räumt die Sperrliste nach einem Test wieder leer.
+     *
+     * Die Einträge sind Reste eines Abmeldens und stören nachfolgende Tests nicht — aber
+     * `testEineBenutzersperrungWirktSofortUndOhneSperrliste` zählt sie, und eine leere Liste ist
+     * die einzige Aussage, die dieser Test treffen kann.
+     */
+    private function sperrlisteAufraeumenLassen(): void
+    {
+        $this->pdo()->exec('DELETE FROM pim_revoked_token WHERE expiresAt < NOW()');
+
+        exec(sprintf(
+            '%s %s appcms:token:cleanup 2>&1',
+            escapeshellarg(PHP_BINARY),
+            escapeshellarg(ROOT_DIR.'/bin/console.php')
+        ));
+
+        $this->pdo()->exec('DELETE FROM pim_revoked_token');
+    }
 }

@@ -4,7 +4,9 @@ namespace Tests\Unit\Security;
 use Areanet\PIM\Classes\Config;
 use Areanet\PIM\Classes\Config\Factory;
 use Areanet\PIM\Classes\Security\Tokenhandler;
+use Areanet\PIM\Classes\Security\Zugangstoken;
 use Areanet\PIM\Entity\Group;
+use Areanet\PIM\Entity\RevokedToken;
 use Areanet\PIM\Entity\Token;
 use Areanet\PIM\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
@@ -71,15 +73,44 @@ class TokenhandlerTest extends TestCase
     }
 
     /**
-     * Ein EntityManager, der bei **jedem** Zugriff wirft.
+     * Ein EntityManager, der jeden Zugriff auf `pim_token` mit einer Ausnahme beantwortet.
      *
      * So wird „der JWT-Zweig fasst `pim_token` nicht an" gemessen statt behauptet: Greift er
      * doch zu, fliegt hier eine Ausnahme, die der Handler nicht fängt.
+     *
+     * **Nachgezogen mit `013-003-0003`:** Die Sperrliste liegt in einer eigenen Tabelle, und der
+     * JWT-Zweig liest sie bei jedem Request. Das ist der Preis für den Widerruf, und es ist ein
+     * **Lesezugriff auf eine kleine Tabelle** gegen den Schreibzugriff auf `pim_token`, der der
+     * Grund für den ganzen Umbau war. Der Doppelgänger unterscheidet deshalb nach Tabelle statt
+     * pauschal zu werfen — sonst mässe der Test nicht mehr, was er zu messen behauptet.
+     *
+     * @param list<RevokedToken> $sperren
      */
-    private function emDerWirft(): EntityManagerInterface
+    private function emDerWirft(array $sperren = array()): EntityManagerInterface
     {
+        $sperrliste = $this->createMock(EntityRepository::class);
+        $sperrliste->method('findOneBy')->willReturnCallback(
+            static function (array $kriterien) use ($sperren) {
+                foreach ($sperren as $sperre) {
+                    if ($sperre->getJti() === ($kriterien['jti'] ?? null)) {
+                        return $sperre;
+                    }
+                }
+
+                return null;
+            }
+        );
+
         $em = $this->createMock(EntityManagerInterface::class);
-        $em->method('getRepository')->willThrowException(new \LogicException('Der JWT-Zweig darf die Datenbank nicht anfassen'));
+        $em->method('getRepository')->willReturnCallback(
+            function (string $klasse) use ($sperrliste) {
+                if ($klasse === RevokedToken::class) {
+                    return $sperrliste;
+                }
+
+                throw new \LogicException('Der JWT-Zweig darf pim_token nicht anfassen');
+            }
+        );
         $em->method('flush')->willThrowException(new \LogicException('Der JWT-Zweig darf nicht schreiben'));
 
         return $em;
@@ -106,7 +137,18 @@ class TokenhandlerTest extends TestCase
 
     private function jwt(array $claims): string
     {
-        return JWT::encode($claims + array('exp' => time() + 600), self::GEHEIMNIS, 'HS256');
+        return JWT::encode(
+            $claims + array(
+                'iss' => Zugangstoken::AUSGEBER,
+                'exp' => time() + 600,
+                'jti' => bin2hex(random_bytes(16)),
+            ),
+            self::GEHEIMNIS,
+            'HS256',
+            // Die Kennung ist seit 013-003-0004 Pflicht: `JWT::decode()` waehlt den Schluessel
+            // danach, und ein Token ohne `kid` wird abgewiesen.
+            Zugangstoken::kennung()
+        );
     }
 
     // ── Der opaque Zweig ───────────────────────────────────────────────────────────────
@@ -240,7 +282,7 @@ class TokenhandlerTest extends TestCase
 
     public function testEinAbgelaufenesJwtWirdAbgewiesen(): void
     {
-        $abgelaufen = JWT::encode(array('sub' => 'admin', 'exp' => time() - 10), self::GEHEIMNIS, 'HS256');
+        $abgelaufen = JWT::encode(array('sub' => 'admin', 'iss' => Zugangstoken::AUSGEBER, 'exp' => time() - 10), self::GEHEIMNIS, 'HS256', Zugangstoken::kennung());
         $handler    = new Tokenhandler($this->emDerWirft());
 
         $this->expectException(AuthenticationException::class);
@@ -259,7 +301,7 @@ class TokenhandlerTest extends TestCase
 
     public function testEinJwtMitFremdemGeheimnisWirdAbgewiesen(): void
     {
-        $fremd   = JWT::encode(array('sub' => 'admin', 'exp' => time() + 600), self::FREMDES_GEHEIMNIS, 'HS256');
+        $fremd   = JWT::encode(array('sub' => 'admin', 'iss' => Zugangstoken::AUSGEBER, 'exp' => time() + 600), self::FREMDES_GEHEIMNIS, 'HS256', Zugangstoken::kennung());
         $handler = new Tokenhandler($this->emDerWirft());
 
         $this->expectException(AuthenticationException::class);
@@ -316,6 +358,129 @@ class TokenhandlerTest extends TestCase
         $handler->getUserBadgeFrom($token);
     }
 
+    /**
+     * Ein fremder Ausgeber wird abgewiesen (013-003-0001).
+     *
+     * Die Bibliothek prüft Signatur und Ablauf, den `iss` nicht. Ohne die eigene Prüfung gälte
+     * hier jedes Token, das mit demselben Geheimnis signiert wurde — auch eines, das eine ganz
+     * andere Anwendung für einen ganz anderen Zweck ausgestellt hat.
+     */
+    public function testEinTokenMitFremdemAusgeberWirdAbgewiesen(): void
+    {
+        $fremd = JWT::encode(
+            array('sub' => 'admin', 'iss' => 'eine-andere-anwendung', 'exp' => time() + 600),
+            self::GEHEIMNIS,
+            'HS256',
+            Zugangstoken::kennung()
+        );
+        $handler = new Tokenhandler($this->emDerWirft());
+
+        $this->expectException(AuthenticationException::class);
+        $handler->getUserBadgeFrom($fremd);
+    }
+
+    public function testEinTokenOhneAusgeberWirdAbgewiesen(): void
+    {
+        $ohne = JWT::encode(array('sub' => 'admin', 'exp' => time() + 600), self::GEHEIMNIS, 'HS256', Zugangstoken::kennung());
+        $handler = new Tokenhandler($this->emDerWirft());
+
+        $this->expectException(AuthenticationException::class);
+        $handler->getUserBadgeFrom($ohne);
+    }
+
+    /**
+     * **Ein Refresh-Token ist kein Zugangstoken (013-003-0001).**
+     *
+     * Es ist eine gewöhnliche Zeile in `pim_token`, und dieser Zweig nahm bis dahin jede Zeile
+     * an. Ein Refresh-Token gilt länger als ein Access-JWT — das ist sein Zweck —, und ohne
+     * diese Prüfung wäre es damit ein langlebiger Generalschlüssel für die ganze API.
+     */
+    public function testEinRefreshTokenOeffnetDieApiNicht(): void
+    {
+        $zeile = $this->zeile($this->benutzer());
+        $zeile->setPurpose(Token::ZWECK_REFRESH);
+
+        $handler = new Tokenhandler($this->em($zeile));
+
+        $this->expectException(AuthenticationException::class);
+        $handler->getUserBadgeFrom('ein-refresh-token');
+    }
+
+    // ── Die Sperrliste (013-003-0003) ─────────────────────────────────────────────────
+
+    /**
+     * Ein gesperrtes Token wird abgewiesen, **obwohl es noch gilt**.
+     *
+     * Das ist der ganze Zweck der Liste: Ein zustandsloses Token lässt sich sonst nicht
+     * zurückrufen, solange sein `exp` in der Zukunft liegt.
+     */
+    public function testEinGesperrtesTokenWirdAbgewiesenObwohlEsNochGilt(): void
+    {
+        $handler = new Tokenhandler($this->emDerWirft());
+        $token   = $this->jwt(array('sub' => 'admin'));
+
+        // Erst gilt es.
+        $this->assertSame('admin', $handler->getUserBadgeFrom($token)->getUserIdentifier());
+
+        $jti    = $handler->letzteClaims()['jti'];
+        $sperre = new RevokedToken();
+        $sperre->setJti($jti);
+        $sperre->setExpiresAt(new \DateTime('+10 minutes'));
+
+        $gesperrt = new Tokenhandler($this->emDerWirft(array($sperre)));
+
+        $this->expectException(AuthenticationException::class);
+        $gesperrt->getUserBadgeFrom($token);
+    }
+
+    public function testEineFremdeSperreTrifftDiesesTokenNicht(): void
+    {
+        $fremd = new RevokedToken();
+        $fremd->setJti('eine-ganz-andere-jti');
+        $fremd->setExpiresAt(new \DateTime('+10 minutes'));
+
+        $handler = new Tokenhandler($this->emDerWirft(array($fremd)));
+
+        $this->assertSame('admin', $handler->getUserBadgeFrom($this->jwt(array('sub' => 'admin')))->getUserIdentifier());
+    }
+
+    /**
+     * Ohne `jti` liesse sich ein Token nicht sperren — also wird es gar nicht erst angenommen.
+     */
+    public function testEinTokenOhneJtiWirdAbgewiesen(): void
+    {
+        $ohneJti = JWT::encode(
+            array('sub' => 'admin', 'iss' => Zugangstoken::AUSGEBER, 'exp' => time() + 600),
+            self::GEHEIMNIS,
+            'HS256',
+            Zugangstoken::kennung()
+        );
+        $handler = new Tokenhandler($this->emDerWirft());
+
+        $this->expectException(AuthenticationException::class);
+        $handler->getUserBadgeFrom($ohneJti);
+    }
+
+    public function testDieClaimsBleibenFuerDasAbmeldenAbrufbar(): void
+    {
+        $handler = new Tokenhandler($this->emDerWirft());
+        $handler->getUserBadgeFrom($this->jwt(array('sub' => 'admin')));
+
+        $claims = $handler->letzteClaims();
+
+        $this->assertIsArray($claims);
+        $this->assertArrayHasKey('jti', $claims);
+        $this->assertArrayHasKey('exp', $claims);
+    }
+
+    public function testNachEinemOpaquenTokenGibtEsKeineClaims(): void
+    {
+        $handler = new Tokenhandler($this->em($this->zeile($this->benutzer())));
+        $handler->getUserBadgeFrom('opaker-token');
+
+        $this->assertNull($handler->letzteClaims());
+    }
+
     // ── Die Verzweigung selbst ─────────────────────────────────────────────────────────
 
     /**
@@ -358,7 +523,7 @@ class TokenhandlerTest extends TestCase
         $ausJwt = null;
         try {
             (new Tokenhandler($this->emDerWirft()))->getUserBadgeFrom(
-                JWT::encode(array('sub' => 'admin', 'exp' => time() + 600), self::FREMDES_GEHEIMNIS, 'HS256')
+                JWT::encode(array('sub' => 'admin', 'iss' => Zugangstoken::AUSGEBER, 'exp' => time() + 600), self::FREMDES_GEHEIMNIS, 'HS256', Zugangstoken::kennung())
             );
         } catch (AuthenticationException $e) {
             $ausJwt = $e;

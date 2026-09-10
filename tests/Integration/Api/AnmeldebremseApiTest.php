@@ -39,7 +39,6 @@ class AnmeldebremseApiTest extends IntegrationTestCase
 
     protected function tearDown(): void
     {
-        $this->bremsspeicherLeeren();
         parent::tearDown();
     }
 
@@ -156,7 +155,14 @@ class AnmeldebremseApiTest extends IntegrationTestCase
 
     // ── Aufraeumen ─────────────────────────────────────────────────────────────────────
 
-    private function bremsspeicherLeeren(): void
+    /**
+     * Wie die geerbte Fassung, aber mit einer harten Vorbedingung.
+     *
+     * Die Basisklasse raeumt still auf, wenn sie kann — fuer sie ist es Hygiene. Hier ist es
+     * die Voraussetzung der Messung: Laege der Speicher woanders, pruefte diese Klasse gegen
+     * einen Zaehler, den sie nicht kennt, und waere gruen, ohne etwas zu belegen.
+     */
+    protected function bremsspeicherLeeren(): void
     {
         $wurzel = dirname(__DIR__, 3);
 

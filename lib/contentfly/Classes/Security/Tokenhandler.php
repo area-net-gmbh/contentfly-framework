@@ -2,10 +2,11 @@
 namespace Areanet\PIM\Classes\Security;
 
 use Areanet\PIM\Classes\Config\Adapter;
+use Areanet\PIM\Entity\RevokedToken;
 use Areanet\PIM\Entity\Token;
+use Areanet\PIM\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Firebase\JWT\JWT;
-use Firebase\JWT\Key;
 use Symfony\Component\Security\Core\Exception\CustomUserMessageAuthenticationException;
 use Symfony\Component\Security\Http\AccessToken\AccessTokenHandlerInterface;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
@@ -57,6 +58,17 @@ final class Tokenhandler implements AccessTokenHandlerInterface
      */
     private ?Token $letzterToken = null;
 
+    /**
+     * Die Claims des zuletzt geprueften Access-JWT — oder null.
+     *
+     * Der Abmelden-Weg braucht `jti` und `exp`, um das Token auf die Sperrliste zu setzen
+     * (013-003-0003). Sie ein zweites Mal aus dem Token zu lesen hiesse, ein zweites Mal die
+     * Signatur zu pruefen — dieselbe Arbeit fuer dasselbe Ergebnis.
+     *
+     * @var array<string, mixed>|null
+     */
+    private ?array $letzteClaims = null;
+
     public function __construct(
         private readonly EntityManagerInterface $em,
     ) {
@@ -65,6 +77,7 @@ final class Tokenhandler implements AccessTokenHandlerInterface
     public function getUserBadgeFrom(#[\SensitiveParameter] string $accessToken): UserBadge
     {
         $this->letzterToken = null;
+        $this->letzteClaims = null;
 
         return $this->siehtNachJwtAus($accessToken)
             ? $this->ausJwt($accessToken)
@@ -74,6 +87,14 @@ final class Tokenhandler implements AccessTokenHandlerInterface
     public function letzterToken(): ?Token
     {
         return $this->letzterToken;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function letzteClaims(): ?array
+    {
+        return $this->letzteClaims;
     }
 
     // ── Die Verzweigung ────────────────────────────────────────────────────────────────
@@ -116,8 +137,6 @@ final class Tokenhandler implements AccessTokenHandlerInterface
      */
     private function ausJwt(string $token): UserBadge
     {
-        $geheimnis = Adapter::getConfig()->SECURITY_JWT_SECRET;
-
         /*
          * OHNE GEHEIMNIS WIRD ABGEWIESEN, nicht uebersprungen.
          *
@@ -125,13 +144,46 @@ final class Tokenhandler implements AccessTokenHandlerInterface
          * Abweisung sieht aus wie jede andere — dass hier ein Geheimnis fehlt, ist eine Sache
          * des Betreibers und keine, die der Aufrufer erfahren muss.
          */
-        if (!is_string($geheimnis) || $geheimnis === '') {
+        if (!Zugangstoken::eingerichtet()) {
             $this->abweisen();
         }
 
+        /*
+         * DIE SCHLUESSEL WERDEN AUSSERHALB DES try GEHOLT (013-003-0004).
+         *
+         * `pruefschluessel()` wirft nur bei einer FEHLKONFIGURATION — zwei gleiche Kennungen,
+         * oder ein vorheriger Schluessel ohne Kennung. Das ist kein ungueltiges Token, und es
+         * darf nicht wie eines aussehen: Faenge man es hier mit ab, antwortete die Anwendung auf
+         * jeden Request mit „ungueltiger Token", und der Betreiber suchte den Fehler bei seinen
+         * Clients. So schlaegt sie laut durch, mit einer Meldung, die die Felder nennt.
+         */
+        $schluessel = Zugangstoken::pruefschluessel();
+
         try {
-            $claims = JWT::decode($token, new Key($geheimnis, 'HS256'));
+            /*
+             * Ein Array statt eines einzelnen Keys: `JWT::decode()` waehlt dann nach dem `kid`
+             * im Header. EIN TOKEN OHNE `kid` WIRD DAMIT ABGEWIESEN, und das ist die
+             * Entscheidung: Ohne Kennung muesste die Anwendung raten, welcher Schluessel gemeint
+             * ist — und „alle der Reihe nach probieren" hebt den Sinn des Wechsels auf, weil ein
+             * abgeloester Schluessel dann weiter Tokens beglaubigt, die nichts ueber sich sagen.
+             * Ausgestellt wurde ein Token ohne `kid` nie: Die Ausstellung entstand mit
+             * 013-003-0001, die Kennung mit 013-003-0004, und dazwischen lag kein Release.
+             */
+            $claims = JWT::decode($token, $schluessel);
         } catch (\Throwable) {
+            $this->abweisen();
+        }
+
+        /*
+         * DER AUSGEBER WIRD GEPRUEFT (013-003-0001).
+         *
+         * Die Bibliothek prueft Signatur und Ablauf, den `iss` nicht. Ohne diese Zeile gaelte
+         * hier jedes Token, das mit demselben Geheimnis signiert wurde — auch eines, das eine
+         * ganz andere Anwendung fuer einen ganz anderen Zweck ausgestellt hat. Geteilte
+         * Geheimnisse sind eine schlechte Idee, aber sie kommen vor, und dann soll die
+         * Anwendung nicht das schwaechste Glied sein.
+         */
+        if (($claims->iss ?? null) !== Zugangstoken::AUSGEBER) {
             $this->abweisen();
         }
 
@@ -140,6 +192,32 @@ final class Tokenhandler implements AccessTokenHandlerInterface
         if (!is_string($kennung) || $kennung === '') {
             $this->abweisen();
         }
+
+        $jti = $claims->jti ?? null;
+
+        if (!is_string($jti) || $jti === '') {
+            $this->abweisen();
+        }
+
+        /*
+         * DIE SPERRLISTE (013-003-0003).
+         *
+         * EIN LESEZUGRIFF, UND ER IST DER PREIS FUER DEN WIDERRUF. Ohne ihn gaelte ein
+         * abgemeldetes Token bis zu seinem `exp` weiter — bei einem Token, das jemand abgegriffen
+         * hat, ist genau das der Schaden.
+         *
+         * WAS DER JWT-ZWEIG DAMIT WEITERHIN NICHT TUT: `pim_token` anfassen. Der
+         * Sliding-Expiration-Write bei JEDEM Request, der Grund fuer den ganzen Umbau, bleibt
+         * weg. Hier steht ein Lesezugriff auf eine kleine Tabelle mit einem Unique-Index gegen
+         * einen Schreibzugriff auf die Tokentabelle.
+         */
+        $gesperrt = $this->em->getRepository(RevokedToken::class)->findOneBy(array('jti' => $jti));
+
+        if ($gesperrt instanceof RevokedToken) {
+            $this->abweisen();
+        }
+
+        $this->letzteClaims = (array) $claims;
 
         // Ohne eigenen Lader: Den Benutzer holt der Benutzerlader, den der Authenticator kennt.
         return new UserBadge($kennung);
@@ -165,30 +243,36 @@ final class Tokenhandler implements AccessTokenHandlerInterface
             $this->abweisen();
         }
 
+        /*
+         * EIN REFRESH-TOKEN IST KEIN ZUGANGSTOKEN (013-003-0001).
+         *
+         * Es ist eine gewoehnliche Zeile in `pim_token` — und dieser Zweig nahm bis hierhin
+         * jede Zeile an. Ein Refresh-Token gilt laenger als ein Access-JWT, das ist sein Zweck;
+         * ohne diese Pruefung waere es damit ein langlebiger Generalschluessel fuer die ganze
+         * API, also genau das, was das Refresh-Modell verhindern soll.
+         *
+         * Abgewiesen wird wie alles andere: Wer ein Refresh-Token an der falschen Tuer
+         * vorzeigt, erfaehrt nicht, dass es an einer anderen passen wuerde.
+         */
+        if ($zeile->istRefreshToken()) {
+            $this->abweisen();
+        }
+
         $benutzer = $zeile->getUser();
 
         if (!$benutzer || !$benutzer->getIsActive()) {
             $this->abweisen();
         }
 
-        $timeout = Adapter::getConfig()->APP_TOKEN_TIMEOUT;
+        if (self::abgelaufen($zeile, $benutzer)) {
+            $this->em->remove($zeile);
+            $this->em->flush();
 
-        if (($gruppe = $benutzer->getGroup())) {
-            $timeout = $gruppe->getTokenTimeout() * 60;
+            $this->abweisen();
         }
 
-        if (Adapter::getConfig()->APP_CHECK_TOKEN_TIMEOUT && !$zeile->getReferrer() && $timeout) {
-            $jetzt      = new \DateTime();
-            $verstrichen = $jetzt->getTimestamp() - $zeile->getModified()->getTimestamp();
-
-            if ($verstrichen > $timeout) {
-                $this->em->remove($zeile);
-                $this->em->flush();
-
-                $this->abweisen();
-            }
-
-            $zeile->setModified($jetzt);
+        if (self::timeoutGilt($zeile)) {
+            $zeile->setModified(new \DateTime());
             $this->em->flush();
         }
 
@@ -197,6 +281,56 @@ final class Tokenhandler implements AccessTokenHandlerInterface
         // MIT eigenem Lader: Der Benutzer liegt schon vor. Ihn ueber den Benutzerlader noch
         // einmal zu holen waere eine zweite Abfrage fuer dieselbe Zeile.
         return new UserBadge($benutzer->getUserIdentifier(), static fn () => $benutzer);
+    }
+
+    // ── Ablauf, an einer Stelle ────────────────────────────────────────────────────────
+
+    /**
+     * Ob fuer diese Zeile ueberhaupt ein Timeout gilt.
+     *
+     * Ein Token mit `referrer` ist ein API-Token und verfaellt nicht; und der Betreiber kann
+     * die Pruefung ganz abschalten. Beides steht seit jeher so da.
+     */
+    public static function timeoutGilt(Token $zeile): bool
+    {
+        return (bool) Adapter::getConfig()->APP_CHECK_TOKEN_TIMEOUT && !$zeile->getReferrer();
+    }
+
+    /**
+     * Die Lebensdauer einer Token-Zeile in Sekunden.
+     *
+     * Die Gruppe des Benutzers schlaegt die Vorgabe — und sie rechnet in MINUTEN. Das ist ein
+     * Erbe und keine Schoenheit, aber es ist das Verhalten von frueher.
+     */
+    public static function timeoutFuer(User $benutzer): int
+    {
+        if (($gruppe = $benutzer->getGroup())) {
+            return (int) $gruppe->getTokenTimeout() * 60;
+        }
+
+        return (int) Adapter::getConfig()->APP_TOKEN_TIMEOUT;
+    }
+
+    /**
+     * Ob diese Zeile abgelaufen ist.
+     *
+     * HERAUSGEZOGEN MIT 013-003-0002: Der Refresh-Weg braucht dieselbe Rechnung. Zwei Kopien
+     * derselben Ablauflogik laufen auseinander, und die eine, die es dann falsch macht, laesst
+     * jemanden laenger herein als gedacht.
+     */
+    public static function abgelaufen(Token $zeile, User $benutzer): bool
+    {
+        if (!self::timeoutGilt($zeile)) {
+            return false;
+        }
+
+        $timeout = self::timeoutFuer($benutzer);
+
+        if (!$timeout) {
+            return false;
+        }
+
+        return (time() - $zeile->getModified()->getTimestamp()) > $timeout;
     }
 
     private function abweisen(): never

@@ -174,6 +174,91 @@ dort weiter, wo er aufgehört hat.
 verschlüsselt, den niemand wollte. Der Befehl hält an, sobald sich ein Wert nicht entschlüsseln
 lässt, und nennt genau diesen Verdacht.
 
+## JWT: was ein Token trägt und wie ein Schlüssel gewechselt wird
+
+Betrifft Projekte, die mit `tokenType: "jwt"` anmelden. **Ohne diese Angabe gibt der Login
+weiterhin ein opaques Token aus, und nichts davon ist nötig.**
+
+### Die Umgebungsvariablen
+
+| Variable | nötig | Wert |
+|---|---|---|
+| `SECURITY_JWT_SECRET` | ja, sobald JWT ausgestellt werden | mindestens 32 Byte |
+| `SECURITY_JWT_KEY_ID` | nein, Vorgabe `k1` | ein Name, kein Geheimnis |
+| `SECURITY_JWT_SECRET_PREVIOUS` | nur während eines Wechsels | der bisherige Schlüssel |
+| `SECURITY_JWT_KEY_ID_PREVIOUS` | nur während eines Wechsels | dessen Name |
+
+Dazu `SECURITY_JWT_TTL` in der Konfiguration — die Lebensdauer eines Access-JWT in Sekunden,
+Vorgabe 900.
+
+**Kein Standardwert für das Geheimnis, mit Absicht.** Ein im Repository hinterlegter Schlüssel
+ist kein Schlüssel: Jede Installation, die vergisst ihn zu setzen, signierte dann mit einem
+öffentlich bekannten Wert — und niemand merkt es, weil alles funktioniert. Ohne Wert verweigert
+der Login die Ausstellung und der Prüfzweig jeden Token.
+
+**Mindestens 32 Byte:** `firebase/php-jwt` weist für HS256 kürzere Schlüssel ab, schon beim
+Signieren. Ein brauchbarer Wert entsteht mit
+
+```sh
+php -r "echo bin2hex(random_bytes(32));"
+```
+
+### Was im Token steht
+
+Fünf Claims, und die Liste steht in `Classes/Security/Zugangstoken::CLAIMS`:
+
+| Claim | trägt |
+|---|---|
+| `sub` | die Kennung des Benutzers |
+| `iss` | den Ausgeber (`contentfly`) |
+| `iat` | den Ausstellungszeitpunkt |
+| `exp` | den Ablauf |
+| `jti` | die Kennung dieses einen Tokens, für den Widerruf |
+
+**Was bewusst nicht drinsteht: Rollen, Gruppen, Berechtigungen.** Sie können sich ändern,
+während der Token gilt; stünden sie darin, wirkte eine Rechteänderung erst nach dessen Ablauf.
+Der Benutzer wird deshalb bei jedem Request aus `pim_user` geladen — eine Abfrage, für die der
+Schreibzugriff auf `pim_token` entfällt.
+
+Ein Token ist **nicht** vertraulich in dem Sinn, dass sein Inhalt geheim wäre: Die Nutzlast ist
+base64, nicht verschlüsselt. Wer sie liest, sieht Kennung und Zeiten. Geschützt ist die
+**Unveränderbarkeit**, nicht der Inhalt.
+
+### Einen Schlüssel wechseln
+
+Der Grund, warum es überhaupt geht: Ein Signaturgeheimnis, dessen Wechsel alle Sitzungen
+beendet, wird nicht gewechselt — und damit ist ein Leak dauerhaft.
+
+1. **Neuen Schlüssel erzeugen** (Befehl oben).
+2. **Umhängen, in einem Schritt:** bisheriges `SECURITY_JWT_SECRET` nach
+   `SECURITY_JWT_SECRET_PREVIOUS`, bisheriges `SECURITY_JWT_KEY_ID` nach
+   `SECURITY_JWT_KEY_ID_PREVIOUS`, den neuen Wert nach `SECURITY_JWT_SECRET` und eine **neue**
+   Kennung nach `SECURITY_JWT_KEY_ID`.
+3. **Anwendung neu laden.** Ab jetzt wird mit dem neuen signiert, angenommen werden beide.
+   Niemand muss sich neu anmelden.
+4. **`SECURITY_JWT_TTL` abwarten** — bei der Vorgabe 15 Minuten. Dann ist das längste noch mit
+   dem alten Schlüssel ausgestellte Access-JWT abgelaufen.
+5. **Die beiden `*_PREVIOUS`-Felder leeren** und noch einmal neu laden.
+
+**Die beiden Kennungen müssen sich unterscheiden.** Die Anwendung weist zwei gleiche mit einer
+Meldung ab, statt stillschweigend nur einen der beiden Schlüssel zu akzeptieren — mitten in
+einem Wechsel wäre das der schlechteste Zeitpunkt für eine stille Überraschung. Dieselbe Meldung
+kommt, wenn ein vorheriger Schlüssel ohne Kennung dasteht.
+
+### Abmelden und Widerrufen
+
+`GET /auth/logout` setzt die `jti` des vorgezeigten Access-JWT bis zu dessen `exp` auf die
+Sperrliste (`pim_revoked_token`) und löscht das **mitgeschickte** Refresh-Token. Der Client
+schickt es als Parameter `refreshToken` mit; ohne ihn wird nur das Access-JWT gesperrt, und die
+Refresh-Zeile verfällt über ihr eigenes Zeitlimit.
+
+**Die Sperrliste braucht keine Pflege ausser dem Aufräumlauf.** Ein Eintrag ist gegenstandslos,
+sobald das Token ohnehin abgelaufen wäre; `php bin/console.php appcms:token:cleanup` räumt ihn
+mit den abgelaufenen Anmeldetoken weg — derselbe Befehl, kein zweiter.
+
+**Eine Benutzersperrung braucht die Liste nicht.** Sie wirkt sofort, weil der Benutzer bei jedem
+Request geladen wird und ein inaktiver abgewiesen wird.
+
 ## Die Gates
 
 Vier Prüfungen, verankert mit Story `006-005`. Zwei blockieren, zwei melden:
