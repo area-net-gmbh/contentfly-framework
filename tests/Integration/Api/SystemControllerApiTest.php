@@ -546,11 +546,15 @@ class SystemControllerApiTest extends IntegrationTestCase
         // Gehoert hierher, weil pim_token die Tabelle ist, die dieser Controller verwaltet —
         // und weil listTokens sie ausdruecklich **nicht** zeigt (kein Referrer).
         //
-        // /auth/login legt je Anmeldung eine Zeile an. Aufgeraeumt wird nur traege, in
-        // BaseControllerProvider::checkToken(): Wird ein abgelaufener Token noch einmal
-        // vorgezeigt, verschwindet er. Ein Token, den niemand wieder benutzt — der Normalfall
-        // beim Schliessen des Browsers — bleibt unbegrenzt stehen. Es gibt keinen
-        // Aufraeumlauf, kein Console-Command und keinen Endpunkt dafuer.
+        // /auth/login legt je Anmeldung eine Zeile an. Aufgeraeumt wird nur traege, im
+        // opaquen Zweig des Tokenhandlers: Wird ein abgelaufener Token noch einmal vorgezeigt,
+        // verschwindet er. Ein Token, den niemand wieder benutzt — der Normalfall beim
+        // Schliessen des Browsers — bleibt unbegrenzt stehen. Es gibt keinen Aufraeumlauf,
+        // kein Console-Command und keinen Endpunkt dafuer.
+        //
+        // NACHGEZOGEN MIT 013-002-0004: Der traege Loeschzweig stand bis dahin in
+        // BaseControllerProvider::checkToken(). Die Methode ist entfallen; der Zweig steht
+        // unveraendert in Classes/Security/Tokenhandler.php.
         //
         // Befund, notiert in 000-000-0015. Story 013-003 (JWT und Widerruf) loest das Problem
         // vermutlich ohnehin auf; bis dahin ist es festgehalten.
@@ -561,18 +565,24 @@ class SystemControllerApiTest extends IntegrationTestCase
         $nachher = (int) $this->pdo()->query('SELECT COUNT(*) FROM pim_token')->fetchColumn();
         $this->assertSame($vorher + 1, $nachher, 'Die Anmeldung hinterlaesst eine Zeile');
 
+        // Gesucht wird ueber den HASH. Hier stand der Klartext — ein Rest, den 013-001-0004
+        // uebersehen hat. Die Abfrage fand seither NICHTS, `fetch()` lieferte `false`, und
+        // `$gefunden['referrer']` war deshalb null: Die Zusicherung darunter galt, ohne etwas
+        // zu pruefen. Aufgefallen ist es erst, als die Quelltextprobe am Ende dieses Tests
+        // wegen 013-002-0004 rot wurde.
         $zeile = $this->pdo()->prepare('SELECT id, referrer FROM pim_token WHERE token = :t');
-        $zeile->execute(array('t' => $frisch));
+        $zeile->execute(array('t' => hash('sha256', $frisch)));
         $gefunden = $zeile->fetch(\PDO::FETCH_ASSOC);
 
+        $this->assertIsArray($gefunden, 'Die Zeile der Anmeldung ist auffindbar');
         $this->nachTestLoeschen('pim_token', (string) $gefunden['id']);
 
         $this->assertNull($gefunden['referrer'],
             'Ohne Referrer — deshalb unterliegt er dem Timeout und taucht nicht in listTokens auf');
 
-        $quelle = file_get_contents(ROOT_DIR.'/lib/contentfly/Classes/Controller/Provider/BaseControllerProvider.php');
-        $this->assertStringContainsString('$app[\'orm.em\']->remove($token);', $quelle,
-            'Entfernt wird nur innerhalb von checkToken — also nur, wenn der Token erneut vorgezeigt wird');
+        $quelle = file_get_contents(ROOT_DIR.'/lib/contentfly/Classes/Security/Tokenhandler.php');
+        $this->assertStringContainsString('$this->em->remove($zeile);', $quelle,
+            'Entfernt wird nur im opaquen Zweig — also nur, wenn der Token erneut vorgezeigt wird');
     }
 
     // ── flushSchemaCache ───────────────────────────────────────────────────────────────

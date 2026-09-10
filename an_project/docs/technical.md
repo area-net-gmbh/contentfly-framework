@@ -110,18 +110,36 @@ Es gibt **zwei** Auth-Wege, und beide sind stateful:
 
 | Weg | Träger | Wo |
 |---|---|---|
-| Session | `$_SESSION['auth.userid']` | `Classes/Auth.php:32` — nur für die Admin-UI, fällt mit Story `012-004` |
-| DB-Token | Tabelle `pim_token` | `Classes/Controller/Provider/BaseControllerProvider.php:92` (`checkToken`) |
+| ~~Session~~ | ~~`$_SESSION['auth.userid']`~~ | mit Story `012-004` entfallen |
+| ~~DB-Token über `checkToken()`~~ | Tabelle `pim_token` | mit `013-002-0004` abgelöst |
 
 Der Token-Weg: `POST /auth/login` prüft die Anmeldedaten, legt eine `Token`-Zeile an (128 Hex aus
-`openssl_random_pseudo_bytes(64)` — Entropie ist in Ordnung) und gibt sie zurück. Folgerequests
-schicken sie als `appcms-token`, `X-XSRF-TOKEN` oder `_token`. `checkToken()` schlägt nach, prüft
-Benutzer und Timeout (`APP_TOKEN_TIMEOUT`, per Gruppe überschreibbar) und **schreibt `modified`
-bei jedem Request zurück** — Sliding Expiration als DB-Write pro Aufruf. Das ist der eigentliche
-Preis des Modells und das Argument für einen stateless-Pfad.
+64 Zufallsbytes) und gibt sie zurück. Folgerequests schicken sie als `appcms-token`,
+`X-XSRF-TOKEN` oder `_token`. Nachgeschlagen wird der Hash der Zeile (`013-001-0004`), geprüft
+werden Benutzer und Timeout (`APP_TOKEN_TIMEOUT`, per Gruppe überschreibbar), und `modified` wird
+**bei jedem Request zurückgeschrieben** — Sliding Expiration als DB-Write pro Aufruf. Das ist der
+eigentliche Preis des Modells und das Argument für einen stateless-Pfad.
 
-**JWT gibt es im Framework nicht.** `firebase/php-jwt` stand ausschließlich in
-`custom/composer.json` und lag im alten `custom/vendor`; die JWT-Logik lag im Kundenprojekt.
+### Seit `013-002`: ein Mechanismus, zwei Zweige
+
+`checkToken()` gibt es nicht mehr. An seiner Stelle steht Symfonys `access_token`-Authenticator,
+gefahren von einem eigenen Treiber — **ohne** Firewall, denn der Baum hat weder `config/` noch
+SecurityBundle:
+
+| Klasse | tut |
+|---|---|
+| `Classes/Security/Tokenquellen` | woher ein Token kommen darf: `Authorization: Bearer` plus die vier Altquellen, in der Reihenfolge von früher |
+| `Classes/Security/Tokenhandler` | verzweigt nach der Form: JWT oder `pim_token` |
+| `Classes/Security/Anmeldetreiber` | fährt den Authenticator und fängt jeden Fehlschlag gleich ab |
+| `Classes/Security/Benutzerlader` | macht aus einer Kennung einen Benutzer |
+
+Damit ist „stateful oder stateless" keine Endpunkt-Entscheidung mehr, sondern eine Eigenschaft
+des ausgestellten Tokens. Der Sliding-Expiration-Write passiert nur noch im opaquen Zweig; der
+JWT-Zweig fasst `pim_token` nicht an.
+
+**JWT werden verifiziert, aber noch nicht ausgestellt.** `firebase/php-jwt` steht seit
+`013-002-0003` im Root-Manifest, auf `^7.0` — die 6er-Reihe trägt CVE-2025-45769. Ausstellung,
+Refresh-Modell, Widerruf und Schlüsselwechsel sind Story `013-003`.
 Seit `006-003` wird dieser Baum nicht mehr gebaut — das Paket ist also auch physisch weg.
 `006-001-0004` hat es zum Streichen vorgesehen; `013-003` nimmt JWT bewusst neu auf. Was oben unter *Pro-Tenant-JWT-Secret* steht, beschreibt
 fremden Code, keine vorhandene Funktion.

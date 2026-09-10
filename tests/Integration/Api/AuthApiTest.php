@@ -330,4 +330,69 @@ class AuthApiTest extends IntegrationTestCase
         [$abmelden] = $this->get('/auth/logout', $body['token']);
         $this->assertSame(200, $abmelden);
     }
+
+    // ── Alle fünf Tokenquellen am laufenden System (013-002-0004) ─────────────────────
+
+    /**
+     * Der Nachweis für den Umstieg: Jede Quelle öffnet eine geschützte Route.
+     *
+     * Vier davon sind geerbt — `BaseControllerProvider::checkToken()` las sie, und Bestandsclients
+     * schicken sie. Ohne sie bräche jeder bestehende Ionic-Client beim Update. Die fünfte,
+     * `Authorization: Bearer`, ist neu und der Weg, auf den alles zuläuft.
+     *
+     * `TokenquellenTest` misst dasselbe ohne HTTP; hier geht es darum, dass es **verdrahtet**
+     * ist.
+     */
+    public function testJedeTokenquelleOeffnetEineGeschuetzteRoute(): void
+    {
+        $token = $this->login();
+
+        $ueberKopfzeile = array(
+            'Authorization: Bearer' => 'Authorization: Bearer '.$token,
+            'appcms-token'          => 'appcms-token: '.$token,
+            'X-XSRF-TOKEN'          => 'X-XSRF-TOKEN: '.$token,
+        );
+
+        foreach ($ueberKopfzeile as $name => $kopfzeile) {
+            $this->assertSame(200, $this->getMitKopfzeile('/api/schema', $kopfzeile), $name);
+        }
+
+        $this->assertSame(200, $this->getMitKopfzeile('/api/schema?_token='.$token, null),
+            '_token im Query-String');
+
+        [$status] = $this->postJson('/api/count', array('entity' => 'PIM\User', '_token' => $token));
+        $this->assertSame(200, $status, '_token im Rumpf');
+    }
+
+    public function testOhneTokenBleibtDieGeschuetzteRouteZu(): void
+    {
+        $this->assertNotSame(200, $this->getMitKopfzeile('/api/schema', null));
+    }
+
+    /**
+     * Ein Token, den es nicht gibt, öffnet nichts — über jede Quelle.
+     */
+    public function testEinErfundenerTokenOeffnetKeineQuelle(): void
+    {
+        $erfunden = bin2hex(random_bytes(64));
+
+        $this->assertNotSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$erfunden));
+        $this->assertNotSame(200, $this->getMitKopfzeile('/api/schema', 'appcms-token: '.$erfunden));
+        $this->assertNotSame(200, $this->getMitKopfzeile('/api/schema?_token='.$erfunden, null));
+    }
+
+    /** Ein GET mit genau einer selbst gewählten Kopfzeile — die Basisklasse schickt immer `appcms-token`. */
+    private function getMitKopfzeile(string $pfad, ?string $kopfzeile): int
+    {
+        $ch = curl_init(getenv('CONTENTFLY_TEST_BASE_URL').$pfad);
+        curl_setopt_array($ch, array(
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER     => $kopfzeile === null ? array() : array($kopfzeile),
+        ));
+        curl_exec($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        return $status;
+    }
 }
