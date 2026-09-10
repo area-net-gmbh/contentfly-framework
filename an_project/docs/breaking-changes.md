@@ -956,6 +956,79 @@ sich auf den Fehler verlassen hat, muss sie verschieben oder unter einem Namen o
 `Plugins`-Präfix ansprechen. Wer einen echten Plugin-LoginManager hatte, bekommt ihn zum ersten
 Mal zum Laufen.
 
+## Authentifizierung, Teil 2 (Story `013-002`)
+
+### `BaseControllerProvider::checkToken()` gibt es nicht mehr
+**Seit `013-002-0004` (2026-09-10).**
+
+An seiner Stelle steht `anmelden()`, mit derselben Signatur und derselben Wirkung: ein `bool`,
+und im Erfolgsfall stehen `$app['auth.user']` und `$app['auth.token']` wie bisher. Darunter
+arbeitet Symfonys `access_token`-Authenticator statt eines eigenen Rumpfes.
+
+*Was zu tun ist:* Ein Projekt, das einen eigenen Controller-Provider von
+`BaseControllerProvider` ableitet und in dessen `$checkAuth`-Closure `$this->checkToken(...)`
+ruft, ersetzt den Aufruf durch `$this->anmelden(...)`. Mehr nicht — Argumente und Rückgabe sind
+gleich geblieben.
+
+### Die drei Token-Konstanten sind entfallen
+**Seit `013-002-0004` (2026-09-10).**
+
+`BaseControllerProvider::TOKEN_HEADER_KEY`, `TOKEN_HEADER_KEY_ALT` und `TOKEN_REQUEST_KEY`
+standen dort, weil `checkToken()` sie las. Die Werte stehen jetzt in
+`Areanet\PIM\Classes\Security\Tokenquellen`, zusammen mit dem Code, der sie benutzt.
+
+Sie stehen zu lassen wäre schlimmer gewesen als sie zu entfernen: Drei öffentliche Konstanten,
+die nichts mehr steuern, sehen beim nächsten Lesen aus wie die Stelle, an der man die
+Tokenquellen ändert.
+
+*Was zu tun ist:* Wer sie gelesen hat, liest sie aus `Tokenquellen` — `HEADER_ALT`,
+`HEADER_ALT_XSRF`, `PARAMETER_ALT`.
+
+### `Authorization: Bearer` wird jetzt angenommen
+**Seit `013-002-0002` (2026-09-10).**
+
+Eine fünfte Tokenquelle, und die einzige, die RFC 6750 kennt. Die vier bisherigen —
+`appcms-token`, `X-XSRF-TOKEN`, `_token` im Query-String, `_token` im Rumpf — bleiben
+unverändert, in derselben Reihenfolge; **Bestandsclients merken nichts.**
+
+Der Bearer-Header wird nur ausgewertet, wenn er mit `Bearer ` beginnt. Ein `Authorization: Basic`
+aus `APP_HTTP_AUTH_USER` bleibt unberührt.
+
+### `$app['auth.token']` kann `null` sein
+**Seit `013-002-0004` (2026-09-10).**
+
+Der Schlüssel trägt die Zeile aus `pim_token`. Im JWT-Zweig gibt es keine — das ist der Gewinn
+jenes Zweigs. Ausgestellt werden JWT erst mit `013-003`; die Möglichkeit entsteht aber hier.
+
+*Was zu tun ist:* Projektcode, der `$app['auth.token']` liest, prüft auf `null`. Der Logout tut
+es bereits.
+
+### `SECURITY_JWT_SECRET` ist neu, und es braucht mindestens 32 Byte
+**Seit `013-002-0003` (2026-09-10).**
+
+**Kein Standardwert**, dieselbe Linie wie `SECURITY_CIPHER_KEY`: Ein im Repository hinterlegtes
+Geheimnis ist keines. Ohne Wert weist der JWT-Zweig jeden Token ab, statt sich stillschweigend
+abzuschalten — eine Prüfung, die das täte, wäre keine.
+
+`firebase/php-jwt` ab 7.0 verlangt für HS256 mindestens 32 Byte und wirft sonst schon beim
+Signieren. Ein kurzes Geheimnis wäre ohnehin ratbar.
+
+*Was zu tun ist:* Solange keine JWT ausgestellt werden (bis `013-003`), nichts — der opaque
+Token-Weg ist unberührt. Wer vorgreifen will, setzt den Wert in der Umgebung:
+`php -r "echo bin2hex(random_bytes(32));"`.
+
+### Drei neue Pakete im Root-Manifest
+**Seit `013-002` (2026-09-10).**
+
+`symfony/security-http` (mit `security-core`, `password-hasher`, `property-access`,
+`property-info`, `type-info` im Schlepptau) und `firebase/php-jwt` auf **`^7.0`**. Die 6er-Reihe
+trägt CVE-2025-45769 (*weak encryption*); statt einer Ausnahme im Audit-Gate steht ein
+Constraint.
+
+*Was zu tun ist:* `composer install`. Ein Projekt, das `firebase/php-jwt` selbst in
+`custom/composer.json` führt — das Kundenprojekt tat das —, muss den Eintrag mit dem Root-Stand
+in Einklang bringen.
+
 ## Feldverschlüsselung (Story `010-004`)
 
 ### Verschlüsselt wird mit XChaCha20-Poly1305 statt AES-CBC
