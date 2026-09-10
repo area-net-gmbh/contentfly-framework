@@ -168,6 +168,32 @@ $configDefault->SECURITY_CIPHER_KEY     = $_ENV['SECURITY_CIPHER_KEY'] ?? getenv
  */
 $configDefault->SECURITY_JWT_SECRET     = $_ENV['SECURITY_JWT_SECRET'] ?? getenv('SECURITY_JWT_SECRET') ?: null;
 
+/*
+ * SECURITY — Schlüsselwechsel für JWT (`013-003-0004`).
+ *
+ * Ein Signaturgeheimnis, das sich nicht wechseln lässt, ohne alle Sitzungen zu beenden, wird
+ * nicht gewechselt — und damit ist ein Leak dauerhaft. Deshalb trägt jedes Token die Kennung
+ * seines Schlüssels im Header, und es lassen sich zwei Schlüssel gleichzeitig akzeptieren.
+ *
+ * **So läuft ein Wechsel ab:**
+ *
+ *   1. Den bisherigen Wert nach `SECURITY_JWT_SECRET_PREVIOUS`, seine Kennung nach
+ *      `SECURITY_JWT_KEY_ID_PREVIOUS`.
+ *   2. Einen neuen Wert nach `SECURITY_JWT_SECRET`, eine neue Kennung nach
+ *      `SECURITY_JWT_KEY_ID`. Ab jetzt wird mit dem neuen signiert, angenommen werden beide —
+ *      niemand muss sich neu anmelden.
+ *   3. Nach `SECURITY_JWT_TTL` (Vorgabe 15 Minuten) ist das längste noch mit dem alten
+ *      Schlüssel ausgestellte Access-JWT abgelaufen. Dann können die beiden
+ *      `*_PREVIOUS`-Felder wieder leer.
+ *
+ * Die Kennungen sind Namen, keine Geheimnisse — sie stehen im Klartext in jedem Token. Sie
+ * müssen sich nur voneinander unterscheiden; die Anwendung weist zwei gleiche ab, statt
+ * stillschweigend nur einen der beiden Schlüssel zu akzeptieren.
+ */
+// $configDefault->SECURITY_JWT_KEY_ID          = $_ENV['SECURITY_JWT_KEY_ID'] ?? getenv('SECURITY_JWT_KEY_ID') ?: 'k1';
+// $configDefault->SECURITY_JWT_SECRET_PREVIOUS = $_ENV['SECURITY_JWT_SECRET_PREVIOUS'] ?? getenv('SECURITY_JWT_SECRET_PREVIOUS') ?: null;
+// $configDefault->SECURITY_JWT_KEY_ID_PREVIOUS = $_ENV['SECURITY_JWT_KEY_ID_PREVIOUS'] ?? getenv('SECURITY_JWT_KEY_ID_PREVIOUS') ?: null;
+
 $configFactory->setConfig($configDefault);
 
 /*

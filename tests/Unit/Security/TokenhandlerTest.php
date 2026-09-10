@@ -144,7 +144,10 @@ class TokenhandlerTest extends TestCase
                 'jti' => bin2hex(random_bytes(16)),
             ),
             self::GEHEIMNIS,
-            'HS256'
+            'HS256',
+            // Die Kennung ist seit 013-003-0004 Pflicht: `JWT::decode()` waehlt den Schluessel
+            // danach, und ein Token ohne `kid` wird abgewiesen.
+            Zugangstoken::kennung()
         );
     }
 
@@ -279,7 +282,7 @@ class TokenhandlerTest extends TestCase
 
     public function testEinAbgelaufenesJwtWirdAbgewiesen(): void
     {
-        $abgelaufen = JWT::encode(array('sub' => 'admin', 'exp' => time() - 10), self::GEHEIMNIS, 'HS256');
+        $abgelaufen = JWT::encode(array('sub' => 'admin', 'iss' => Zugangstoken::AUSGEBER, 'exp' => time() - 10), self::GEHEIMNIS, 'HS256', Zugangstoken::kennung());
         $handler    = new Tokenhandler($this->emDerWirft());
 
         $this->expectException(AuthenticationException::class);
@@ -298,7 +301,7 @@ class TokenhandlerTest extends TestCase
 
     public function testEinJwtMitFremdemGeheimnisWirdAbgewiesen(): void
     {
-        $fremd   = JWT::encode(array('sub' => 'admin', 'exp' => time() + 600), self::FREMDES_GEHEIMNIS, 'HS256');
+        $fremd   = JWT::encode(array('sub' => 'admin', 'iss' => Zugangstoken::AUSGEBER, 'exp' => time() + 600), self::FREMDES_GEHEIMNIS, 'HS256', Zugangstoken::kennung());
         $handler = new Tokenhandler($this->emDerWirft());
 
         $this->expectException(AuthenticationException::class);
@@ -367,7 +370,8 @@ class TokenhandlerTest extends TestCase
         $fremd = JWT::encode(
             array('sub' => 'admin', 'iss' => 'eine-andere-anwendung', 'exp' => time() + 600),
             self::GEHEIMNIS,
-            'HS256'
+            'HS256',
+            Zugangstoken::kennung()
         );
         $handler = new Tokenhandler($this->emDerWirft());
 
@@ -377,7 +381,7 @@ class TokenhandlerTest extends TestCase
 
     public function testEinTokenOhneAusgeberWirdAbgewiesen(): void
     {
-        $ohne = JWT::encode(array('sub' => 'admin', 'exp' => time() + 600), self::GEHEIMNIS, 'HS256');
+        $ohne = JWT::encode(array('sub' => 'admin', 'exp' => time() + 600), self::GEHEIMNIS, 'HS256', Zugangstoken::kennung());
         $handler = new Tokenhandler($this->emDerWirft());
 
         $this->expectException(AuthenticationException::class);
@@ -448,7 +452,8 @@ class TokenhandlerTest extends TestCase
         $ohneJti = JWT::encode(
             array('sub' => 'admin', 'iss' => Zugangstoken::AUSGEBER, 'exp' => time() + 600),
             self::GEHEIMNIS,
-            'HS256'
+            'HS256',
+            Zugangstoken::kennung()
         );
         $handler = new Tokenhandler($this->emDerWirft());
 
@@ -518,7 +523,7 @@ class TokenhandlerTest extends TestCase
         $ausJwt = null;
         try {
             (new Tokenhandler($this->emDerWirft()))->getUserBadgeFrom(
-                JWT::encode(array('sub' => 'admin', 'exp' => time() + 600), self::FREMDES_GEHEIMNIS, 'HS256')
+                JWT::encode(array('sub' => 'admin', 'iss' => Zugangstoken::AUSGEBER, 'exp' => time() + 600), self::FREMDES_GEHEIMNIS, 'HS256', Zugangstoken::kennung())
             );
         } catch (AuthenticationException $e) {
             $ausJwt = $e;
