@@ -43,7 +43,26 @@ und endet dort auch:
   Authenticator auf einem Firewall sind vorgesehen (`custom_authenticators`); sobald mehrere einen
   Einstiegspunkt anbieten, muss genau einer als `entry_point` benannt werden — für einen
   zustandslosen API-Firewall stellt sich die Frage in der Regel nicht.
+
+  **Nachgemessen am 2026-09-10, und der Satz ist zu lesen wie in `013-002`:** `custom_authenticators`
+  und `entry_point` sind Konfigurationsschlüssel des SecurityBundle, und das gibt es in diesem
+  Baum nicht — kein `config/`-Verzeichnis, kein Bundle. Der Kernel ist der eigene aus Epic `009`,
+  und die Anmeldung fährt seit `013-002-0004` über `Anmeldetreiber` und `Tokenhandler` ohne
+  Firewall. Gemeint ist die Sache, nicht die Schreibweise: Ein Projekt-Provider hängt sich in
+  denselben Mechanismus ein, den `013-002` gebaut hat.
 - **Die Beispiel-Vorlage** in `custom/` zeigt einen Provider, der wirklich läuft.
+
+## Nachgemessen am 2026-09-10
+
+- **Es gibt genau einen Einstieg:** `AuthController::getLoginProvider()`. Der Umbau ist lokal,
+  nicht verstreut.
+- **Eine Beispiel-Vorlage existiert nicht.** `custom/Classes/` enthält zwei Service-Klassen und
+  keinen Provider. Was die Story fordert, ist ein Neubau — und damit erstmals etwas, das ein Test
+  end-to-end durchspielen kann.
+- **`LoginManagerApiTest` hält den heutigen Stand fest**, einschliesslich des MD5-Präfixes. Zwei
+  seiner Tests sind umzudrehen, nicht zu löschen.
+- **`Classes/Mailer.php` importiert `LoginManager`, ohne ihn zu benutzen** — ein Rest, der beim
+  Umbau mit auffällt.
 
 ## Fertig, wenn
 - Ein Projekt kann einen eigenen Provider registrieren und sich damit anmelden, ohne
@@ -57,3 +76,8 @@ und endet dort auch:
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
+- [ ] 013-004-0001 — Der Vertrag und die Registrierung
+- [ ] 013-004-0002 — Provisionierung ohne setzbares Passwort
+- [ ] 013-004-0003 — Rollen- und Gruppenabbildung
+- [ ] 013-004-0004 — Die Beispiel-Vorlage, die wirklich läuft
+- [ ] 013-004-0005 — Der Bruch für Epic 007
