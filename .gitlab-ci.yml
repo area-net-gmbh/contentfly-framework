@@ -56,6 +56,11 @@ variables:
   # Mindestens 32 Byte: firebase/php-jwt weist fuer HS256 kuerzere Schluessel ab.
   CONTENTFLY_TEST_JWT_SECRET: "ci-only-jwt-secret-mit-genug-laenge-32"
 
+  # Speist den BeispielProvider aus 013-004-0004 — kennung:geheimnis:gruppe|gruppe.
+  # Wegwerf-Werte fuer eine Wegwerf-Datenbank; ohne diese Variable laesst die Vorlage
+  # niemanden herein, und genau das misst ein eigener Test.
+  CONTENTFLY_TEST_PROVIDER: "extern-eins:ci-only-provider-secret:CN=Redaktion"
+
   GIT_DEPTH: "1"
 
 # ── Prüfungen, die keine Umgebung brauchen ─────────────────────────────────────────────

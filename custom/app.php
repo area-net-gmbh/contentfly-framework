@@ -130,7 +130,17 @@ $app['consoleManager']->addCommand(new \Custom\Command\ExampleCommand());
  *
  *    **Solange hier nichts steht, gibt es keinen Weg an der Passwortprüfung vorbei.** Die
  *    Anmeldung über ein Fremdsystem ist eine Entscheidung, die jemand treffen muss.
+ *
+ *    `BeispielProvider` ist unten eingetragen und läuft wirklich — er lässt aber niemanden
+ *    herein, solange `CONTENTFLY_BEISPIEL_PROVIDER` nicht gesetzt ist. Eine Vorlage, die eine
+ *    Installation versehentlich offen liesse, wäre schlimmer als gar keine.
  * --------------------------------------------------------------------------------------- */
+$app['anmeldeanbieter']->eintragen('beispiel', function () {
+    return new \Custom\Classes\Anmeldung\BeispielProvider();
+});
+
+//   Ein echtes Projekt traegt daneben oder stattdessen seinen eigenen ein:
+//
 //   $app['anmeldeanbieter']->eintragen('ldap', function () use ($app) {
 //       return new \Custom\Classes\Anmeldung\LdapProvider($app);
 //   });
