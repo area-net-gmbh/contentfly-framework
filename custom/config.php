@@ -152,6 +152,22 @@ $configDefault->APP_ENABLE_SCHEMA_CACHE = false;
  */
 $configDefault->SECURITY_CIPHER_KEY     = $_ENV['SECURITY_CIPHER_KEY'] ?? getenv('SECURITY_CIPHER_KEY') ?: null;
 
+/*
+ * SECURITY — Signaturgeheimnis für JWT (`013-002-0003`).
+ *
+ * Ebenfalls **kein Standardwert**, aus demselben Grund: Ein im Repository hinterlegtes
+ * Geheimnis ist keines. Ohne Wert weist der JWT-Zweig jeden Token ab, statt ihn
+ * stillschweigend zu überspringen — eine Prüfung, die sich selbst abschaltet, ist keine.
+ *
+ * **Mindestens 32 Byte.** `firebase/php-jwt` weist ein kürzeres Geheimnis für HS256 ab; ein
+ * kurzes wäre ohnehin ratbar. Ein brauchbarer Wert entsteht mit
+ * `php -r "echo bin2hex(random_bytes(32));"`.
+ *
+ * Ausgestellt werden JWT erst mit `013-003`; bis dahin bleibt das Feld in den meisten
+ * Installationen leer, und der opaque Token-Weg ist davon unberührt.
+ */
+$configDefault->SECURITY_JWT_SECRET     = $_ENV['SECURITY_JWT_SECRET'] ?? getenv('SECURITY_JWT_SECRET') ?: null;
+
 $configFactory->setConfig($configDefault);
 
 /*
