@@ -14,7 +14,6 @@
     },
     "require": {
         "php": "^8.3",
-        "doctrine/annotations": "^1.14",
         "doctrine/cache": "^1.13",
         "doctrine/dbal": "^3.10",
         "doctrine/orm": "^2.14",
@@ -55,7 +54,7 @@
             "     Bewusst nicht 8.x: gleicher Funktionsumfang, aber PHP >= 8.4 in JEDER Umgebung",
             "     und ein Pflicht-Minor alle 6 Monate. Begruendung in",
             "     an_project/docs/architecture.md, Key decisions, 2026-09-04.",
-            "  2. doctrine/orm steht auf ^2.14 und damit real auf 2.20. ORM 3 verlangt Attribute",
+            "  2. doctrine/orm steht auf ^2.14 und damit real auf 2.20. ORM 3 verlangt weitere",
             "     statt Annotationen an jeder Entity — der Umbau ist Epic 010, nicht dieser Bump.",
             "  3. doctrine/dbal steht auf ^3.10, weil symfony/http-foundation 7.4 mit dbal < 3.6",
             "     kollidiert. Der Sprung von DBAL 2 auf 3 (fetchAll() entfernt, Statement::execute()",

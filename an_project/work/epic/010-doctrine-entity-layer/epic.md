@@ -1,7 +1,7 @@
 ---
 id: 010-000-0000
 title: Doctrine und Entity-Layer modernisieren
-status: todo
+status: in-progress
 depends_on: [006-000-0000, 012-000-0000]
 ---
 
@@ -123,7 +123,7 @@ eigenes Epic ein Vorhaben mit einer einzigen Story.
 
 ## Stories
 <!-- Die Stories dieses Epics. Wird von /new-story synchron gehalten. -->
-- [ ] 010-001-0000 — Annotationen auf PHP-Attribute — noch unter ORM 2.20
+- [x] 010-001-0000 — Annotationen auf PHP-Attribute — noch unter ORM 2.20
 - [ ] 010-002-0000 — doctrine/cache durch einen PSR-6-Cache ersetzen
 - [ ] 010-003-0000 — Der ORM-3-Sprung
 - [ ] 010-004-0000 — StringType von AES-CBC auf AEAD heben

@@ -671,6 +671,68 @@ registriert und nie abgeholt.
 *Was zu tun ist:* Ein Projekt, das `$app['validator']` oder `trans()` benutzt, fordert das
 Paket in seinem eigenen Manifest an.
 
+## Entity-Layer (Story `010-001`)
+
+### Entities tragen PHP-Attribute statt Annotationen
+**Seit `010-001-0003` (2026-09-10).**
+
+`@ORM\*` und `@PIM\*` im Docblock sind durch `#[ORM\...]` und `#[PIM\...]` ersetzt, und der
+Metadaten-Treiber ist ein `AttributeDriver`. Das Schema, das die API ausliefert, ist dabei
+**Feld für Feld unverändert** geblieben, ebenso die erzeugte Datenbank — 211 Spalten und 67
+Indexzeilen, gemessen vorher gegen nachher.
+
+**Für ein Bestandsprojekt heisst das: Die eigenen Entities müssen mit.** Ein Mischbetrieb ist
+nicht möglich, und der Grund liegt tiefer als der Treiber je Namensraum: Bei einer
+`MappedSuperclass` setzt Doctrine an den geerbten Feldern kein `inherited`, also liest der
+Treiber der **Unterklasse** sie noch einmal selbst. Eine Projekt-Entity, die von
+`Areanet\PIM\Entity\Base` erbt und Annotationen trägt, findet an der umgestellten `Base` keinen
+Identifier mehr:
+
+```
+No identifier/primary key specified for Entity "…" sub class of "Areanet\PIM\Entity\Base".
+```
+
+**Zwei Stolperstellen, beide im Framework selbst aufgetreten:**
+
+1. **Ein Attribut wird gegen die `use`-Zeilen seiner eigenen Datei aufgelöst.** Wer Felder in
+   einen Trait auslagert, braucht `use Doctrine\ORM\Mapping as ORM;` **dort**. Unter
+   Annotationen ging es ohne, weil `ReflectionProperty::getDeclaringClass()` für eine
+   Trait-Eigenschaft die benutzende Klasse liefert und der `AnnotationReader` gegen deren
+   Imports auflöste. Fehlt der Import, fällt das Feld **still** aus dem Schema.
+2. **`Index` und `UniqueConstraint` stehen neben `Table`, nicht darin.** Als Annotation mussten
+   sie mangels Wiederholbarkeit in ein Array unter `Table`; ein Attribut darf sich wiederholen.
+
+*Was zu tun ist:* Die eigenen Entities auf Attribute umstellen, die Imports in Traits ergänzen,
+`Index`/`UniqueConstraint` herausziehen. Ein Migrationsweg gehört in Epic `007`.
+
+### Die Ziele der `@PIM`-Attribute sind enger als vorher
+**Seit `010-001-0001` (2026-09-10).**
+
+Ohne `@Target` galt für eine Annotation `TARGET_ALL` — sie durfte überall stehen. Als Attribut
+benennt jede Klasse ihre Ziele: `Config` an Klasse **und** Eigenschaft, die übrigen sieben nur
+an Eigenschaften. Das deckt sich mit jeder Verwendung im Framework, aber ein Projekt, das etwa
+`@PIM\Select` an einer Klasse gesetzt hat, bekommt jetzt einen Fehler.
+
+*Was zu tun ist:* Solche Stellen entfernen — sie hatten ohnehin keine Wirkung.
+
+### `Type::getAnnotationFile()` ist entfallen
+**Seit `010-001-0005` (2026-09-10).**
+
+Die abstrakte Methode nannte dem `DocParser` den Dateipfad einer Annotationsklasse, damit
+`AnnotationRegistry::registerFile()` sie laden konnte — nötig, weil der Parser eine Annotation
+nur auflöst, wenn ihre Klasse bereits bekannt ist. Ein Attribut nennt eine echte Klasse, die der
+Autoloader holt. Die Methode hat damit keinen Gegenstand mehr, und `doctrine/annotations` ist
+aus dem Manifest.
+
+**Das bricht nicht beim Laden:** Eine abstrakte Methode zu **entfernen** ist für Ableitungen
+harmlos — ein eigener `CustomType`, der sie implementiert, behält sie als zusätzliche, nie
+gerufene Methode. Wer sich auf die **Wirkung** verlassen hat, verliert sie: Eine eigene
+Attributklasse muss autoladbar sein. Unter `Custom\` (auf `custom/`) und `Plugins\` (auf
+`plugins/`) ist sie das.
+
+*Was zu tun ist:* Die eigene `getAnnotationFile()` kann weg. Sicherstellen, dass eigene
+Attributklassen über PSR-4 gefunden werden.
+
 ## Doctrine (Story `009-005`)
 
 ### DBAL 2 → 3
