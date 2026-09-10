@@ -107,51 +107,70 @@ class FeldverschluesselungTest extends TestCase
     }
 
     /**
-     * DER BEFUND, UM DEN ES DER GANZEN STORY GEHT.
+     * DER NACHWEIS, UM DEN ES DER GANZEN STORY GEHT.
      *
-     * AES-256-CBC hat keinen MAC. Ein veraenderter Chiffretext wird nicht abgewiesen — er wird
-     * entschluesselt, und heraus kommt ein ANDERER Klartext. Die Anwendung merkt nichts und
-     * liefert ihn aus.
+     * UMGEDREHT MIT 010-004-0002, und das ist ein Verhaltenswechsel mit Ansage. Vorher hiess
+     * dieser Test `testEinManipulierterChiffretextFaelltHeuteNichtAuf` und sicherte den
+     * Gegenteil-Zustand zu: AES-256-CBC hat keinen MAC, ein gekipptes Byte ging durch und
+     * lieferte einen anderen Klartext — ein Block Muell, der Rest stand. Gemessen an
+     * `Ueberweisung an Konto A, Betrag 100 Euro, dringend bitte`: Byte 20 und 40 gingen durch,
+     * Byte 30 und 101 scheiterten nur am Padding.
      *
-     * Gemessen an einem Beispiel: Kippt man ein Byte im zweiten Block, liest der Klartext
+     * XChaCha20-Poly1305 authentifiziert. Jede Aenderung am Chiffretext faellt auf, und
+     * entschluesselt wird nichts.
      *
-     *     Ueberweisung an G···}···[·*6·10 Euro, dri
-     *
-     * statt „Ueberweisung an Konto A, Betrag 100 Euro". Ein Block ist Muell, der Rest steht.
-     * Wer den Chiffretext erreicht, kann also gezielt Teile veraendern.
-     *
-     * Nicht jede Position gelingt: Trifft die Aenderung den letzten Block, scheitert die
-     * Padding-Pruefung und `openssl_decrypt()` liefert `false`. Der Test sucht deshalb eine
-     * Position, an der die Manipulation DURCHGEHT — es genuegt eine einzige, damit die
-     * Zusicherung wertlos ist.
-     *
-     * Dieser Test haelt den Zustand fest, statt ihn zu beklagen. Mit `010-004-0002` wird er
-     * umgedreht: Dann muss jede Manipulation auffallen.
+     * DER TEST PROBIERT JEDE POSITION DURCH, nicht eine ausgewaehlte: Beim alten Verfahren
+     * genuegte EINE durchgehende Manipulation, um die Zusicherung wertlos zu machen. Also muss
+     * hier JEDE abgewiesen werden.
      */
-    public function testEinManipulierterChiffretextFaelltHeuteNichtAuf(): void
+    public function testJedeManipulationFaelltAuf(): void
     {
-        $krypto   = new Feldverschluesselung();
-        $klartext = 'Ueberweisung an Konto A, Betrag 100 Euro, dringend bitte';
-        $roh      = base64_decode($krypto->verschluesseln($klartext));
+        $krypto      = new Feldverschluesselung();
+        $klartext    = 'Ueberweisung an Konto A, Betrag 100 Euro, dringend bitte';
+        $chiffretext = $krypto->verschluesseln($klartext);
 
-        $durchgerutscht = null;
+        $roh          = base64_decode(substr($chiffretext, strlen('PIM1:')));
+        $durchgekommen = array();
 
-        // Der IV steht in den ersten 16 Byte; veraendert wird der Rumpf dahinter.
-        for ($pos = 16; $pos < strlen($roh); $pos++) {
+        for ($pos = 0; $pos < strlen($roh); $pos++) {
             $manipuliert       = $roh;
             $manipuliert[$pos] = chr(ord($manipuliert[$pos]) ^ 0x01);
 
-            $ergebnis = $krypto->entschluesseln(base64_encode($manipuliert));
+            $ergebnis = $krypto->entschluesseln('PIM1:'.base64_encode($manipuliert));
 
-            if ($ergebnis !== false && $ergebnis !== $klartext) {
-                $durchgerutscht = $ergebnis;
-                break;
+            if ($ergebnis !== false) {
+                $durchgekommen[] = $pos;
             }
         }
 
-        $this->assertNotNull($durchgerutscht,
-            'Es gibt eine Manipulation, die nicht auffaellt — CBC ohne MAC weist sie nicht ab');
-        $this->assertNotSame($klartext, $durchgerutscht,
-            'und der Klartext ist ein anderer als der verschluesselte');
+        $this->assertSame(array(), $durchgekommen,
+            'Keine einzige Byte-Aenderung darf entschluesselt werden — auch nicht im Nonce');
+    }
+
+    public function testEinFremderChiffretextMitDemRichtigenPraefixWirdAbgewiesen(): void
+    {
+        // Das Praefix ist eine Formatangabe, keine Zusicherung. Wer es davorschreibt, bekommt
+        // trotzdem nichts entschluesselt.
+        $this->assertFalse((new Feldverschluesselung())->entschluesseln('PIM1:'.base64_encode(random_bytes(60))));
+    }
+
+    public function testDieAbleitungIstDeterministisch(): void
+    {
+        // Waere sie es nicht, waeren Bestandsdaten nach jedem Neustart verloren. Belegt ueber
+        // zwei Instanzen: Was die eine verschluesselt, liest die andere.
+        $eine    = new Feldverschluesselung();
+        $andere  = new Feldverschluesselung();
+
+        $this->assertSame('ein Wert', $andere->entschluesseln($eine->verschluesseln('ein Wert')));
+    }
+
+    public function testNeueWerteTragenDasPraefixUndAlteNicht(): void
+    {
+        $krypto = new Feldverschluesselung();
+
+        $this->assertTrue($krypto->istNeuesFormat($krypto->verschluesseln('frisch')),
+            'Was jetzt geschrieben wird, ist AEAD');
+        $this->assertFalse($krypto->istNeuesFormat(self::ALTER_CHIFFRETEXT),
+            'und ein Bestandswert ist daran zu erkennen, dass ihm das Praefix fehlt');
     }
 }
