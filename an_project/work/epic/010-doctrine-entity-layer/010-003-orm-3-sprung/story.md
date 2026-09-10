@@ -1,7 +1,7 @@
 ---
 id: 010-003-0000
 title: Der ORM-3-Sprung
-status: in-progress
+status: review
 depends_on: [010-001-0000, 010-002-0000]
 ---
 
@@ -65,6 +65,6 @@ Bekannt ist schon jetzt:
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 010-003-0001 — Was sich unter ORM 2.20 vorbereiten lässt
-- [ ] 010-003-0002 — Der Sprung auf ORM 3
-- [ ] 010-003-0003 — Die Gates auf den neuen Stand bringen
+- [x] 010-003-0001 — Was sich unter ORM 2.20 vorbereiten lässt
+- [x] 010-003-0002 — Der Sprung auf ORM 3
+- [x] 010-003-0003 — Die Gates auf den neuen Stand bringen
