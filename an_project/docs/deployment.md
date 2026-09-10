@@ -202,11 +202,18 @@ Ausnahmeliste aussehen — mit einem benannten Auflöser, der sie als Ganzes rä
 allein geleert. Jede Ausnahme, die nicht mehr greift, macht den Lauf rot — also musste sie beim
 Auflösen mit entfernt werden, sonst wäre die Pipeline stehen geblieben.
 
-Dazu `--abandoned=ignore` beim Audit: Von fünf abandoned Paketen des Ist-Stacks sind **zwei
-übrig**, `doctrine/annotations` und `doctrine/cache`. `silex/silex`,
-`knplabs/console-service-provider` und `symfony/debug` sind mit Epic `009` aus dem Baum. Das ist
-kein Sicherheitsbefund, sondern die Beschreibung des Restbestands.
-**Auf `fail` umstellen, sobald Epic `010` durch ist** — dann ist die Liste leer.
+**Der Audit-Schalter steht seit `010-003-0003` auf `--abandoned=fail`.** Von fünf abandoned
+Paketen ist keines übrig:
+
+| Paket | gefallen mit |
+|---|---|
+| `silex/silex`, `knplabs/console-service-provider`, `symfony/debug` | Epic `009` |
+| `doctrine/annotations` | `010-001-0005` |
+| `doctrine/cache` | `010-003-0002`, mit dem Sprung auf ORM 3 |
+
+Damit ist ein abandoned Paket wieder eine Aussage statt einer Beschreibung des Altbestands.
+Beide Richtungen sind im Pipeline-Image gemessen: Ist-Stand Exit 0, ein künstlich abandoned
+Paket im Lock Exit 1 mit Nennung des Namens.
 
 ### Was die Gates heute melden
 
@@ -214,10 +221,10 @@ Gemessen am 2026-09-09, nach Epic `009`:
 
 | | Stand |
 |---|---|
-| `composer audit --locked` | grün, **0 Meldungen, 0 ausgenommen**; 2 abandoned Pakete (beide Doctrine) |
+| `composer audit --locked` | grün, **0 Meldungen, 0 ausgenommen, 0 abandoned**; Schalter auf `fail` |
 | Deprecations auf PHP 8.3 | grün, **0 protokollierte Zeilen bei 0 Ausnahmen** |
 | Deprecations auf PHP 8.4 | grün, **0 protokollierte Zeilen bei 0 Ausnahmen** |
-| PHPStan | `[OK] No errors`, blockierend; 31 Doctrine-Befunde über 8 benannte Muster ausgenommen (Epic `010`) |
+| PHPStan | `[OK] No errors`, blockierend; **eine** Ausnahme übrig, und die kommt aus DBAL |
 | Suite auf PHP 8.3 | `OK (267 tests, 640 assertions)` |
 | Suite auf PHP 8.4 | `OK (267 tests, 639 assertions)`, 0 übersprungen, Postausgang 0 Byte |
 

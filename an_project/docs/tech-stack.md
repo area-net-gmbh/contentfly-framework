@@ -14,8 +14,9 @@ PHP 8.5 (Zielplattform) · MySQL · Doctrine ORM · **Symfony 7.4 LTS**. Der Ker
 Epic `009` auf Symfony 7.4; Silex 2, Pimple und `knplabs/console-service-provider` sind aus dem
 Baum. HttpFoundation, HttpKernel, EventDispatcher, Routing und Console kommen direkt aus
 Symfony, der Container ist ein eigener (`Areanet\PIM\Classes\Kernel\Container`, rund 120
-Zeilen). Doctrine bleibt vorerst bei ORM 2.20 auf DBAL 3.10 — der Sprung auf ORM 3 und die
-Ablösung der Annotationen sind Epic `010`.
+Zeilen). Doctrine steht seit Epic `010` auf **ORM 3.7** über DBAL 3.10; die Entities tragen
+**PHP-Attribute** statt Annotationen, und Query- wie Metadaten-Cache laufen über PSR-6
+(`symfony/cache`).
 
 **Fixiert auf Symfony 7.4 LTS** (Bugfixes bis Nov 2028, Security bis Nov 2029), nicht auf
 Symfony 8.x. Symfony 8.0 hat denselben Funktionsumfang wie 7.4 — der Major entfernt nur
@@ -28,13 +29,18 @@ Alternativen: `an_project/docs/architecture.md`, *Key decisions*.
 Nov 2027) ist nur dann ein reiner Constraint-Bump, wenn keine in 8.0 entfernten APIs benutzt
 werden. Deprecation-Log und PHPStan stehen deshalb als Gate in der CI.
 
-**Der Stand ist eingelöst, nicht nur zugesagt** (`009-003`): Das Laufzeit-Log meldet **0
-Deprecations bei 0 Ausnahmen**, PHPStan `[OK] No errors` und blockierend, `composer audit
---locked` **0 Advisories bei 0 ausgenommenen CVEs**. Übrig sind 31 PHPStan-Befunde, über **acht
-benannte Muster** ausgenommen — **alle aus Doctrine**, an Epic `010` übergeben —, sowie zwei
-abandoned Pakete
-(`doctrine/annotations`, `doctrine/cache`) aus derselben Ecke. Alle drei Gates tragen dieselbe
-Regel: Eine Ausnahme, die nicht mehr greift, macht den Lauf rot.
+**Der Stand ist eingelöst, nicht nur zugesagt** (`009-003`, fortgeschrieben mit `010-003`): Das
+Laufzeit-Log meldet **0 Deprecations bei 0 Ausnahmen**, PHPStan `[OK] No errors` und
+blockierend, `composer audit --locked` **0 Advisories und 0 abandoned Pakete**.
+
+Von den acht PHPStan-Ausnahmen, die Epic `009` an `010` übergeben hat, ist **eine** übrig — und
+die kommt aus DBAL, nicht aus dem ORM. Von fünf abandoned Paketen sind **null** übrig, und der
+Audit-Schalter steht deshalb auf `--abandoned=fail`: Ein abandoned Paket macht den Lauf jetzt
+wieder rot.
+
+Alle drei Gates tragen dieselbe Regel: Eine Ausnahme, die nicht mehr greift, macht den Lauf rot.
+Sie hat sich im Epic `010` fünfmal gemeldet, und jedes Mal war ein Muster gegenstandslos
+geworden.
 
 ## Frontend
 **Kein Frontend.** Contentfly ist reine Datenhaltung plus Core-Funktionen. Die mitgelieferte

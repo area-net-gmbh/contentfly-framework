@@ -169,9 +169,19 @@ test:php8.3:
 test:php8.4:
   extends: .testlauf
   image: php:8.4-cli
-  # Frühwarnung, kein Gate. Die Begründung hiess bis 009-003-0003 "der Silex-Stand ist auf
-  # 8.4 nicht erprobt" — Silex ist weg, der Satz stimmte nicht mehr. Was bleibt: Der
-  # Symfony-7.4-Stand ist auf 8.4 in dieser Pipeline noch nicht gemessen worden, und was
-  # hier rot wird, ist die Liste dessen, was auf dem Weg zu PHP 8.5 zu erledigen ist. Ob der
-  # Job blockierend werden kann, entscheidet ein Lauf auf 8.4 — nicht diese Zeile.
-  allow_failure: true
+  # BLOCKIEREND SEIT 010-003-0003. Hier stand allow_failure: true.
+  #
+  # Die Begründung war zweimal überholt und einmal erfüllt. Zuerst hiess sie „der Silex-Stand
+  # ist auf 8.4 nicht erprobt" — Silex fiel mit Epic 009. Dann: „Ob der Job blockierend werden
+  # kann, entscheidet ein Lauf auf 8.4, nicht diese Zeile."
+  #
+  # Der Lauf liegt vor, und zwar zweimal, auf zwei verschiedenen Ständen:
+  #
+  #   009-004-0002   Symfony 7.4, Doctrine ORM 2.20   OK (267 tests), 0 Deprecations
+  #   010-003-0003   Symfony 7.4, Doctrine ORM 3.7    OK (268 tests), 0 Deprecations
+  #
+  # Beide im Image php:8.4-cli gegen einen mysql:8.0-Service, mit dem Wortlaut dieses Jobs.
+  #
+  # Eine Bedingung, die eine Datei selbst benennt und die erfüllt ist, gehoert eingelöst — es
+  # ist dieselbe Regel, an der die drei Gates haengen. Zielplattform bleibt PHP 8.5; was hier
+  # rot wird, ist ab jetzt ein Fehler und keine Vorschau.
