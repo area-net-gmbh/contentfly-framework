@@ -483,4 +483,121 @@ class AuthApiTest extends IntegrationTestCase
 
         return $body;
     }
+
+    // ── Der Refresh-Weg (013-003-0002) ────────────────────────────────────────────────
+
+    public function testEinRefreshTokenLiefertEinFrischesAccessJwt(): void
+    {
+        $anmeldung = $this->jwtAnmeldung();
+
+        [$status, $body] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['refreshToken']));
+
+        $this->assertSame(200, $status);
+        $this->assertCount(3, explode('.', $body['token'] ?? ''));
+        $this->assertNotSame($anmeldung['token'], $body['token'], 'Ein frisches Token, nicht dasselbe');
+        $this->assertSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$body['token']));
+    }
+
+    /**
+     * **Rotation: Das vorgezeigte Refresh-Token gilt danach nicht mehr.**
+     *
+     * Ein Refresh-Token, das mehrfach gilt, ist ein langlebiges Geheimnis — wer es abgreift,
+     * holt sich damit beliebig lange frische Zugangstokens, und niemand sieht es. Wird es bei
+     * jedem Gebrauch getauscht, fällt ein zweiter Gebrauch auf.
+     */
+    public function testDasVorgezeigteRefreshTokenWirdErsetzt(): void
+    {
+        $anmeldung = $this->jwtAnmeldung();
+
+        [, $erstes] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['refreshToken']));
+        $this->assertNotSame($anmeldung['refreshToken'], $erstes['refreshToken'] ?? null, 'Ein neues Refresh-Token');
+
+        [$zweiter] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['refreshToken']));
+        $this->assertSame(401, $zweiter, 'Das alte gilt nicht mehr');
+
+        [$mitNeuem] = $this->postJson('/auth/refresh', array('refreshToken' => $erstes['refreshToken']));
+        $this->assertSame(200, $mitNeuem, 'Das neue schon');
+    }
+
+    /**
+     * Ein Access-JWT taugt nicht als Refresh-Token — die Gegenrichtung zu
+     * `testDasRefreshTokenOeffnetKeineGeschuetzteRoute`.
+     */
+    public function testEinAccessJwtTaugtNichtAlsRefreshToken(): void
+    {
+        $anmeldung = $this->jwtAnmeldung();
+
+        [$status] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['token']));
+
+        $this->assertSame(401, $status);
+    }
+
+    /**
+     * Ein opaques Anmeldetoken auch nicht: Es ist eine `pim_token`-Zeile ohne `purpose`.
+     */
+    public function testEinOpaquesAnmeldetokenTaugtNichtAlsRefreshToken(): void
+    {
+        $opaque = $this->login();
+
+        [$status] = $this->postJson('/auth/refresh', array('refreshToken' => $opaque));
+
+        $this->assertSame(401, $status);
+    }
+
+    public function testEinUnbekanntesRefreshTokenWirdAbgewiesen(): void
+    {
+        [$status, $body] = $this->postJson('/auth/refresh', array('refreshToken' => bin2hex(random_bytes(64))));
+
+        $this->assertSame(401, $status);
+        $this->assertArrayNotHasKey('token', $body);
+    }
+
+    public function testOhneRefreshTokenWirdAbgewiesen(): void
+    {
+        [$status] = $this->postJson('/auth/refresh', array());
+
+        $this->assertSame(401, $status);
+    }
+
+    /**
+     * Alle Fehlschläge sehen gleich aus.
+     *
+     * Wer hier unterscheidet, sagt einem Angreifer, welcher seiner Versuche näher dran war.
+     */
+    public function testJederFehlschlagAmRefreshSiehtGleichAus(): void
+    {
+        $anmeldung = $this->jwtAnmeldung();
+
+        [, $unbekannt] = $this->postJson('/auth/refresh', array('refreshToken' => bin2hex(random_bytes(64))));
+        [, $falscheArt] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['token']));
+        [, $ohne]      = $this->postJson('/auth/refresh', array());
+
+        $this->assertSame($unbekannt['message'], $falscheArt['message']);
+        $this->assertSame($unbekannt['message'], $ohne['message']);
+    }
+
+    /**
+     * Ein gesperrter Benutzer bekommt kein neues Access-JWT.
+     *
+     * Das ist der Fall, den das Refresh-Modell tragen muss: Der Zugang endet spätestens mit dem
+     * laufenden Access-Token, weil danach niemand mehr ein neues bekommt.
+     */
+    public function testEinGesperrterBenutzerBekommtKeinNeuesAccessJwt(): void
+    {
+        [, $userId] = $this->testbenutzer();
+
+        [$status, $anmeldung] = $this->postJson('/auth/login', array(
+            'alias'     => $this->aliasZu($userId),
+            'pass'      => self::TEST_PASSWORT,
+            'tokenType' => 'jwt',
+        ));
+        $this->assertSame(200, $status);
+
+        $sperren = $this->pdo()->prepare('UPDATE pim_user SET isActive = 0 WHERE id = :id');
+        $sperren->execute(array('id' => $userId));
+
+        [$nachSperrung] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['refreshToken']));
+
+        $this->assertSame(401, $nachSperrung);
+    }
 }
