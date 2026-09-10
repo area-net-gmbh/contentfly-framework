@@ -137,13 +137,23 @@ fremden Code, keine vorhandene Funktion.
 | A-5 | `referrer`-Tokens laufen nie ab, und der Token-String kommt beim Anlegen vom Client (`Controller/SystemController.php:159`) | Ratbare Dauerschlüssel möglich |
 | A-6 | `LoginManager::createManagedUser()` setzt `setPass($alias)` — das Passwort ist der Benutzername | Latente Übernahme aller SSO-Konten |
 
-**Funktionale Defekte:** `POST /api/login` und `/api/logout` zeigen auf Methoden, die im
-`ApiController` nicht existieren · der Plugin-Zweig der LoginManager-Auflösung prüft
-`substr($name, 7) == 'Plugins'` statt der ersten sieben Zeichen und greift deshalb nie ·
-die Auflösung existiert doppelt (`Auth.php` und `AuthController.php`) und ist auseinandergelaufen.
+**Funktionale Defekte — behoben mit `013-001-0005`:**
 
-Behandelt wird das in Epic `013`; die Härtung (A-1 bis A-4 und die Defekte) hängt in Story
-`013-001` bewusst an nichts und wird vor dem Kernel-Wechsel umgesetzt.
+- ~~`POST /api/login` und `/api/logout` zeigen auf Methoden, die im `ApiController` nicht
+  existieren.~~ Beim Nachmessen war es schlimmer und harmloser zugleich: Sie erreichten den
+  Router **nie**. `Routensammlung` zählt ihre Routen je Provider durch, `/api/login` hiess
+  `login_0` und wurde beim Mounten von `/auth/login` gleichen Namens verdrängt — 30 registrierte
+  Routen, 29 in der Sammlung. Die Namen tragen jetzt den Mountpunkt, die beiden toten Routen
+  sind entfernt statt umgebogen.
+- ~~Der Plugin-Zweig der LoginManager-Auflösung prüft `substr($name, 7) == 'Plugins'` statt der
+  ersten sieben Zeichen und greift deshalb nie.~~ Jetzt `str_starts_with()`. **Einschränkung:**
+  Der Pfad ist mangels Plugin nicht end-to-end prüfbar; geprüft wird die Auflösung selbst.
+- ~~Die Auflösung existiert doppelt (`Auth.php` und `AuthController.php`).~~ Bereits beim
+  Refinement am 2026-09-10 erledigt vorgefunden: `Auth::getLoginProvider()` gibt es nicht mehr,
+  gefallen irgendwo in Epic `009` oder `012`.
+
+Behandelt wurde das in Epic `013`, Story `013-001` — bewusst an nichts hängend und vor dem
+Kernel-Wechsel umgesetzt.
 
 ## Warum `vendor/` in Git *lag*
 

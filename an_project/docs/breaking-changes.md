@@ -915,6 +915,47 @@ umzuschreiben hiesse, die Aufzeichnung zu ändern — dieselbe Linie wie bei den
 `mode`-Werten aus `000-000-0015`. Wer alte Protokollzeilen aufbewahrt, sollte wissen, dass darin
 verwendbare Token stehen, und sie entsprechend behandeln.
 
+### `POST /api/login` und `POST /api/logout` sind entfallen
+**Seit `013-001-0005` (2026-09-10).**
+
+Sie zeigten auf `api.controller:loginAction` und `:logoutAction` — Methoden, die es im
+`ApiController` nicht gibt und in diesem Baum nie gab. **Erreicht haben sie den Router
+ohnehin nie:** `Routensammlung` zählt ihre Routen je Provider durch, `/api/login` hiess
+`login_0` und wurde beim Mounten von `/auth/login` gleichen Namens verdrängt. Gemessen: 30
+registrierte Routen, 29 in der Sammlung.
+
+Entfernt statt auf `auth.controller` umgebogen — ein zweiter Name für dieselbe Sache wäre eine
+zweite Oberfläche, die man absichern muss.
+
+*Was zu tun ist:* Nichts. Die Antwort auf `/api/login` ist dieselbe wie vorher — `405`, wie bei
+jedem unbekannten Pfad. Die funktionierenden Routen sind `/auth/login` und `/auth/logout`.
+
+### Routennamen tragen jetzt den Mountpunkt
+**Seit `013-001-0005` (2026-09-10).**
+
+`Application::mount()` stellt den Routennamen den normalisierten Mountpunkt voran, aus
+`login_0` wird `auth_login_0`. Nötig, weil `RouteCollection::addCollection()` beim Namen
+überschreibt und `Routensammlung` je Provider bei null zu zählen beginnt — zwei Provider,
+deren erste Route denselben Pfad trägt, frassen einander auf.
+
+**Das betrifft auch eigene Provider.** Ein Projekt, das über `custom/app.php` mountet, verlor
+bisher stillschweigend jede Route, deren Name mit einer schon gemounteten kollidierte.
+
+*Was zu tun ist:* In aller Regel nichts — die Namen benutzt niemand, es gibt keinen
+`url_generator`. Wer eine Route doch beim Namen nennt, zieht den Präfix nach.
+
+### LoginManager aus `Plugins\…` funktionieren
+**Seit `013-001-0005` (2026-09-10).**
+
+`substr($name, 7) == 'Plugins'` schnitt **ab** Position 7, statt die ersten sieben Zeichen zu
+prüfen. Für `Plugins\Auth\Ldap` ergab das `\Auth\Ldap`; die Bedingung griff nie, und der Name
+wurde fälschlich zu `Custom\Classes\Plugins\Auth\Ldap`.
+
+*Was zu tun ist:* Wer eine Klasse tatsächlich unter `Custom\Classes\Plugins\…` abgelegt und
+sich auf den Fehler verlassen hat, muss sie verschieben oder unter einem Namen ohne
+`Plugins`-Präfix ansprechen. Wer einen echten Plugin-LoginManager hatte, bekommt ihn zum ersten
+Mal zum Laufen.
+
 ## Feldverschlüsselung (Story `010-004`)
 
 ### Verschlüsselt wird mit XChaCha20-Poly1305 statt AES-CBC

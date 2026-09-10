@@ -290,4 +290,44 @@ class AuthApiTest extends IntegrationTestCase
 
         $this->assertNotSame(200, $status);
     }
+
+    // ── Die entfallenen Routen unter /api (013-001-0005) ──────────────────────────────
+
+    /**
+     * `POST /api/login` und `POST /api/logout` gibt es nicht.
+     *
+     * Sie waren registriert und zeigten auf `api.controller:loginAction` und `:logoutAction` —
+     * Methoden, die es im `ApiController` nicht gibt und nie gab. Erreicht haben sie den Router
+     * trotzdem nie: `Routensammlung` zählt je Provider durch, `/api/login` hiess `login_0` und
+     * wurde beim Mounten von `/auth/login` gleichen Namens verdrängt.
+     *
+     * Beides ist mit `013-001-0005` behoben — die Namen tragen jetzt den Mountpunkt, und die
+     * beiden toten Routen sind entfernt statt umgebogen. Geprüft wird, dass sie sich verhalten
+     * wie jeder andere unbekannte Pfad: dieselbe Antwort, kein Sonderfall.
+     */
+    public function testDieRoutenUnterApiGibtEsNicht(): void
+    {
+        [$unbekannt] = $this->postJson('/api/gibtsnicht-'.bin2hex(random_bytes(4)), array());
+
+        foreach (array('/api/login', '/api/logout') as $pfad) {
+            [$status] = $this->postJson($pfad, array('alias' => 'admin', 'pass' => $this->pass()));
+
+            $this->assertSame($unbekannt, $status, $pfad.' antwortet wie jeder unbekannte Pfad');
+        }
+    }
+
+    /**
+     * Und die Gegenprobe: Die Routen unter `/auth` funktionieren weiterhin.
+     *
+     * Sie sind es, die den Namensvetter verdrängt haben — an ihnen musste sich beim Aufräumen
+     * nichts ändern.
+     */
+    public function testDieRoutenUnterAuthFunktionierenWeiterhin(): void
+    {
+        [$status, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => $this->pass()));
+        $this->assertSame(200, $status);
+
+        [$abmelden] = $this->get('/auth/logout', $body['token']);
+        $this->assertSame(200, $abmelden);
+    }
 }
