@@ -1,7 +1,7 @@
 ---
 id: 010-000-0000
 title: Doctrine und Entity-Layer modernisieren
-status: in-progress
+status: done
 depends_on: [006-000-0000, 012-000-0000]
 ---
 
@@ -127,7 +127,7 @@ eigenes Epic ein Vorhaben mit einer einzigen Story.
 - [x] 010-002-0000 — doctrine/cache durch einen PSR-6-Cache ersetzen
 - [x] 010-003-0000 — Der ORM-3-Sprung
 - [x] 010-004-0000 — StringType von AES-CBC auf AEAD heben
-- [ ] 010-005-0000 — Die Gates leeren und die Altbefunde aus Epic 009 abräumen
+- [x] 010-005-0000 — Die Gates leeren und die Altbefunde aus Epic 009 abräumen
 
 ## Ergebnis (2026-09-10)
 

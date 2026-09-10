@@ -1,7 +1,7 @@
 ---
 id: 010-005-0002
 title: Den modified_index-Listener in die Factory ziehen
-status: review
+status: done
 depends_on: []
 ---
 

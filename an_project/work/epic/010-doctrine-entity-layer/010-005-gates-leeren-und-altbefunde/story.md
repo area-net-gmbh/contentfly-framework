@@ -1,7 +1,7 @@
 ---
 id: 010-005-0000
 title: Die Gates leeren und die Altbefunde aus Epic 009 abräumen
-status: review
+status: done
 depends_on: [010-003-0000]
 ---
 

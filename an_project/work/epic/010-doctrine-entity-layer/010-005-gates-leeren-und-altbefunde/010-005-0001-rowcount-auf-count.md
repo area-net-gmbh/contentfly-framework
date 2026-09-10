@@ -1,7 +1,7 @@
 ---
 id: 010-005-0001
 title: Die rowCount-Stellen auf COUNT(*) bringen
-status: review
+status: done
 depends_on: []
 ---
 

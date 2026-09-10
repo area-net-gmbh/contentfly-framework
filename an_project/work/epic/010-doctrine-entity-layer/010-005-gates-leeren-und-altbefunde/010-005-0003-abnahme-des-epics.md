@@ -1,7 +1,7 @@
 ---
 id: 010-005-0003
 title: Die Abnahme des Epics
-status: review
+status: done
 depends_on: [010-005-0001, 010-005-0002]
 ---
 
