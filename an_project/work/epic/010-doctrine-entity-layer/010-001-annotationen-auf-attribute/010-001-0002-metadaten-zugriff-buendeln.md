@@ -1,7 +1,7 @@
 ---
 id: 010-001-0002
 title: Den Zugriff auf die eigenen Metadaten an einer Stelle bündeln
-status: review
+status: done
 depends_on: [010-001-0001]
 ---
 

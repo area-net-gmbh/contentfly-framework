@@ -1,7 +1,7 @@
 ---
 id: 010-001-0001
 title: Die acht @PIM-Klassen zu Attributklassen erweitern
-status: review
+status: done
 depends_on: []
 ---
 

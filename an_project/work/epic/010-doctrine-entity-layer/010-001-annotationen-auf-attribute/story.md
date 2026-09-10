@@ -1,7 +1,7 @@
 ---
 id: 010-001-0000
 title: Annotationen auf PHP-Attribute — noch unter ORM 2.20
-status: review
+status: done
 depends_on: []
 ---
 

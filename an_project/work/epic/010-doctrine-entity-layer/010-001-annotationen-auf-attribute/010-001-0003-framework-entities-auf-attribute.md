@@ -1,7 +1,7 @@
 ---
 id: 010-001-0003
 title: Die 21 Framework-Entities auf Attribute umstellen
-status: review
+status: done
 depends_on: [010-001-0002]
 ---
 

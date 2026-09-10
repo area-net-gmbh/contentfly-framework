@@ -1,7 +1,7 @@
 ---
 id: 010-001-0004
 title: Die Vorlage umstellen und den Plugin-Pfad entscheiden
-status: review
+status: done
 depends_on: [010-001-0003]
 ---
 

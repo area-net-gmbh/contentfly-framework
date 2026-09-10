@@ -1,7 +1,7 @@
 ---
 id: 010-001-0005
 title: doctrine/annotations aus dem Baum nehmen
-status: review
+status: done
 depends_on: [010-001-0004]
 ---
 
