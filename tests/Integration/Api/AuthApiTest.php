@@ -600,4 +600,167 @@ class AuthApiTest extends IntegrationTestCase
 
         $this->assertSame(401, $nachSperrung);
     }
+
+    // ── Widerruf (013-003-0003) ───────────────────────────────────────────────────────
+
+    /**
+     * **Der Kern der Story.** Nach dem Abmelden gilt das Access-JWT nicht mehr — obwohl sein
+     * `exp` noch in der Zukunft liegt.
+     *
+     * Ohne die Sperrliste wäre das nicht so: Ein zustandsloses Token lässt sich nicht
+     * zurückrufen, solange es gilt. Bei einem Token, das jemand abgegriffen hat, ist genau das
+     * der Schaden.
+     */
+    public function testNachDemAbmeldenGiltDasAccessJwtNichtMehr(): void
+    {
+        $anmeldung = $this->jwtAnmeldung();
+        $jwt       = $anmeldung['token'];
+
+        $this->assertSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$jwt));
+        $this->assertGreaterThan(0, $anmeldung['expiresIn'], 'Das Token gilt noch');
+
+        [$abmelden] = $this->get('/auth/logout', $jwt);
+        $this->assertSame(200, $abmelden);
+
+        $this->assertNotSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$jwt),
+            'Dasselbe, noch nicht abgelaufene Token oeffnet nichts mehr');
+
+        $this->sperrlisteAufraeumenLassen();
+    }
+
+    /**
+     * Das mitgeschickte Refresh-Token wird entzogen.
+     *
+     * Sonst holt sich der Inhaber gleich ein neues Access-JWT, und die Sperre war umsonst. Der
+     * Client muss es mitschicken, weil das Access-JWT nicht sagt, zu welcher Refresh-Zeile es
+     * gehört — die Verbindung stünde sonst als sechster Claim darin, und der Claim-Satz ist
+     * absichtlich klein.
+     */
+    public function testDasAbmeldenEntziehtDasMitgeschickteRefreshToken(): void
+    {
+        $anmeldung = $this->jwtAnmeldung();
+
+        [$abmelden] = $this->get('/auth/logout?refreshToken='.$anmeldung['refreshToken'], $anmeldung['token']);
+        $this->assertSame(200, $abmelden);
+
+        [$status] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['refreshToken']));
+        $this->assertSame(401, $status, 'Das Refresh-Token ist weg');
+
+        $this->sperrlisteAufraeumenLassen();
+    }
+
+    /**
+     * Ohne mitgeschicktes Refresh-Token bleibt es stehen — und das ist die dokumentierte Lage,
+     * kein Versehen.
+     */
+    public function testOhneMitgeschicktesRefreshTokenBleibtEsBestehen(): void
+    {
+        $anmeldung = $this->jwtAnmeldung();
+
+        $this->get('/auth/logout', $anmeldung['token']);
+
+        [$status] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['refreshToken']));
+        $this->assertSame(200, $status, 'Es verfaellt ueber sein eigenes Zeitlimit, nicht beim Abmelden');
+
+        $this->sperrlisteAufraeumenLassen();
+    }
+
+    /**
+     * **Nur das eigene.** Ohne diese Prüfung wäre `logout` ein Endpunkt, mit dem ein beliebiger
+     * angemeldeter Benutzer fremde Sitzungen beenden könnte.
+     */
+    public function testEinFremdesRefreshTokenLaesstSichNichtAbmelden(): void
+    {
+        [, $userId] = $this->testbenutzer();
+
+        [, $fremd] = $this->postJson('/auth/login', array(
+            'alias'     => $this->aliasZu($userId),
+            'pass'      => self::TEST_PASSWORT,
+            'tokenType' => 'jwt',
+        ));
+
+        $eigene = $this->jwtAnmeldung();
+
+        $this->get('/auth/logout?refreshToken='.$fremd['refreshToken'], $eigene['token']);
+
+        [$status] = $this->postJson('/auth/refresh', array('refreshToken' => $fremd['refreshToken']));
+        $this->assertSame(200, $status, 'Das fremde Refresh-Token gilt weiterhin');
+
+        $this->sperrlisteAufraeumenLassen();
+    }
+
+    /**
+     * **Eine Benutzersperrung wirkt schon ohne Sperrliste sofort — gemessen.**
+     *
+     * Der Story-Text nannte die Sperrung als Anwendungsfall der Liste. Sie ist es seit
+     * `013-002-0001` nicht mehr: Der JWT-Zweig gibt sein `UserBadge` ohne eigenen Lader zurück,
+     * also lädt der `Benutzerlader` den Benutzer aus `pim_user` und weist einen gesperrten mit
+     * derselben Ausnahme ab wie einen unbekannten.
+     *
+     * Der Test steht hier, damit die Zusicherung nicht unbelegt dasteht — und damit auffällt,
+     * wenn jemand den Ladeweg umbaut und dabei die Sperrung mit abschaltet.
+     */
+    public function testEineBenutzersperrungWirktSofortUndOhneSperrliste(): void
+    {
+        [, $userId] = $this->testbenutzer();
+
+        [, $anmeldung] = $this->postJson('/auth/login', array(
+            'alias'     => $this->aliasZu($userId),
+            'pass'      => self::TEST_PASSWORT,
+            'tokenType' => 'jwt',
+        ));
+
+        $this->assertSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$anmeldung['token']));
+
+        $sperren = $this->pdo()->prepare('UPDATE pim_user SET isActive = 0 WHERE id = :id');
+        $sperren->execute(array('id' => $userId));
+
+        $this->assertSame(0, (int) $this->pdo()->query('SELECT COUNT(*) FROM pim_revoked_token')->fetchColumn(),
+            'Kein Eintrag in der Sperrliste — die Sperrung wirkt ohne sie');
+        $this->assertNotSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$anmeldung['token']));
+    }
+
+    /**
+     * Die Sperrliste bleibt klein: Ein Eintrag verfällt mit dem Token, das er sperrt, und
+     * `appcms:token:cleanup` räumt ihn weg — kein zweiter Aufräumweg.
+     */
+    public function testGegenstandsloseSperrEintraegeWerdenAufgeraeumt(): void
+    {
+        $jti = 'test-'.bin2hex(random_bytes(8));
+
+        $this->pdo()->prepare(
+            'INSERT INTO pim_revoked_token (jti, expiresAt, created, modified) VALUES (:j, :e, :c, :c)'
+        )->execute(array(
+            'j' => $jti,
+            'e' => (new \DateTime('-1 hour'))->format('Y-m-d H:i:s'),
+            'c' => (new \DateTime('-2 hours'))->format('Y-m-d H:i:s'),
+        ));
+
+        $this->sperrlisteAufraeumenLassen();
+
+        $zaehlen = $this->pdo()->prepare('SELECT COUNT(*) FROM pim_revoked_token WHERE jti = :j');
+        $zaehlen->execute(array('j' => $jti));
+
+        $this->assertSame('0', (string) $zaehlen->fetchColumn());
+    }
+
+    /**
+     * Räumt die Sperrliste nach einem Test wieder leer.
+     *
+     * Die Einträge sind Reste eines Abmeldens und stören nachfolgende Tests nicht — aber
+     * `testEineBenutzersperrungWirktSofortUndOhneSperrliste` zählt sie, und eine leere Liste ist
+     * die einzige Aussage, die dieser Test treffen kann.
+     */
+    private function sperrlisteAufraeumenLassen(): void
+    {
+        $this->pdo()->exec('DELETE FROM pim_revoked_token WHERE expiresAt < NOW()');
+
+        exec(sprintf(
+            '%s %s appcms:token:cleanup 2>&1',
+            escapeshellarg(PHP_BINARY),
+            escapeshellarg(ROOT_DIR.'/bin/console.php')
+        ));
+
+        $this->pdo()->exec('DELETE FROM pim_revoked_token');
+    }
 }

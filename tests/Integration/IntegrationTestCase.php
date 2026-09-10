@@ -57,6 +57,8 @@ abstract class IntegrationTestCase extends TestCase
      */
     protected function tearDown(): void
     {
+        $this->bremsspeicherLeeren();
+
         foreach (array_reverse($this->aufzuraeumen) as [$tabelle, $id]) {
             $stmt = $this->pdo()->prepare("DELETE FROM `$tabelle` WHERE id = :id");
             $stmt->execute(array('id' => $id));
@@ -68,6 +70,32 @@ abstract class IntegrationTestCase extends TestCase
 
         $this->aufzuraeumen  = array();
         $this->verzeichnisse = array();
+    }
+
+    /**
+     * Leert den Speicher der Anmeldebremse (013-003-0003).
+     *
+     * DIE SUITE IST KEIN REALISTISCHER CLIENT. Sie erzeugt in wenigen Sekunden mehr
+     * Fehlversuche, als eine Adresse pro Minute machen darf — falsche Passwoerter, unbekannte
+     * Kennungen, ungueltige Refresh-Token, und all das von 127.0.0.1. Ohne Aufraeumen
+     * entscheidet die Reihenfolge der Testklassen darueber, welche noch durchkommt: Beim ersten
+     * Lauf mit den Refresh-Tests waren 87 Tests rot, alle mit „Zu viele Anmeldeversuche".
+     *
+     * DAS SCHWAECHT NICHTS AB. `AnmeldebremseApiTest` misst die Bremse innerhalb EINES
+     * Testverfahrens; was hier zwischen zwei Verfahren weggeraeumt wird, hat dort nie eine
+     * Aussage getragen.
+     *
+     * Stillschweigend, wenn das Verzeichnis nicht erreichbar ist: Dann laeuft der Testserver
+     * woanders, und das ist der Fall, den `AnmeldebremseApiTest` mit einer eigenen, strengeren
+     * Pruefung abfaengt.
+     */
+    protected function bremsspeicherLeeren(): void
+    {
+        $wurzel = dirname(__DIR__, 2);
+
+        if (is_dir($wurzel.'/data/cache')) {
+            $this->verzeichnisEntfernen($wurzel.'/data/cache/loginbremse');
+        }
     }
 
     // ── Anmeldung ──────────────────────────────────────────────────────────────────────
