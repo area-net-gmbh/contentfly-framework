@@ -17,7 +17,7 @@ Braucht die Security-Komponente, also den Symfony-Kernel aus Epic `009`.
 
 ## Umfang
 
-**Firewall**, zustandslos, mit einem Handler und zwei Extractoren:
+**Zustandslos, mit einem Handler und zwei Extractoren.** Als Konfiguration sähe das so aus:
 
 ```yaml
 firewalls:
@@ -27,6 +27,16 @@ firewalls:
             token_handler: ContentflyTokenHandler
             token_extractors: ['header', LegacyHeaderExtractor]
 ```
+
+**Dieses YAML gibt es hier aber nicht, und das ändert den Weg** (nachgemessen am 2026-09-10):
+Der Baum hat kein `config/`-Verzeichnis und kein SecurityBundle — der Kernel ist der eigene aus
+Epic `009` mit `before()`-Hooks je Provider. `AccessTokenAuthenticator` ist eine gewöhnliche
+Klasse aus `symfony/security-http` und braucht keine Firewall, sondern einen Handler, einen
+Extractor und optional einen Benutzerlader: `supports()` fragt den Extractor, `authenticate()`
+liefert einen `SelfValidatingPassport` mit dem `UserBadge` des Handlers, `getUser()` löst ihn
+auf. Gefahren wird er von einem eigenen Treiber. Das Ergebnis ist dasselbe, die
+Firewall-Maschinerie mit `AuthenticatorManager`, `FirewallMap` und `TokenStorage` bleibt aussen
+vor.
 
 **Der verzweigende Handler.** Symfony erlaubt genau einen `token_handler` pro Firewall und bringt
 keine Verkettung mit — die schreibt man selbst, es sind rund 20 Zeilen:
@@ -38,9 +48,18 @@ keine Verkettung mit — die schreibt man selbst, es sind rund 20 Zeilen:
 Beide Zweige münden in dasselbe `UserBadge`. Ein ungültiges Token darf in beiden Fällen
 ununterscheidbar scheitern — verschiedene Fehlermeldungen verraten, welche Tokenart erwartet wird.
 
+**Diese Story verifiziert JWT, sie stellt keine aus.** Die Ausstellung, die Schlüsselverwaltung
+samt Wechsel und der Widerruf sind `013-003`. Hier reicht ein Signaturgeheimnis aus der
+Umgebung; der Test signiert sich sein Token selbst.
+
 **Der Legacy-Extractor ist nicht optional.** Bestandsprojekte schicken `appcms-token`,
 `X-XSRF-TOKEN` oder `_token` im Request, nicht `Authorization: Bearer`. Ohne ihn bricht jeder
 bestehende Ionic-Client beim Update. Wie lange er mitläuft, entscheidet Epic `007`.
+
+Nachgezählt sind es **vier** Altquellen, und die Reihenfolge in `checkToken()` ist
+`appcms-token` · `_token` aus dem Query-String · `_token` aus dem Rumpf · `X-XSRF-TOKEN`.
+Symfonys `FormEncodedBodyExtractor` deckt die dritte **nicht** ab: Er verlangt
+`application/x-www-form-urlencoded`, Contentfly schickt JSON.
 
 **Berechtigungen bleiben, wie sie sind.** Das Contentfly-eigene Modell (`Permission`,
 `I18nPermission`, `Group`, `isAdmin`) wird nicht durch Symfony-Rollen ersetzt; abgebildet wird nur,
@@ -59,3 +78,7 @@ Thema und gehört nicht in diese Story.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
+- [ ] 013-002-0001 — Der Unterbau: security-http ohne Firewall-YAML
+- [ ] 013-002-0002 — Die Extractoren, samt dem für Bestandsclients
+- [ ] 013-002-0003 — Der verzweigende TokenHandler
+- [ ] 013-002-0004 — Umschalten und checkToken() entfernen
