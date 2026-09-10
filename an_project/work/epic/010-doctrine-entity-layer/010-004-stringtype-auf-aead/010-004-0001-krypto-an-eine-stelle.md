@@ -1,7 +1,7 @@
 ---
 id: 010-004-0001
 title: Den doppelten Krypto-Code an eine Stelle ziehen
-status: review
+status: done
 depends_on: []
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: 010-004-0003
 title: Der Re-Encrypt-Befehl mit Trockenlauf und Rückweg
-status: review
+status: done
 depends_on: [010-004-0002]
 ---
 

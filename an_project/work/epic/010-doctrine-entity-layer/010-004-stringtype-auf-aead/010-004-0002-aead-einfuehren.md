@@ -1,7 +1,7 @@
 ---
 id: 010-004-0002
 title: XChaCha20-Poly1305 einführen, altes Format weiter lesen
-status: review
+status: done
 depends_on: [010-004-0001]
 ---
 

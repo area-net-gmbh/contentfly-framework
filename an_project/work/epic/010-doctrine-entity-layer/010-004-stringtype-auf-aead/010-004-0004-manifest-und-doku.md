@@ -1,7 +1,7 @@
 ---
 id: 010-004-0004
 title: Manifest, Dokumente und Bruchstellen
-status: review
+status: done
 depends_on: [010-004-0003]
 ---
 
