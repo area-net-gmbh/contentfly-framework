@@ -1,7 +1,7 @@
 ---
 id: 010-002-0000
 title: doctrine/cache durch einen PSR-6-Cache ersetzen
-status: in-progress
+status: review
 depends_on: []
 ---
 
@@ -22,8 +22,8 @@ und griff nicht.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 010-002-0001 — symfony/cache aufnehmen und Filesystem und APCu umstellen
-- [ ] 010-002-0002 — Die nicht lauffähigen Treiberzweige entscheiden
-- [ ] 010-002-0003 — Den Cache-Leeren-Endpunkt auf PSR-6 bringen
-- [ ] 010-002-0004 — doctrine/cache aus dem Baum nehmen
-- [ ] 010-002-0005 — Der Metadaten-Cache erreicht die Factory nie
+- [x] 010-002-0001 — symfony/cache aufnehmen und Filesystem und APCu umstellen
+- [x] 010-002-0002 — Die nicht lauffähigen Treiberzweige entscheiden
+- [x] 010-002-0003 — Den Cache-Leeren-Endpunkt auf PSR-6 bringen
+- [x] 010-002-0004 — doctrine/cache aus dem Baum nehmen
+- [x] 010-002-0005 — Der Metadaten-Cache erreicht die Factory nie
