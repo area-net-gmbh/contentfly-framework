@@ -3,6 +3,9 @@
 # Changelog
 
 ## 2026-09-09
+- 010-003-0000 → in-progress
+- 010-003-0001 → in-progress
+- 010-003-0001 → review: **Die drei Umschreibungen stehen, die Suite ist unverändert grün** — `OK (268 tests, 642 assertions)`. Damit ist der erste der beiden Blocker des Sprungs weg: `EntityManager::create()` → `new EntityManager(...)` (1 Stelle), `Lexer::T_*` → `TokenType::T_*` (11 Stellen in drei DQL-Funktionen), `ClassMetadataInfo::` → `ClassMetadata::` (2 Stellen). Keine davon ist eine Verhaltensänderung — die Ziele gibt es in ORM 2.20 bereits. **Der verlangte Nachweis über echte Abfragen hat einen Befund zutage gefördert:** `Distance` und `PointStr` sind **nirgends registriert**. Die Liste der eigenen DQL-Funktionen steht fest in `bootstrap.php` und `InstallCommand` und enthält nur `Find_In_Set`; sie lässt sich von aussen nicht ergänzen, beide Funktionen sind für jedes Projekt unerreichbar. Für die Probe von Hand nachgereicht — sonst hätte sich der Tokenwechsel dort nicht zeigen lassen; alle drei parsen, `Find_In_Set` läuft und liefert den einen erwarteten Treffer. Der Befund ist älter als der Task und nicht angefasst. **Beim Messen selbst danebengegriffen:** Die ersten Proben scheiterten mit `Expected T_CLOSE_PARENTHESIS, got ','` und sahen nach einem kaputten Tokenwechsel aus — es lag an der Argumentzahl meiner Abfrage. **Regel 3 hat sofort ausgelöst:** Zwei PHPStan-Muster trafen nichts mehr und sind gestrichen, obwohl `010-003-0003` die Aufräumung trägt — sie waren **hier** gegenstandslos geworden; das Kriterium ist entsprechend richtiggestellt. Die drei Console-Muster bleiben, weil die Commands erst mit dem Sprung fallen
 - 010-002-0000 → in-progress
 - 010-002-0001 → in-progress
 - 000-000-0024 task created: "Ein Fehler im Bootstrap antwortet mit einer leeren 500" (Befund aus 010-002-0002)
