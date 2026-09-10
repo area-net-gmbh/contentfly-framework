@@ -1,7 +1,7 @@
 ---
 id: 013-003-0004
 title: Schlüsselwechsel ohne Zwangsabmeldung
-status: review
+status: done
 depends_on: [013-003-0001]
 ---
 

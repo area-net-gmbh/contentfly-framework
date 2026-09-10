@@ -1,7 +1,7 @@
 ---
 id: 013-003-0000
 title: JWT ausstellen und widerrufen
-status: review
+status: done
 depends_on: [013-002-0000]
 ---
 
@@ -66,8 +66,8 @@ gehört **nicht** hinein, sonst wirkt eine Rechteänderung erst nach Ablauf.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 013-003-0001 — Die Claims und die Ausstellung
-- [ ] 013-003-0002 — Der Refresh-Weg
-- [ ] 013-003-0003 — Widerruf: Logout und die Sperrliste
-- [ ] 013-003-0004 — Schlüsselwechsel ohne Zwangsabmeldung
-- [ ] 013-003-0005 — Die Buchführung
+- [x] 013-003-0001 — Die Claims und die Ausstellung
+- [x] 013-003-0002 — Der Refresh-Weg
+- [x] 013-003-0003 — Widerruf: Logout und die Sperrliste
+- [x] 013-003-0004 — Schlüsselwechsel ohne Zwangsabmeldung
+- [x] 013-003-0005 — Die Buchführung
