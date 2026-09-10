@@ -145,6 +145,35 @@ Im **Debug-Modus** und auf der **Konsole** ist kein Cache aktiv — dort soll ni
 veraltete Metadaten arbeiten. Das gilt unverändert und ist der Grund, warum `appcms:install`
 nichts in die Cache-Verzeichnisse schreibt.
 
+## Verschlüsselte Felder umschlüsseln
+
+Betrifft nur Projekte, die Felder mit `#[PIM\Config(encoded: true)]` haben. **Das Framework
+selbst hat keines** — ein Lauf hier meldet folgerichtig, dass es nichts zu tun gibt.
+
+Seit `010-004-0002` schreibt das Framework XChaCha20-Poly1305 und liest beide Formate. Ein
+Bestandswert bleibt also lesbar und wird beim nächsten Schreiben nebenbei umgestellt. Wer nicht
+warten will, bis jeder Datensatz einmal angefasst wurde, lässt den Befehl laufen.
+
+**Der Ablauf, in dieser Reihenfolge:**
+
+1. **Sicherung der Datenbank anlegen.** Das ist der Rückweg, und es ist der einzige — ein
+   umgeschlüsselter Wert lässt sich nicht zurückrechnen, ohne den alten Schlüssel erneut
+   anzuwenden.
+2. **Trockenlauf:** `php bin/console.php appcms:security:reencrypt --dry-run`. Er zählt je Feld,
+   was er täte, und fasst nichts an.
+3. **Echter Lauf:** derselbe Befehl ohne `--dry-run`. `--batch` setzt die Stapelgrösse, Vorgabe
+   500 Zeilen.
+4. **Zweiter Trockenlauf** als Prüfung: Er muss `0 umgeschlüsselt` melden.
+
+**Ein abgebrochener Lauf ist kein Schaden.** Jeder Stapel ist eine Transaktion, beide Formate
+bleiben lesbar, und der Befehl überspringt, was schon umgestellt ist — ein erneuter Start macht
+dort weiter, wo er aufgehört hat.
+
+**Wofür die Sicherung wirklich da ist:** für den Fall, dass jemand mit dem falschen
+`SECURITY_CIPHER_KEY` gelaufen ist. Dann sind die Werte nicht kaputt, aber mit einem Schlüssel
+verschlüsselt, den niemand wollte. Der Befehl hält an, sobald sich ein Wert nicht entschlüsseln
+lässt, und nennt genau diesen Verdacht.
+
 ## Die Gates
 
 Vier Prüfungen, verankert mit Story `006-005`. Zwei blockieren, zwei melden:
