@@ -1,11 +1,15 @@
 <?php
 /*
- * Der Web-Einstiegspunkt benennt das Projektverzeichnis (007-001-0002).
+ * Der Web-Einstiegspunkt (007-001-0003).
  *
- * Das Framework rechnet es nicht mehr aus seiner eigenen Lage aus — es bekommt es von hier.
- * Damit ist es gleichgueltig, ob der Frameworkcode unter `lib/` im Projekt liegt oder als
- * Paket unter `vendor/`.
+ * Er tut zwei Dinge und kennt dabei keinen Pfad in den Frameworkcode: Er laedt den Autoloader
+ * und benennt das Projektverzeichnis. Ob Contentfly unter `lib/` im Projekt liegt oder unter
+ * `vendor/areanet/contentfly/`, sieht diese Datei nicht.
+ *
+ * Bis 007-001-0002 stand hier `require_once __DIR__.'/lib/contentfly/bootstrap-web.php';` — der
+ * Bootstrap lud daraufhin selbst den Autoloader. Ein Paket wird vom Autoloader geladen, es
+ * laedt ihn nicht.
  */
-define('CONTENTFLY_PROJEKT', __DIR__);
+require_once __DIR__ . '/vendor/autoload.php';
 
-require_once __DIR__.'/lib/contentfly/bootstrap-web.php';
+\Areanet\PIM\Classes\Kernel\Start::web(__DIR__);

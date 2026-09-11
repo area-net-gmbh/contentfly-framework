@@ -113,6 +113,18 @@ gar nicht mehr entstehen.
 genau einen Baum gibt. Ein Test, der eine Bedingung bewacht hat, die weggefallen ist, bewacht
 danach, dass sie weggefallen bleibt.
 
+> **Umgesetzt mit `007-001-0003`.** Der zweite Autoloader wird nicht mehr geladen; ein
+> liegengebliebenes `custom/vendor/` weist `Classes\Kernel\Start` zur Laufzeit ab, statt es
+> stillschweigend zu übergehen. Der Test prüft drei Dinge: dass der Baum des Projekts das
+> Framework führt, dass es keinen zweiten gibt, und dass das Framework seinen eigenen
+> Autoloader nicht mehr lädt.
+>
+> **Dabei ist ein Fall aufgefallen, den diese Entscheidung nicht bedacht hatte:**
+> `Classes/Plugin::initComposer()` lädt den eigenen `vendor/`-Baum **jedes Plugins**. „Ein Baum
+> je Projekt" gilt damit nicht ausnahmslos, und die Überschneidungsgefahr aus `006-004` ist je
+> Plugin zurück — ungeprüft. Der Test führt es als benannte Ausnahme; entschieden wird es mit
+> `007-001-0004`, zusammen mit der Frage, was aus `plugins/` wird.
+
 **Revidieren, wenn** ein Projekt Pakete braucht, die es dem Framework *vorenthalten* muss —
 dann wäre ein zweiter Baum wieder ein Mittel. Heute gibt es diesen Fall nicht: Nach
 `006-001-0004` gehört kein einziges der ehemals neun `custom/`-Pakete dorthin, und

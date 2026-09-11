@@ -1,12 +1,13 @@
 <?php
 set_time_limit(0);
 
-define('APPCMS_CONSOLE', true);
+/*
+ * Gleich gebaut wie index.php (007-001-0003): Autoloader laden, Projektverzeichnis benennen,
+ * Start rufen. Kein Pfad in den Frameworkcode. `APPCMS_CONSOLE` setzt Start selbst.
+ */
+require_once dirname(__DIR__) . '/vendor/autoload.php';
 
-// Das Projektverzeichnis wird benannt, nicht gerechnet (007-001-0002).
-define('CONTENTFLY_PROJEKT', dirname(__DIR__));
-
-require_once __DIR__.'/../lib/contentfly/bootstrap.php';
+$app = \Areanet\PIM\Classes\Kernel\Start::konsole(dirname(__DIR__));
 
 use Doctrine\DBAL\Tools\Console\ConnectionProvider\SingleConnectionProvider;
 use Doctrine\ORM\Tools\Console\EntityManagerProvider\SingleManagerProvider;

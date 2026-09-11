@@ -20,20 +20,18 @@
 define('CONTENTFLY_PROJEKT', dirname(__DIR__));
 
 /*
- * Dieselbe Reihenfolge wie in `lib/contentfly/bootstrap.php`, und aus demselben Grund: Root
- * zuerst, `custom/` ergänzend. Bei einem gemeinsamen PSR-4-Präfix gewinnt der Root — eine
- * Zusicherung seit `006-004-0001`, begründet in `an_project/docs/architecture.md` unter
- * *Key decisions*. Die Bedingung dahinter — keine Überschneidung — prüft
- * `tests/Unit/AutoloaderUeberschneidungTest.php`.
+ * EIN Autoloader, nicht zwei (007-001-0003).
  *
- * Die Spiegelung ist Absicht: Ein Testlauf, der anders lädt als die Anwendung, prüft eine
+ * Hier wurde zusätzlich `custom/vendor/autoload.php` geladen, gespiegelt aus
+ * `lib/contentfly/bootstrap.php` — mit der Zusicherung aus `006-004-0001`, dass bei einem
+ * gemeinsamen PSR-4-Präfix der Root gewinnt. Mit dem Bibliothekspaket hat ein Projekt genau
+ * einen Baum, in dem das Framework als Abhängigkeit liegt; die Rangfolge hat dann nichts mehr
+ * zu regeln.
+ *
+ * Die Spiegelung bleibt Absicht: Ein Testlauf, der anders lädt als die Anwendung, prüft eine
  * andere Anwendung.
  */
 require_once CONTENTFLY_PROJEKT . '/vendor/autoload.php';
-
-if (file_exists(CONTENTFLY_PROJEKT . '/custom/vendor/autoload.php')) {
-    require_once CONTENTFLY_PROJEKT . '/custom/vendor/autoload.php';
-}
 
 /*
  * Die Suite ist ein Einstiegspunkt wie index.php und bin/console.php — also uebergibt sie das

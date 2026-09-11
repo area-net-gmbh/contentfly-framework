@@ -546,6 +546,59 @@ zwei — und ein Aufruf, der bisher beides meinte, muss sich entscheiden.
 In `custom/config.php` steht die Konstante ebenfalls, für den Fundort der `.env`. Die
 ausgelieferte Vorlage ist nachgezogen; wer sie angepasst hat, zieht die eine Zeile mit.
 
+### Der Einstiegspunkt lädt den Autoloader und ruft `Start`
+**Seit `007-001-0003` (2026-09-11).**
+
+`index.php` band bisher direkt `lib/contentfly/bootstrap-web.php` ein, und der Bootstrap lud
+daraufhin selbst `vendor/autoload.php`. **Ein Paket wird vom Autoloader geladen — es lädt ihn
+nicht.** Solange der Bootstrap die erste eingebundene Datei ist, kann der Frameworkcode nicht in
+`vendor/` liegen: Um ihn zu finden, bräuchte man den Autoloader, den er selbst erst lädt.
+
+*Was zu tun ist:* Die drei Einstiegspunkte auf dieselbe Form bringen.
+
+```php
+// index.php
+require_once __DIR__ . '/vendor/autoload.php';
+\Areanet\PIM\Classes\Kernel\Start::web(__DIR__);
+```
+
+```php
+// bin/console.php und bin/cli-config.php
+require_once dirname(__DIR__) . '/vendor/autoload.php';
+$app = \Areanet\PIM\Classes\Kernel\Start::konsole(dirname(__DIR__));
+```
+
+**Damit steht in keinem Einstiegspunkt mehr ein Pfad in den Frameworkcode.** Das ist der Zweck:
+Ob Contentfly unter `lib/` im Projekt liegt oder unter `vendor/areanet/contentfly/`, sieht die
+Datei nicht mehr. `APPCMS_CONSOLE` setzt `Start::konsole()` selbst.
+
+`lib/contentfly/bootstrap.php` direkt einzubinden bricht ab, mit einer Meldung, die auf `Start`
+zeigt.
+
+### `custom/vendor/` wird nicht mehr geladen — und ein Rest davon bricht den Start ab
+**Seit `007-001-0003` (2026-09-11).**
+
+Ein Projekt hatte zwei Composer-Bäume: den Root und `custom/vendor/`, geladen in dieser
+Reihenfolge, mit der Zusicherung aus `006-004-0001`, dass bei einem gemeinsamen PSR-4-Präfix der
+Root gewinnt. Mit dem Bibliothekspaket fällt die Grundlage weg — das Framework ist dann eine
+Abhängigkeit **im** Baum des Projekts.
+
+**Der Ersatz ist stärker als die Zusicherung, die er ablöst.** Die alte Regel hielt eine
+Überschneidung *fern*, solange ein Test die Bedingung prüfte. Composer *verweigert* unvereinbare
+Constraints beim Auflösen. Der Fall, an dem das jahrelang scheiterte — `psr/log` in 1.1.3 und
+3.0.2 gleichzeitig im Prozess —, kann nicht mehr entstehen.
+
+*Was zu tun ist:* Was `custom/composer.json` noch braucht, in das Manifest des Projekts
+übernehmen, dann `custom/vendor/` und `custom/composer.json` entfernen.
+
+**Liegen bleiben geht nicht.** Findet der Start ein `custom/vendor/autoload.php`, bricht er ab
+und sagt warum. Das ist Absicht: Ein Baum, der daliegt und nicht mehr geladen wird, sieht aus
+wie einer, der benutzt wird — die Folgemeldung handelte dann von einer fehlenden Klasse und
+nicht von einem Baum, der nicht mehr gilt.
+
+**Nicht betroffen sind Plugins.** Ein Plugin bringt weiterhin seinen eigenen `vendor/`-Baum mit,
+und `Classes/Plugin::initComposer()` lädt ihn. Ob das so bleibt, entscheidet `007-001-0004`.
+
 ---
 
 ## Kernel (Epic `009`)

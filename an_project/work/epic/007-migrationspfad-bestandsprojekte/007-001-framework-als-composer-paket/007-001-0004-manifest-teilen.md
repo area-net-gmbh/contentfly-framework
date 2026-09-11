@@ -42,7 +42,7 @@ es eine.
 - [ ] Das Bibliothekspaket trägt `type: library`, einen eigenen Namen und nur den Namensraum des Frameworks.
 - [ ] Projektcode, Plugins und Tests hängen nicht mehr am Manifest des Frameworks.
 - [ ] Jeder Posten des alten Manifests ist zugeordnet — `extra.hinweis`, `platform`, `audit.ignore`, `suggest`, `require-dev`, `autoload-dev`; keiner geht verloren, keiner liegt doppelt.
-- [ ] Die Entscheidung zu `plugins/` ist umgesetzt und begründet.
+- [ ] Die Entscheidung zu `plugins/` ist umgesetzt und begründet — **einschliesslich der Frage, die `007-001-0003` aufgeworfen hat:** `Classes/Plugin::initComposer()` laedt den eigenen `vendor/`-Baum jedes Plugins. Die Entscheidung aus `007-001-0001` sprach von „einem Baum je Projekt" und hatte die Plugins nicht bedacht. Damit ist die Überschneidungsgefahr aus `006-004` je Plugin zurück — ungeprüft.
 - [ ] Die beiden toten Importe auf Projektklassen sind weg (`OnejoinType` → `Custom\Entity\TestMeta`, `SystemController` → `Custom\Entity\Ansprechpartner`; beide Klassen existieren nicht). Nachgetragen mit `007-001-0001`, weil erst die Trennlinie sie zu einem Befund macht.
 - [ ] Die Gates laufen weiter: `composer audit --locked` ohne Advisories, PHPStan `[OK] No errors`, 0 Deprecations.
 - [ ] Die volle Suite bleibt grün.
