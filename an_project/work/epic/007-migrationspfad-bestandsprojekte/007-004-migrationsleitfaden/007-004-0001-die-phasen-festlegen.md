@@ -1,7 +1,7 @@
 ---
 id: 007-004-0001
 title: Die Phasen festlegen und das Register zuordnen
-status: todo
+status: done
 depends_on: []
 ---
 
@@ -46,12 +46,57 @@ der Leitfaden den Weg — aber es ist eine Entscheidung und keine Selbstverstän
 welcher Reihenfolge er erzählt.
 
 ## Acceptance criteria
-- [ ] Die Phasen stehen fest, mit je einem Satz, was in ihr passiert und warum sie dort steht.
-- [ ] Jeder der 14 Register-Abschnitte ist genau einer Phase zugeordnet; keiner bleibt offen.
-- [ ] Wo eine Reihenfolge **erzwungen** ist, steht der Grund dabei — nicht nur die Reihenfolge.
-- [ ] Die Entscheidung „abschnittsweise statt eintragsweise" steht mit ihrem Preis.
-- [ ] Die Zuordnung liegt an der Stelle, an der `007-004-0002` sie übernehmen kann, ohne sie neu zu erfinden.
+- [x] Die Phasen stehen fest, mit je einem Satz, was in ihr passiert und warum sie dort steht.
+- [x] Jeder der 14 Register-Abschnitte ist genau einer Phase zugeordnet; keiner bleibt offen.
+- [x] Wo eine Reihenfolge **erzwungen** ist, steht der Grund dabei — nicht nur die Reihenfolge.
+- [x] Die Entscheidung „abschnittsweise statt eintragsweise" steht mit ihrem Preis.
+- [x] Die Zuordnung liegt an der Stelle, an der `007-004-0002` sie übernehmen kann, ohne sie neu zu erfinden.
 
 ## Verification
 Ein Leser kann zu jedem der 14 Abschnitte sagen, in welcher Phase er abgearbeitet wird — und für
 mindestens drei Phasen, warum sie nicht früher oder später stehen kann.
+
+## Ergebnis
+
+**Neun Phasen, und die Reihenfolge ist an drei Stellen erzwungen** — dort steht der Grund dabei,
+nicht nur die Zahl.
+
+| # | Phase | Erzwungen? |
+|---|---|---|
+| 1 | Voraussetzungen und Sicherung | — |
+| 2 | Bezugsweg: von der Kopie auf das Paket | **ja** — die Rector-Regel für Phase 3 kommt mit dem Paket |
+| 3 | Entities migrieren | — |
+| 4 | Datenbankschicht nachziehen | **teilweise** — der Metadaten-Cache muss *vor* dem ORM-Upgrade geleert werden |
+| 5 | Konfiguration nachziehen | — |
+| 6 | Code nachziehen | — |
+| 7 | Authentifizierung nachziehen | — |
+| 8 | Den API-Vertrag prüfen | — |
+| 9 | Daten migrieren | **ja** — der Re-Encrypt-Lauf braucht eine laufende Anwendung |
+
+**Alle 14 Register-Abschnitte sind zugeordnet, jeder genau einmal.** Nachgezählt: kein Abschnitt
+bleibt offen.
+
+## Die Regel, die die Zuordnung erst eindeutig macht
+
+**Ein Abschnitt gehört in die Phase, in der seine Handlung liegt — nicht in jede, die er
+berührt.** Ohne diese Regel wäre die Zuordnung nicht eindeutig, und genau daran wäre die
+abschnittsweise Granularität gescheitert.
+
+Der Fall, an dem es sich zeigt: *Feldverschlüsselung* fordert `ext-sodium` schon in Phase 1,
+ändert die Ableitung des Schlüssels in Phase 5 und hat seinen eigentlichen Schritt — den
+Re-Encrypt-Lauf — in Phase 9. Zugeordnet ist er **Phase 9**; wo er früher hineinragt, sagt es
+der Text der Phase.
+
+## Der Preis der Granularität, ausgesprochen
+
+**Abschnittsweise heisst: Ein neuer Eintrag in einem bereits zugeordneten Abschnitt gilt
+automatisch als abgedeckt.** Das steht im Leitfaden und nicht nur hier, weil es der Nächste
+wissen muss, der einen Bruch aufschreibt.
+
+Dazu die Anweisung, die den Fall auffängt, in dem es nicht mehr trägt: **Wer einen Bruch
+aufnimmt, der in keine der neun Phasen passt, hat einen gefunden, den dieser Leitfaden nicht
+führt.** Dann gehört die Phasenliste erweitert — und nicht der Eintrag hineingezwängt.
+
+**Kein Prosatext, kein Schritt ausformuliert.** `an_project/docs/migration.md` trägt bis hierhin
+nur die Phasen und die Zuordnung; der Weg selbst kommt mit `007-004-0002`. Das war der Zweck der
+Trennung: Entstünde die Reihenfolge beim Schreiben, entstünde sie aus der Ordnung des Registers.
