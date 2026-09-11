@@ -139,8 +139,26 @@ $app['anmeldeanbieter']->eintragen('beispiel', function () {
     return new \Custom\Classes\Anmeldung\BeispielProvider();
 });
 
-//   Ein echtes Projekt traegt daneben oder stattdessen seinen eigenen ein:
+//   Das Framework bringt seit `013-005` zwei fertige Provider mit. Beide sind NICHT
+//   eingetragen — das bleibt die Entscheidung des Projekts:
 //
-//   $app['anmeldeanbieter']->eintragen('ldap', function () use ($app) {
-//       return new \Custom\Classes\Anmeldung\LdapProvider($app);
+//   Active Directory / LDAP. Konfiguriert wird ueber die SECURITY_LDAP_*-Felder; der Weg ist
+//   suchen, dann binden. Braucht die PHP-Erweiterung `ldap`.
+//
+//   $app['anmeldeanbieter']->eintragen('ldap', function () {
+//       return \Areanet\PIM\Classes\Security\LdapProvider::ausKonfiguration();
+//   });
+//
+//   OIDC. Geprueft wird am Userinfo-Endpunkt des Providers; konfiguriert wird ueber die
+//   SECURITY_OIDC_*-Felder. Der Client holt sich sein Access-Token beim Identity-Provider und
+//   schickt es als `accessToken` (oder `pass`) an /auth/login.
+//
+//   $app['anmeldeanbieter']->eintragen('oidc', function () {
+//       return \Areanet\PIM\Classes\Security\OidcProvider::ausKonfiguration();
+//   });
+//
+//   Ein eigener Provider, wo keiner der beiden passt:
+//
+//   $app['anmeldeanbieter']->eintragen('mein-sso', function () use ($app) {
+//       return new \Custom\Classes\Anmeldung\MeinSsoProvider($app);
 //   });

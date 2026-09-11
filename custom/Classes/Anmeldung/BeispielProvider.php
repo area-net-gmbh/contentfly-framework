@@ -2,6 +2,7 @@
 namespace Custom\Classes\Anmeldung;
 
 use Areanet\PIM\Classes\Security\Anmeldeprovider;
+use Areanet\PIM\Classes\Security\Bestandspruefung;
 use Areanet\PIM\Classes\Security\Fremdkennung;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -40,7 +41,7 @@ use Symfony\Component\HttpFoundation\Request;
  * Platzhalter für ein Fremdsystem und kein Vorschlag: Geheimnisse in einer Umgebungsvariablen
  * sind für einen Test in Ordnung und für den Betrieb nicht.
  */
-final class BeispielProvider implements Anmeldeprovider
+final class BeispielProvider implements Anmeldeprovider, Bestandspruefung
 {
     public const UMGEBUNGSVARIABLE = 'CONTENTFLY_BEISPIEL_PROVIDER';
 
@@ -72,6 +73,36 @@ final class BeispielProvider implements Anmeldeprovider
         }
 
         return null;
+    }
+
+    /**
+     * Kennt das „Fremdsystem" diese Kennung noch? (`013-005-0002`)
+     *
+     * Die Vorlage implementiert `Bestandspruefung`, weil sie es **kann**: Ihre Liste steht in
+     * der Umgebung, und darin nachzusehen braucht kein Geheimnis. Ein echter Provider kann das
+     * nicht immer — ein OIDC-Provider etwa prüft einen Token, den der Client mitbringt, und hat
+     * ohne ihn keine Handhabe. Dann bleibt dieses Interface weg, und `appcms:provider:abgleich`
+     * überspringt ihn sichtbar.
+     *
+     * **Ohne konfigurierte Liste gibt es keine Auskunft, nicht „kennt niemanden".** Der
+     * Unterschied entscheidet: Würde eine fehlende Konfiguration als `false` gelesen, sperrte
+     * der erste Abgleich nach einem vergessenen Umgebungseintrag jeden Benutzer aus.
+     */
+    public function kenntKennung(string $kennung): ?bool
+    {
+        $roh = $_ENV[self::UMGEBUNGSVARIABLE] ?? getenv(self::UMGEBUNGSVARIABLE) ?: '';
+
+        if (!is_string($roh) || trim($roh) === '') {
+            return null;
+        }
+
+        foreach ($this->bekannte() as $eintrag) {
+            if ($eintrag['kennung'] === $kennung) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

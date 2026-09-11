@@ -1,7 +1,7 @@
 ---
 id: 013-005-0000
 title: Active Directory und OIDC anbinden
-status: todo
+status: done
 depends_on: [013-004-0000]
 ---
 
@@ -60,7 +60,7 @@ Epic `006` mit „Projektsache" beantwortet, indem es aus dem Root-Manifest hera
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 013-005-0001 — Der LDAP-Provider
-- [ ] 013-005-0002 — Was mit einem verschwundenen Benutzer passiert
-- [ ] 013-005-0003 — Der OIDC-Provider über den Userinfo-Endpunkt
-- [ ] 013-005-0004 — Die Buchführung
+- [x] 013-005-0001 — Der LDAP-Provider
+- [x] 013-005-0002 — Was mit einem verschwundenen Benutzer passiert
+- [x] 013-005-0003 — Der OIDC-Provider über den Userinfo-Endpunkt
+- [x] 013-005-0004 — Die Buchführung
