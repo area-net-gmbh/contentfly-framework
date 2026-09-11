@@ -39,9 +39,17 @@ class Rubrik extends Base
 
     /**
      * Die gebliebenen Annotationen, unveraendert in ihren Feldern.
+     *
+     * `targetEntity` bleibt eine ZEICHENKETTE und wird nicht zu `::class` — anders als bei
+     * `@ORM\ManyToMany`, wo der Doctrine-Satz das Feld als Klassenverweis kennt. Mein erster
+     * Entwurf dieses Sollzustands hatte `::class` aus der Analogie geschlossen; nachgesehen
+     * in `Classes/Types/VirtualjoinType` steht der Wert als `$schema['accept']` direkt im
+     * Schema, also als Zeichenkette. Beide Formen ergaeben zur Laufzeit denselben Wert; die
+     * Zeichenkette ist die kleinere Aenderung, und eine Migration soll die Schreibweise
+     * aendern, nicht die Bedeutung.
      */
     #[ORM\Column(type: 'string', length: 40, nullable: true)]
-    #[PIM\Virtualjoin(targetEntity: \Tests\Fixtures\RectorMigration\Alt\Artikel::class)]
+    #[PIM\Virtualjoin(targetEntity: 'Tests\Fixtures\RectorMigration\Alt\Artikel')]
     #[PIM\Permissions]
     #[PIM\I18nPermissions]
     protected $verweise;

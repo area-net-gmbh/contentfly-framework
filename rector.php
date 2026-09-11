@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 use Rector\Config\RectorConfig;
+use Areanet\PIM\Migration\EntfalleneAttributfelderRector;
 use Rector\DeadCode\Rector\ClassLike\RemoveAnnotationRector;
 use Rector\Php80\Rector\Class_\AnnotationToAttributeRector;
 use Rector\Php80\ValueObject\AnnotationToAttribute;
@@ -23,10 +24,28 @@ use Rector\Doctrine\Set\DoctrineSetList;
  * `an_project/docs/pim-annotationen-migration.md`. Sie ist die Quelle; was hier steht, ist
  * ihre Umsetzung.
  *
- * ── DER AUFRUF, und der erste Schritt ist immer ein Trockenlauf ───────────────────────
+ * ── DER AUFRUF — UND ER MUSS ZWEIMAL LAUFEN ───────────────────────────────────────────
  *
- *     ./vendor/bin/rector process pfad/zu/Entity --dry-run
- *     ./vendor/bin/rector process pfad/zu/Entity
+ *     ./vendor/bin/rector process pfad/zu/Entity --dry-run     # ansehen
+ *     ./vendor/bin/rector process pfad/zu/Entity               # erster Lauf
+ *     ./vendor/bin/rector process pfad/zu/Entity               # zweiter Lauf
+ *     ./vendor/bin/rector process pfad/zu/Entity --dry-run     # muss "Rector is done!" sagen
+ *
+ * **ZWEI LÄUFE SIND KEINE BEQUEMLICHKEIT, SONDERN NÖTIG.** Die Regel, die Felder aus
+ * Attributen entfernt, sieht Attribute — und die entstehen erst, wenn die Umstellung im
+ * selben Lauf die Annotation umgeschrieben hat. Ein Rector-Durchgang wendet die Regeln auf
+ * den Baum an, den er vorgefunden hat; was eine Regel neu erzeugt, erreicht eine andere erst
+ * im nächsten Durchgang.
+ *
+ * WER NUR EINMAL LÄUFT, HAT EINEN KAPUTTEN BAUM — nicht einen halb migrierten. Dort steht
+ * dann `#[PIM\Config(label: 'Artikel')]`, und `Config::__construct()` hat kein `$label`:
+ *
+ *     Unknown named parameter $label
+ *
+ * Ein Fatal Error beim Laden der Entity. Die Abbruchbedingung ist deshalb nicht „zweimal",
+ * sondern **laufen, bis ein Trockenlauf nichts mehr meldet**. Nachgemessen am Prüfstein:
+ * Der zweite Lauf ändert noch etwas, der dritte nichts mehr
+ * (`tests/Unit/Migration/RectorRegelTest.php`).
  *
  * Der Pfad hinter `process` übersteuert `withPaths()` unten. Ohne Pfad läuft die Regel über
  * das, was hier eingetragen ist.
@@ -60,9 +79,9 @@ use Rector\Doctrine\Set\DoctrineSetList;
  *
  * ── Stand ─────────────────────────────────────────────────────────────────────────────
  *
- * Eingetragen: der ORM-Teil (`007-002-0002`), die sieben gestrichenen `@PIM\*`-Annotationen
- * und die Umstellung der gebliebenen auf Attribute (`007-002-0003`). Noch offen: die
- * gestrichenen Felder aus den Annotationen, die geblieben sind (`007-002-0004`).
+ * Vollstaendig: der ORM-Teil (`007-002-0002`), die sieben gestrichenen `@PIM\*`-Annotationen
+ * und die Umstellung der gebliebenen auf Attribute (`007-002-0003`), die gestrichenen Felder
+ * aus den Annotationen, die bleiben (`007-002-0004`).
  */
 return RectorConfig::configure()
     ->withPaths([
@@ -149,4 +168,31 @@ return RectorConfig::configure()
         new AnnotationToAttribute('Areanet\\PIM\\Classes\\Annotations\\Checkbox'),
         new AnnotationToAttribute('Areanet\\PIM\\Classes\\Annotations\\Radio'),
         new AnnotationToAttribute('Areanet\\PIM\\Classes\\Annotations\\ManyToMany'),
+    ])
+    /*
+     * DIE GESTRICHENEN FELDER AUS DEN ANNOTATIONEN, DIE BLEIBEN (007-002-0004).
+     *
+     * Der eigene Anteil dieser Regel, und der einzige: Fuer das Entfernen eines FELDES aus
+     * einem Attribut, das bleibt, gibt es in Rector nichts — RemoveAnnotationRector nimmt
+     * eine ganze Annotation, ArgumentRemoverRector arbeitet auf Methodenaufrufen.
+     * Nachgesehen am 2026-09-11 ueber alle konfigurierbaren Regeln.
+     *
+     * WARUM DAS NICHT KOSMETIK IST: Nach der Umstellung auf Attribute stuende dort
+     * `#[PIM\Config(label: 'Artikel')]`, und Config::__construct() hat kein $label mehr —
+     * "Unknown named parameter $label", ein Fatal Error beim Laden der Entity. Ohne diesen
+     * Schritt waere die Migration nicht unvollstaendig, sondern kaputt.
+     *
+     * Die Listen stehen in an_project/docs/pim-annotationen-migration.md, Abschnitte 2 und 3.
+     */
+    ->withConfiguredRule(EntfalleneAttributfelderRector::class, [
+        'Areanet\\PIM\\Classes\\Annotations\\Config' => [
+            'viewMode', 'showInList', 'listShorten', 'hide', 'label', 'tab', 'tabs', 'sort',
+            'isDatalist', 'isSidebar', 'lines', 'accept', 'readonly', 'filter',
+        ],
+        'Areanet\\PIM\\Classes\\Annotations\\Checkbox' => [
+            'horizontalAlignment', 'columns',
+        ],
+        'Areanet\\PIM\\Classes\\Annotations\\Radio' => [
+            'horizontalAlignment', 'columns', 'select',
+        ],
     ]);

@@ -349,6 +349,184 @@ class RectorRegelTest extends TestCase
     }
 
     /**
+     * **Zwei Läufe sind nötig, und der zweite ist kein Komfort** (007-002-0004).
+     *
+     * Die Regel, die Felder aus Attributen entfernt, sieht Attribute — und die entstehen erst,
+     * wenn `AnnotationToAttributeRector` im selben Lauf die Annotation umgeschrieben hat. Ein
+     * Rector-Durchgang wendet die Regeln auf den Baum an, den er vorgefunden hat; was eine
+     * Regel neu erzeugt, erreicht eine andere erst im nächsten.
+     *
+     * **Wer nur einmal läuft, hat einen kaputten Baum, nicht einen halb migrierten:** Dort
+     * steht dann `#[PIM\Config(label: 'Artikel')]`, und `Config::__construct()` hat kein
+     * `$label` — „Unknown named parameter $label", ein Fatal Error beim Laden der Entity.
+     *
+     * Dieser Test hält den Fixpunkt fest: Nach dem zweiten Lauf ist nichts mehr zu tun. Damit
+     * steht die Abbruchbedingung als geprüfte Zusicherung da und nicht als Ratschlag —
+     * **laufen, bis Rector nichts mehr meldet.**
+     */
+    public function testZweiLaeufeSindNoetigUndDerDritteFindetNichtsMehr(): void
+    {
+        $ziel = $this->kopieAnlegen();
+
+        $erster = $this->rectorAufrufen($ziel, true);
+        $this->assertSame(0, $erster['code'], $erster['ausgabe']);
+
+        $zweiter = $this->rectorAufrufen($ziel, true);
+        $this->assertSame(0, $zweiter['code'], $zweiter['ausgabe']);
+        $this->assertStringContainsString(
+            'have been changed',
+            $zweiter['ausgabe'],
+            'Der zweite Lauf muss noch etwas zu tun haben — sonst greift die Feldregel nie.'
+        );
+
+        $dritter = $this->rectorAufrufen($ziel, false);
+        $this->assertSame(
+            0,
+            $dritter['code'],
+            "Nach zwei Laeufen ist der Fixpunkt erreicht; ein dritter darf nichts mehr finden:\n"
+            . $dritter['ausgabe']
+        );
+
+        $this->aufraeumen($ziel);
+    }
+
+    /**
+     * Kein gestrichenes Feld bleibt übrig — der Kern dieses Tasks.
+     */
+    public function testNachDemFixpunktBleibtKeinGestrichenesFeld(): void
+    {
+        foreach ($this->bisZumFixpunkt() as $name => $inhalt) {
+            foreach ($this->pimAngaben($inhalt) as $annotation => $angaben) {
+                foreach ($angaben as $angabe) {
+                    foreach (array_merge(self::GESTRICHENE_FELDER, self::GESTRICHENE_FELDER_AUSWAHL) as $feld) {
+                        $this->assertDoesNotMatchRegularExpression(
+                            '/\b' . preg_quote($feld, '/') . '=/',
+                            $angabe,
+                            sprintf(
+                                'In %s traegt @PIM\%s noch das gestrichene Feld %s. Das ist kein '
+                                .'Relikt: Der Konstruktor kennt es nicht, und das Laden der Entity '
+                                .'bricht mit "Unknown named parameter" ab.',
+                                $name,
+                                $annotation,
+                                $feld
+                            )
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Und kein gebliebenes Feld ist verloren gegangen — die Gegenprobe.
+     *
+     * Sie ist die wichtigere Hälfte: Eine Regel, die zu viel entfernt, fällt beim Test auf das
+     * Entfernen nicht auf.
+     */
+    public function testNachDemFixpunktStehenAlleGebliebenenFelderNoch(): void
+    {
+        $alle = implode("\n", $this->bisZumFixpunkt());
+
+        foreach (self::GEBLIEBENE_FELDER as $feld) {
+            $this->assertMatchesRegularExpression(
+                '/\b' . preg_quote($feld, '/') . '\s*:/',
+                $alle,
+                sprintf('Das Feld %s ist beim Lauf verloren gegangen.', $feld)
+            );
+        }
+
+        // `group` bleibt an Checkbox und Radio — das einzige Feld, das beide behalten.
+        $this->assertSame(
+            2,
+            preg_match_all('/group:/', $alle),
+            'group muss an Checkbox UND Radio stehen bleiben.'
+        );
+    }
+
+    /**
+     * Das Ergebnis entspricht dem von Hand geschriebenen Sollzustand.
+     *
+     * **Verglichen wird je Element, nicht je Zeile.** Die Reihenfolge der Attribute an einer
+     * Klasse oder Eigenschaft trägt keine Aussage — Doctrine liest sie als Liste, und Rector
+     * setzt sie in seiner eigenen Ordnung. Ein Vergleich, der auch darauf besteht, wäre rot
+     * wegen einer Nichtaussage.
+     *
+     * Dass das Attribut am **richtigen** Element hängt, prüft der Vergleich trotzdem: Der
+     * Schlüssel ist der Name der Klasse oder der Eigenschaft.
+     */
+    public function testDasErgebnisEntsprichtDemSollzustand(): void
+    {
+        $ergebnis = $this->bisZumFixpunkt();
+
+        foreach ($ergebnis as $name => $inhalt) {
+            $soll = (string) file_get_contents($this->fixtures('soll') . '/' . $name);
+
+            $this->assertSame(
+                $this->attributeJeElement($soll),
+                $this->attributeJeElement($inhalt),
+                sprintf(
+                    '%s weicht vom Sollzustand ab. Der Sollzustand ist von Hand geschrieben — '
+                    .'weicht die Regel ab, ist die Regel zu pruefen, nicht die Vorlage.',
+                    $name
+                )
+            );
+        }
+    }
+
+    /**
+     * **Jedes Attribut des Ergebnisses lässt sich wirklich instanziieren.**
+     *
+     * Das ist die Verification dieses Tasks in ausführbarer Form, und sie prüft etwas, das
+     * kein Textvergleich prüfen kann: Ein Attribut mit einem Feld, das der Konstruktor nicht
+     * kennt, ist syntaktisch einwandfrei und wirft erst beim Laden — „Unknown named parameter".
+     * Genau der Zustand, den ein Projekt nach nur einem Lauf hätte.
+     *
+     * PHPStan deckt die andere Seite ab: Es prüft den **Sollzustand** gegen die Konstruktoren.
+     * Dieser Test prüft, was die **Regel** tatsächlich erzeugt.
+     *
+     * Die Dateien werden dafür in einen eigenen Namensraum umgeschrieben — `alt/` und `soll/`
+     * tragen denselben Klassennamen, und ohne die Umbenennung kollidierten sie im Prozess.
+     */
+    public function testJedesAttributDesErgebnissesLaesstSichInstanziieren(): void
+    {
+        $gezaehlt = 0;
+
+        foreach ($this->bisZumFixpunkt() as $name => $inhalt) {
+            $eigen  = 'ProbeRector' . bin2hex(random_bytes(4));
+            $quelle = (string) preg_replace('/namespace [^;]+;/', 'namespace ' . $eigen . ';', $inhalt, 1);
+
+            $tmp = sys_get_temp_dir() . '/' . $eigen . '-' . $name;
+            file_put_contents($tmp, $quelle);
+            require $tmp;
+            unlink($tmp);
+
+            $klasse  = $eigen . '\\' . basename($name, '.php');
+            $spiegel = new \ReflectionClass($klasse);
+
+            $attribute = $spiegel->getAttributes();
+
+            foreach ($spiegel->getProperties(\ReflectionProperty::IS_PROTECTED) as $eigenschaft) {
+                if ($eigenschaft->getDeclaringClass()->getName() !== $klasse) {
+                    continue;
+                }
+
+                $attribute = array_merge($attribute, $eigenschaft->getAttributes());
+            }
+
+            foreach ($attribute as $attribut) {
+                $attribut->newInstance();
+                ++$gezaehlt;
+            }
+        }
+
+        $this->assertGreaterThan(
+            30,
+            $gezaehlt,
+            'Es wurden kaum Attribute geprueft — dann sagt dieser Test nichts.'
+        );
+    }
+
+    /**
      * Und die Gegenprobe: Gegen bereits umgestellte Entities darf die Regel **nichts** tun.
      *
      * `lib/contentfly/Entity/` steht seit Epic `010` auf Attributen. Ein Vorschlag dort wäre
@@ -685,6 +863,123 @@ class RectorRegelTest extends TestCase
         );
 
         return implode("\n", $zeilen);
+    }
+
+    /**
+     * Eine Kopie des Prüfsteins in einem Wegwerf-Verzeichnis.
+     *
+     * Nie gegen den Prüfstein selbst: Ein Lauf ohne `--dry-run` schriebe den Altstand um, und
+     * der Test wäre beim zweiten Aufruf grün, weil es nichts mehr zu tun gibt.
+     */
+    private function kopieAnlegen(): string
+    {
+        $ziel = sys_get_temp_dir() . '/contentfly-rector-' . bin2hex(random_bytes(6));
+        mkdir($ziel, 0777, true);
+
+        foreach ((array) glob($this->fixtures('alt') . '/*.php') as $pfad) {
+            copy((string) $pfad, $ziel . '/' . basename((string) $pfad));
+        }
+
+        return $ziel;
+    }
+
+    private function aufraeumen(string $ziel): void
+    {
+        foreach ((array) glob($ziel . '/*.php') as $pfad) {
+            unlink((string) $pfad);
+        }
+
+        rmdir($ziel);
+    }
+
+    /**
+     * Ein Rector-Aufruf gegen ein Verzeichnis.
+     *
+     * @return array{code:int,ausgabe:string}
+     */
+    private function rectorAufrufen(string $ziel, bool $anwenden): array
+    {
+        $befehl = sprintf(
+            '%s %s process %s%s --no-progress-bar --clear-cache 2>&1',
+            escapeshellarg(PHP_BINARY),
+            escapeshellarg($this->wurzel() . '/vendor/bin/rector'),
+            escapeshellarg($ziel),
+            $anwenden ? '' : ' --dry-run'
+        );
+
+        $ausgabe = array();
+        $code    = 0;
+        exec($befehl, $ausgabe, $code);
+
+        return array('code' => $code, 'ausgabe' => implode("\n", $ausgabe));
+    }
+
+    /**
+     * Zwei Läufe — bis nichts mehr zu tun ist — und die Dateien danach.
+     *
+     * Zwei und nicht „bis es stabil ist" in einer Schleife: Die Zahl ist die Aussage. Wäre ein
+     * dritter nötig, müsste das auffallen und nicht stillschweigend mitlaufen; genau das prüft
+     * `testZweiLaeufeSindNoetigUndDerDritteFindetNichtsMehr()`.
+     *
+     * @return array<string,string> Dateiname => Inhalt nach dem Fixpunkt
+     */
+    private function bisZumFixpunkt(): array
+    {
+        $ziel = $this->kopieAnlegen();
+
+        $this->rectorAufrufen($ziel, true);
+        $this->rectorAufrufen($ziel, true);
+
+        $dateien = array();
+
+        foreach ((array) glob($ziel . '/*.php') as $pfad) {
+            $dateien[basename((string) $pfad)] = (string) file_get_contents((string) $pfad);
+        }
+
+        $this->aufraeumen($ziel);
+
+        return $dateien;
+    }
+
+    /**
+     * Die Attribute je Element — Klasse oder Eigenschaft —, sortiert.
+     *
+     * Der Schlüssel ist der Name des Elements, damit ein Attribut, das an der falschen
+     * Eigenschaft landet, auffällt. Sortiert, weil die Reihenfolge der Attribute an einem
+     * Element keine Aussage trägt.
+     *
+     * @return array<string,array<int,string>>
+     */
+    private function attributeJeElement(string $inhalt): array
+    {
+        $ergebnis = array();
+        $puffer   = array();
+        $offen    = 0;
+
+        foreach (explode("\n", $inhalt) as $zeile) {
+            $getrimmt = trim($zeile);
+
+            if ($offen > 0) {
+                $puffer[count($puffer) - 1] .= ' ' . $getrimmt;
+                $offen += substr_count($getrimmt, '(') - substr_count($getrimmt, ')');
+                continue;
+            }
+
+            if (str_starts_with($getrimmt, '#[')) {
+                $puffer[] = $getrimmt;
+                $offen    = substr_count($getrimmt, '(') - substr_count($getrimmt, ')');
+                continue;
+            }
+
+            if (preg_match('/^(?:final\s+)?class\s+(\w+)/', $getrimmt, $fund) === 1
+                || preg_match('/^(?:protected|public|private)\s+\$(\w+)\s*;/', $getrimmt, $fund) === 1) {
+                sort($puffer);
+                $ergebnis[$fund[1]] = $puffer;
+                $puffer             = array();
+            }
+        }
+
+        return $ergebnis;
     }
 
     /**
