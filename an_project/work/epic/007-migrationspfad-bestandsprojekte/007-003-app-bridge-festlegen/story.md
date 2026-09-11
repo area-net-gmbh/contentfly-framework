@@ -1,7 +1,7 @@
 ---
 id: 007-003-0000
 title: Die $app[...]-Bridge festlegen
-status: review
+status: done
 depends_on: []
 ---
 

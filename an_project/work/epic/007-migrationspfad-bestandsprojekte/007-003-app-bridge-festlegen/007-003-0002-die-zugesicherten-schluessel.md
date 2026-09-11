@@ -1,7 +1,7 @@
 ---
 id: 007-003-0002
 title: Die zugesicherten Schlüssel festschreiben — und ein Test hält sie
-status: review
+status: done
 depends_on: [007-003-0001]
 ---
 

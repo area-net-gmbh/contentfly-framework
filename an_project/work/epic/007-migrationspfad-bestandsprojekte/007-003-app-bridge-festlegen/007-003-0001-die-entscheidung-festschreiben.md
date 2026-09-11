@@ -1,7 +1,7 @@
 ---
 id: 007-003-0001
 title: Die Entscheidung festschreiben — der $app-Zugriff bleibt
-status: review
+status: done
 depends_on: []
 ---
 

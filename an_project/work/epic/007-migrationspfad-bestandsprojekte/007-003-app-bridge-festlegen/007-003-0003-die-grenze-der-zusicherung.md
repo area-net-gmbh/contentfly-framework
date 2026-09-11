@@ -1,7 +1,7 @@
 ---
 id: 007-003-0003
 title: Die Grenze der Zusicherung sagen
-status: review
+status: done
 depends_on: [007-003-0002]
 ---
 
