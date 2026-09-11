@@ -1,7 +1,7 @@
 ---
 id: 000-000-0029
 title: Der CI-Job stirbt ohne Meldung
-status: review
+status: done
 depends_on: []
 ---
 
