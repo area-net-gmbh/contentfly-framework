@@ -1,7 +1,7 @@
 ---
 id: 013-004-0004
 title: Die Beispiel-Vorlage, die wirklich läuft
-status: review
+status: done
 depends_on: [013-004-0002, 013-004-0003]
 ---
 

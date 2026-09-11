@@ -1,7 +1,7 @@
 ---
 id: 013-004-0003
 title: Rollen- und Gruppenabbildung
-status: review
+status: done
 depends_on: [013-004-0001]
 ---
 

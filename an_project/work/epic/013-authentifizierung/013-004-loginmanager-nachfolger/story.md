@@ -1,7 +1,7 @@
 ---
 id: 013-004-0000
 title: Nachfolger des LoginManagers
-status: review
+status: done
 depends_on: [013-002-0000]
 ---
 
@@ -76,8 +76,8 @@ und endet dort auch:
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 013-004-0001 — Der Vertrag und die Registrierung
-- [ ] 013-004-0002 — Provisionierung ohne setzbares Passwort
-- [ ] 013-004-0003 — Rollen- und Gruppenabbildung
-- [ ] 013-004-0004 — Die Beispiel-Vorlage, die wirklich läuft
-- [ ] 013-004-0005 — Der Bruch für Epic 007
+- [x] 013-004-0001 — Der Vertrag und die Registrierung
+- [x] 013-004-0002 — Provisionierung ohne setzbares Passwort
+- [x] 013-004-0003 — Rollen- und Gruppenabbildung
+- [x] 013-004-0004 — Die Beispiel-Vorlage, die wirklich läuft
+- [x] 013-004-0005 — Der Bruch für Epic 007

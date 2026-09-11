@@ -1,7 +1,7 @@
 ---
 id: 013-004-0001
 title: Der Vertrag und die Registrierung
-status: review
+status: done
 depends_on: []
 ---
 

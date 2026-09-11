@@ -1,7 +1,7 @@
 ---
 id: 013-004-0002
 title: Provisionierung ohne setzbares Passwort
-status: review
+status: done
 depends_on: [013-004-0001]
 ---
 
