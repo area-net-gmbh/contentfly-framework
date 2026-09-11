@@ -39,6 +39,26 @@
 - Befehl: <!-- z. B. bin/console nelmio:apidoc:dump -->
 - Ausgabe: <!-- z. B. http://localhost:8000/api/doc -->
 
+## Eine neue Entity anlegen
+
+<!-- Ausgefüllt mit 000-000-0028. -->
+
+Eine Entity erbt in aller Regel von `Areanet\PIM\Entity\Base` — damit bringt sie GUID,
+`created`, `modified` und die Felder mit, die die API erwartet. Wer **nicht** von `Base` erbt
+(`Token` und `RevokedToken` tun das nicht, sie sind Infrastruktur), sollte das hier wissen:
+
+**`modified` entscheidet über einen Index.** `Classes/Events/LoadMetadata` hängt an jede Entity,
+die kein Baum ist, einen `modified_index` — aber nur, wenn das Feld existiert. Fehlt es, wird die
+Entity übersprungen: kein Index, kein Fehler.
+
+Der Index ist nicht Zierde. Die Sync-Endpunkte `/api/all` und `/api/deleted` filtern nach
+`modified`; ohne ihn ist das ein Tabellenscan je Abfrage. **Wer also eine Entity baut, die über
+die Sync-API gelesen wird, braucht `modified`** — und bekommt den Index dann von selbst.
+
+**Bis `000-000-0028` brach eine Entity ohne `modified` die Installation.** Die Meldung lautete
+„There is no column with name `modified` on table `…`" und nannte den Listener nicht. Wer auf
+einen alten Stand stösst und diesen Fehler sieht: Das ist die Ursache.
+
 ## Anmeldung über ein Fremdsystem
 
 <!-- Ausgefüllt mit Story 013-005. Der Rest dieser Datei ist noch Vorlage. -->
