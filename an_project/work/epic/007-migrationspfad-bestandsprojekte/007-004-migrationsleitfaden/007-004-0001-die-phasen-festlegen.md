@@ -1,7 +1,7 @@
 ---
 id: 007-004-0001
 title: Die Phasen festlegen und das Register zuordnen
-status: review
+status: done
 depends_on: []
 ---
 

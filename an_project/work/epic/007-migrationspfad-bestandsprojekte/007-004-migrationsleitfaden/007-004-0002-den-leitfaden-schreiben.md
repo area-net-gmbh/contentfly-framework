@@ -1,7 +1,7 @@
 ---
 id: 007-004-0002
 title: Den Leitfaden schreiben
-status: review
+status: done
 depends_on: [007-004-0001]
 ---
 

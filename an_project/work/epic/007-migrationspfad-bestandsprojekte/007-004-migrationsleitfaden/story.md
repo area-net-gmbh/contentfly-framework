@@ -1,7 +1,7 @@
 ---
 id: 007-004-0000
 title: Der Migrationsleitfaden
-status: review
+status: done
 depends_on: [007-001-0000, 007-002-0000, 007-003-0000]
 ---
 

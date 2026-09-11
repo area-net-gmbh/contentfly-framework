@@ -1,7 +1,7 @@
 ---
 id: 007-004-0003
 title: Die Vollständigkeit prüfbar machen
-status: review
+status: done
 depends_on: [007-004-0002]
 ---
 
