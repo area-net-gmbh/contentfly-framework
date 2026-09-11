@@ -669,7 +669,7 @@ ist unverändert und durch die Suite aus Epic `008` abgedeckt:
 
 | Weiterhin | Anmerkung |
 |---|---|
-| `$app['schlüssel']` — lesen und setzen | Faule Factory mit `$app` als Argument, wie bei Pimple. Zugesichertes API. |
+| `$app['schlüssel']` — lesen und setzen | Faule Factory mit `$app` als Argument, wie bei Pimple. Zugesichertes API — **seit `007-003` mit fester Schlüsselliste**, siehe `an_project/docs/dev-guide.md`. |
 | `$app['routeManager']->mount(…)->post(…)->get(…)` | Der Weg, auf dem ein Projekt Routen registriert. Auch das `isSecure`-Flag. |
 | `$app->before()`, `->after()`, `->error()` samt Priorität | Höhere Priorität zuerst, Vorgabe −8, bei gleicher Priorität die frühere Registrierung. |
 | `$app->mount($prefix, $sammlung)` | |

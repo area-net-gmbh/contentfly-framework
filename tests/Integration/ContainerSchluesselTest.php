@@ -41,6 +41,9 @@ class ContainerSchluesselTest extends IntegrationTestCase
     private const IMMER = array(
         'is_installed', 'debug', 'database', 'mailer', 'routeManager', 'consoleManager',
         'request_stack', 'dispatcher', 'auth.user', 'anmeldeanbieter',
+        // Immer DA, aber null, solange nicht installiert ist — siehe
+        // testDerEntityManagerIstDaAberNullSolangeNichtInstalliertIst().
+        'orm.em',
     );
 
     /**
@@ -51,7 +54,7 @@ class ContainerSchluesselTest extends IntegrationTestCase
      *
      * @var array<int,string>
      */
-    private const ERST_INSTALLIERT = array('db', 'dbs', 'orm.em');
+    private const ERST_INSTALLIERT = array('db', 'dbs');
 
     /**
      * Erst nach der Anmeldung — vorher gibt es ihn **nicht**, nicht `null`.
@@ -81,13 +84,54 @@ class ContainerSchluesselTest extends IntegrationTestCase
     {
         $vorhanden = $this->schluesselDesContainers();
 
-        foreach (array_merge(self::IMMER, self::ERST_INSTALLIERT) as $schluessel) {
+        foreach (self::IMMER as $schluessel) {
             $this->assertContains(
                 $schluessel,
                 $vorhanden,
                 sprintf(
                     'Der zugesicherte Schluessel "%s" fehlt im Container. Das ist ein Bruch fuer '
                     .'jedes Bestandsprojekt — siehe an_project/docs/dev-guide.md.',
+                    $schluessel
+                )
+            );
+        }
+    }
+
+    /**
+     * Und die drei, die an der Installation hängen — in **beide** Richtungen.
+     *
+     * **Das ist aus einem Fehlgriff entstanden.** Mein erster Entwurf behauptete schlicht, `db`,
+     * `dbs` und `orm.em` seien da. Das stimmt nur, solange `custom/config.php` zufällig die
+     * Zugangsdaten eines Testlaufs trägt — steht dort die ausgelieferte Vorlage, ist die
+     * Anwendung nicht installiert, und der Test wurde rot, ohne dass am Framework etwas falsch
+     * gewesen wäre.
+     *
+     * Jetzt fragt er den Zustand und prüft die passende Hälfte. **Die zweite Hälfte ist die
+     * eigentliche Zusicherung:** Auf einem frischen Checkout gibt es die drei *nicht*, und das
+     * ist Absicht — `appcms:install` muss laufen können, bevor es eine Datenbank gibt.
+     */
+    public function testDieDreiDatenbankSchluesselHaengenAnDerInstallation(): void
+    {
+        $vorhanden   = $this->schluesselDesContainers();
+        $installiert = $this->istInstalliert();
+
+        foreach (self::ERST_INSTALLIERT as $schluessel) {
+            if ($installiert) {
+                $this->assertContains(
+                    $schluessel,
+                    $vorhanden,
+                    sprintf('Die Anwendung ist installiert, aber "%s" fehlt.', $schluessel)
+                );
+
+                continue;
+            }
+
+            $this->assertNotContains(
+                $schluessel,
+                $vorhanden,
+                sprintf(
+                    'Die Anwendung ist NICHT installiert, aber "%s" ist da. Dann liefe '
+                    .'appcms:install gegen einen halb aufgebauten Container.',
                     $schluessel
                 )
             );
@@ -112,6 +156,39 @@ class ContainerSchluesselTest extends IntegrationTestCase
     }
 
     /**
+     * **`orm.em` ist immer da — aber `null`, solange nicht installiert ist.**
+     *
+     * Der Fund dieses Tasks, und er korrigiert die Liste aus `007-003-0002`: Dort stand
+     * `orm.em` bei den dreien, die es erst nach der Installation gibt. Das stimmt nicht —
+     * `bootstrap.php` hat einen `else`-Zweig, der ihn auf `null` setzt.
+     *
+     * **Der Unterschied ist für ein Projekt eine Falle.** „Fehlt" meldet sich mit einer
+     * Exception, die den Namen nennt. `null` meldet sich mit
+     * *Call to a member function createQueryBuilder() on null* — einer Meldung, die von der
+     * Methode handelt und nicht davon, dass nichts installiert ist.
+     *
+     * Dasselbe gilt für `auth.user`: da, aber `null`, solange niemand angemeldet ist.
+     */
+    public function testDerEntityManagerIstDaAberNullSolangeNichtInstalliertIst(): void
+    {
+        $this->assertContains(
+            'orm.em',
+            $this->schluesselDesContainers(),
+            'orm.em muss immer vorhanden sein — auch ohne Installation, dann als null.'
+        );
+
+        if ($this->istInstalliert()) {
+            $this->assertNotSame('NULL', $this->ausDemContainer('orm.em'),
+                'Die Anwendung ist installiert — dann darf orm.em nicht null sein.');
+
+            return;
+        }
+
+        $this->assertSame('NULL', $this->ausDemContainer('orm.em'),
+            'Ohne Installation ist orm.em null, nicht abwesend — bootstrap.php setzt ihn im else-Zweig.');
+    }
+
+    /**
      * Jeder registrierte Schlüssel ist eingeordnet.
      *
      * **Die wichtigere Richtung.** Ohne sie wüchse die Liste auseinander: Ein neuer Schlüssel
@@ -126,6 +203,13 @@ class ContainerSchluesselTest extends IntegrationTestCase
             self::ERST_ANGEMELDET,
             self::INTERN
         );
+
+        if (!$this->istInstalliert()) {
+            $this->markTestSkipped(
+                'Ohne Installation registriert das Framework nur einen Teil seiner Schluessel — '
+                .'dann sagt diese Richtung nichts.'
+            );
+        }
 
         $unbekannt = array_values(array_diff($this->registrierteSchluessel(), $eingeordnet));
 
@@ -157,6 +241,13 @@ class ContainerSchluesselTest extends IntegrationTestCase
      */
     public function testJederEingeordneteSchluesselWirdAuchRegistriert(): void
     {
+        if (!$this->istInstalliert()) {
+            $this->markTestSkipped(
+                'Ohne Installation fehlen die Schluessel hinter is_installed, und der Test '
+                .'meldete sie faelschlich als gegenstandslos.'
+            );
+        }
+
         $registriert = $this->registrierteSchluessel();
 
         $tot = array();
@@ -217,16 +308,33 @@ class ContainerSchluesselTest extends IntegrationTestCase
     }
 
     /**
-     * Alle Schlüssel, die das Framework **registriert** — aus dem Quelltext gelesen.
+     * Ist die Anwendung installiert?
      *
-     * **Zwei Quellen für zwei Fragen, und das ist kein Umweg.** Der laufende Container kann
-     * sagen, ob ein Schlüssel *da* ist; er kann nicht sagen, ob jemand einen *neuen* angelegt
-     * hat, denn gefragt wird immer nur nach den bekannten. Für „ist alles eingeordnet" muss
-     * die Quelle der Quelltext sein.
+     * Der Container beantwortet es selbst — `is_installed` ist einer der zugesicherten
+     * Schlüssel und immer da.
+     */
+    private function istInstalliert(): bool
+    {
+        // var_export(true, true) ist 'true' — nicht '1'. Mein erster Vergleich stand auf '1'
+        // und hielt damit JEDEN Zustand fuer "nicht installiert" (007-003-0003).
+        return $this->ausDemContainer('is_installed') === 'true';
+    }
+
+    /**
+     * Alle Schlüssel, die das Framework **registriert**.
      *
-     * Gelesen wird `bootstrap.php` — dort steht der grösste Teil — und
-     * `Classes/Kernel/Application.php`, wo `request_stack` und `dispatcher` im Konstruktor
-     * entstehen.
+     * **Zwei Quellen, und jede beantwortet, was die andere nicht kann.**
+     *
+     * `Container::keys()` liefert, was beim Aufbau tatsächlich registriert wurde — die
+     * verlässlichere Auskunft, weil sie den ausgeführten Code sieht und keinen Suchausdruck
+     * braucht. *(Nachgetragen mit `007-003-0003`: In `0002` hatte ich stattdessen den
+     * Quelltext geparst, ohne zu bemerken, dass der Container sich selbst aufzählen kann.
+     * `tests/Unit/Kernel/ContainerTest.php` prüft die Methode seit `008-004`.)*
+     *
+     * Der Quelltext bleibt daneben, weil `keys()` nur sieht, was **beim Aufbau** entsteht.
+     * `auth.token` wird erst gesetzt, wenn ein Request sich ausgewiesen hat — im aufgebauten
+     * Container gibt es ihn nicht, und ohne die zweite Quelle fiele er aus der Einordnung
+     * heraus.
      *
      * @return array<int,string>
      */
@@ -235,10 +343,13 @@ class ContainerSchluesselTest extends IntegrationTestCase
         $wurzel   = dirname(__DIR__, 2);
         $gefunden = array();
 
+        // Was beim Aufbau entsteht — die verlaessliche Quelle.
+        foreach ($this->schluesselDesContainers(true) as $schluessel) {
+            $gefunden[$schluessel] = true;
+        }
+
+        // Und was spaeter dazukommt: auth.token wird erst nach der Anmeldung gesetzt.
         $quellen = array(
-            $wurzel . '/lib/contentfly/bootstrap.php',
-            $wurzel . '/lib/contentfly/Classes/Kernel/Application.php',
-            // Hier wird auth.token gesetzt, nachdem ein Request sich ausgewiesen hat.
             $wurzel . '/lib/contentfly/Classes/Controller/Provider/BaseControllerProvider.php',
         );
 
@@ -261,7 +372,61 @@ class ContainerSchluesselTest extends IntegrationTestCase
 
         $this->assertNotEmpty($gefunden, 'Es wurde kein einziger Schluessel gefunden — dann prueft dieser Test nichts.');
 
-        return array_keys($gefunden);
+        /*
+         * ROUTEN-CONTROLLER SIND KEINE EINZUORDNENDEN SCHLUESSEL (007-003-0003).
+         *
+         * Jeder gemountete Controller bekommt einen Eintrag `<praefix>.controller` — das
+         * Framework legt `api.controller`, `auth.controller`, `file.controller` und
+         * `system.controller` an, und ein Projekt legt fuer jede eigene Route einen weiteren
+         * an. Die Vorlage erzeugt so `api/v1/example/.controller`.
+         *
+         * Sie sind Verdrahtung des ControllerResolvers, kein Dienst, den jemand liest, und
+         * ihre Namen haengen an den Routen des Projekts. Eine Liste koennte sie gar nicht
+         * fuehren.
+         *
+         * GEFUNDEN HAT SIE keys(): Der Quelltext-Parser aus 007-003-0002 sah sie nicht, weil
+         * sie zur Laufzeit entstehen. Das ist der Grund, warum diese Quelle die bessere ist.
+         */
+        $schluessel = array_filter(
+            array_keys($gefunden),
+            static fn (string $name): bool => !str_ends_with($name, '.controller')
+        );
+
+        return array_values($schluessel);
+    }
+
+    /**
+     * Einen einzelnen Wert aus dem aufgebauten Container holen, als Zeichenkette.
+     *
+     * `var_export`-Form, damit sich `null` von `''` und von `false` unterscheiden lässt — genau
+     * darauf kommt es bei `orm.em` und `auth.user` an.
+     */
+    private function ausDemContainer(string $schluessel): string
+    {
+        $projekt = self::anwendungsverzeichnis();
+
+        $skript = <<<'PHP'
+$app = \Areanet\PIM\Classes\Kernel\Start::konsole($argv[1]);
+echo isset($app[$argv[2]]) ? var_export($app[$argv[2]], true) : '__FEHLT__';
+PHP;
+
+        $befehl = sprintf(
+            '%s -r %s %s %s 2>&1',
+            escapeshellarg(PHP_BINARY),
+            escapeshellarg('require ' . var_export($projekt . '/vendor/autoload.php', true) . '; ' . $skript),
+            escapeshellarg($projekt),
+            escapeshellarg($schluessel)
+        );
+
+        $ausgabe = array();
+        $code    = 0;
+        exec($befehl, $ausgabe, $code);
+
+        $roh = trim(implode("\n", $ausgabe));
+
+        $this->assertSame(0, $code, "Der Container liess sich nicht aufbauen:\n" . $roh);
+
+        return $roh;
     }
 
     /**
@@ -269,12 +434,18 @@ class ContainerSchluesselTest extends IntegrationTestCase
      *
      * @return array<int,string>
      */
-    private function schluesselDesContainers(): array
+    private function schluesselDesContainers(bool $alle = false): array
     {
         $projekt = self::anwendungsverzeichnis();
 
         $skript = <<<'PHP'
 $app = \Areanet\PIM\Classes\Kernel\Start::konsole($argv[1]);
+
+if ($argv[2] === '*') {
+    echo implode(',', $app->keys());
+    return;
+}
+
 $gefunden = [];
 foreach ($argv[2] === '' ? [] : explode(',', $argv[2]) as $schluessel) {
     if (isset($app[$schluessel])) {
@@ -284,7 +455,7 @@ foreach ($argv[2] === '' ? [] : explode(',', $argv[2]) as $schluessel) {
 echo implode(',', $gefunden);
 PHP;
 
-        $kandidaten = array_merge(
+        $kandidaten = $alle ? array('*') : array_merge(
             self::IMMER,
             self::ERST_INSTALLIERT,
             self::ERST_ANGEMELDET,
