@@ -39,6 +39,67 @@
 - Befehl: <!-- z. B. bin/console nelmio:apidoc:dump -->
 - Ausgabe: <!-- z. B. http://localhost:8000/api/doc -->
 
+## Die zugesicherten `$app[...]`-Schlüssel
+
+<!-- Ausgefüllt mit 007-003-0002. -->
+
+**Der Zugriff `$app['orm.em']` ist dauerhaft Teil der öffentlichen API** — entschieden am
+2026-09-11, Begründung und verworfene Alternativen in `an_project/docs/architecture.md` unter
+*Key decisions*. Ein Projekt muss seine Controller dafür nicht anfassen.
+
+**Diese Liste ist der Gegenstand der Zusicherung.** Was hier steht, bleibt; was nicht hier
+steht, ist interne Verdrahtung und kann sich ändern. `tests/Integration/ContainerSchluesselTest.php`
+hält beide Richtungen fest.
+
+### Immer verfügbar
+
+| Schlüssel | Was er liefert |
+|---|---|
+| `is_installed` | ob `appcms:install` schon gelaufen ist — `bool` |
+| `debug` | der Wert von `APP_DEBUG` |
+| `database` | eine DBAL-Verbindung für direktes SQL, getrennt von der des EntityManagers |
+| `mailer` | der PHPMailer-Dienst |
+| `routeManager` | der Weg, auf dem ein Projekt Routen registriert |
+| `consoleManager` | die Registrierung eigener Console-Commands |
+| `request_stack` | Symfonys `RequestStack`; der aktuelle Request über `getCurrentRequest()` |
+| `dispatcher` | der `EventDispatcher` |
+| `auth.user` | der angemeldete Benutzer, **`null` solange niemand angemeldet ist** |
+| `anmeldeanbieter` | das Verzeichnis der Anmeldeprovider (Story `013-004`) |
+
+### Erst wenn die Anwendung installiert ist
+
+Diese drei stehen in einem `if ($app['is_installed'])`. Auf einem frischen Checkout gibt es sie
+**nicht** — wer sie ohne Prüfung liest, bekommt eine `InvalidArgumentException`. Das ist Absicht:
+`appcms:install` muss selbst laufen können, bevor es eine Datenbank gibt.
+
+| Schlüssel | Was er liefert |
+|---|---|
+| `db` | die DBAL-Verbindung des Standard-Mandanten |
+| `dbs` | alle Verbindungen, nach Mandant |
+| `orm.em` | der Doctrine-EntityManager |
+
+### Erst nach der Anmeldung
+
+| Schlüssel | Was er liefert |
+|---|---|
+| `auth.token` | die Token-Zeile der laufenden Sitzung |
+
+**Vorher gibt es ihn nicht** — nicht `null`, sondern gar nicht. Gesetzt wird er in
+`BaseControllerProvider`, nachdem ein Request sich ausgewiesen hat. In einem Console-Lauf gibt
+es ihn nie.
+
+### Was **nicht** zugesichert ist
+
+Alles andere, was das Framework registriert, ist interne Verdrahtung: `dbs.options`, `auth`,
+`console`, `helper`, `loginbremse`, `anmeldetreiber`, `benutzerbereitstellung`,
+`gruppenabbildung`, `tokenhandler`, `thumbnailSettings`, `schema`, `typeManager`,
+`pluginManager` — dazu `kernel`, `resolver` und `argument_resolver`, die aus
+`Classes/Kernel/Application` kommen und den HttpKernel verdrahten.
+
+Sie existieren, sie funktionieren, und sie können sich ohne Vorwarnung ändern. **Wer einen davon
+braucht, sagt Bescheid** — dann wird er zugesichert oder bekommt einen richtigen Zugang. Ihn
+still zu benutzen ist die einzige Variante, die schiefgeht.
+
 ## Eine neue Entity anlegen
 
 <!-- Ausgefüllt mit 000-000-0028. -->
