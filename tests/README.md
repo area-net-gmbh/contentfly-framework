@@ -143,7 +143,8 @@ Pipeline ausprobieren kann, ist beim Suchen eines Fehlers nutzlos.
 Der Testlauf selbst:
 
 ```sh
-sh tools/ci/install-php-extensions.sh    # pdo_mysql, gd und unzip
+sh tools/ci/install-php-extensions.sh    # pdo_mysql, gd, ldap und unzip
+sh tools/ci/install-composer.sh          # nur noetig, wo composer noch fehlt
 composer install                          # seit 006-003 die einzige Quelle des Baums
 sh tools/ci/prepare-test-environment.sh  # warten, installieren, Versandfalle, Server
 ./vendor/bin/phpunit
@@ -165,6 +166,11 @@ sh tools/ci/audit-ausnahmen-pruefen.sh   # meldet Ausnahmen, die nicht mehr grei
 
 Was diese Gates prüfen und was bei einem Fund zu tun ist, steht in
 `an_project/docs/deployment.md` unter *Die Gates*.
+
+**Bleibt ein Schritt stumm stehen, ist das ein Fehler im Skript, nicht im Werkzeug.** Seit
+`000-000-0029` gibt jeder Schritt, der seine Ausgabe wegschiebt, im Fehlerfall die letzten
+Zeilen seines Logs aus; wie das geht und warum, steht in `tools/ci/schritt.sh` und in
+`an_project/docs/deployment.md` unter *Ein Schritt, der scheitert, sagt woran*.
 
 ## Die Versandfalle
 

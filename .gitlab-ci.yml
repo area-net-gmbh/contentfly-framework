@@ -17,6 +17,12 @@
 # Die eigentlichen Schritte stehen in tools/ci/*.sh, nicht hier. Grund: Eine
 # Pipeline-Definition, deren Schritte man nur in der Pipeline ausprobieren kann, ist beim
 # Suchen eines Fehlers nutzlos. Dieselben Skripte laufen lokal in Docker.
+#
+# Der Composer-Bootstrap stand bis 000-000-0029 dreimal woertlich gleich in dieser Datei und
+# steht jetzt in tools/ci/install-composer.sh — aus demselben Grund, und weil er im
+# Fehlerfall schwieg. Ein Schritt, dessen Ausgabe umgeleitet oder unterdrueckt wird, laeuft
+# seitdem ueber die Funktion aus tools/ci/schritt.sh, die im Fehlerfall die letzten Zeilen
+# seines Logs zeigt. Ein eigener Test haelt fest, dass es so bleibt.
 
 stages:
   - check
@@ -92,8 +98,7 @@ check:audit:
   #
   # Der Ablauf steht in tools/ci/audit.sh, damit man ihn lokal nachspielen kann.
   before_script:
-    - php -r "copy('https://getcomposer.org/installer','/tmp/composer-setup.php');"
-    - php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer --quiet
+    - sh tools/ci/install-composer.sh
   script:
     - sh tools/ci/audit.sh
     # Zweite Haelfte des Gates (006-005-0002): Eine Ausnahme, die nicht mehr greift, macht
@@ -122,8 +127,7 @@ check:phpstan:
   # Analyse fuehrt nichts aus.
   before_script:
     - sh tools/ci/install-php-extensions.sh
-    - php -r "copy('https://getcomposer.org/installer','/tmp/composer-setup.php');"
-    - php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer --quiet
+    - sh tools/ci/install-composer.sh
     - composer install --no-interaction --no-progress --prefer-dist
   script:
     # --memory-limit=512M ist nicht willkuerlich: Mit dem PHP-Standard von 128M bricht ein
@@ -154,8 +158,7 @@ check:phpstan:
     # Seit 006-002-0003 gibt es ein Root-Manifest und einen Lock. Der committete vendor/-Baum
     # ist der ALTE Stand; er wird hier ueberschrieben. Mit 006-003 faellt er ganz aus Git und
     # dieser Schritt wird zur einzigen Quelle.
-    - php -r "copy('https://getcomposer.org/installer','/tmp/composer-setup.php');"
-    - php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer --quiet
+    - sh tools/ci/install-composer.sh
     - composer install --no-interaction --no-progress --prefer-dist
     - sh tools/ci/prepare-test-environment.sh
   script:

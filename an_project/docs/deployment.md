@@ -86,6 +86,35 @@ Suchen eines Fehlers nutzlos. `install-php-extensions.sh` und `prepare-test-envi
 laufen deshalb lokal in Docker mit demselben Aufruf — so wurde die Definition auch abgenommen,
 bevor sie je in einem Runner lief.
 
+Seit `000-000-0029` gilt das auch für den Composer-Bootstrap: Er stand dreimal wörtlich gleich
+in der YAML und steht jetzt in `tools/ci/install-composer.sh`.
+
+### Ein Schritt, der scheitert, sagt woran
+**Eingeführt mit `000-000-0029`.** Jeder Schritt, der seine Ausgabe wegschiebt, läuft über
+`schritt` aus `tools/ci/schritt.sh`:
+
+```sh
+. "$(dirname "$0")/schritt.sh"
+schritt "gd konfigurieren" docker-php-ext-configure gd --with-freetype
+```
+
+Solange es gutgeht, steht eine Zeile im Log. Scheitert der Befehl, kommen der Name des
+Schritts, der Exit-Code und die **letzten 40 Zeilen** seiner Ausgabe dazu
+(`CONTENTFLY_CI_LOGZEILEN` verstellt die Zahl), und das Skript endet mit demselben Code.
+
+**Der Anlass** war `013-005-0004`: Ein Job brach mit Exit 2 und null Zeilen Ausgabe ab.
+`composer install` verlangte `ext-ldap`, sagte das auch — nur schrieb der Schritt nach
+`/tmp/i.log`, und `set -eu` beendete das Skript, bevor jemand die Datei ausgeben konnte.
+
+**Die Umleitung bleibt.** Eine Pipeline, die jeden `apt-get`-Fortschritt ausgibt, liest
+niemand — ein volles Log verdeckt den Fehler so zuverlässig wie ein leeres.
+
+**Was still sein darf, steht in einem Test, nicht in einem Kommentar:**
+`tests/Unit/Ci/CiSchritteTest.php` fährt einen absichtlich scheiternden Schritt und prüft, dass
+dessen Meldung zu sehen ist; danach prüft er, dass kein Schritt in `tools/ci/` an der Funktion
+vorbei schweigt. Die Ausnahmen stehen dort mit Begründung — und eine Ausnahme, die nichts mehr
+trifft, macht den Lauf rot. Dieselbe Regel wie bei den Gates aus `006-005`.
+
 ### Der Baum entsteht im Job
 **Seit `006-002-0004`, und seit `006-003` ohne Rückfallebene.** PHPUnit liegt im
 Root-`require-dev`, die Pipeline ruft `./vendor/bin/phpunit`. Die Vorsorge aus `008-005-0001` —

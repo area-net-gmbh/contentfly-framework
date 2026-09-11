@@ -49,13 +49,26 @@ echo "→ Ausnahmeliste gegen den Ist-Stand pruefen (Composer $VERSION)"
 
 # Die Rohdaten einmal holen. --abandoned=ignore, damit der Aufruf denselben Blickwinkel hat
 # wie das Gate; ob abandoned Pakete gemeldet werden, ist hier ohne Belang.
-AUSGABE=$(composer audit --locked --format=json --abandoned=ignore --no-interaction 2>/dev/null || true)
+# stderr wird aufgefangen statt verworfen (000-000-0029). Vorher stand hier `2>/dev/null`:
+# Die Pruefung meldete zwar lautstark, dass sie keine Daten bekommen hat — aber den Grund,
+# den composer selbst genannt hatte, warf sie im selben Atemzug weg.
+FEHLERLOG="${TMPDIR:-/tmp}/contentfly-ci-audit-$$.log"
+AUSGABE=$(composer audit --locked --format=json --abandoned=ignore --no-interaction 2>"$FEHLERLOG" || true)
 
 if [ -z "$AUSGABE" ]; then
     echo "✗ composer audit hat nichts geliefert." >&2
     echo "  Ohne Daten kann diese Pruefung nichts sagen — und darf deshalb nicht gruen sein." >&2
+    if [ -s "$FEHLERLOG" ]; then
+        echo "  Was composer dazu gesagt hat:" >&2
+        tail -n 40 "$FEHLERLOG" | sed 's/^/  | /' >&2
+    else
+        echo "  composer hat dazu nichts gesagt — auch nicht auf stderr." >&2
+    fi
+    rm -f "$FEHLERLOG"
     exit 1
 fi
+
+rm -f "$FEHLERLOG"
 
 # Der Vergleich selbst. PHP statt jq: jq liegt in keinem der CI-Images, PHP per Definition
 # in jedem. Der Exit-Code des Skripts kommt aus diesem Aufruf.
