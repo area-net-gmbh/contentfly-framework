@@ -1,7 +1,7 @@
 ---
 id: 007-001-0002
 title: ROOT_DIR aufgeben — das Projektverzeichnis wird übergeben, nicht geraten
-status: review
+status: done
 depends_on: [007-001-0001]
 ---
 

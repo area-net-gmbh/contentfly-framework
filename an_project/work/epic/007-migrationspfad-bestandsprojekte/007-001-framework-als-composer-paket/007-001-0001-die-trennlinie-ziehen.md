@@ -1,7 +1,7 @@
 ---
 id: 007-001-0001
 title: Die Trennlinie zwischen Framework und Projekt ziehen und festschreiben
-status: review
+status: done
 depends_on: []
 ---
 

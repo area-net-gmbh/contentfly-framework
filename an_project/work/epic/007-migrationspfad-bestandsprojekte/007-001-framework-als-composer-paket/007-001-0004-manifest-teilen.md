@@ -1,7 +1,7 @@
 ---
 id: 007-001-0004
 title: Das Manifest teilen — Bibliothekspaket und Projekt getrennt
-status: review
+status: done
 depends_on: [007-001-0002, 007-001-0003]
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: 007-001-0003
 title: Der Einstiegspunkt lädt den Autoloader, nicht das Framework
-status: review
+status: done
 depends_on: [007-001-0001]
 ---
 
