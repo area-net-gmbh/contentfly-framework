@@ -27,8 +27,28 @@ Token lokal gegen ein JWKS (seit Symfony 7.1 auch RS256), `oidc_user_info` fragt
 Userinfo-Endpunkt des Providers. Die Wahl ist eine Abwägung — lokal ist schnell und übersteht
 einen Ausfall des Providers, der Userinfo-Weg merkt einen Widerruf sofort.
 
-**SAML** bleibt Bundle-Sache; `onelogin/php-saml` liegt bereits im Baum (heute in
-`custom/composer.json`). Ob es Framework- oder Projektsache wird, entscheidet Epic `006`.
+**SAML** bleibt Bundle-Sache. **Der Satz dazu war überholt und ist richtiggestellt
+(2026-09-11):** Er sagte, `onelogin/php-saml` liege „bereits im Baum (heute in
+`custom/composer.json`)". Epic `006` hat es gestrichen — `006-004-0002` führt es unter
+„entfällt: wird nirgends benutzt" —, und `custom/composer.json` hat heute ein **leeres**
+`require`. Wer SAML will, nimmt das Paket neu auf; die Frage Framework- oder Projektsache hat
+Epic `006` mit „Projektsache" beantwortet, indem es aus dem Root-Manifest herausblieb.
+
+## Nachgemessen am 2026-09-11
+
+- **`symfony/ldap`, `symfony/http-client`, `web-token/jwt-library` und `symfony/clock` fehlen
+  alle** im Lock. Jeder der beiden Wege kostet Pakete, und die Zahlen entscheiden mit.
+- **Symfony bringt beide OIDC-Handler mit**, aber zu sehr verschiedenem Preis: die lokale
+  Prüfung fünf Pakete (darunter `web-token/jwt-library` und `spomky-labs/pki-framework`), der
+  Userinfo-Weg drei leichte. **Entschieden: der Userinfo-Weg.**
+- **Das lokale PHP hat `ldap`, das CI-Image nicht** — `tools/ci/install-php-extensions.sh` baut
+  nur `pdo_mysql` und `gd`.
+- **Entschieden: LDAP wird gegen Doppelgänger geprüft**, nicht gegen ein laufendes Verzeichnis.
+  Ein OpenLDAP-Dienst in der Testumgebung wäre der Preis für einen echten Bind, und er steht in
+  keinem Verhältnis zu dem, was er zusätzlich belegte. Die Einschränkung gehört benannt, nicht
+  verschwiegen.
+- **Die Gruppenabbildung braucht keinen eigenen Task:** Sie steht seit `013-004-0003`; beide
+  Provider füllen nur `Fremdkennung->gruppen`.
 
 ## Fertig, wenn
 - Eine Anmeldung gegen ein LDAP/AD läuft durch, mit Gruppenabbildung, und ist dokumentiert.
@@ -40,3 +60,7 @@ einen Ausfall des Providers, der Userinfo-Weg merkt einen Widerruf sofort.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
+- [ ] 013-005-0001 — Der LDAP-Provider
+- [ ] 013-005-0002 — Was mit einem verschwundenen Benutzer passiert
+- [ ] 013-005-0003 — Der OIDC-Provider über den Userinfo-Endpunkt
+- [ ] 013-005-0004 — Die Buchführung
