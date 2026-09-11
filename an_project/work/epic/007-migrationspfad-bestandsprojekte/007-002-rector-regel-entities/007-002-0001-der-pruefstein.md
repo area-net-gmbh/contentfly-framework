@@ -1,7 +1,7 @@
 ---
 id: 007-002-0001
 title: Der Prüfstein — Beispiel-Entities im Altstand und der Lauf-Rahmen
-status: review
+status: done
 depends_on: []
 ---
 

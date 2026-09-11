@@ -1,7 +1,7 @@
 ---
 id: 007-002-0004
 title: Die gestrichenen Felder aus gebliebenen Annotationen entfernen
-status: review
+status: done
 depends_on: [007-002-0002, 007-002-0003]
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: 007-002-0000
 title: Die Rector-Regel für das Entity-Verzeichnis
-status: review
+status: done
 depends_on: []
 ---
 

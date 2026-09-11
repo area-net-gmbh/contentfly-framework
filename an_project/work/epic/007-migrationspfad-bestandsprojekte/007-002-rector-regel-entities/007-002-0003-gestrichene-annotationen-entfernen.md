@@ -1,7 +1,7 @@
 ---
 id: 007-002-0003
 title: Die PIM-Annotationen — sieben entfernen, die übrigen zu Attributen
-status: review
+status: done
 depends_on: [007-002-0001]
 ---
 

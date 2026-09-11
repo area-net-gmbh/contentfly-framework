@@ -1,7 +1,7 @@
 ---
 id: 007-002-0002
 title: ORM-Annotationen zu Attributen
-status: review
+status: done
 depends_on: [007-002-0001]
 ---
 
