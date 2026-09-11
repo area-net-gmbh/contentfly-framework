@@ -47,6 +47,30 @@ für jeden ein Migrationsschritt existiert, der beschrieben und — wo möglich 
 - **Vorlage nachgezogen:** `custom/` bleibt die Referenz dafür, wie ein Projekt auf der neuen
   Version aussieht — die Example-Artefakte werden mitmigriert und zeigen den Zielzustand.
 
+## Was seit dem Schreiben dieses Epics schon vorliegt
+
+Nachgesehen am 2026-09-11, vor dem Schnitt in Stories. Drei der Erfolgskriterien sind ganz oder
+zum Teil eingelöst, bevor das Epic beginnt — sie werden **eingesammelt, nicht neu gebaut**:
+
+- **Der Re-Encrypt-Lauf ist fertig.** `appcms:security:reencrypt` gibt es seit `010-004`, mit
+  `--dry-run`, einstellbarer Stapelgrösse und einem in `an_project/docs/deployment.md`
+  beschriebenen Rückweg. Ein abgebrochener Lauf ist kein Schaden: Jeder Stapel ist eine
+  Transaktion, beide Formate bleiben lesbar, ein Neustart macht dort weiter, wo er aufhörte. Das
+  Kriterium „ausführbares Kommando, Trockenlauf und Rollback-Weg — nicht nur eine Anleitung" ist
+  damit erfüllt; `007-004` verweist darauf.
+- **Die Grundlage der Rector-Regel steht.** `an_project/docs/pim-annotationen-migration.md`
+  listet vollständig, was mit Epic `012` entfallen ist: 7 Annotationen, 14 Felder von
+  `@PIM\Config`, die Plugin-Schnittstelle und die `FRONTEND_*`-Konfiguration. Die Datei nennt
+  sich selbst Grundlage dieses Epics. Was fehlt, ist die Regel — nicht die Liste.
+- **Das Rohmaterial des Leitfadens liegt vor, aber falsch herum sortiert.**
+  `an_project/docs/breaking-changes.md` hat 96 Einträge in 13 Abschnitten, geordnet nach Epic und
+  Story — also danach, wann *wir* etwas geändert haben. Ein Bestandsprojekt braucht die
+  umgekehrte Ordnung: was es in welcher Reihenfolge zu tun hat. Die Datei bleibt als Register;
+  der Leitfaden ist der Weg.
+
+Wirklich zu bauen sind damit der Bezugsweg als Composer-Paket, die Rector-Regel selbst und die
+Festlegung zur `$app[…]`-Bridge.
+
 ### Die Funktionen ohne Auslöser — eine Frage, die dieses Epic beantworten muss
 Epic `008` hat beim Aufbau des Testnetzes **sieben Codepfade** gefunden, deren Wirkung sich im
 heutigen Stand nicht beobachten lässt, weil es im Framework und in der Vorlage keinen Auslöser
@@ -79,3 +103,17 @@ Dieses Epic liefert Weg, Werkzeuge und Doku.
 
 ## Stories
 <!-- Die Stories dieses Epics. Wird von /new-story synchron gehalten. -->
+- [ ] 007-001-0000 — Das Framework als Composer-Paket beziehbar machen
+- [ ] 007-002-0000 — Die Rector-Regel für das Entity-Verzeichnis
+- [ ] 007-003-0000 — Die $app[...]-Bridge festlegen
+- [ ] 007-004-0000 — Der Migrationsleitfaden
+- [ ] 007-005-0000 — Am echten Bestandsprojekt durchspielen (**blocked**)
+
+`007-001` bis `007-003` hängen nicht voneinander ab und können in beliebiger Reihenfolge laufen.
+`007-004` beschreibt, was sie entschieden haben, und kommt danach. `007-005` ist die Probe auf
+`007-004`.
+
+**`007-005` steht auf `blocked`, nicht auf `todo`** — sie braucht ein reales Bestandsprojekt,
+und das liegt ausserhalb dieses Repos. Ein `todo`, das niemand anfangen kann, sieht im Board wie
+verfügbare Arbeit aus und verdeckt, dass dieses Epic ohne eine Zulieferung von aussen nicht
+fertig wird. Die restlichen vier Stories sind ohne diese Zulieferung abschliessbar.
