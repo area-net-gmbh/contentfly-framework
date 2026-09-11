@@ -43,3 +43,14 @@ Aufruf betroffen ist; fällt sie auf „dauerhaft", steht die Liste der zugesich
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
+- [ ] 007-003-0001 — Die Entscheidung festschreiben — der $app-Zugriff bleibt
+- [ ] 007-003-0002 — Die zugesicherten Schlüssel festschreiben — und ein Test hält sie
+- [ ] 007-003-0003 — Die Grenze der Zusicherung sagen
+
+Die drei bauen aufeinander auf: `0001` entscheidet, `0002` sagt worauf man sich verlassen darf,
+`0003` sagt worauf nicht — und erst damit ist die Liste brauchbar.
+
+**Die Richtung steht seit dem 2026-09-11 fest: dauerhaft, mit fester Schlüsselliste.** Damit muss
+ein Bestandsprojekt seine Controller nicht anfassen. Gegen die befristete Deprecation sprach,
+dass das Framework die Bridge 134-mal selbst benutzt — sie müsste dort zuerst durchgezogen
+werden, und das wäre ein eigener Umbau und kein Migrationsschritt.
