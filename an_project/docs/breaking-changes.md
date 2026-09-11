@@ -1216,6 +1216,58 @@ bekommt beim nächsten Login schlicht ein zweites Konto, was ärgerlich, aber ni
 
 Wie ein Projekt diesen Schritt gebündelt bekommt, entscheidet Epic `007`.
 
+## Authentifizierung, Teil 5 — LDAP und OIDC (Story `013-005`)
+
+**Betrifft nur Projekte, die einen der beiden Provider eintragen.** Wer bei Benutzername und
+Passwort bleibt, ist von diesem Abschnitt nicht berührt — die Provider sind **nicht**
+vorregistriert.
+
+### `symfony/http-client` ist neu im Root-Manifest
+**Seit `013-005-0003` (2026-09-11).**
+
+Mit `http-client-contracts` und einem Polyfill. Es wird nur benutzt, wenn ein Projekt den
+OIDC-Provider einträgt — im Manifest steht es trotzdem, weil die Klasse mitgeliefert wird und
+reines PHP ist.
+
+*Was zu tun ist:* `composer install`.
+
+### `symfony/ldap` kommt **nicht** mit
+**Seit `013-005-0004` (2026-09-11).**
+
+Der `LdapProvider` wird mitgeliefert, das Paket dahinter nicht. **Es verlangt die
+Systemerweiterung `ext-ldap`**, und `composer install` prüft die Plattformanforderungen aller
+Pakete — stünde es im `require`, bräuchte jede Contentfly-Installation die Erweiterung, auch die,
+die nie ein Verzeichnis anfasst.
+
+Es steht deshalb in `suggest` (und in `require-dev`, weil die Suite des Frameworks den Provider
+prüft). Ein Produktivlauf mit `composer install --no-dev` kommt ohne `ext-ldap` aus.
+
+**Gefunden beim Gate-Lauf auf PHP 8.4:** `composer install` scheiterte im CI-Image mit
+„requires ext-ldap", und der Job starb still mit Exit 2 — die Meldung ging in einer Umleitung
+unter. `tools/ci/install-php-extensions.sh` baut `ldap` jetzt mit, weil die Suite es braucht.
+
+*Was zu tun ist:* Nur wer den Provider einträgt:
+
+```sh
+composer require symfony/ldap
+# und ext-ldap ins PHP-Image
+```
+
+Ohne das Paket wirft `LdapProvider::ausKonfiguration()` mit genau diesem Hinweis.
+
+### `appcms:provider:abgleich` ist neu
+**Seit `013-005-0002` (2026-09-11).**
+
+Sperrt Benutzer, die ihr Fremdsystem nicht mehr kennt (`isActive = false`). Ohne ihn behält ein
+aus dem Verzeichnis entfernter Benutzer seinen Zugang, bis sein Refresh-Token abläuft.
+
+Er **sperrt und löscht nicht**: umkehrbar, und `pim_log` behält seinen Bezug. Ein Provider, der
+keine Auskunft geben kann, führt dazu, dass der Benutzer übersprungen wird — sichtbar in der
+Ausgabe. **Ein Ausfall sperrt niemanden.**
+
+*Was zu tun ist:* Wer einen Provider einträgt, hängt den Befehl in denselben Cron wie
+`appcms:token:cleanup`. Vorher einmal mit `--dry-run` ansehen.
+
 ## Feldverschlüsselung (Story `010-004`)
 
 ### Verschlüsselt wird mit XChaCha20-Poly1305 statt AES-CBC

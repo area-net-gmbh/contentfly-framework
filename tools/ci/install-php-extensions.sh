@@ -5,6 +5,14 @@
 # Zwei Erweiterungen fehlen im Basis-Image:
 #
 #   pdo_mysql  ohne sie kommt keine Datenbankverbindung zustande.
+#   ldap       symfony/ldap steht in require-dev, weil LdapProviderTest den Provider prueft —
+#              und das Paket verlangt ext-ldap. `composer install` (mit dev) scheitert ohne die
+#              Erweiterung, und zwar mit einer Meldung, die im Job untergeht: Gefunden mit
+#              013-005-0004, als der 8.4-Lauf still mit Exit 2 abbrach.
+#
+#              In require steht symfony/ldap NICHT. Eine Systemerweiterung jeder Installation
+#              abzuverlangen, die gar kein Verzeichnis benutzt, waere die falsche Richtung; ein
+#              Produktivlauf mit `--no-dev` kommt ohne sie aus.
 #   gd         heute von keinem Test gebraucht, aber
 #              lib/contentfly/Classes/File/Processing/Image.php benutzt es für
 #              Thumbnails. Ohne die Erweiterung scheitert die erste Erweiterung der
@@ -64,18 +72,19 @@ apt-get install -y -qq --no-install-recommends \
     libpng-dev \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
+    libldap2-dev \
     unzip \
     > /dev/null
 
 echo "→ gd konfigurieren"
 docker-php-ext-configure gd --with-freetype --with-jpeg > /dev/null
 
-echo "→ pdo_mysql und gd bauen"
-docker-php-ext-install -j"$(nproc)" pdo_mysql gd > /dev/null
+echo "→ pdo_mysql, gd und ldap bauen"
+docker-php-ext-install -j"$(nproc)" pdo_mysql gd ldap > /dev/null
 
 echo "→ Aufräumen"
 rm -rf /var/lib/apt/lists/*
 
 echo "✓ PHP $(php -r 'echo PHP_VERSION;') mit:"
-php -m | grep -E '^(pdo_mysql|gd|mbstring|json|openssl|tokenizer)$' | sed 's/^/    /'
+php -m | grep -E '^(pdo_mysql|gd|ldap|mbstring|json|openssl|tokenizer)$' | sed 's/^/    /'
 echo "    unzip $(unzip -v | head -1 | cut -d' ' -f2) (Composer-Entpacker, keine PHP-Erweiterung)"

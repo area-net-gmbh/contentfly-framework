@@ -198,6 +198,26 @@ der eine fertige `User`-Entity liefern musste und damit die Provisionierung ins 
 
 Was ein Bestandsprojekt zu tun hat, steht in `an_project/docs/breaking-changes.md`.
 
+### Seit `013-005`: LDAP und OIDC hängen am selben Vertrag
+
+Zwei mitgelieferte Provider, beide **nicht** vorregistriert:
+
+| Provider | prüft | Einschränkung im Test |
+|---|---|---|
+| `Classes/Security/LdapProvider` | Bind gegen LDAP/AD — suchen, dann binden | gegen `LdapInterface`-Doppelgänger, nicht gegen ein Verzeichnis |
+| `Classes/Security/OidcProvider` | Userinfo-Endpunkt des Identity-Providers | gegen `MockHttpClient`, nicht gegen einen echten Provider |
+
+Beide münden in dieselbe Token-Ausstellung wie der lokale Login — ein Client merkt nicht, woher
+der Benutzer kam. Das ist der Weg hinter `Anmeldeprovider`, und den misst
+`AnmeldeproviderApiTest` end-to-end.
+
+**Wer aus dem Fremdsystem verschwindet, wird gesperrt, nicht gelöscht.**
+`appcms:provider:abgleich` hält den Bestand dagegen; `Bestandspruefung::kenntKennung()` gibt
+`?bool` zurück, und `null` heisst „kann es gerade nicht sagen" — **ein Ausfall darf nicht wie ein
+gelöschter Benutzer aussehen**, sonst sperrt ein Netzwerkfehler die ganze Belegschaft aus.
+
+Was ein Projekt konfigurieren muss, steht in `an_project/docs/dev-guide.md`.
+
 **Funktionale Defekte — behoben mit `013-001-0005`:**
 
 - ~~`POST /api/login` und `/api/logout` zeigen auf Methoden, die im `ApiController` nicht

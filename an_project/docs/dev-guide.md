@@ -38,3 +38,124 @@
 - Generator: <!-- z. B. nelmio/api-doc-bundle -->
 - Befehl: <!-- z. B. bin/console nelmio:apidoc:dump -->
 - Ausgabe: <!-- z. B. http://localhost:8000/api/doc -->
+
+## Anmeldung über ein Fremdsystem
+
+<!-- Ausgefüllt mit Story 013-005. Der Rest dieser Datei ist noch Vorlage. -->
+
+Contentfly bringt zwei Provider mit, LDAP/Active Directory und OIDC. **Beide sind nicht
+eingetragen** — ein Projekt trägt ein, was es braucht, und solange nichts eingetragen ist, gibt
+es keinen Weg an der Passwortprüfung vorbei.
+
+### Der Ablauf, einmal für beide
+
+1. **Provider registrieren** in `custom/app.php`, unter einem Namen:
+
+   ```php
+   $app['anmeldeanbieter']->eintragen('ldap', function () {
+       return \Areanet\PIM\Classes\Security\LdapProvider::ausKonfiguration();
+   });
+   ```
+
+2. **Konfigurieren** über die `SECURITY_*`-Felder (unten). Geheimnisse gehören in die Umgebung,
+   nicht in eine committete Datei.
+3. **Gruppen abbilden** über `SECURITY_PROVIDER_GRUPPEN` — je Anbietername ein Eintrag mit
+   `gruppen`, `admin` und `vorgabe`.
+4. **Der Client schickt den Namen** als `loginManager` an `POST /auth/login`. Ein Name, den
+   niemand eingetragen hat, wird abgewiesen.
+
+Der Rest ist gleich wie bei einer lokalen Anmeldung: Contentfly legt den Benutzer an, wenn es
+ihn noch nicht gibt, und stellt sein eigenes Token aus. **Ein Client merkt nicht, woher der
+Benutzer kam.**
+
+### LDAP / Active Directory
+
+| Feld | Bedeutung |
+|---|---|
+| `SECURITY_LDAP_HOST`, `SECURITY_LDAP_PORT` | Das Verzeichnis |
+| `SECURITY_LDAP_ENCRYPTION` | `none`, `ssl` oder `tls` |
+| `SECURITY_LDAP_BASE_DN` | Basis der Suche |
+| `SECURITY_LDAP_SEARCH_DN`, `SECURITY_LDAP_SEARCH_PASSWORD` | Dienstkonto; leer heisst anonyme Suche |
+| `SECURITY_LDAP_FILTER` | Vorgabe `(sAMAccountName={kennung})`; für OpenLDAP meist `(uid={kennung})` |
+| `SECURITY_LDAP_GRUPPEN_ATTRIBUT` | Vorgabe `memberOf` |
+
+**Das Paket kommt nicht mit.** `symfony/ldap` steht **nicht** im `require` des Frameworks,
+sondern in `suggest` — es verlangt die Systemerweiterung `ext-ldap`, und die jeder Installation
+abzuverlangen, die nie ein Verzeichnis anfasst, wäre die falsche Richtung. Wer den Provider
+benutzt, nimmt beides selbst auf:
+
+```sh
+composer require symfony/ldap    # im Projekt
+# und ext-ldap ins PHP-Image
+```
+
+Ohne das Paket wirft `LdapProvider::ausKonfiguration()` mit genau diesem Hinweis.
+
+**Der Weg ist suchen, dann binden**, nicht der direkte Bind mit einem aus der Kennung gebauten
+DN. Der funktioniert nur, solange alle Benutzer flach in einer OU liegen; im Active Directory
+tun sie das nicht, und angemeldet wird dort mit `sAMAccountName`, der im DN gar nicht vorkommt.
+
+### OIDC
+
+| Feld | Bedeutung |
+|---|---|
+| `SECURITY_OIDC_USERINFO_ENDPOINT` | Vollständige URL des Userinfo-Endpunkts |
+| `SECURITY_OIDC_KENNUNG_CLAIM` | Vorgabe `sub` |
+| `SECURITY_OIDC_GRUPPEN_CLAIM` | Vorgabe `groups`; leer heisst keine Gruppen |
+
+Der Client holt sein Access-Token beim Identity-Provider und schickt es als `accessToken` — oder
+als `pass`, wenn er dasselbe Formular benutzt wie für ein Passwort.
+
+**`sub` und nicht `email`.** Die Kennung muss stabil sein: `email` und `preferred_username` sind
+änderbar, und wer darauf abbildet, bekommt ein neues Konto, sobald jemand heiratet.
+
+**Geprüft wird am Userinfo-Endpunkt, nicht lokal gegen ein JWKS.** Entschieden mit `013-005-0003`
+— drei leichte Pakete statt fünf, und ein Widerruf wirkt sofort. Der Preis ist eine HTTP-Anfrage
+je Anmeldung; sie betrifft nur die Anmeldung, weil Contentfly danach ein eigenes Token ausstellt.
+
+### Wer aus dem Fremdsystem verschwindet
+
+Er kommt nicht mehr herein — aber sein Konto bleibt, und ein laufendes Refresh-Token holt bis zu
+seinem Zeitlimit weiter frische Access-JWT. Dagegen gibt es
+
+```sh
+php bin/console.php appcms:provider:abgleich --dry-run   # erst ansehen
+php bin/console.php appcms:provider:abgleich             # dann sperren
+```
+
+Der Befehl setzt `isActive` auf false, wo das Fremdsystem die Kennung nicht mehr kennt. Er
+**sperrt, statt zu löschen**: umkehrbar, und `pim_log` behält seinen Bezug.
+
+**Ein Ausfall sperrt niemanden.** Kann ein Provider keine Auskunft geben, wird der Benutzer
+übersprungen und das in der Ausgabe genannt. Ein OIDC-Provider kann die Frage grundsätzlich
+nicht beantworten — er prüft ein Token, das der Client mitbringt — und wird ebenfalls
+übersprungen, sichtbar.
+
+Gehört in einen Cron, zusammen mit `appcms:token:cleanup`.
+
+### Einen eigenen Provider schreiben
+
+`Areanet\PIM\Classes\Security\Anmeldeprovider` hat **eine** Pflicht:
+
+```php
+public function pruefen(Request $request): ?Fremdkennung;
+```
+
+`null` heisst abgelehnt. Der Provider fasst die Datenbank **nicht** an — Benutzer anlegen,
+Gruppen setzen und Token ausstellen macht das Framework. Wer zusätzlich sagen kann, ob es eine
+Kennung noch gibt, implementiert `Bestandspruefung`.
+
+`custom/Classes/Anmeldung/BeispielProvider.php` führt beides an einem lauffähigen Beispiel vor.
+
+### Was in der Testabdeckung fehlt
+
+**LDAP ist gegen Doppelgänger geprüft, nicht gegen ein laufendes Verzeichnis.** Bind-Reihenfolge,
+Maskierung des Suchfilters und die Trefferbehandlung sind gemessen; dass ein echtes Active
+Directory so antwortet, wie der Provider es erwartet, ist es nicht.
+
+**OIDC ist gegen `MockHttpClient` geprüft**, nicht gegen einen echten Identity-Provider.
+
+Beides ist eine bewusste Entscheidung (`013-005`) und keine Lücke, die niemand bemerkt hat. Wer
+einen der beiden Wege produktiv nimmt, testet ihn einmal gegen sein echtes System — die Suite
+nimmt ihm das nicht ab.
+
