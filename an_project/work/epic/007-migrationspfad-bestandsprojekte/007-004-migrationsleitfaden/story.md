@@ -45,3 +45,13 @@ oder als Verweis ins Register, und keiner fällt heraus. Die Probe darauf ist `0
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
+- [ ] 007-004-0001 — Die Phasen festlegen und das Register zuordnen
+- [ ] 007-004-0002 — Den Leitfaden schreiben
+- [ ] 007-004-0003 — Die Vollständigkeit prüfbar machen
+
+`0001` legt die Reihenfolge fest — **die eigentliche Leistung des Leitfadens**; entstünde sie
+beim Schreiben nebenbei, entstünde sie aus der Ordnung des Registers, und die ist genau die
+falsche. `0002` erzählt sie. `0003` macht die Abnahme „keiner fällt heraus" mechanisch.
+
+**Stand des Registers am 2026-09-11: 100 Einträge in 14 Abschnitten** — nicht mehr 96 in 13, wie
+oben beim Schneiden des Epics gezählt. Vier Einträge sind mit Epic `007` selbst dazugekommen.
