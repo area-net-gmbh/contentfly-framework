@@ -1,7 +1,7 @@
 ---
 id: 000-000-0033
 title: Übergabe an die IT-Security — Stand markieren und Übergabenotiz
-status: review
+status: done
 depends_on: []
 ---
 
