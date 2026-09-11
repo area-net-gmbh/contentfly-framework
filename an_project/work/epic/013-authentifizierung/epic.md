@@ -1,7 +1,7 @@
 ---
 id: 013-000-0000
 title: Authentifizierung — stateful und stateless nebeneinander
-status: in-progress
+status: done
 depends_on: []
 ---
 
