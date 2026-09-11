@@ -39,7 +39,7 @@ class FileApiTest extends IntegrationTestCase
         $inhalt  = "Zeile eins\nZeile zwei\n";
         $antwort = $this->upload('rueckgabe.txt', $inhalt, $this->token());
 
-        $pfad = CONTENTFLY_PROJEKT.'/data/files/'.$antwort['data']['id'].'/rueckgabe.txt';
+        $pfad = self::datenverzeichnis().'/files/'.$antwort['data']['id'].'/rueckgabe.txt';
 
         $this->assertFileExists($pfad, 'Der Upload legt die Datei unter data/files/<id>/<name> ab');
         $this->assertSame($inhalt, file_get_contents($pfad), 'Der Inhalt muss byte-gleich gespeichert werden');
@@ -164,7 +164,7 @@ class FileApiTest extends IntegrationTestCase
 
         $this->assertSame('File overwritten', $antwort['message'] ?? null);
 
-        $zielPfad = CONTENTFLY_PROJEKT.'/data/files/'.$ziel.'/gleich.txt';
+        $zielPfad = self::datenverzeichnis().'/files/'.$ziel.'/gleich.txt';
         $this->assertFileExists($zielPfad);
         $this->assertSame(
             "neuer inhalt\n",
@@ -173,7 +173,7 @@ class FileApiTest extends IntegrationTestCase
         );
 
         $this->assertDirectoryDoesNotExist(
-            CONTENTFLY_PROJEKT.'/data/files/'.$quelle,
+            self::datenverzeichnis().'/files/'.$quelle,
             'Die Quelle wird verschoben, nicht kopiert - ihr Verzeichnis verschwindet'
         );
     }
@@ -193,7 +193,7 @@ class FileApiTest extends IntegrationTestCase
 
         $this->assertSame(
             "alter inhalt\n",
-            file_get_contents(CONTENTFLY_PROJEKT.'/data/files/'.$ziel.'/zwei.txt'),
+            file_get_contents(self::datenverzeichnis().'/files/'.$ziel.'/zwei.txt'),
             'Bei verschiedenen Namen bleibt das Ziel unangetastet'
         );
     }
@@ -269,6 +269,6 @@ class FileApiTest extends IntegrationTestCase
         }
 
         $this->nachTestLoeschen('pim_file', $id);
-        $this->nachTestVerzeichnisLoeschen(CONTENTFLY_PROJEKT.'/data/files/'.$id);
+        $this->nachTestVerzeichnisLoeschen(self::datenverzeichnis().'/files/'.$id);
     }
 }

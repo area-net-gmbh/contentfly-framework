@@ -167,6 +167,25 @@ sh tools/ci/audit-ausnahmen-pruefen.sh   # meldet Ausnahmen, die nicht mehr grei
 Was diese Gates prüfen und was bei einem Fund zu tun ist, steht in
 `an_project/docs/deployment.md` unter *Die Gates*.
 
+### Gegen eine Installation ausserhalb des Repos prüfen
+
+**Seit `007-001-0005`.** Bezieht ein Projekt das Framework als Paket, liegt die Anwendung nicht
+mehr im selben Baum wie die Suite. `CONTENTFLY_TEST_PROJEKT` sagt dann, wo sie liegt:
+
+```sh
+CONTENTFLY_TEST_BASE_URL=http://127.0.0.1:8171 \
+CONTENTFLY_TEST_PROJEKT=/pfad/zum/projekt \
+./vendor/bin/phpunit
+```
+
+Daran hängen zwei Dinge, die vorher stillschweigend der Baum der Suite waren: das
+`data/`-Verzeichnis, das zwischen Tests geleert wird, und `bin/console.php`, das einige Tests
+aufrufen. **Eine Angabe für beides und nicht zwei** — zwei könnten auseinanderlaufen, und dann
+prüfte ein Lauf zwei verschiedene Installationen, ohne es zu merken.
+
+**Ohne die Variable bleibt alles wie bisher.** Das ist der Normalfall und der einzige, den die
+Pipeline kennt.
+
 **Bleibt ein Schritt stumm stehen, ist das ein Fehler im Skript, nicht im Werkzeug.** Seit
 `000-000-0029` gibt jeder Schritt, der seine Ausgabe wegschiebt, im Fehlerfall die letzten
 Zeilen seines Logs aus; wie das geht und warum, steht in `tools/ci/schritt.sh` und in

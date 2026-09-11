@@ -526,7 +526,7 @@ class SystemControllerApiTest extends IntegrationTestCase
 
         $ausgabe = array();
         exec(
-            sprintf('%s %s appcms:token:cleanup 2>&1', escapeshellarg(PHP_BINARY), escapeshellarg(CONTENTFLY_PROJEKT.'/bin/console.php')),
+            sprintf('%s %s appcms:token:cleanup 2>&1', escapeshellarg(PHP_BINARY), escapeshellarg(self::konsole())),
             $ausgabe
         );
 
@@ -616,7 +616,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         // Dateien, aber andere. Der Request laeuft nach der Action weiter und stellt dabei
         // erneut Abfragen; ein leeres Verzeichnis zu verlangen hiesse, dem Endpunkt etwas
         // zuzuschreiben, was er gar nicht zusagt.
-        $verzeichnis = CONTENTFLY_PROJEKT.'/data/cache/query';
+        $verzeichnis = self::datenverzeichnis().'/cache/query';
 
         // Etwas in den Cache bringen: /api/list stellt eine DQL-Abfrage.
         $this->postJson('/api/list', array('entity' => 'PIM\\User'), $this->token());
@@ -666,7 +666,7 @@ class SystemControllerApiTest extends IntegrationTestCase
             'Vorbedingung: die Vorlage schaltet den Schema-Cache aus'
         );
 
-        $this->assertFileDoesNotExist(CONTENTFLY_PROJEKT.'/data/cache/schema.cache');
+        $this->assertFileDoesNotExist(self::datenverzeichnis().'/cache/schema.cache');
 
         [, $body] = $this->systemDo('flushSchemaCache');
 

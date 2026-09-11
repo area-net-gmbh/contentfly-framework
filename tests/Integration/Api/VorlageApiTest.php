@@ -402,7 +402,7 @@ class VorlageApiTest extends IntegrationTestCase
 
         // Die Gegenprobe an der Konsole selbst — samt Praefix, den CustomCommand voranstellt.
         $ausgabe = array();
-        exec(sprintf('%s %s list 2>&1', escapeshellarg(PHP_BINARY), escapeshellarg(CONTENTFLY_PROJEKT.'/bin/console.php')), $ausgabe);
+        exec(sprintf('%s %s list 2>&1', escapeshellarg(PHP_BINARY), escapeshellarg(self::konsole())), $ausgabe);
         $alles = implode("\n", $ausgabe);
 
         $this->assertStringContainsString('appcms:install', $alles, 'Vorbedingung: die Liste ist gekommen');

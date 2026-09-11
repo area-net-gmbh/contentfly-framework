@@ -622,6 +622,25 @@ bekam sie nur, indem er den Baum überschrieb, in dem auch sein eigener Code lag
    nicht mehr hinein** — sonst gäbe es zwei Wege zu denselben Klassen, und welcher gewinnt,
    entschiede die Ladereihenfolge.
 
+#### Der Ablauf, Schritt für Schritt — von der Kopie auf das Paket
+
+**Einmal durchgespielt mit `007-001-0005`**, in einem leeren Verzeichnis, gegen ein Projekt, das
+keinen Frameworkcode enthält. Was hier steht, ist der gemessene Weg, nicht der geplante.
+
+1. **`lib/` aus dem Projekt entfernen.** Der Frameworkcode kommt ab jetzt aus `vendor/`.
+2. **Manifest anlegen** mit `areanet/contentfly` im `require`, den beiden Autoload-Präfixen
+   `Custom\` und `Plugins\`, und dem, was vorher in `custom/composer.json` stand.
+3. **Einstiegspunkte** auf die Form aus `007-001-0003` bringen: `index.php`, `bin/console.php`,
+   `bin/cli-config.php`.
+4. **`composer install`** — das Framework landet in `vendor/areanet/contentfly`.
+5. **`php bin/console.php appcms:install`** wie bisher.
+
+**Was mitgeht und was nicht.** Mit: `custom/`, `plugins/`, `data/`, die Einstiegspunkte, die
+`.htaccess`. Nicht mit: `lib/`, `custom/vendor/`, `custom/composer.json`.
+
+**Das Verzeichnis `data/` muss beschreibbar sein und dem Projekt gehören** — nicht dem Paket.
+Es trägt Cache, Dateien, Import und Temp; ein Update des Frameworks darf es nicht anfassen.
+
 **Ein Paket wechselt dabei die Seite:** `vlucas/phpdotenv` stand im Framework-Manifest und steht
 jetzt im Projekt. Es wird nur von `custom/config.php` benutzt — nachgezählt: 0 Treffer in `lib/`,
 1 in `custom/`. Die Einordnungsregel in `tools/dependency-assignment.json` ist entsprechend

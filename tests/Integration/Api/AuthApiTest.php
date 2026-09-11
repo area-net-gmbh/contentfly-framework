@@ -758,7 +758,7 @@ class AuthApiTest extends IntegrationTestCase
         exec(sprintf(
             '%s %s appcms:token:cleanup 2>&1',
             escapeshellarg(PHP_BINARY),
-            escapeshellarg(CONTENTFLY_PROJEKT.'/bin/console.php')
+            escapeshellarg(self::konsole())
         ));
 
         $this->pdo()->exec('DELETE FROM pim_revoked_token');
