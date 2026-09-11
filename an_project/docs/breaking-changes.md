@@ -970,6 +970,22 @@ arbeitet Symfonys `access_token`-Authenticator statt eines eigenen Rumpfes.
 ruft, ersetzt den Aufruf durch `$this->anmelden(...)`. Mehr nicht — Argumente und Rückgabe sind
 gleich geblieben.
 
+### `LOGIN_PATH` und `isAuthRequiredForPath()` sind entfallen
+**Seit `000-000-0026` (2026-09-11).**
+
+Beide sassen auf `BaseControllerProvider`. Die Methode gab zurück, ob ein Pfad eine Anmeldung
+braucht — und **niemand rief sie**, auch `checkToken()` nicht, solange es das noch gab.
+
+Entfernt statt stehengelassen, weil sie beim Lesen aussah wie die Stelle, an der man steuert,
+welche Pfade offen sind. Das tut sie nicht: Diese Entscheidung fällt je Route über `isSecure` im
+`RouteManager` beziehungsweise über den `$checkAuth`-Hook des Providers. Eine Methode, die einen
+Schalter vortäuscht, den es woanders gibt, ist gefährlicher als gar keine.
+
+*Was zu tun ist:* In aller Regel nichts. Wer einen eigenen Controller-Provider von
+`BaseControllerProvider` ableitet und die Methode **überschrieben** hat, bekommt keinen Fehler —
+sie wird nur nie gerufen, und das war schon vorher so. Wer sie **aufruft**, bekommt einen
+`Error`; der Aufruf kann ersatzlos weg, denn sein Rückgabewert steuerte nichts.
+
 ### Die drei Token-Konstanten sind entfallen
 **Seit `013-002-0004` (2026-09-10).**
 
