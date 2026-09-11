@@ -39,6 +39,123 @@
 - Befehl: <!-- z. B. bin/console nelmio:apidoc:dump -->
 - Ausgabe: <!-- z. B. http://localhost:8000/api/doc -->
 
+## Die zugesicherten `$app[...]`-Schlüssel
+
+<!-- Ausgefüllt mit 007-003-0002. -->
+
+**Der Zugriff `$app['orm.em']` ist dauerhaft Teil der öffentlichen API** — entschieden am
+2026-09-11, Begründung und verworfene Alternativen in `an_project/docs/architecture.md` unter
+*Key decisions*. Ein Projekt muss seine Controller dafür nicht anfassen.
+
+**Diese Liste ist der Gegenstand der Zusicherung.** Was hier steht, bleibt; was nicht hier
+steht, ist interne Verdrahtung und kann sich ändern. `tests/Integration/ContainerSchluesselTest.php`
+hält beide Richtungen fest.
+
+### Immer verfügbar
+
+| Schlüssel | Was er liefert |
+|---|---|
+| `is_installed` | ob `appcms:install` schon gelaufen ist — `bool` |
+| `debug` | der Wert von `APP_DEBUG` |
+| `database` | eine DBAL-Verbindung für direktes SQL, getrennt von der des EntityManagers |
+| `mailer` | der PHPMailer-Dienst |
+| `routeManager` | der Weg, auf dem ein Projekt Routen registriert |
+| `consoleManager` | die Registrierung eigener Console-Commands |
+| `request_stack` | Symfonys `RequestStack`; der aktuelle Request über `getCurrentRequest()` |
+| `dispatcher` | der `EventDispatcher` |
+| `auth.user` | der angemeldete Benutzer, **`null` solange niemand angemeldet ist** |
+| `orm.em` | der Doctrine-EntityManager, **`null` solange nicht installiert ist** |
+| `anmeldeanbieter` | das Verzeichnis der Anmeldeprovider (Story `013-004`) |
+
+### Erst wenn die Anwendung installiert ist
+
+Diese beiden stehen in einem `if ($app['is_installed'])`. Auf einem frischen Checkout gibt es sie
+**nicht** — wer sie ohne Prüfung liest, bekommt eine `InvalidArgumentException`. Das ist Absicht:
+`appcms:install` muss selbst laufen können, bevor es eine Datenbank gibt.
+
+| Schlüssel | Was er liefert |
+|---|---|
+| `db` | die DBAL-Verbindung des Standard-Mandanten |
+| `dbs` | alle Verbindungen, nach Mandant |
+
+**`orm.em` gehört ausdrücklich nicht hierher, und der Unterschied ist eine Falle.** Er ist
+*immer* da; ohne Installation setzt `bootstrap.php` ihn im `else`-Zweig auf `null`. „Fehlt"
+meldet sich mit einer Exception, die den Namen nennt — `null` meldet sich mit *Call to a member
+function createQueryBuilder() on null*, einer Meldung, die von der Methode handelt und nicht
+davon, dass nichts installiert ist. **Wer ihn vor der Installation benutzen könnte, prüft
+`$app['is_installed']`.**
+
+### Erst nach der Anmeldung
+
+| Schlüssel | Was er liefert |
+|---|---|
+| `auth.token` | die Token-Zeile der laufenden Sitzung |
+
+**Vorher gibt es ihn nicht** — nicht `null`, sondern gar nicht. Gesetzt wird er in
+`BaseControllerProvider`, nachdem ein Request sich ausgewiesen hat. In einem Console-Lauf gibt
+es ihn nie.
+
+### Was **nicht** zugesichert ist
+
+Alles andere, was das Framework registriert, ist interne Verdrahtung: `dbs.options`, `auth`,
+`console`, `helper`, `loginbremse`, `anmeldetreiber`, `benutzerbereitstellung`,
+`gruppenabbildung`, `tokenhandler`, `thumbnailSettings`, `schema`, `typeManager`,
+`pluginManager` — dazu `kernel`, `resolver` und `argument_resolver`, die aus
+`Classes/Kernel/Application` kommen und den HttpKernel verdrahten.
+
+Sie existieren, sie funktionieren, und sie können sich ohne Vorwarnung ändern. **Wer einen davon
+braucht, sagt Bescheid** — dann wird er zugesichert oder bekommt einen richtigen Zugang. Ihn
+still zu benutzen ist die einzige Variante, die schiefgeht.
+
+**Dazu kommt eine Gruppe, die gar keine Liste haben kann:** Jeder gemountete Controller bekommt
+einen Eintrag `<präfix>.controller`. Das Framework legt vier an (`api`, `auth`, `file`,
+`system`), und ein Projekt legt für jede eigene Route einen weiteren an — die Vorlage erzeugt so
+`api/v1/example/.controller`. Sie sind Verdrahtung des `ControllerResolver` und kein Dienst, den
+jemand liest.
+
+### Vier Regeln, an denen man sich sonst die Finger verbrennt
+
+**1. Was ein Projekt selbst setzt, sichert niemand zu.** `$app['meine.service'] = …` ist
+erlaubt und bleibt es — die Vorlage zeigt es in `custom/app.php` vor. Aber es ist Sache des
+Projekts: Das Framework kennt den Schlüssel nicht und räumt ihn nicht auf.
+
+**2. Ein unbekannter Schlüssel wirft.**
+
+```
+Der Container kennt "tippfehler" nicht.
+```
+
+Und das ist die Zusicherung, nicht ihr Gegenteil: Ein Tippfehler fällt laut auf und liefert
+nicht still `null`. Wer prüfen will, ob es einen Schlüssel gibt, nimmt `isset($app['x'])` —
+`ArrayAccess` beantwortet das, ohne den Dienst aufzulösen.
+
+**3. Eine Closure gilt als Factory, nicht als Wert.**
+
+```php
+$app['rückruf'] = function () { return 'A'; };
+$app['rückruf'];   // 'A' — die Closure wurde AUFGERUFEN, nicht zurückgegeben
+```
+
+Das ist Pimples Regel, und sie hat eine Kehrseite: **Wer einen Callback ablegen will, bekommt
+ihn ausgeführt.** Pimple hat dafür `protect()`; hier gibt es das nicht, weil im Framework
+niemand eine Closure als Wert ablegt. Wer es braucht, packt sie in ein Objekt oder ein Array.
+
+**4. Ein einmal gelesener Dienst ist eingefroren.** Danach wirft `extend()`:
+
+```
+Der Dienst "dispatcher" ist bereits ausgelesen und laesst sich nicht mehr erweitern.
+Wer extend() benutzt, muss es tun, bevor jemand den Dienst anfasst.
+```
+
+**Das ist mit Absicht so und nicht bloss eine Einschränkung.** Ein Container, der das
+stillschweigend erlaubte, würde den Fehler verstecken: Die Erweiterung liefe ins Leere, und der
+Dienst bliebe der alte. `000-000-0006` ist einmal genau darüber gestolpert. Praktisch heisst
+das: Wer `$app['dispatcher']` erweitern will, tut es in `custom/app.php`, bevor irgendein
+Controller läuft.
+
+> Die Entscheidung, dass dieser Zugriff dauerhaft gilt, steht in
+> `an_project/docs/architecture.md` unter *Key decisions*, 2026-09-11.
+
 ## Eine neue Entity anlegen
 
 <!-- Ausgefüllt mit 000-000-0028. -->

@@ -21,6 +21,69 @@
 
 <!-- Entscheidung · erwogene Alternativen · warum diese. -->
 
+### 2026-09-11 — Der `$app[...]`-Zugriff bleibt, mit fester Schlüsselliste
+
+**Entscheidung.** Der `ArrayAccess`-Zugriff auf den Container — `$app['orm.em']`,
+`$app['db']`, `$app['routeManager']` — ist **dauerhaft** Teil der öffentlichen Framework-API.
+Er ist keine befristete Migrationshilfe. Dazu gehört eine **feste Liste** der Schlüssel, auf
+die ein Projekt sich verlassen darf; ohne sie ist die Zusicherung leer.
+
+**Ein Bestandsprojekt muss seine Controller dafür nicht anfassen.** Das ist der Punkt: Die
+Frage stand offen, und solange sie offen stand, konnte kein Projekt den Aufwand seiner
+Migration abschätzen.
+
+#### Der gemessene Stand
+
+Nachgezählt am 2026-09-11, nicht geschätzt:
+
+| | |
+|---|---|
+| Registrierte Schlüssel | 24, alle in `lib/contentfly/bootstrap.php` |
+| Lesezugriffe | 134 im Framework, 25 in der Suite, 15 in der Vorlage |
+| Häufigster | `$app['orm.em']`, 35-mal |
+| Unbekannter Schlüssel | wirft `InvalidArgumentException` und nennt den Namen |
+| Typisierter Zugang | gibt es nicht; `ArrayAccess` ist der einzige Weg |
+
+#### Erwogene Alternative: befristet, mit Deprecation und Frist
+
+Der Zugriff wäre zur Migrationshilfe erklärt worden, mit benanntem Nachfolger, Frist und einem
+Lauf, der einem Projekt zeigt, welcher Aufruf betroffen ist.
+
+**Verworfen, und der Grund ist eine Zahl: 134.** So oft benutzt das Framework die Bridge
+**selbst**. Eine Deprecation, die für Projekte gilt, müsste im Framework zuerst durchgezogen
+werden — sonst meldet der eigene Code bei jedem Request die Warnung, und das Deprecation-Gate
+aus `006-005` wäre ab dem ersten Tag rot. Das ist ein eigener Umbau mit eigenem Aufwand, kein
+Migrationsschritt; ihn in ein Epic zu packen, das Bestandsprojekten den Weg bahnen soll, hiesse
+diesen Weg zu verlängern statt ihn zu bahnen.
+
+**Der zweite Grund ist der fehlende Nachfolger.** Eine Deprecation ohne benannten Ersatz ist
+keine Migrationshilfe, sondern eine Drohung. Der Ersatz wäre Konstruktorinjektion in 134
+Aufrufstellen plus in jedem Projekt-Controller — und *diese* Entscheidung steht nirgends an.
+
+#### Erwogene Alternative: dauerhaft, aber ohne Liste
+
+Am wenigsten Arbeit, und sie beantwortet die Frage der Story nicht. Ein Projekt wüsste weiterhin
+nicht, worauf es sich verlassen darf: Ob `$app['schema']` morgen noch existiert oder ob es nur
+interne Verdrahtung war, stünde nirgends. **Eine Zusicherung ohne Gegenstand ist keine.**
+
+#### Warum diese
+
+1. **Sie bestätigt eine Zusage, die schon gegeben ist.**
+   `an_project/docs/breaking-changes.md` führt seit Epic `009` unter *Was sich für ein Projekt
+   nicht ändert*: „`$app['schlüssel']` — lesen und setzen. **Zugesichertes API**." Diese
+   Entscheidung erfindet die Frage nicht neu, sie schliesst sie ab. Das gehört gesagt, damit
+   niemand später glaubt, sie sei nie gestellt worden.
+2. **Der Preis ist bekannt und klein.** Das Muster bleibt, was es ist: ein Container ohne
+   Typen. Wer typisierten Zugang will, kann ihn *daneben* stellen, ohne diese Entscheidung zu
+   brechen — sie sichert zu, dass `$app[...]` funktioniert, nicht dass es der einzige Weg bleibt.
+3. **Der Nutzen fällt sofort an.** Ein Bestandsprojekt kann seine Controller unverändert
+   übernehmen, und das ist der grösste Einzelposten, den Epic `007` ihm ersparen kann.
+
+**Revidieren, wenn** ein typisierter Zugang gebaut wird und sich im Framework durchsetzt. Dann
+ist neu zu entscheiden, ob `$app[...]` *daneben* bestehen bleibt oder eine Frist bekommt — und
+dann gibt es den Nachfolger, der heute fehlt. Vorher nicht: Eine Deprecation ohne Ersatz
+verschiebt Arbeit, statt sie zu ersparen.
+
 ### 2026-09-11 — Das Framework wird ein Bibliothekspaket, und dieses Repo ist zugleich das Skeleton
 
 **Entscheidung.** `lib/contentfly/` wird zum Composer-Paket `areanet/contentfly` mit
