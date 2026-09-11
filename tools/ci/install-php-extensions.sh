@@ -66,24 +66,33 @@
 
 set -eu
 
-echo "→ Systempakete für gd und den Composer-Entpacker"
-apt-get update -qq
-apt-get install -y -qq --no-install-recommends \
-    libpng-dev \
-    libjpeg62-turbo-dev \
-    libfreetype6-dev \
-    libldap2-dev \
-    unzip \
-    > /dev/null
+# Jeder Schritt hier baut etwas und schweigt dabei — bis er scheitert. Warum das eine Funktion
+# und kein trap ist, und wogegen es schuetzt, steht in tools/ci/schritt.sh (000-000-0029).
+. "$(dirname "$0")/schritt.sh"
 
-echo "→ gd konfigurieren"
-docker-php-ext-configure gd --with-freetype --with-jpeg > /dev/null
+# `-q` statt des frueheren `-qq`: Die Ausgabe wird jetzt aufgefangen statt weggeworfen, und ein
+# aufgefangenes Log, das apt-get absichtlich leer gelassen hat, nuetzt im Fehlerfall nichts.
+schritt "Paketlisten holen" \
+    apt-get update -q
 
-echo "→ pdo_mysql, gd und ldap bauen"
-docker-php-ext-install -j"$(nproc)" pdo_mysql gd ldap > /dev/null
+schritt "Systempakete für gd, ldap und den Composer-Entpacker" \
+    apt-get install -y -q --no-install-recommends \
+        libpng-dev \
+        libjpeg62-turbo-dev \
+        libfreetype6-dev \
+        libldap2-dev \
+        unzip
 
-echo "→ Aufräumen"
-rm -rf /var/lib/apt/lists/*
+schritt "gd konfigurieren" \
+    docker-php-ext-configure gd --with-freetype --with-jpeg
+
+schritt "pdo_mysql, gd und ldap bauen" \
+    docker-php-ext-install -j"$(nproc)" pdo_mysql gd ldap
+
+# Der Stern wird vom Aufrufer aufgeloest und kommt als Argumentliste an; geleert wird der
+# Inhalt, nicht das Verzeichnis — apt-get braucht es beim naechsten Aufruf noch.
+schritt "Aufräumen" \
+    rm -rf /var/lib/apt/lists/*
 
 echo "✓ PHP $(php -r 'echo PHP_VERSION;') mit:"
 php -m | grep -E '^(pdo_mysql|gd|ldap|mbstring|json|openssl|tokenizer)$' | sed 's/^/    /'
