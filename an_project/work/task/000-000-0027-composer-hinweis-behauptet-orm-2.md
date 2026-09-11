@@ -1,7 +1,7 @@
 ---
 id: 000-000-0027
 title: Der composer.json-Hinweis behauptet ORM ^2.14
-status: review
+status: done
 depends_on: []
 ---
 
