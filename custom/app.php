@@ -149,6 +149,14 @@ $app['anmeldeanbieter']->eintragen('beispiel', function () {
 //       return \Areanet\PIM\Classes\Security\LdapProvider::ausKonfiguration();
 //   });
 //
+//   OIDC. Geprueft wird am Userinfo-Endpunkt des Providers; konfiguriert wird ueber die
+//   SECURITY_OIDC_*-Felder. Der Client holt sich sein Access-Token beim Identity-Provider und
+//   schickt es als `accessToken` (oder `pass`) an /auth/login.
+//
+//   $app['anmeldeanbieter']->eintragen('oidc', function () {
+//       return \Areanet\PIM\Classes\Security\OidcProvider::ausKonfiguration();
+//   });
+//
 //   Ein eigener Provider, wo keiner der beiden passt:
 //
 //   $app['anmeldeanbieter']->eintragen('mein-sso', function () use ($app) {
