@@ -14,7 +14,8 @@
 #   CONTENTFLY_TEST_BASE_URL       Adresse, unter der der Testserver antwortet
 #   CONTENTFLY_TEST_MAIL_TRAP      Verzeichnis der Versandfalle
 #   CONTENTFLY_TEST_ADMIN_PASS     Passwort des Admin-Benutzers
-#   CONTENTFLY_TEST_JWT_SECRET     Signaturgeheimnis fuer die JWT-Tests (mind. 32 Byte)
+#   CONTENTFLY_TEST_JWT_SECRET     Signaturgeheimnis fuer die JWT-Tests (mind. 32 Byte)#   CONTENTFLY_TEST_PROVIDER       Liste fuer den BeispielProvider (013-004-0004),
+#                                  Format kennung:geheimnis:gruppe|gruppe, mehrere per Komma
 
 set -eu
 
@@ -29,7 +30,7 @@ fehlt() {
 for name in CONTENTFLY_TEST_DB_HOST CONTENTFLY_TEST_DB_PORT CONTENTFLY_TEST_DB_NAME \
             CONTENTFLY_TEST_DB_USER CONTENTFLY_TEST_DB_PASSWORD \
             CONTENTFLY_TEST_BASE_URL CONTENTFLY_TEST_MAIL_TRAP CONTENTFLY_TEST_ADMIN_PASS \
-            CONTENTFLY_TEST_JWT_SECRET; do
+            CONTENTFLY_TEST_JWT_SECRET CONTENTFLY_TEST_PROVIDER; do
     eval "wert=\${$name:-}"
     [ -n "$wert" ] || fehlt "$name"
 done
@@ -139,7 +140,11 @@ ADRESSE=$(echo "$CONTENTFLY_TEST_BASE_URL" | sed 's#^https\{0,1\}://##')
 # SECURITY_JWT_SECRET die der Anwendung. Sie hier gleichzusetzen ist eine Entscheidung dieser
 # Datei und keine, die in der Anwendung steht.
 echo "→ Testserver auf $ADRESSE"
-APP_ENV=production APP_DEBUG=0 SECURITY_JWT_SECRET="$CONTENTFLY_TEST_JWT_SECRET" php \
+# CONTENTFLY_BEISPIEL_PROVIDER speist die Vorlage aus 013-004-0004. Ohne sie laesst sie
+# NIEMANDEN herein — was ein eigener Test misst; hier bekommt sie einen Wert, damit der andere
+# Test die Anmeldung ueber einen Provider end-to-end durchspielen kann.
+APP_ENV=production APP_DEBUG=0 SECURITY_JWT_SECRET="$CONTENTFLY_TEST_JWT_SECRET" \
+    CONTENTFLY_BEISPIEL_PROVIDER="$CONTENTFLY_TEST_PROVIDER" php \
     -d display_errors=Off \
     -d log_errors=On \
     -d sendmail_path="$CONTENTFLY_TEST_MAIL_TRAP/sendmail" \

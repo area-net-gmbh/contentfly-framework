@@ -48,14 +48,26 @@ printf '#!/bin/sh\ncat >> "$(dirname "$0")/postausgang.log"\nexit 0\n' > "$FALLE
 chmod +x "$FALLE/sendmail"
 
 # 3. Testserver — mit Router, Versandfalle und ohne Fehlerausgabe im Antwortstrom
+#
+#    SECURITY_JWT_SECRET und CONTENTFLY_BEISPIEL_PROVIDER gehen an die ANWENDUNG, nicht an die
+#    Suite: Das erste laesst sie JWT ausstellen (013-003), das zweite speist die
+#    Provider-Vorlage (013-004). Ohne sie stellt der Login keine JWT aus und die Vorlage laesst
+#    niemanden herein — beides richtig, aber dann haben die zugehoerigen Tests nichts zu messen.
 APP_ENV=production APP_DEBUG=0 \
+  SECURITY_JWT_SECRET=dev-only-jwt-secret-mit-genug-laenge \
+  CONTENTFLY_BEISPIEL_PROVIDER='extern-eins:dev-only-provider-secret:CN=Redaktion' \
   php -d display_errors=Off -d log_errors=On -d sendmail_path="$FALLE/sendmail" \
       -S 127.0.0.1:8145 tests/router.php &
 
 # 4. Suite gegen diese Instanz
+#
+#    Die CONTENTFLY_TEST_*-Werte fuer JWT und Provider muessen zu denen oben passen: Die Suite
+#    zeigt vor, was der Server erwartet.
 CONTENTFLY_TEST_BASE_URL=http://127.0.0.1:8145 \
 CONTENTFLY_TEST_ADMIN_PASS=dev-only-secret \
 CONTENTFLY_TEST_MAIL_TRAP="$FALLE" \
+CONTENTFLY_TEST_JWT_SECRET=dev-only-jwt-secret-mit-genug-laenge \
+CONTENTFLY_TEST_PROVIDER='extern-eins:dev-only-provider-secret:CN=Redaktion' \
   ./vendor/bin/phpunit
 
 # 5. Die Vorlage wiederherstellen — Schritt 1 hat Zugangsdaten hineingeschrieben

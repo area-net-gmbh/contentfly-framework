@@ -19,21 +19,22 @@ use Tests\Integration\IntegrationTestCase;
  */
 class LoginManagerApiTest extends IntegrationTestCase
 {
-    private function benutzerAnlegen(string $alias, ?string $loginManager): string
+    private function benutzerAnlegen(string $alias, ?string $loginManager, ?string $externalId = null): string
     {
         $id   = 'lm-'.bin2hex(random_bytes(6));
         $salt = bin2hex(random_bytes(16));
 
         $this->pdo()->prepare(
             'INSERT INTO pim_user (id, isAdmin, alias, pass, isActive, salt, loginManager,
-                                   created, modified, views, isIntern)
-             VALUES (:id, 0, :alias, :pass, 1, :salt, :lm, NOW(), NOW(), 0, 0)'
+                                   externalId, created, modified, views, isIntern)
+             VALUES (:id, 0, :alias, :pass, 1, :salt, :lm, :ext, NOW(), NOW(), 0, 0)'
         )->execute(array(
             'id'    => $id,
             'alias' => $alias,
             'pass'  => hash('sha256', self::TEST_PASSWORT.$salt),
             'salt'  => $salt,
             'lm'    => $loginManager,
+            'ext'   => $externalId,
         ));
 
         $this->nachTestLoeschen('pim_user', $id);
@@ -67,32 +68,158 @@ class LoginManagerApiTest extends IntegrationTestCase
         $this->assertSame('Der Benutzer ist nur über LoginManager authorisierbar.', $body['message']);
     }
 
-    public function testDerAliasPraefixVerhindertKollisionenZwischenLoginManagern(): void
+    /**
+     * **Umgedreht mit `013-004-0002`, nicht gelöscht.**
+     *
+     * Der Test hiess `testDerAliasPraefixVerhindertKollisionenZwischenLoginManagern` und hielt
+     * fest, dass `createManagedUser()` den Alias mit `md5(get_class($this))` präfigiert. Der
+     * Präfix löste ein echtes Problem — zwei Fremdsysteme, die denselben Benutzernamen liefern,
+     * dürfen nicht dasselbe Konto bekommen —, aber er löste es, indem er die Antwort unleserlich
+     * machte: Wer in `pim_user` nachsah, fand `3f2a…-mueller` und wusste nicht, wer das ist.
+     *
+     * Dieselbe Eindeutigkeit kommt jetzt aus einer Bedingung über `loginManager` **und**
+     * `externalId`, und der Alias liest sich als `<provider>:<kennung>`.
+     */
+    public function testDieEindeutigkeitKommtAusDerSpaltenbedingungStattAusEinemMd5Praefix(): void
     {
-        // createManagedUser() praefigiert den Alias mit md5(get_class($this)) — zwei
-        // verschiedene LoginManager, die denselben externen Benutzernamen liefern, erzeugen
-        // damit zwei verschiedene Konten statt sich gegenseitig zu uebernehmen.
-        //
-        // Die Praefix-Bildung ist hier nachgerechnet, nicht ueber die Methode ausgeloest:
-        // Der Wert ist reine Funktion des Klassennamens, und die Zusicherung lautet
-        // "verschiedene Klassen ergeben verschiedene Praefixe".
-        $ersterPraefix  = md5('Custom\\Classes\\LoginManager\\Ldap');
-        $zweiterPraefix = md5('Custom\\Classes\\LoginManager\\Saml');
+        $bedingung = $this->pdo()->query(
+            "SELECT COUNT(*) FROM information_schema.STATISTICS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'pim_user'
+               AND INDEX_NAME = 'uniq_user_fremdkennung' AND NON_UNIQUE = 0"
+        )->fetchColumn();
 
-        $this->assertNotSame($ersterPraefix, $zweiterPraefix);
+        $this->assertSame('2', (string) $bedingung,
+            'Die unique-Bedingung steht ueber beiden Spalten — loginManager und externalId');
 
-        $aliasLdap = $ersterPraefix.'-mueller';
-        $aliasSaml = $zweiterPraefix.'-mueller';
+        $ldap = $this->benutzerAnlegen('ldap:mueller', 'ldap', 'mueller');
+        $saml = $this->benutzerAnlegen('saml:mueller', 'saml', 'mueller');
 
-        $this->benutzerAnlegen($aliasLdap, 'Custom\\Classes\\LoginManager\\Ldap');
-        $this->benutzerAnlegen($aliasSaml, 'Custom\\Classes\\LoginManager\\Saml');
+        $this->assertNotSame($ldap, $saml, 'Zwei Konten fuer denselben externen Namen');
 
-        $anzahl = (int) $this->pdo()
-            ->query('SELECT COUNT(*) FROM pim_user WHERE alias LIKE '.$this->pdo()->quote('%-mueller'))
-            ->fetchColumn();
+        $aliase = $this->pdo()->query(
+            "SELECT alias FROM pim_user WHERE externalId = 'mueller' ORDER BY alias"
+        )->fetchAll(\PDO::FETCH_COLUMN);
 
-        $this->assertSame(2, $anzahl,
-            'Derselbe externe Name aus zwei Providern ergibt zwei Konten — die '
-            .'unique-Bedingung auf alias schlaegt nicht zu');
+        $this->assertSame(array('ldap:mueller', 'saml:mueller'), $aliase,
+            'Lesbar, und die Herkunft steht davor');
+    }
+
+    /**
+     * **Befund A-6, über HTTP.**
+     *
+     * `createManagedUser()` setzte `setPass($alias)` — das Passwort war der Benutzername.
+     * Entschärft war das allein durch den Riegel „nur über LoginManager authorisierbar"; jeder
+     * Pfad, der ihn umging, war eine triviale Kontoübernahme. Jetzt ist das Passwort gesperrt,
+     * und der Riegel ist die **zweite** Sicherung.
+     */
+    public function testEinBereitgestellterBenutzerHatKeinErratbaresPasswort(): void
+    {
+        $alias = 'ldap:a6-'.bin2hex(random_bytes(4));
+        $this->benutzerAnlegenMitGesperrtemPasswort($alias, 'ldap');
+
+        foreach (array($alias, substr($alias, 5), 'ldap', '*', '') as $versuch) {
+            [$status, $body] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => $versuch));
+
+            $this->assertSame(401, $status, 'Versuch mit "'.$versuch.'"');
+            $this->assertArrayNotHasKey('token', $body);
+        }
+    }
+
+    /**
+     * Und der Riegel steht weiterhin: Auch ohne gesperrtes Passwort käme man nicht durch.
+     */
+    public function testDerRiegelIstDieZweiteSicherungUndStehtWeiterhin(): void
+    {
+        $alias = 'lm-riegel-'.bin2hex(random_bytes(4));
+        $this->benutzerAnlegen($alias, 'ldap');
+
+        [$status, $body] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORT));
+
+        $this->assertSame(401, $status);
+        $this->assertSame('Der Benutzer ist nur über LoginManager authorisierbar.', $body['message']);
+    }
+
+    /** Legt einen Benutzer mit gesperrtem Passwort an — wie die Bereitstellung es täte. */
+    private function benutzerAnlegenMitGesperrtemPasswort(string $alias, string $anbieter): string
+    {
+        $id = 'lm-'.bin2hex(random_bytes(6));
+
+        $this->pdo()->prepare(
+            'INSERT INTO pim_user (id, isAdmin, alias, pass, isActive, salt, loginManager,
+                                   externalId, created, modified, views, isIntern)
+             VALUES (:id, 0, :alias, :pass, 1, :salt, :lm, :ext, NOW(), NOW(), 0, 0)'
+        )->execute(array(
+            'id'    => $id,
+            'alias' => $alias,
+            'pass'  => '*',
+            'salt'  => bin2hex(random_bytes(16)),
+            'lm'    => $anbieter,
+            'ext'   => substr($alias, strlen($anbieter) + 1),
+        ));
+
+        $this->nachTestLoeschen('pim_user', $id);
+
+        return $id;
+    }
+
+    // ── Die Auswahl kommt aus einer Allowlist (013-004-0001) ──────────────────────────
+
+    /**
+     * **Ein Klassenname im Request wählt keine Klasse mehr aus.**
+     *
+     * Bis `013-004-0001` wurde der Parameter `loginManager` zu `Custom\Classes\<Name>`
+     * aufgelöst und die Klasse instanziiert. Der Präfix und eine `instanceof`-Prüfung
+     * begrenzten den Schaden — aber die Auswahl lag beim Aufrufer. Jetzt benennt der Parameter
+     * einen Eintrag im Verzeichnis, und ein Klassenname steht dort nicht.
+     */
+    public function testEinKlassennameWaehltKeineKlasseMehrAus(): void
+    {
+        foreach (array(
+            'Custom\\Classes\\LoginManager\\Beispiel',
+            'Plugins\\Auth\\Ldap',
+            'Areanet\\PIM\\Classes\\Manager\\LoginManager',
+        ) as $klassenname) {
+            [$status, $body] = $this->postJson('/auth/login', array(
+                'alias'        => 'admin',
+                'pass'         => $this->pass(),
+                'loginManager' => $klassenname,
+            ));
+
+            $this->assertSame(401, $status, $klassenname.' darf nichts oeffnen');
+            $this->assertArrayNotHasKey('token', $body);
+        }
+    }
+
+    /**
+     * Ein unbekannter Name wird abgewiesen und **nicht** auf die Passwortprüfung
+     * zurückgeführt.
+     *
+     * Sonst wäre ein Tippfehler im Providernamen eine stille Anmeldung über den falschen Weg —
+     * mit richtigem Passwort sogar eine erfolgreiche.
+     */
+    public function testEinUnbekannterProvidernameFaelltNichtAufDasPasswortZurueck(): void
+    {
+        [$status, $body] = $this->postJson('/auth/login', array(
+            'alias'        => 'admin',
+            'pass'         => $this->pass(),
+            'loginManager' => 'gibtesnicht',
+        ));
+
+        $this->assertSame(401, $status);
+        $this->assertArrayNotHasKey('token', $body);
+    }
+
+    /**
+     * Und die Gegenprobe: Ohne den Parameter läuft die Anmeldung wie immer.
+     *
+     * Das Verzeichnis ist im ausgelieferten Zustand leer — solange nichts eingetragen ist, gibt
+     * es keinen Weg an der Passwortprüfung vorbei, aber auch keinen zusätzlichen Riegel davor.
+     */
+    public function testOhneProvidernameLaeuftDieAnmeldungWieImmer(): void
+    {
+        [$status, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => $this->pass()));
+
+        $this->assertSame(200, $status);
+        $this->assertArrayHasKey('token', $body);
     }
 }

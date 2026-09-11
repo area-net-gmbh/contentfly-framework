@@ -1101,6 +1101,121 @@ entstand mit `013-003-0001`, die Kennung mit `013-003-0004`, und dazwischen lag 
 *Was zu tun ist:* Nichts. Wer selbst Tokens für diese Anwendung signiert, setzt `kid` auf den
 Wert von `SECURITY_JWT_KEY_ID`.
 
+## Authentifizierung, Teil 4 — der LoginManager (Story `013-004`)
+
+**Betrifft nur Projekte, die einen `LoginManager` haben.** Wer sich ausschliesslich mit
+Benutzername und Passwort anmeldet, ist von diesem Abschnitt nicht berührt.
+
+### `Areanet\PIM\Classes\Manager\LoginManager` gibt es nicht mehr
+**Seit `013-004-0002` (2026-09-10).**
+
+An seine Stelle tritt das Interface `Areanet\PIM\Classes\Security\Anmeldeprovider` mit **einer**
+Pflichtmethode. Der Unterschied ist nicht nur der Name:
+
+| alt | neu |
+|---|---|
+| `auth()` liefert eine fertige `User`-Entity | `pruefen(Request): ?Fremdkennung` liefert, was das Fremdsystem sagt |
+| Der Provider ruft `createManagedUser()` und schreibt in die Datenbank | Der Provider fasst die Datenbank **nicht** an |
+| Klasse wird über den Request-Parameter ausgewählt | Der Parameter benennt einen Eintrag aus `custom/app.php` |
+| Gruppe und Adminflag als Argumente je Aufruf | `SECURITY_PROVIDER_GRUPPEN`, an einer Stelle |
+
+*Der Weg vom alten Manager zum neuen Vertrag, Schritt für Schritt:*
+
+1. **Die Klasse umhängen.** `extends LoginManager` wird zu
+   `implements Areanet\PIM\Classes\Security\Anmeldeprovider`. Der Konstruktor mit `$app` und
+   `$request` entfällt; ein Provider bekommt den Request als Argument von `pruefen()`.
+2. **`auth()` zu `pruefen()` machen.** Was bisher am Ende `createManagedUser(...)` rief, gibt
+   jetzt `new Fremdkennung($kennungImFremdsystem, $gruppenAusDemFremdsystem)` zurück. Wer
+   niemanden erkannt hat, gibt `null` zurück — eine Ausnahme führt zum selben Ergebnis, ihre
+   Meldung erreicht den Aufrufer aber nicht mehr.
+3. **Die Kennung nicht mehr verfremden.** In die `Fremdkennung` gehört die Kennung, wie das
+   Fremdsystem sie führt. Alias, Präfix und Eindeutigkeit macht das Framework.
+4. **Gruppen und Adminflag aus dem Code nehmen** und in `SECURITY_PROVIDER_GRUPPEN` eintragen —
+   je Anbietername `gruppen`, `admin` und `vorgabe`.
+5. **Den Provider registrieren:** `$app['anmeldeanbieter']->eintragen('<name>', fn () => new …)`
+   in `custom/app.php`. Dieser `<name>` ist ab jetzt der Wert, den ein Client als `loginManager`
+   schickt.
+6. **Die Clients umstellen:** Sie schicken den Namen statt des Klassennamens.
+
+`custom/Classes/Anmeldung/BeispielProvider.php` führt alles davon an einem lauffähigen Beispiel
+vor.
+
+### Der Request-Parameter `loginManager` wählt keine Klasse mehr aus
+**Seit `013-004-0001` (2026-09-10).**
+
+Er benennt einen Eintrag im `Anbieterverzeichnis`. Ein Klassenname steht dort nicht und wird
+abgewiesen — wie jeder andere unbekannte Name, und **ohne** auf die Passwortprüfung
+zurückzufallen.
+
+Der Parametername bleibt `loginManager`: Bestandsclients schicken ihn so, und ihn umzubenennen
+wäre ein Bruch am Draht ohne Gewinn. Wenn er umbenannt wird, dann mit dem Rest der Migration.
+
+*Was zu tun ist:* Schritt 5 und 6 oben. Solange nichts registriert ist, ist jeder
+`loginManager`-Wert unbekannt und die Anmeldung darüber scheitert.
+
+### Ein über ein Fremdsystem angelegter Benutzer hat kein Passwort mehr
+**Seit `013-004-0002` (2026-09-10).**
+
+`createManagedUser()` setzte `setPass($alias)` — das Passwort war der Benutzername (Befund A-6).
+Entschärft war das allein durch den Riegel „nur über LoginManager authorisierbar"; jeder Pfad,
+der ihn umging, war eine triviale Kontoübernahme.
+
+Neu angelegte Konten bekommen `pim_user.pass = '*'` — kein gültiger Hash, gegen den keine
+Eingabe passt. Der Riegel bleibt; er ist jetzt die **zweite** Sicherung.
+
+*Was zu tun ist:* **Den Altbestand prüfen.** Konten, die `createManagedUser()` angelegt hat,
+tragen weiterhin `hash('sha256', <alias>.<salt>)` — also ein Passwort, das der Benutzername ist.
+Sie sind nur durch den Riegel geschützt. Diese Zeilen gehören gesperrt:
+
+```sql
+UPDATE pim_user SET pass = '*' WHERE loginManager IS NOT NULL AND loginManager <> '';
+```
+
+Das ist verlustfrei: Diese Konten sollen sich ohnehin nur über ihr Fremdsystem anmelden.
+
+### `pim_user` bekommt eine Spalte und eine Bedingung
+**Seit `013-004-0002` (2026-09-10).**
+
+`externalId` (nullable) nimmt die Kennung des Fremdsystems auf; eine Unique-Bedingung
+`uniq_user_fremdkennung` steht über `loginManager` und `externalId`. Dieselbe Eindeutigkeit, die
+vorher aus dem MD5-Präfix im Alias kam — nur lesbar.
+
+*Was zu tun ist:* Schema abgleichen. Bestehende Zeilen bekommen `externalId = NULL` und
+verhalten sich unverändert.
+
+### Über die Altbestände mit MD5-Präfix ist entschieden: sie bleiben stehen
+**Seit `013-004` (2026-09-10).**
+
+Konten, die `createManagedUser()` angelegt hat, tragen einen Alias der Form
+`<md5-des-klassennamens>-<kennung>`, `loginManager` mit dem **Klassennamen** und `externalId`
+leer. Das Framework schreibt sie **nicht** um, und zwar aus drei Gründen:
+
+1. **Die Zuordnung ist nicht rückrechenbar.** Aus `3f2a…-mueller` lässt sich die alte Klasse nur
+   erraten, indem man alle Klassennamen durchprobiert, die ein Projekt je hatte — und die kennt
+   das Framework nicht.
+2. **Ein automatischer Umschrieb änderte den Alias**, und der Alias ist die Kennung, unter der
+   ein JWT den Benutzer führt (`sub`) und unter der Projektcode ihn womöglich nachschlägt.
+3. **Ein Migrationsschritt, den niemand prüfen kann, ist schlimmer als einer, den jemand
+   bewusst geht.**
+
+*Was zu tun ist:* Für jeden alten Provider einmal, mit bekanntem Klassennamen und bekanntem
+neuem Providernamen:
+
+```sql
+UPDATE pim_user
+   SET externalId   = SUBSTRING(alias, 34),
+       alias        = CONCAT('<neuername>', ':', SUBSTRING(alias, 34)),
+       loginManager = '<neuername>',
+       pass         = '*'
+ WHERE loginManager = '<AlterKlassenname>';
+```
+
+Die 34 ist kein Zufall: 32 Zeichen MD5 plus der Bindestrich. **Vorher eine Sicherung anlegen**
+und danach nachsehen, dass jeder Benutzer sich noch anmelden kann — wer den Schritt auslässt,
+bekommt beim nächsten Login schlicht ein zweites Konto, was ärgerlich, aber nicht gefährlich ist.
+
+Wie ein Projekt diesen Schritt gebündelt bekommt, entscheidet Epic `007`.
+
 ## Feldverschlüsselung (Story `010-004`)
 
 ### Verschlüsselt wird mit XChaCha20-Poly1305 statt AES-CBC

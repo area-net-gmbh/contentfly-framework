@@ -174,7 +174,29 @@ fremden Code, keine vorhandene Funktion.
 | ~~A-3~~ | ~~Kein Rate-Limiting — `CHECK_LOGIN_INTERVAL` ist eine `false`-Konstante.~~ **Behoben mit `013-001-0003`:** Anmeldebremse pro Kennung **und** pro IP, mit ansteigender Verzögerung (60 s → 900 s → 3600 s). Beide Konstanten und der tote Zweig sind entfallen; `setTrustedProxies()` ist konfigurierbar, damit die Achse IP hinter einem Proxy den Richtigen trifft. |
 | ~~A-4~~ | ~~`pim_token.token` steht im Klartext.~~ **Behoben mit `013-001-0004`:** gespeichert wird ein SHA-256, nachgeschlagen wird der Hash. Der Token verlässt das System genau einmal, bei der Anmeldung. Auch `pim_log.model_label` trug ihn im Klartext — dort steht jetzt ebenfalls der Hash. |
 | A-5 | `referrer`-Tokens laufen nie ab, und der Token-String kommt beim Anlegen vom Client (`Controller/SystemController.php:159`) | Ratbare Dauerschlüssel möglich |
-| A-6 | `LoginManager::createManagedUser()` setzt `setPass($alias)` — das Passwort ist der Benutzername | Latente Übernahme aller SSO-Konten |
+| ~~A-6~~ | ~~`LoginManager::createManagedUser()` setzt `setPass($alias)` — das Passwort ist der Benutzername.~~ **Behoben mit `013-004-0002`:** Ein über ein Fremdsystem angelegter Benutzer hat ein **gesperrtes** Passwort (`*`), gegen das keine Eingabe passt. Die Provisionierung liegt im Framework statt im Projekt; `Classes\Manager\LoginManager` ist entfallen. |
+
+### Seit `013-004`: der Nachfolger des LoginManagers
+
+Die Grundidee bleibt — das Framework stellt Vertrag und Provisionierung, das Projekt
+programmiert die Prüfung. Was fällt, sind die Konstruktionsfehler:
+
+| Stück | wo |
+|---|---|
+| Vertrag | `Classes/Security/Anmeldeprovider` — **eine** Pflicht: `pruefen(Request): ?Fremdkennung` |
+| Auswahl | `Classes/Security/Anbieterverzeichnis`, gefüllt aus `custom/app.php`; ein Name, kein Klassenname |
+| Provisionierung | `Classes/Security/Benutzerbereitstellung` — gesperrtes Passwort, Kennung in `pim_user.externalId` |
+| Rollenabbildung | `Classes/Security/Gruppenabbildung`, konfiguriert über `SECURITY_PROVIDER_GRUPPEN` |
+| Vorlage | `custom/Classes/Anmeldung/BeispielProvider` — läuft, lässt aber ohne Konfiguration niemanden herein |
+
+**Ein Provider fasst die Datenbank nicht an.** Das ist der Unterschied zum alten `LoginManager`,
+der eine fertige `User`-Entity liefern musste und damit die Provisionierung ins Projekt schob —
+`setPass($alias)` ist das prominenteste Ergebnis dieser Aufteilung.
+
+**Der MD5-Präfix im Alias ist weg.** Die Eindeutigkeit kommt jetzt aus einer Bedingung über
+`loginManager` und `externalId`; der Alias liest sich als `<provider>:<kennung>`.
+
+Was ein Bestandsprojekt zu tun hat, steht in `an_project/docs/breaking-changes.md`.
 
 **Funktionale Defekte — behoben mit `013-001-0005`:**
 

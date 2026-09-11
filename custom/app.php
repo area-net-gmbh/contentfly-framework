@@ -108,3 +108,39 @@ $app->after(function (Request $request, Response $response) {
  * --------------------------------------------------------------------------------------- */
 
 $app['consoleManager']->addCommand(new \Custom\Command\ExampleCommand());
+
+/* -----------------------------------------------------------------------------------------
+ * 5. Anmeldeprovider — Anmeldung gegen ein Fremdsystem (LDAP, SAML, OIDC, was auch immer).
+ *
+ *    Ein Projekt trägt seine Provider hier unter einem **Namen** ein. Der Login wählt über
+ *    diesen Namen (Parameter `loginManager`), nicht über einen Klassennamen: Welche Klasse
+ *    die Anwendung instanziiert, ist eine Entscheidung des Betreibers und nicht des
+ *    Aufrufers. Ein Name, den hier niemand einträgt, existiert nicht.
+ *
+ *    Bis `013-004-0001` kam der Klassenname als Request-Parameter und wurde zu
+ *    `Custom\Classes\<Name>` aufgelöst. Der Präfix und eine `instanceof`-Prüfung begrenzten
+ *    den Schaden — aber die Auswahl lag beim Aufrufer.
+ *
+ *    Der Provider erfüllt `Areanet\PIM\Classes\Security\Anmeldeprovider` und hat genau eine
+ *    Pflicht: gegen das Fremdsystem prüfen. Er fasst die Datenbank **nicht** an — Benutzer
+ *    finden oder anlegen, Gruppen setzen und den Token ausstellen macht das Framework.
+ *
+ *    Der Eintrag ist faul: Die Closure läuft erst, wenn sich jemand über diesen Namen
+ *    anmeldet, nicht bei jedem Request.
+ *
+ *    **Solange hier nichts steht, gibt es keinen Weg an der Passwortprüfung vorbei.** Die
+ *    Anmeldung über ein Fremdsystem ist eine Entscheidung, die jemand treffen muss.
+ *
+ *    `BeispielProvider` ist unten eingetragen und läuft wirklich — er lässt aber niemanden
+ *    herein, solange `CONTENTFLY_BEISPIEL_PROVIDER` nicht gesetzt ist. Eine Vorlage, die eine
+ *    Installation versehentlich offen liesse, wäre schlimmer als gar keine.
+ * --------------------------------------------------------------------------------------- */
+$app['anmeldeanbieter']->eintragen('beispiel', function () {
+    return new \Custom\Classes\Anmeldung\BeispielProvider();
+});
+
+//   Ein echtes Projekt traegt daneben oder stattdessen seinen eigenen ein:
+//
+//   $app['anmeldeanbieter']->eintragen('ldap', function () use ($app) {
+//       return new \Custom\Classes\Anmeldung\LdapProvider($app);
+//   });
