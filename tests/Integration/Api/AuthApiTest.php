@@ -729,7 +729,7 @@ class AuthApiTest extends IntegrationTestCase
         $jti = 'test-'.bin2hex(random_bytes(8));
 
         $this->pdo()->prepare(
-            'INSERT INTO pim_revoked_token (jti, expiresAt, created, modified) VALUES (:j, :e, :c, :c)'
+            'INSERT INTO pim_revoked_token (jti, expiresAt, created) VALUES (:j, :e, :c)'
         )->execute(array(
             'j' => $jti,
             'e' => (new \DateTime('-1 hour'))->format('Y-m-d H:i:s'),
