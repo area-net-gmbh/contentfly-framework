@@ -12,7 +12,12 @@
  * siehe `tests/README.md`.
  */
 
-const ROOT_DIR = __DIR__ . '/..';
+/*
+ * Dieselbe Konstante, die auch die Einstiegspunkte setzen (007-001-0002). Sie hiess bis dahin
+ * ROOT_DIR und wurde vom Framework aus dessen eigener Lage gerechnet; jetzt benennt sie, wer
+ * startet — hier also die Suite.
+ */
+define('CONTENTFLY_PROJEKT', dirname(__DIR__));
 
 /*
  * Dieselbe Reihenfolge wie in `lib/contentfly/bootstrap.php`, und aus demselben Grund: Root
@@ -24,14 +29,22 @@ const ROOT_DIR = __DIR__ . '/..';
  * Die Spiegelung ist Absicht: Ein Testlauf, der anders lädt als die Anwendung, prüft eine
  * andere Anwendung.
  */
-require_once ROOT_DIR . '/vendor/autoload.php';
+require_once CONTENTFLY_PROJEKT . '/vendor/autoload.php';
 
-if (file_exists(ROOT_DIR . '/custom/vendor/autoload.php')) {
-    require_once ROOT_DIR . '/custom/vendor/autoload.php';
+if (file_exists(CONTENTFLY_PROJEKT . '/custom/vendor/autoload.php')) {
+    require_once CONTENTFLY_PROJEKT . '/custom/vendor/autoload.php';
 }
 
-require_once ROOT_DIR . '/lib/contentfly/version.php';
-require_once ROOT_DIR . '/custom/version.php';
+/*
+ * Die Suite ist ein Einstiegspunkt wie index.php und bin/console.php — also uebergibt sie das
+ * Projektverzeichnis genauso (007-001-0002). Ohne diese Zeile wirft jeder Zugriff auf einen
+ * Pfad, und genau das soll er: Ein nicht gesetztes Projektverzeichnis ist ein Fehler des
+ * Aufrufers, kein Fall fuer einen stillen Standardwert.
+ */
+\Areanet\PIM\Classes\Kernel\Pfade::setzen(CONTENTFLY_PROJEKT);
+
+require_once CONTENTFLY_PROJEKT . '/lib/contentfly/version.php';
+require_once CONTENTFLY_PROJEKT . '/custom/version.php';
 
 /*
  * `lib/contentfly/bootstrap.php` setzt diese Konstanten aus der Konfiguration. Entity-Klassen

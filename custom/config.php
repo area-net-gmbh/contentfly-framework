@@ -44,14 +44,17 @@ use Areanet\PIM\Classes\Config\Factory;
  * über die fehlende Abhängigkeit. Der Weg dorthin ist Epic `007` und noch nicht entschieden.
  *
  * Behalten ist die umkehrbare Wahl, Entfernen nicht. Revidieren, wenn `007` festgelegt hat,
- * wie ein Projekt an das Root-Manifest kommt.
+ * wie ein Projekt an das Root-Manifest kommt. (Stand 007-001: Das Framework wird ein
+ * Bibliothekspaket, das Projekt behaelt sein eigenes Manifest — siehe architecture.md.)
  */
 if (class_exists(\Dotenv\Dotenv::class)) {
     $envFile = $_ENV['CONTENTFLY_ENV_FILE'] ?? getenv('CONTENTFLY_ENV_FILE') ?: null;
     if (!is_string($envFile) || $envFile === '') {
-        // ROOT_DIR ist das Verzeichnis mit der index.php — eine Ebene darüber ist
-        // außerhalb des Document-Roots.
-        $envFile = (defined('ROOT_DIR') ? ROOT_DIR : __DIR__ . '/..') . '/../.env';
+        // CONTENTFLY_PROJEKT ist das Verzeichnis mit der index.php — eine Ebene darüber
+        // ist außerhalb des Document-Roots. Bis 007-001-0002 hiess die Konstante ROOT_DIR
+        // und wurde vom Framework aus dessen eigener Lage gerechnet; jetzt benennt sie der
+        // Einstiegspunkt.
+        $envFile = (defined('CONTENTFLY_PROJEKT') ? CONTENTFLY_PROJEKT : __DIR__ . '/..') . '/../.env';
     }
 
     if (is_file($envFile) && is_readable($envFile)) {

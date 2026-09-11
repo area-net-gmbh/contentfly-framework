@@ -13,6 +13,9 @@
 
 use Doctrine\ORM\Tools\Console\EntityManagerProvider\SingleManagerProvider;
 
+// Das Projektverzeichnis wird benannt, nicht gerechnet (007-001-0002).
+define('CONTENTFLY_PROJEKT', dirname(__DIR__));
+
 require_once __DIR__.'/../lib/contentfly/bootstrap.php';
 
 return new SingleManagerProvider($app['orm.em']);

@@ -496,6 +496,58 @@ die drei anderen Fälle in derselben Methode es immer schon taten.
 *Was zu tun ist:* Auf 409 prüfen statt auf 500. Ein Client, der den 500 als „gibt es schon"
 gelesen hat, liest ihn jetzt falsch.
 
+## Paketgrenze (Epic `007`)
+
+Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —
+auch eines, das die Vorlage unverändert übernommen hat, denn `index.php` gehört ihm.
+
+### `ROOT_DIR` gibt es nicht mehr — der Einstiegspunkt setzt `CONTENTFLY_PROJEKT`
+**Seit `007-001-0002` (2026-09-11).**
+
+`lib/contentfly/bootstrap.php` definierte die Konstante `ROOT_DIR` und rechnete sie aus der
+eigenen Lage: `__DIR__ . '/../..'`. Das ist der Grund, warum das Framework bisher nicht in
+`vendor/` liegen konnte — dort zeigt derselbe Ausdruck nach `vendor/areanet/`, nicht ins
+Projekt.
+
+**Und es ging leise schief.** Der gerechnete Pfad existiert dann nicht, aber es *gibt* ihn.
+Nachgemessen mit dem alten Stand, das Framework unter `vendor/areanet/contentfly/` abgelegt:
+
+```
+Failed opening required '…/vendor/areanet/contentfly/lib/contentfly/../../custom/config.php'
+```
+
+Eine Meldung über eine fehlende Datei. Dass die *Wurzel* falsch ist, steht dort nicht.
+
+*Was zu tun ist:* Im Einstiegspunkt das Projektverzeichnis benennen, **bevor** der Bootstrap
+eingebunden wird:
+
+```php
+// index.php
+define('CONTENTFLY_PROJEKT', __DIR__);
+require_once __DIR__.'/lib/contentfly/bootstrap-web.php';
+```
+
+Dasselbe in `bin/console.php` und `bin/cli-config.php` mit `dirname(__DIR__)`. Fehlt die
+Konstante, endet der Start mit einer Meldung, die genau das sagt — statt mit einer über eine
+Datei.
+
+*Wenn Projektcode `ROOT_DIR` benutzt:* Es gibt zwei Nachfolger, und der Unterschied ist neu.
+
+| Zweck | vorher | nachher |
+|---|---|---|
+| Verzeichnis des **Projekts** | `ROOT_DIR` | `Areanet\PIM\Classes\Kernel\Pfade::projekt()` |
+| `custom/`, `data/`, `plugins/` darunter | `ROOT_DIR.'/data'` | `Pfade::daten()`, `Pfade::custom()`, `Pfade::plugins()` |
+| Verzeichnis des **Frameworks** | `ROOT_DIR` — dasselbe | `Pfade::paket()` |
+
+**Die letzte Zeile ist die eigentliche Änderung.** Projekt und Framework waren dieselbe
+Konstante, weil sie dasselbe Verzeichnis waren. Sobald das Framework als Paket kommt, sind es
+zwei — und ein Aufruf, der bisher beides meinte, muss sich entscheiden.
+
+In `custom/config.php` steht die Konstante ebenfalls, für den Fundort der `.env`. Die
+ausgelieferte Vorlage ist nachgezogen; wer sie angepasst hat, zieht die eine Zeile mit.
+
+---
+
 ## Kernel (Epic `009`)
 
 Der Kernel ist mit Epic `009` von Silex 2 auf Symfony 7.4 gewechselt. **Der Schnitt war so
