@@ -1,7 +1,7 @@
 ---
 id: 007-003-0000
 title: Die $app[...]-Bridge festlegen
-status: todo
+status: in-progress
 depends_on: []
 ---
 
