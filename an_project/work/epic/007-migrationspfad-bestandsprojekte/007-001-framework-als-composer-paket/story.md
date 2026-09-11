@@ -51,3 +51,8 @@ beschrieben — der Text davon geht in den Leitfaden aus `007-004`.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
+- [ ] 007-001-0001 — Die Trennlinie zwischen Framework und Projekt ziehen und festschreiben
+- [ ] 007-001-0002 — ROOT_DIR aufgeben — das Projektverzeichnis wird übergeben, nicht geraten
+- [ ] 007-001-0003 — Der Einstiegspunkt lädt den Autoloader, nicht das Framework
+- [ ] 007-001-0004 — Das Manifest teilen — Bibliothekspaket und Projekt getrennt
+- [ ] 007-001-0005 — Eine Installation aus dem Paket bauen und die Vorlage nachziehen
