@@ -1,7 +1,7 @@
 ---
 id: 013-005-0003
 title: Der OIDC-Provider über den Userinfo-Endpunkt
-status: review
+status: done
 depends_on: [013-005-0001]
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: 013-005-0002
 title: Was mit einem verschwundenen Benutzer passiert
-status: review
+status: done
 depends_on: [013-005-0001]
 ---
 

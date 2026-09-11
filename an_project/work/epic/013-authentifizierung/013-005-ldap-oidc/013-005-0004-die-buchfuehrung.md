@@ -1,7 +1,7 @@
 ---
 id: 013-005-0004
 title: Die Buchführung
-status: review
+status: done
 depends_on: [013-005-0001, 013-005-0002, 013-005-0003]
 ---
 

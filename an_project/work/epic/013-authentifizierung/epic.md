@@ -56,4 +56,4 @@ zu laufen.
 - [x] 013-002-0000 — access_token-Authenticator mit verzweigendem TokenHandler
 - [x] 013-003-0000 — JWT ausstellen und widerrufen
 - [x] 013-004-0000 — Nachfolger des LoginManagers
-- [ ] 013-005-0000 — Active Directory und OIDC anbinden
+- [x] 013-005-0000 — Active Directory und OIDC anbinden
