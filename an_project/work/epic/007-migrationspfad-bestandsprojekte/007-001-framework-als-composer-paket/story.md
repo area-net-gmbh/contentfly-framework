@@ -1,7 +1,7 @@
 ---
 id: 007-001-0000
 title: Das Framework als Composer-Paket beziehbar machen
-status: todo
+status: in-progress
 depends_on: []
 ---
 

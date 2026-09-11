@@ -43,6 +43,7 @@ es eine.
 - [ ] Projektcode, Plugins und Tests hängen nicht mehr am Manifest des Frameworks.
 - [ ] Jeder Posten des alten Manifests ist zugeordnet — `extra.hinweis`, `platform`, `audit.ignore`, `suggest`, `require-dev`, `autoload-dev`; keiner geht verloren, keiner liegt doppelt.
 - [ ] Die Entscheidung zu `plugins/` ist umgesetzt und begründet.
+- [ ] Die beiden toten Importe auf Projektklassen sind weg (`OnejoinType` → `Custom\Entity\TestMeta`, `SystemController` → `Custom\Entity\Ansprechpartner`; beide Klassen existieren nicht). Nachgetragen mit `007-001-0001`, weil erst die Trennlinie sie zu einem Befund macht.
 - [ ] Die Gates laufen weiter: `composer audit --locked` ohne Advisories, PHPStan `[OK] No errors`, 0 Deprecations.
 - [ ] Die volle Suite bleibt grün.
 
