@@ -40,7 +40,7 @@ niemand kennt, ist gefährlicher als gar keine.
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
 - [ ] 007-002-0001 — Der Prüfstein — Beispiel-Entities im Altstand und der Lauf-Rahmen
 - [ ] 007-002-0002 — ORM-Annotationen zu Attributen
-- [ ] 007-002-0003 — Die sieben gestrichenen PIM-Annotationen entfernen
+- [ ] 007-002-0003 — Die PIM-Annotationen — sieben entfernen, die übrigen zu Attributen
 - [ ] 007-002-0004 — Die gestrichenen Felder aus gebliebenen Annotationen entfernen
 - [ ] 007-002-0005 — Die Grenzen benennen und den Aufruf dokumentieren
 

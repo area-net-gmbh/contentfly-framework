@@ -53,6 +53,15 @@ class RectorRegelTest extends TestCase
         'horizontalAlignment', 'columns', 'select',
     );
 
+    /**
+     * Die Annotationen, die bleiben. Quelle: dieselbe Datei, Abschnitt 2.
+     *
+     * `Checkbox` und `Radio` sind dabei — sie bleiben, verlieren aber Felder.
+     */
+    private const GEBLIEBENE_ANNOTATIONEN = array(
+        'Config', 'Select', 'Virtualjoin', 'Permissions', 'I18nPermissions', 'Checkbox', 'Radio',
+    );
+
     /** Die 10 gebliebenen Felder. Quelle: dieselbe Datei, Abschnitt 4. */
     private const GEBLIEBENE_FELDER = array(
         'excludeFromSync', 'encoded', 'isFilterable', 'unique', 'type', 'i18n_universal',
@@ -204,14 +213,21 @@ class RectorRegelTest extends TestCase
         $this->assertSame(0, $ergebnis['code'], $ergebnis['ausgabe']);
 
         foreach ($ergebnis['dateien'] as $name => $inhalt) {
-            $this->assertStringNotContainsString(
-                '@ORM\\',
+            $this->assertDoesNotMatchRegularExpression(
+                '/@\\w+\\\\(Entity|Table|Column|ManyToOne|OneToOne|OneToMany|JoinColumn|JoinTable)\\b/',
                 $this->wirksameZeilen($inhalt),
                 sprintf('In %s steht nach dem Lauf noch eine ORM-Annotation.', $name)
             );
 
-            $this->assertStringContainsString('#[ORM\\', $inhalt,
-                sprintf('In %s ist kein ORM-Attribut entstanden.', $name));
+            /*
+             * Alias-unabhaengig: Die Alias-Probe schreibt `#[Abbildung\Column`, und Rector
+             * raeumt Importe nicht um. Eine Pruefung auf `ORM` ginge daran vorbei.
+             */
+            $this->assertMatchesRegularExpression(
+                '/#\\[\\w+\\\\Column/',
+                $inhalt,
+                sprintf('In %s ist kein ORM-Attribut entstanden.', $name)
+            );
         }
     }
 
@@ -235,6 +251,101 @@ class RectorRegelTest extends TestCase
 
         $this->assertStringNotContainsString('joinColumns=', $rubrik, 'Die verschachtelte Form steht noch da.');
         $this->assertStringNotContainsString('inverseJoinColumns=', $rubrik);
+    }
+
+    /**
+     * Keine der sieben gestrichenen Annotationen bleibt stehen (007-002-0003).
+     */
+    public function testNachDemLaufBleibtKeineGestricheneAnnotationStehen(): void
+    {
+        $ergebnis = $this->rectorFahren(true);
+
+        $übrig = array();
+
+        foreach ($ergebnis['dateien'] as $name => $inhalt) {
+            $wirksam = $this->wirksameZeilen($inhalt);
+
+            foreach (self::GESTRICHENE_ANNOTATIONEN as $annotation) {
+                if (preg_match('/@\\w+\\\\' . $annotation . '\\b/', $wirksam) === 1) {
+                    $übrig[] = $name . ': ' . $annotation;
+                }
+            }
+        }
+
+        $this->assertSame(array(), $übrig, implode("\n", array_merge(
+            array(
+                'Diese gestrichenen Annotationen stehen nach dem Lauf noch da. Ein',
+                'stehengebliebenes Feld ist kein geduldetes Relikt: Der AnnotationReader',
+                'bricht schon beim Einlesen ab, und das Projekt startet nicht (007-002-0003).',
+                '',
+            ),
+            $übrig
+        )));
+    }
+
+    /**
+     * Auch unter einem fremden Alias — und das ist der Grund für die Konfiguration mit dem
+     * vollqualifizierten Namen.
+     *
+     * `AndererAlias.php` importiert `Areanet\PIM\Classes\Annotations as Anders`. Wäre die
+     * Regel auf `PIM\Rte` konfiguriert, ginge sie hier vorbei — und ein Projekt mit eigenem
+     * Alias hielte den Lauf für vollständig.
+     */
+    public function testDieRegelGreiftAuchUnterEinemFremdenAlias(): void
+    {
+        $ergebnis = $this->rectorFahren(true);
+        $datei    = $ergebnis['dateien']['AndererAlias.php'] ?? '';
+
+        $this->assertNotSame('', $datei, 'Die Alias-Probe fehlt im Ergebnis.');
+
+        $wirksam = $this->wirksameZeilen($datei);
+
+        $this->assertStringNotContainsString('@Anders\\Rte', $wirksam);
+        $this->assertStringNotContainsString('@Anders\\Password', $wirksam);
+
+        // Und der Alias des Projekts bleibt: die Regel raeumt keine Importe um.
+        $this->assertStringContainsString('#[Abbildung\\Column', $datei);
+        $this->assertStringContainsString('#[Anders\\Config', $datei);
+    }
+
+    /**
+     * Die gebliebenen Annotationen sind unangetastet — **Zeichen für Zeichen**.
+     *
+     * Das ist die wichtigere Hälfte dieses Tasks. Eine Regel, die nur daran gemessen wird, was
+     * sie entfernen soll, kann alles andere mit abräumen, ohne dass es auffällt.
+     *
+     * Ihre gestrichenen FELDER stehen hier noch drin — die fallen erst mit `007-002-0004`.
+     */
+    public function testDieGebliebenenAnnotationenSindUnangetastet(): void
+    {
+        $ergebnis = $this->rectorFahren(true);
+
+        $vorher  = $this->pimAngaben($this->inhalt('alt'));
+        $nachher = array();
+
+        /*
+         * KEIN array_merge: Bei Zeichenketten-Schluesseln ERSETZT es, statt anzuhaengen — mein
+         * erster Entwurf verglich damit nur die letzte Datei und war fuer die anderen blind.
+         */
+        foreach ($ergebnis['dateien'] as $inhalt) {
+            foreach ($this->pimAngaben($inhalt) as $annotation => $angaben) {
+                foreach ($angaben as $angabe) {
+                    $nachher[$annotation][] = $angabe;
+                }
+            }
+        }
+
+        foreach (self::GEBLIEBENE_ANNOTATIONEN as $annotation) {
+            $this->assertSame(
+                $vorher[$annotation] ?? array(),
+                $nachher[$annotation] ?? array(),
+                sprintf(
+                    '@PIM\%s hat sich geaendert. Diese Annotation bleibt, und ihre Felder '
+                    .'fallen erst mit 007-002-0004.',
+                    $annotation
+                )
+            );
+        }
     }
 
     /**
@@ -354,6 +465,37 @@ class RectorRegelTest extends TestCase
     // ── Helfer ─────────────────────────────────────────────────────────────────────────
 
     /**
+     * Die PIM-Angaben einer Datei, je Annotationsname und normalisiert.
+     *
+     * Normalisiert heisst: Zeilenumbrüche und Einrückung raus, damit eine mehrzeilige
+     * Annotation mit ihrer einzeiligen Form vergleichbar ist. Die Namen der ANNOTATION zählen
+     * ohne Alias — `@Anders\Config` und `#[PIM\Config]` sind dieselbe Angabe.
+     *
+     * @return array<string,array<int,string>>
+     */
+    private function pimAngaben(string $inhalt): array
+    {
+        $treffer = array();
+
+        preg_match_all(
+            '/(?:@|#\\[)\\w+\\\\(\\w+)\\s*(\\(([^)]*)\\))?/s',
+            $this->wirksameZeilen($inhalt),
+            $funde,
+            PREG_SET_ORDER
+        );
+
+        foreach ($funde as $fund) {
+            if (!in_array($fund[1], self::GEBLIEBENE_ANNOTATIONEN, true)) {
+                continue;
+            }
+
+            $treffer[$fund[1]][] = $this->normalisieren($fund[3] ?? '');
+        }
+
+        return $treffer;
+    }
+
+    /**
      * Die Konstruktorparameter einer Annotationsklasse, oder `null`, wenn es sie nicht gibt.
      *
      * Eine Klasse ohne Konstruktor nimmt nichts entgegen — das ist bei `Permissions` und
@@ -383,6 +525,32 @@ class RectorRegelTest extends TestCase
     }
 
     /**
+     * Eine Argumentliste auf `feld=wert`-Paare bringen, unabhaengig von der Schreibweise.
+     *
+     * `label="Artikel"` (Annotation) und `label: 'Artikel'` (Attribut) ergeben beide
+     * `label=Artikel`. Nur so laesst sich vergleichen, ob der Lauf Felder verloren hat, ohne
+     * dass der Wechsel der Schreibweise selbst als Verlust zaehlt.
+     *
+     * Sortiert, weil die Reihenfolge der Argumente keine Aussage traegt.
+     */
+    private function normalisieren(string $argumente): string
+    {
+        $flach = (string) preg_replace('/\\s*\\*\\s*|\\s+/', ' ', $argumente);
+
+        preg_match_all('/(\\w+)\\s*[:=]\\s*("[^"]*"|\\x27[^\\x27]*\\x27|[^,]+)/', $flach, $funde, PREG_SET_ORDER);
+
+        $paare = array();
+
+        foreach ($funde as $fund) {
+            $paare[] = $fund[1] . '=' . trim($fund[2], " \x22\x27");
+        }
+
+        sort($paare);
+
+        return implode(', ', $paare);
+    }
+
+    /**
      * Alle `@PIM\X(...)`- und `#[PIM\X(...)]`-Angaben mit ihren benannten Feldern.
      *
      * @return array<string,array<int,string>> "Annotation|Zeile" => Feldnamen
@@ -399,7 +567,7 @@ class RectorRegelTest extends TestCase
              * ESCAPTE KLAMMER, und der Ausdruck traf nie etwas. Der Test war gruen, weil er
              * nichts fand (007-002-0001).
              */
-            '/(?:@|#\\[)PIM\\\\(\\w+)\\s*\\(([^)]*)\\)/s',
+            '/(?:@|#\\[)\\w+\\\\(\\w+)\\s*\\(([^)]*)\\)/s',
             $inhalt,
             $funde,
             PREG_SET_ORDER
@@ -482,7 +650,14 @@ class RectorRegelTest extends TestCase
         foreach (explode("\n", $inhalt) as $zeile) {
             $getrimmt = ltrim($zeile, " \t*");
 
-            if ($offen === 0 && !str_starts_with($getrimmt, '@PIM\\') && !str_starts_with($getrimmt, '#[PIM\\')) {
+            /*
+             * ALIAS-UNABHAENGIG (007-002-0003). Hier stand `@PIM\\` und `#[PIM\\` fest
+             * verdrahtet — und `AndererAlias.php` importiert die Annotationen als `Anders`.
+             * Die Pruefungen gingen daran vorbei, und zwar still.
+             */
+            if ($offen === 0
+                && preg_match('/^@\\w+\\\\\\w/', $getrimmt) !== 1
+                && preg_match('/^#\\[\\w+\\\\\\w/', $getrimmt) !== 1) {
                 continue;
             }
 
