@@ -16,6 +16,9 @@
 ## This project
 
 - `an_project/project-description.md` — what this project is. **Read before starting.**
+- `an_project/docs/migration.md` — **der Weg vom alten Contentfly auf die neue Version**,
+  geordnet nach dem, was ein Projekt tut. Das Register der Einzelheiten ist
+  `breaking-changes.md`.
 - `an_project/docs/architecture.md` · `technical.md` · `deployment.md` · `styleguide.md` —
   this project's own design and stack.
 - `an_project/docs/guidelines.md` · `an_project/docs/git.md` — this project's **narrowing** of the
