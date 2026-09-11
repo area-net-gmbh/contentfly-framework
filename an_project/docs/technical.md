@@ -297,12 +297,14 @@ Dazu trafen zwei Symfony-Generationen aufeinander: `symfony/http-foundation` 3.4
 
 ## Was den Alt-Baum an PHP 8.5 hindert
 
+<!-- Durchgestrichen = erledigt. Stand 2026-09-11 (000-000-0027): alle vier Zeilen. -->
+
 | Paket | Constraint | Folge |
 |---|---|---|
-| `ellumilel/php-excel-writer` | `php: ^5.4\|^7.0` | Unter PHP 8.5 **nicht installierbar**. Genutzt in `lib/contentfly/Controller/ExportController.php:9`. |
+| ~~`ellumilel/php-excel-writer`~~ | ~~`php: ^5.4\|^7.0`~~ | **Erledigt mit `012-001-0003`.** Unter PHP 8.5 nicht installierbar; sein einziger Konsument war der `ExportController`, und mit dem ist das Paket gefallen. Nachgemessen mit `000-000-0027`: weder in `vendor/` noch in einem Manifest. |
 | ~~`silex/silex` 2.2.2~~ | ~~`symfony/*: ~2.8\|^3.0`~~ | **Erledigt mit `009-002`.** Deckelte Symfony auf 3.4 (EOL Nov 2020, nie für PHP 8 freigegeben), und der `php`-Constraint war nach oben offen, sodass Composer nichts meldete. Das Paket ist aus dem Baum; der Kernel steht auf Symfony 7.4. |
 | ~~`dflydev/doctrine-orm-service-provider`~~ | ~~`doctrine/orm: ~2.3`~~ | **Erledigt mit `009-002`.** Blockierte den Weg auf ORM 3; entfallen mit dem Container. Der Weg auf ORM 3 ist damit frei, gegangen wird er in Epic `010`. |
-| `doctrine/orm` | `dev-bugfix-many2many` | Dev-Branch-Pin ohne Release — in keinem Upgrade-Pfad ausdrückbar. |
+| ~~`doctrine/orm`~~ | ~~`dev-bugfix-many2many`~~ | **Erledigt mit Epic `010`.** Der Dev-Branch-Pin ohne Release war in keinem Upgrade-Pfad ausdrückbar; das Manifest sagt jetzt `^3`, installiert ist 3.7.0. |
 
 Dev-Werkzeuge lagen im ausgelieferten Baum: `phpstan/phpstan` 1.10.58 und `rector/rector`
 1.0.1 im Root, `phpunit` 10.5 und `mockery` in `custom/vendor`. Das ist erledigt — sie stehen
