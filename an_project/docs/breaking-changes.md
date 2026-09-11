@@ -638,6 +638,13 @@ keinen Frameworkcode enthält. Was hier steht, ist der gemessene Weg, nicht der 
 **Was mitgeht und was nicht.** Mit: `custom/`, `plugins/`, `data/`, die Einstiegspunkte, die
 `.htaccess`. Nicht mit: `lib/`, `custom/vendor/`, `custom/composer.json`.
 
+**Die Entities sind ein eigener Schritt und stehen woanders.** Der Rector-Lauf, der
+`Entity/` von Annotationen auf Attribute bringt und die gestrichenen `@PIM`-Angaben entfernt,
+ist in `an_project/docs/pim-annotationen-migration.md`, Abschnitt 7 beschrieben — mit dem
+Aufruf, den Grenzen und dem, was von Hand bleibt. **Er steht dort und nicht hier**, weil die
+Liste, aus der die Regel gebaut ist, dieselbe Datei ist; zwei Beschreibungen desselben Laufs
+liefen auseinander.
+
 **Das Verzeichnis `data/` muss beschreibbar sein und dem Projekt gehören** — nicht dem Paket.
 Es trägt Cache, Dateien, Import und Temp; ein Update des Frameworks darf es nicht anfassen.
 

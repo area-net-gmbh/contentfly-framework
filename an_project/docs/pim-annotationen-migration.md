@@ -12,7 +12,8 @@ der `AnnotationReader` bricht schon beim Einlesen ab, wenn eine Annotation ein F
 das ihre Klasse nicht kennt.
 
 Diese Datei ist die Grundlage der Rector-Regel und des Migrationsleitfadens aus Epic
-`007-000-0000`.
+`007-000-0000`. **Die Regel ist seit Story `007-002` gebaut** — der Aufruf, was sie abdeckt und
+was von Hand bleibt, steht unten in Abschnitt 7.
 
 ## 1. Entfallene Annotationen (7)
 
@@ -133,3 +134,112 @@ den Zweck:
 
 *Was zu tun ist:* Die acht Zeilen aus `custom/config.php` entfernen. Sie werden nicht mehr
 gelesen und stehen sonst als wirkungslose Schalter herum.
+
+---
+
+## 7. Der Rector-Lauf
+
+**Fertig mit Story `007-002`.** Was oben als Liste steht, setzt eine Rector-Regel um. Dieser
+Abschnitt ist der einzige Ort, an dem der Aufruf und seine Grenzen stehen — `007-004` baut den
+Migrationsleitfaden daraus, statt sie ein zweites Mal zu beschreiben.
+
+### Voraussetzung
+
+Die Regel kommt **mit dem Paket**: `Areanet\PIM\Migration\EntfalleneAttributfelderRector` liegt
+in `areanet/contentfly`. Dazu braucht das Projekt Rector selbst, und zwar nur zum Entwickeln:
+
+```sh
+composer require --dev rector/rector
+```
+
+`rector/rector` steht im `suggest` des Pakets und bewusst nicht im `require` — die Klasse wird
+ausschliesslich von einer `rector.php` geladen und nie zur Laufzeit.
+
+Die `rector.php` des Entwicklungs-Repos ist die Vorlage. Ein Projekt kopiert sie und setzt in
+`withPaths()` sein eigenes `Entity/`-Verzeichnis ein.
+
+### Der Aufruf — und er muss zweimal laufen
+
+```sh
+./vendor/bin/rector process pfad/zu/Entity --dry-run     # ansehen, nichts ändern
+./vendor/bin/rector process pfad/zu/Entity               # erster Lauf
+./vendor/bin/rector process pfad/zu/Entity               # zweiter Lauf
+./vendor/bin/rector process pfad/zu/Entity --dry-run     # muss "Rector is done!" melden
+```
+
+**Zwei Läufe sind keine Bequemlichkeit, sondern nötig.** Die Regel, die Felder aus Attributen
+entfernt, sieht Attribute — und die entstehen erst, wenn die Umstellung im *selben* Lauf die
+Annotation umgeschrieben hat. Ein Rector-Durchgang arbeitet auf dem Baum, den er vorgefunden
+hat.
+
+**Wer nur einmal läuft, hat einen kaputten Baum, nicht einen halb migrierten.** Dort steht dann
+`#[PIM\Config(label: 'Artikel')]`, und `Config::__construct()` hat kein `$label`:
+
+```
+Unknown named parameter $label
+```
+
+Ein Fatal Error beim Laden der Entity. **Die Abbruchbedingung ist deshalb nicht „zweimal",
+sondern: laufen, bis ein Trockenlauf nichts mehr meldet.** Am Prüfstein gemessen — erster Lauf
+ändert, zweiter ändert noch, dritter findet nichts mehr.
+
+**Der letzte Trockenlauf ist die Abnahme.** Solange er noch etwas vorschlägt, ist die Migration
+nicht fertig.
+
+### Was die Regel abdeckt
+
+| Was | Womit | Belegt in |
+|---|---|---|
+| `@ORM\*` → Attribute, auch verschachtelt (`joinColumns={…}`) | `DoctrineSetList::ANNOTATIONS_TO_ATTRIBUTES` | `007-002-0002` |
+| Die 7 entfallenen `@PIM\*`-Annotationen werden gelöscht | `RemoveAnnotationRector` | `007-002-0003` |
+| Die gebliebenen `@PIM\*`-Annotationen werden Attribute | `AnnotationToAttributeRector` | `007-002-0003` |
+| Die 14 entfallenen `Config`-Felder und die 5 von `Checkbox`/`Radio` fallen | `EntfalleneAttributfelderRector` | `007-002-0004` |
+
+**Unabhängig vom Alias.** Ein Projekt darf `Areanet\PIM\Classes\Annotations` unter jedem Namen
+importieren; alle Regeln sind mit dem vollqualifizierten Klassennamen konfiguriert, und Rector
+löst ihn über die `use`-Anweisungen auf. Geprüft an einer eigenen Prüfstein-Datei, die `Anders`
+und `Abbildung` als Aliase benutzt.
+
+**Die Importe bleiben, wie sie sind.** Aus `@Abbildung\Column` wird `#[Abbildung\Column]`, nicht
+`#[ORM\Column]`. Die Regel migriert Annotationen, sie räumt keine Importe um.
+
+**Ein zweiter Lauf gegen bereits umgestellte Entities tut nichts.** Geprüft gegen die 22
+Entities des Frameworks, die seit Epic `010` auf Attributen stehen.
+
+### Was die Regel **nicht** abdeckt
+
+Sie läuft über `Entity/`. Alles Folgende ist Handarbeit und muss es bleiben — eine Regel, die
+die Konfiguration eines Projekts umschreibt, richtet mehr Schaden an, als sie erspart.
+
+1. **Drei Type-Klassen aus der Konfiguration streichen.** Mit den Annotationen sind `RteType`,
+   `PasswordType` und `EntitySelectorType` entfallen. Ein Projekt, das eine davon in
+   `APP_SYSTEM_TYPES` oder `APP_CUSTOM_TYPES` aufführt, bricht beim Start mit
+   `contentfly_type_class_not_found` ab. Das steht in `custom/config.php`, nicht in einer
+   Entity.
+2. **Die entfallene Plugin-Schnittstelle** — Abschnitt 5 oben.
+3. **Die acht `FRONTEND_*`-Felder** — Abschnitt 6 oben.
+4. **Was nicht unter `Entity/` liegt.** Trägt Projektcode `@PIM`-Angaben an anderer Stelle, muss
+   der Pfad im Aufruf erweitert werden. Die Regel sucht nicht von selbst.
+
+### Was sie auch nicht tut, und das ist Absicht
+
+- **`targetEntity` bleibt eine Zeichenkette** und wird nicht `::class`. Bei `@ORM\ManyToMany`
+  macht der Doctrine-Satz daraus einen Klassenverweis, bei `@PIM\Virtualjoin` nicht: Der Wert
+  landet als `$schema['accept']` direkt im Schema. Beide Formen ergäben denselben Wert; eine
+  Migration soll die Schreibweise ändern, nicht die Bedeutung.
+- **Die Reihenfolge der Attribute** an einer Klasse oder Eigenschaft ist Rectors, nicht die des
+  Altstands. Sie trägt keine Aussage — Doctrine liest sie als Liste.
+- **Kommentare bleiben stehen.** Ein Docblock, in dem nach dem Lauf nur noch Prosa steht, bleibt
+  ein Docblock. Wer ihn nicht mehr braucht, entfernt ihn selbst.
+
+### Wie man prüft, dass es geklappt hat
+
+1. Der letzte Trockenlauf meldet `Rector is done!`.
+2. Die Anwendung startet. Ein Attribut mit einem Feld, das der Konstruktor nicht kennt, ist
+   syntaktisch einwandfrei und wirft erst beim Laden der Entity — das Starten ist die Probe.
+3. `/api/config` liefert das Schema. Fehlt dort ein Feld, das vorher da war, ist eine
+   `@PIM`-Angabe verloren gegangen.
+
+**Der Prüfstein des Frameworks ist die Vorlage für diese drei Schritte:**
+`tests/Unit/Migration/RectorRegelTest.php` fährt sie gegen
+`tests/Fixtures/RectorMigration/` und instanziiert am Ende jedes entstandene Attribut.

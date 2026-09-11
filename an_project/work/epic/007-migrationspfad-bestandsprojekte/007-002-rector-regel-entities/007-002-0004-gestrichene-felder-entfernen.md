@@ -131,8 +131,13 @@ ausschliesslich von einer `rector.php` geladen und nie zur Laufzeit — deshalb 
 `rector/rector` im `suggest` des Pakets und nicht im `require`, mit derselben Begründung wie
 `symfony/ldap` seit `013-005-0004`.
 
-**Zahlen:** Volle Suite `OK (513 tests, 1609 assertions)` (vorher 509), 0 Deprecations bei 0
-Ausnahmen, 0 Byte Postausgang. PHPStan `[OK] No errors`. `composer validate` auf dem
+**Zahlen:** Volle Suite `OK (514 tests, 1610 assertions)` (vorher 509), 0 Deprecations bei 0
+Ausnahmen, 0 Byte Postausgang.
+
+> **Richtiggestellt mit `007-002-0005`:** Hier stand `513 tests, 1609 assertions`. Ich hatte
+> gemessen, *bevor* ich `testJedesAttributDesErgebnissesLaesstSichInstanziieren()` ergänzt habe
+> — der Test gehört zu diesem Task, die Zahl war also um eins zu niedrig. Eine Zahl, die nicht
+> mehr stimmt, ist derselbe Defekt wie ein Kommentar, der nicht mehr stimmt. PHPStan `[OK] No errors`. `composer validate` auf dem
 Paket-Manifest.
 
 **Ein Preis, der genannt gehört:** Die Suite braucht jetzt 55 s statt 35 s. Die zwanzig Sekunden

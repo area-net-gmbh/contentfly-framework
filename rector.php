@@ -74,8 +74,9 @@ use Rector\Doctrine\Set\DoctrineSetList;
  *   Die entfallene Plugin-Schnittstelle und die `FRONTEND_*`-Konfiguration ebenso; beides
  *   steht in `an_project/docs/pim-annotationen-migration.md`, Abschnitte 5 und 6.
  *
- * Die vollstaendige Liste dessen, was die Regel abdeckt und was nicht, sammelt
- * `007-002-0005`.
+ * Die vollstaendige Liste dessen, was die Regel abdeckt und was nicht, steht in
+ * `an_project/docs/pim-annotationen-migration.md`, Abschnitt 7 — an einer Stelle, damit sie
+ * nicht auseinanderlaeuft.
  *
  * ── Stand ─────────────────────────────────────────────────────────────────────────────
  *
