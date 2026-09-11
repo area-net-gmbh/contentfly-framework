@@ -1,7 +1,7 @@
 ---
 id: 000-000-0026
 title: Der tote Authentifizierungsschalter in BaseControllerProvider
-status: review
+status: done
 depends_on: []
 ---
 
