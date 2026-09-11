@@ -104,7 +104,7 @@ Dieses Epic liefert Weg, Werkzeuge und Doku.
 ## Stories
 <!-- Die Stories dieses Epics. Wird von /new-story synchron gehalten. -->
 - [x] 007-001-0000 — Das Framework als Composer-Paket beziehbar machen
-- [ ] 007-002-0000 — Die Rector-Regel für das Entity-Verzeichnis
+- [x] 007-002-0000 — Die Rector-Regel für das Entity-Verzeichnis
 - [ ] 007-003-0000 — Die $app[...]-Bridge festlegen
 - [ ] 007-004-0000 — Der Migrationsleitfaden
 - [ ] 007-005-0000 — Am echten Bestandsprojekt durchspielen (**blocked**)
