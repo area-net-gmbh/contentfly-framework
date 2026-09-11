@@ -1,7 +1,7 @@
 ---
 id: 000-000-0028
 title: LoadMetadata verlangt eine modified-Spalte von jeder Entity
-status: review
+status: done
 depends_on: []
 ---
 
