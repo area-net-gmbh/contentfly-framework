@@ -113,7 +113,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         //
         // Unter Symfony 4.4 kommt 401 durch. Die Absicht des Codes wird erfuellt; der
         // Nebenbefund aus 008-004-0003 hat sich mit dem Stack-Wechsel erledigt.
-        $quelle = file_get_contents(ROOT_DIR.'/lib/contentfly/Classes/Controller/Provider/Base/SystemControllerProvider.php');
+        $quelle = file_get_contents(CONTENTFLY_PROJEKT.'/lib/contentfly/Classes/Controller/Provider/Base/SystemControllerProvider.php');
 
         $this->assertStringContainsString("AccessDeniedHttpException('Zugriff verweigert', null, 401)", $quelle,
             'Die Absicht im Code ist 401');
@@ -526,7 +526,7 @@ class SystemControllerApiTest extends IntegrationTestCase
 
         $ausgabe = array();
         exec(
-            sprintf('%s %s appcms:token:cleanup 2>&1', escapeshellarg(PHP_BINARY), escapeshellarg(ROOT_DIR.'/bin/console.php')),
+            sprintf('%s %s appcms:token:cleanup 2>&1', escapeshellarg(PHP_BINARY), escapeshellarg(self::konsole())),
             $ausgabe
         );
 
@@ -580,7 +580,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         $this->assertNull($gefunden['referrer'],
             'Ohne Referrer — deshalb unterliegt er dem Timeout und taucht nicht in listTokens auf');
 
-        $quelle = file_get_contents(ROOT_DIR.'/lib/contentfly/Classes/Security/Tokenhandler.php');
+        $quelle = file_get_contents(CONTENTFLY_PROJEKT.'/lib/contentfly/Classes/Security/Tokenhandler.php');
         $this->assertStringContainsString('$this->em->remove($zeile);', $quelle,
             'Entfernt wird nur im opaquen Zweig — also nur, wenn der Token erneut vorgezeigt wird');
     }
@@ -616,7 +616,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         // Dateien, aber andere. Der Request laeuft nach der Action weiter und stellt dabei
         // erneut Abfragen; ein leeres Verzeichnis zu verlangen hiesse, dem Endpunkt etwas
         // zuzuschreiben, was er gar nicht zusagt.
-        $verzeichnis = ROOT_DIR.'/data/cache/query';
+        $verzeichnis = self::datenverzeichnis().'/cache/query';
 
         // Etwas in den Cache bringen: /api/list stellt eine DQL-Abfrage.
         $this->postJson('/api/list', array('entity' => 'PIM\\User'), $this->token());
@@ -658,7 +658,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         // Doctrine-Caches. Die Datei entsteht aber nur, wenn APP_ENABLE_SCHEMA_CACHE an ist
         // — und die Vorlage schaltet sie aus. Unter der ausgelieferten Konfiguration ist der
         // erste Teil also folgenlos; die Meldung lautet trotzdem unveraendert "geleert!".
-        $vorlage = file_get_contents(ROOT_DIR.'/custom/config.php');
+        $vorlage = file_get_contents(CONTENTFLY_PROJEKT.'/custom/config.php');
 
         $this->assertMatchesRegularExpression(
             '/APP_ENABLE_SCHEMA_CACHE\s*=\s*false;/',
@@ -666,7 +666,7 @@ class SystemControllerApiTest extends IntegrationTestCase
             'Vorbedingung: die Vorlage schaltet den Schema-Cache aus'
         );
 
-        $this->assertFileDoesNotExist(ROOT_DIR.'/data/cache/schema.cache');
+        $this->assertFileDoesNotExist(self::datenverzeichnis().'/cache/schema.cache');
 
         [, $body] = $this->systemDo('flushSchemaCache');
 
@@ -693,7 +693,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         $this->assertFalse(method_exists(SystemController::class, 'validateORM'),
             'validateORM existiert weiterhin nicht');
 
-        $quelle = file_get_contents(ROOT_DIR.'/lib/contentfly/Classes/Controller/Provider/Base/SystemControllerProvider.php');
+        $quelle = file_get_contents(CONTENTFLY_PROJEKT.'/lib/contentfly/Classes/Controller/Provider/Base/SystemControllerProvider.php');
         $this->assertStringNotContainsString("== 'validateORM'", $quelle,
             'und steht nicht mehr in der Ausnahmeliste');
         // Die Schreibweise hat sich mit 009-003-0001 geaendert — Request::get() ist in
@@ -725,7 +725,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         //
         // Wer Epic 009 umsetzt, findet an diesem Test, was der neue Kernel entweder
         // nachbilden oder bewusst streichen muss.
-        $quelle = file_get_contents(ROOT_DIR.'/lib/contentfly/Classes/Controller/Provider/Base/SystemControllerProvider.php');
+        $quelle = file_get_contents(CONTENTFLY_PROJEKT.'/lib/contentfly/Classes/Controller/Provider/Base/SystemControllerProvider.php');
 
         $this->assertStringContainsString('catch(InvalidFieldNameException $e)', $quelle,
             'Nur diese eine Ausnahme oeffnet das Notschloss');

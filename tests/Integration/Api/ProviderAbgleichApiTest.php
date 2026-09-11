@@ -71,7 +71,7 @@ class ProviderAbgleichApiTest extends IntegrationTestCase
             'CONTENTFLY_BEISPIEL_PROVIDER=%s %s %s appcms:provider:abgleich %s 2>&1',
             escapeshellarg($liste),
             escapeshellarg(PHP_BINARY),
-            escapeshellarg(ROOT_DIR.'/bin/console.php'),
+            escapeshellarg(self::konsole()),
             $trocken ? '--dry-run' : ''
         ), $ausgabe);
 

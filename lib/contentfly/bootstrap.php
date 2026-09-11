@@ -1,31 +1,64 @@
 <?php
-const ROOT_DIR = __DIR__ . '/../..';
-
-require_once ROOT_DIR.'/lib/contentfly/version.php';
 /*
- * ZWEI AUTOLOADER, UND DIE REIHENFOLGE IST DIE ENTSCHEIDUNG.
+ * DAS PROJEKTVERZEICHNIS KOMMT VOM EINSTIEGSPUNKT (007-001-0002).
  *
- * Root zuerst, custom/ ergaenzend. Registrieren beide dasselbe PSR-4-Praefix, bedient es der
- * ZUERST geladene Baum — also immer der Root, unabhaengig davon, welche Version aktueller ist.
- * Das ist ab 006-004-0001 eine Zusicherung, nicht mehr eine Nebenwirkung: Framework schlaegt
- * Projekt. Wer die beiden Bloecke tauscht, kehrt sie um.
+ * Hier stand:
  *
- * Begruendung und die verworfene Alternative (ein einziger Autoloader) stehen in
- * an_project/docs/architecture.md unter "Key decisions", 2026-09-09.
+ *     const ROOT_DIR = __DIR__ . '/../..';
  *
- * DIE ZUSICHERUNG HAENGT AN EINER BEDINGUNG: dass sich die beiden Baeume nicht ueberschneiden.
- * Frueher taten sie es — psr/log lag in 1.1.3 und 3.0.2 gleichzeitig im Prozess, dazu zwei
- * symfony/polyfill-* in unvereinbaren Staenden und ein handkopiertes PHPMailer\PHPMailer\, das
- * in keiner installed.json stand. Jahrelang, ohne dass es jemandem auffiel. Geprueft wird die
- * Bedingung deshalb in tests/Unit/AutoloaderUeberschneidungTest.php.
+ * Das Framework rechnete sich das Projektverzeichnis aus SEINER EIGENEN LAGE aus — richtig,
+ * solange es unter `lib/contentfly/` im Projekt liegt, falsch in dem Moment, in dem es als
+ * Paket unter `vendor/` liegt. Und falsch auf die stille Art: Der gerechnete Pfad existiert
+ * dann nicht, aber es GIBT ihn, und die Folgemeldung handelt von einer fehlenden Datei statt
+ * von einer falschen Wurzel.
+ *
+ * Seit 007-001-0003 bindet kein Einstiegspunkt diese Datei mehr direkt ein. Sie kommt ueber
+ * `Classes\Kernel\Start`, das die Vorbedingungen prueft und das Projektverzeichnis gesetzt
+ * hat. Steht es nicht, endet der Start hier — mit einer Meldung ueber genau das.
  */
-require_once ROOT_DIR.'/vendor/autoload.php';
-if(file_exists(ROOT_DIR.'/custom/vendor/autoload.php')){
-    require_once ROOT_DIR.'/custom/vendor/autoload.php';
+if (!\Areanet\PIM\Classes\Kernel\Pfade::istGesetzt()) {
+    throw new \RuntimeException(
+        "Contentfly kann nicht starten.\n\n"
+        ."lib/contentfly/bootstrap.php ist kein Einstiegspunkt mehr (007-001-0003). Der\n"
+        ."Einstiegspunkt laedt den Autoloader und ruft dann:\n\n"
+        ."    \\Areanet\\PIM\\Classes\\Kernel\\Start::web(\$projektverzeichnis);\n"
+        ."    \\Areanet\\PIM\\Classes\\Kernel\\Start::konsole(\$projektverzeichnis);\n\n"
+        ."Start prueft die Vorbedingungen und bindet diese Datei ein."
+    );
 }
 
-require_once ROOT_DIR.'/custom/config.php';
-require_once ROOT_DIR.'/custom/version.php';
+/*
+ * Voll qualifiziert und in zwei lokale Werte gelegt: Der `use`-Block dieser Datei steht weiter
+ * unten, hinter den ersten `require`s — er kann hier oben also noch nicht gelesen werden, ohne
+ * dass es jeder Leser (und PHPStan) erst nachschlagen muss.
+ */
+$paketverzeichnis     = \Areanet\PIM\Classes\Kernel\Pfade::paket();
+$projektKonfiguration = \Areanet\PIM\Classes\Kernel\Pfade::custom();
+
+require_once $paketverzeichnis.'/version.php';
+/*
+ * HIER STANDEN ZWEI AUTOLOADER (bis 007-001-0003).
+ *
+ * Der Root-Baum zuerst, `custom/vendor/` ergaenzend — mit der Zusicherung aus `006-004-0001`,
+ * dass bei einem gemeinsamen PSR-4-Praefix der Root gewinnt. Sie war noetig, solange Framework
+ * und Projekt zwei getrennte Composer-Baeume im selben Prozess waren.
+ *
+ * Mit dem Bibliothekspaket faellt die Grundlage weg: Das Framework ist eine Abhaengigkeit IM
+ * Baum des Projekts. Es gibt keine zwei Baeume mehr, zwischen denen eine Rangfolge zu regeln
+ * waere — und Composer verweigert unvereinbare Constraints beim Aufloesen, statt zwei Staende
+ * nebeneinander in den Prozess zu laden. Der Fall, an dem das jahrelang scheiterte (psr/log in
+ * 1.1.3 und 3.0.2 gleichzeitig), kann nicht mehr entstehen.
+ *
+ * Der Autoloader selbst wird nicht mehr hier geladen, sondern vom Einstiegspunkt — siehe
+ * `Classes\Kernel\Start`. Ein liegengebliebenes `custom/vendor/` weist Start ab, statt es
+ * stillschweigend zu uebergehen.
+ *
+ * Entscheidung und verworfene Alternativen: an_project/docs/architecture.md, Key decisions,
+ * 2026-09-11. `tests/Unit/AutoloaderUeberschneidungTest.php` ist umgedreht und prueft jetzt,
+ * dass es bei einem Baum bleibt.
+ */
+require_once $projektKonfiguration.'/config.php';
+require_once $projektKonfiguration.'/version.php';
 
 define('HOST', $_SERVER["SERVER_NAME"] ?? 'default');
 
@@ -33,6 +66,7 @@ use Areanet\PIM\Classes\Api;
 use Areanet\PIM\Classes\Auth;
 use Areanet\PIM\Classes\Mailer;
 use Areanet\PIM\Classes\Config\Adapter;
+use Areanet\PIM\Classes\Kernel\Pfade;
 use Areanet\PIM\Classes\Helper;
 use Areanet\PIM\Classes\Manager\ConsoleManager;
 use Areanet\PIM\Classes\Manager\PluginManager;
@@ -232,7 +266,7 @@ if($app['is_installed']) {
  * Als faule Factory, wie vorher: bin/console.php holt sie ab, der Web-Einstieg nie.
  */
 $app['console'] = function ($app) {
-    return new Console($app, 'PIM', APP_VERSION, ROOT_DIR);
+    return new Console($app, 'PIM', APP_VERSION, Pfade::projekt());
 };
 
 $app['helper'] = function () {
@@ -346,7 +380,7 @@ $app['anmeldeanbieter'] = function () {
 };
 
 $app['loginbremse'] = function () use ($cachePoolBauen) {
-    return new Anmeldebremse($cachePoolBauen('loginbremse', ROOT_DIR . '/data/cache/loginbremse'));
+    return new Anmeldebremse($cachePoolBauen('loginbremse', Pfade::daten() . '/cache/loginbremse'));
 };
 
 if($app['is_installed']) {
@@ -372,8 +406,8 @@ if($app['is_installed']) {
         }
 
         return array(
-            $cachePoolBauen('query',    ROOT_DIR . '/data/cache/query'),
-            $cachePoolBauen('metadata', ROOT_DIR . '/data/cache/metadata')
+            $cachePoolBauen('query',    Pfade::daten() . '/cache/query'),
+            $cachePoolBauen('metadata', Pfade::daten() . '/cache/metadata')
         );
     };
 
@@ -383,10 +417,10 @@ if($app['is_installed']) {
         return EntityManagerFactory::erzeugen(
             $app['dbs']['pim'],
             array(
-                array('namespace' => 'Areanet\PIM\Entity', 'path' => ROOT_DIR . '/lib/contentfly/Entity'),
-                array('namespace' => 'Custom\Entity',       'path' => ROOT_DIR . '/custom/Entity'),
+                array('namespace' => 'Areanet\PIM\Entity', 'path' => Pfade::entitiesDesFrameworks()),
+                array('namespace' => 'Custom\Entity',       'path' => Pfade::entitiesDesProjekts()),
             ),
-            ROOT_DIR . '/data/cache/doctrine',
+            Pfade::daten() . '/cache/doctrine',
             (bool) Adapter::getConfig()->APP_AUTOGENERATE_PROXIES,
             array('Find_In_Set' => '\Areanet\PIM\Classes\ORM\Query\Mysql\FindInSet'),
             $abfrageCache,
@@ -556,6 +590,6 @@ if(Adapter::getConfig()->APP_FORCE_SSL && !defined('APPCMS_CONSOLE')){
     header("Strict-Transport-Security:max-age=63072000");
 }
 
-require_once ROOT_DIR.'/custom/app.php';
+require_once Pfade::custom().'/app.php';
 
 $app['routeManager']->bindRoutes();

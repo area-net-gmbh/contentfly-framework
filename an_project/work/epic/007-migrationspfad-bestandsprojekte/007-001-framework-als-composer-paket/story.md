@@ -1,7 +1,7 @@
 ---
 id: 007-001-0000
 title: Das Framework als Composer-Paket beziehbar machen
-status: todo
+status: done
 depends_on: []
 ---
 
@@ -51,8 +51,52 @@ beschrieben — der Text davon geht in den Leitfaden aus `007-004`.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 007-001-0001 — Die Trennlinie zwischen Framework und Projekt ziehen und festschreiben
-- [ ] 007-001-0002 — ROOT_DIR aufgeben — das Projektverzeichnis wird übergeben, nicht geraten
-- [ ] 007-001-0003 — Der Einstiegspunkt lädt den Autoloader, nicht das Framework
-- [ ] 007-001-0004 — Das Manifest teilen — Bibliothekspaket und Projekt getrennt
-- [ ] 007-001-0005 — Eine Installation aus dem Paket bauen und die Vorlage nachziehen
+- [x] 007-001-0001 — Die Trennlinie zwischen Framework und Projekt ziehen und festschreiben
+- [x] 007-001-0002 — ROOT_DIR aufgeben — das Projektverzeichnis wird übergeben, nicht geraten
+- [x] 007-001-0003 — Der Einstiegspunkt lädt den Autoloader, nicht das Framework
+- [x] 007-001-0004 — Das Manifest teilen — Bibliothekspaket und Projekt getrennt
+- [x] 007-001-0005 — Eine Installation aus dem Paket bauen und die Vorlage nachziehen
+
+## Ergebnis
+
+**Ein Bestandsprojekt kann das Framework jetzt beziehen statt es zu kopieren.** Nachgewiesen,
+nicht behauptet: In einem leeren Verzeichnis steht ein Projekt ohne eine Zeile Frameworkcode, es
+holt `areanet/contentfly` über Composer als echte Kopie, `appcms:install` läuft, und die volle
+Suite ist dagegen grün.
+
+**Die Sperre war nicht das Manifest.** Sie waren zwei, und beide sassen tiefer:
+
+1. **`ROOT_DIR`** rechnete das Projektverzeichnis aus der Lage des Frameworks. 80 Vorkommen in
+   18 Dateien, 40 davon in der Suite. Heute wird es übergeben; `Pfade` weist einen fehlenden
+   oder falschen Wert ab, statt einen zu erfinden.
+2. **Die umgekehrte Zuständigkeit.** Der Bootstrap lud den Autoloader, den man gebraucht hätte,
+   um ihn zu finden. Heute lädt ihn der Einstiegspunkt und ruft `Start`; in keinem
+   Einstiegspunkt steht mehr ein Pfad in den Frameworkcode.
+
+Erst danach war das Manifest eine Formalität.
+
+**Vier Befunde sind erst beim Bauen aufgetaucht, und drei davon waren still:**
+
+- **Das Framework verwies auf zwei Projektklassen, die es nicht gibt** — tote Importe, die PHP
+  nie auswertet. Hätte auch nur einer etwas getroffen, wäre die Grenze nicht zu ziehen gewesen,
+  ohne vorher eine Abhängigkeit umzudrehen.
+- **Jedes Plugin bringt seinen eigenen Composer-Baum mit.** Die Entscheidung sprach von „einem
+  Baum je Projekt" und hatte das nicht bedacht. Der Baum bleibt, mit ausgesprochenem Preis — und
+  ungeprüft, weil `plugins/` leer ist.
+- **`doctrine/persistence` sprang beim Neuauflösen ungefragt auf 4.2** und machte das
+  Deprecation-Gate rot. Gedeckelt, nicht mitgenommen: Der Sprung verlangt eine eigene
+  `ClassMetadataFactory` und ist eine eigene Aufgabe. **Ein Task dafür fehlt noch.**
+- **Die Suite selbst nahm an, im selben Baum zu liegen** — 127 Tests rot beim ersten Lauf gegen
+  ein fremdes Projekt, danach noch vier. Beides hängt jetzt an einer Angabe.
+
+**Drei eigene Fehlgriffe, alle von den eigenen Prüfungen gefangen:** `fwrite(STDERR, …)` in der
+Web-SAPI, ein zu grober Detektor, der die Prüfung gegen sich selbst richtete, und ein
+Fehlalarm auf einen Beispieltext. Der letzte brachte nebenbei eine Variable ans Licht, die im
+doppelt gequoteten String interpoliert worden wäre.
+
+**Zahlen:** Die Suite wächst von 471 auf **495** Tests. Zwei volle Läufe grün — einer gegen das
+Entwicklungs-Repo, einer gegen die Paketinstallation im Fremdprojekt —, je 0 Deprecations bei 0
+Ausnahmen und 0 Byte Postausgang. PHPStan `[OK] No errors`. `composer validate` auf beiden
+Manifesten, `composer install` von Null im `php:8.3-cli`. Die Audit-Gates im CI-Image ohne
+Advisories. Fünf Bruchstellen stehen in `an_project/docs/breaking-changes.md` unter
+*Paketgrenze*, mit dem gemessenen Fünf-Schritte-Ablauf für `007-004`.

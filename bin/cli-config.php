@@ -13,6 +13,11 @@
 
 use Doctrine\ORM\Tools\Console\EntityManagerProvider\SingleManagerProvider;
 
-require_once __DIR__.'/../lib/contentfly/bootstrap.php';
+/*
+ * Gleich gebaut wie index.php und bin/console.php (007-001-0003).
+ */
+require_once dirname(__DIR__) . '/vendor/autoload.php';
+
+$app = \Areanet\PIM\Classes\Kernel\Start::konsole(dirname(__DIR__));
 
 return new SingleManagerProvider($app['orm.em']);

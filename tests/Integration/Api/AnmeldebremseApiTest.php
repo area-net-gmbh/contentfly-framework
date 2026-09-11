@@ -164,15 +164,17 @@ class AnmeldebremseApiTest extends IntegrationTestCase
      */
     protected function bremsspeicherLeeren(): void
     {
-        $wurzel = dirname(__DIR__, 3);
+        // Das Datenverzeichnis DER ANWENDUNG, nicht das der Suite (007-001-0005) — siehe
+        // IntegrationTestCase::datenverzeichnis().
+        $daten = self::datenverzeichnis();
 
-        if (!is_dir($wurzel.'/data/cache')) {
+        if (!is_dir($daten.'/cache')) {
             $this->markTestSkipped(
                 'data/cache/ ist von hier aus nicht erreichbar — Testlauf und Testserver liegen '
                 .'offenbar nicht auf derselben Maschine.'
             );
         }
 
-        $this->verzeichnisEntfernen($wurzel.'/data/cache/loginbremse');
+        $this->verzeichnisEntfernen($daten.'/cache/loginbremse');
     }
 }

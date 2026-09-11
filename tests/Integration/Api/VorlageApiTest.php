@@ -362,7 +362,7 @@ class VorlageApiTest extends IntegrationTestCase
         // Geprueft ist deshalb, was pruefbar ist: dass der Hook registriert wird, und dass
         // die Vorlage die Reihenfolge als bedeutsam beschreibt. Wer Epic 009 umsetzt, findet
         // hier, was der neue Kernel nachbilden muss.
-        $vorlage = file_get_contents(ROOT_DIR.'/custom/app.php');
+        $vorlage = file_get_contents(CONTENTFLY_PROJEKT.'/custom/app.php');
 
         $this->assertStringContainsString('$app->before(function (Request $request) use ($app) {', $vorlage,
             'Der before-Hook ist registriert');
@@ -392,17 +392,17 @@ class VorlageApiTest extends IntegrationTestCase
          * Frameworks ueberschreibt. Waere der Manager fuer jedes Symfony-Command offen, waere
          * der Praefix nur noch ein Angebot.
          */
-        $command = file_get_contents(ROOT_DIR.'/custom/Command/ExampleCommand.php');
+        $command = file_get_contents(CONTENTFLY_PROJEKT.'/custom/Command/ExampleCommand.php');
         $this->assertStringContainsString('class ExampleCommand extends CustomCommand', $command,
             'Er erbt von CustomCommand, dem Weg, den das Framework anbietet');
 
-        $vorlage = file_get_contents(ROOT_DIR.'/custom/app.php');
+        $vorlage = file_get_contents(CONTENTFLY_PROJEKT.'/custom/app.php');
         $this->assertStringContainsString('addCommand(new \\Custom\\Command\\ExampleCommand', $vorlage,
             'und ist in custom/app.php registriert');
 
         // Die Gegenprobe an der Konsole selbst — samt Praefix, den CustomCommand voranstellt.
         $ausgabe = array();
-        exec(sprintf('%s %s list 2>&1', escapeshellarg(PHP_BINARY), escapeshellarg(ROOT_DIR.'/bin/console.php')), $ausgabe);
+        exec(sprintf('%s %s list 2>&1', escapeshellarg(PHP_BINARY), escapeshellarg(self::konsole())), $ausgabe);
         $alles = implode("\n", $ausgabe);
 
         $this->assertStringContainsString('appcms:install', $alles, 'Vorbedingung: die Liste ist gekommen');

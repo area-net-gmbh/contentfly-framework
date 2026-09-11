@@ -91,11 +91,70 @@ abstract class IntegrationTestCase extends TestCase
      */
     protected function bremsspeicherLeeren(): void
     {
-        $wurzel = dirname(__DIR__, 2);
+        $daten = self::datenverzeichnis();
 
-        if (is_dir($wurzel.'/data/cache')) {
-            $this->verzeichnisEntfernen($wurzel.'/data/cache/loginbremse');
+        if (is_dir($daten.'/cache')) {
+            $this->verzeichnisEntfernen($daten.'/cache/loginbremse');
         }
+    }
+
+    /**
+     * Das Verzeichnis **der Anwendung**, gegen die dieser Lauf prüft (007-001-0005).
+     *
+     * **Bisher war das immer der Baum der Suite selbst** — `dirname(__DIR__, 2)`. Das stimmt
+     * genau so lange, wie Testlauf und Anwendung im selben Baum liegen.
+     *
+     * Seit `007-001` muss es das nicht mehr: Ein Projekt bezieht das Framework als Paket, und
+     * die Suite kann gegen eine Installation laufen, die woanders steht. Beim ersten solchen
+     * Lauf waren **127 Tests rot** mit „Zu viele Anmeldeversuche" — die Suite leerte den
+     * Bremsspeicher ihres eigenen Baums, die Anwendung schrieb ihn in den ihren. **Und es ging
+     * leise schief:** Das eigene `data/cache` existiert ja, also griff die Bedingung, das
+     * Aufräumen lief, und es räumte das Falsche. Die Meldung handelte danach von einer
+     * Anmeldung, nicht von einem Verzeichnis.
+     *
+     * Nach dem Beheben blieben **vier** rot, mit derselben Annahme an anderer Stelle: Tests, die
+     * `bin/console.php` aufrufen, riefen das des Entwicklungs-Repos — dessen `custom/config.php`
+     * ist die Vorlage ohne Zugangsdaten, also war `$app['orm.em']` null.
+     *
+     * **Deshalb EINE Angabe und nicht zwei.** `CONTENTFLY_TEST_PROJEKT` sagt, wo die Anwendung
+     * liegt; Datenverzeichnis und Konsole hängen daran. Zwei Variablen könnten auseinanderlaufen,
+     * und dann prüfte ein Lauf zwei verschiedene Installationen, ohne es zu merken.
+     *
+     * Ohne die Variable bleibt es beim Baum der Suite — der Normalfall, in dem beide dasselbe
+     * sind, und der einzige, den die Pipeline kennt.
+     */
+    public static function anwendungsverzeichnis(): string
+    {
+        $angabe = getenv('CONTENTFLY_TEST_PROJEKT');
+
+        if (!is_string($angabe) || $angabe === '') {
+            return dirname(__DIR__, 2);
+        }
+
+        $aufgeloest = realpath($angabe);
+
+        if ($aufgeloest === false || !is_dir($aufgeloest)) {
+            throw new \RuntimeException(sprintf(
+                'CONTENTFLY_TEST_PROJEKT zeigt auf "%s" — das ist kein Verzeichnis. Ein '
+                .'falscher Wert waere schlimmer als keiner: Der Lauf raeumte dann das Falsche '
+                .'auf und riefe die falsche Konsole, ohne es zu melden (007-001-0005).',
+                $angabe
+            ));
+        }
+
+        return $aufgeloest;
+    }
+
+    /** Das `data/`-Verzeichnis der Anwendung. */
+    public static function datenverzeichnis(): string
+    {
+        return self::anwendungsverzeichnis() . '/data';
+    }
+
+    /** Die Konsole der Anwendung — nicht die des Entwicklungs-Repos. */
+    public static function konsole(): string
+    {
+        return self::anwendungsverzeichnis() . '/bin/console.php';
     }
 
     // ── Anmeldung ──────────────────────────────────────────────────────────────────────

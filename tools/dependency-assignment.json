@@ -1,29 +1,41 @@
 {
     "_hinweis": [
-        "Die Zuordnung aus 006-001-0004. Getrennt vom Inventar-Skript, weil das eine Fakten",
-        "erhebt und das andere Entscheidungen festhaelt — und weil eine Entscheidung",
-        "nachvollziehbar bleiben muss, wenn sich die Faktenlage aendert.",
+        "Die Zuordnung aus 006-001-0004, nachgezogen mit 007-001-0004.",
+        "",
+        "SEIT 007-001-0004 GIBT ES ZWEI MANIFESTE, und die Regel darunter hat sich mit",
+        "ihnen geaendert. Frueher hiess 'root' das eine Manifest, das Framework UND",
+        "Projekt trug. Jetzt beschreibt lib/contentfly/composer.json das Bibliothekspaket",
+        "areanet/contentfly und composer.json im Wurzelverzeichnis das Projekt.",
+        "",
+        "Getrennt vom Inventar-Skript, weil das eine Fakten erhebt und das andere",
+        "Entscheidungen festhaelt — und weil eine Entscheidung nachvollziehbar bleiben",
+        "muss, wenn sich die Faktenlage aendert.",
         "",
         "Kategorien:",
-        "  root         Framework-Sache. Wird mitgeliefert; ein Projekt bekommt es, ohne es",
-        "               anzufordern.",
-        "  custom       Projekt-Sache. Das Projekt verantwortet es und traegt es in sein",
-        "               eigenes custom/composer.json ein.",
-        "  require-dev  Werkzeug. Laeuft nie in Produktion.",
+        "  root         Framework-Sache. Steht in lib/contentfly/composer.json und kommt",
+        "               mit dem Paket; ein Projekt bekommt es, ohne es anzufordern.",
+        "  custom       Projekt-Sache. Steht im Manifest des Projekts.",
+        "  require-dev  Werkzeug. Laeuft nie in Produktion; steht im Manifest des",
+        "               Entwicklungs-Repos.",
         "  entfaellt    Kommt in kein Manifest.",
         "",
         "DAS PRINZIP, an dem sich ein neues Paket entscheiden laesst:",
         "  1. Benutzt lib/ es?                    -> root",
-        "  2. Benutzt die ausgelieferte Vorlage   -> root (sie gehoert zum Framework)",
+        "  2. Benutzt die ausgelieferte Vorlage   -> custom",
         "     (custom/config.php, custom/app.php) es?",
         "  3. Benutzt nur Projektcode es?         -> custom",
         "  4. Nur Tests oder Werkzeuge?           -> require-dev",
         "  5. Niemand?                            -> entfaellt",
         "",
+        "SCHRITT 2 HAT SICH UMGEDREHT. Er hiess '-> root (sie gehoert zum Framework)',",
+        "solange Vorlage und Framework dasselbe Manifest teilten. Die Vorlage IST das",
+        "Projekt; was nur sie benutzt, gehoert dem Projekt. Der erste Fall war",
+        "vlucas/phpdotenv: 0 Treffer in lib/, 1 in custom/config.php — es stand bis",
+        "007-001-0004 im Framework-Manifest und steht jetzt im Manifest des Projekts.",
+        "",
         "Wer hier nicht steht, bekommt eine abgeleitete Kategorie — siehe",
         "tools/dependency-inventory.php."
     ],
-
     "zuordnung": {
         "phpmailer/phpmailer": {
             "kategorie": "root",
@@ -33,22 +45,50 @@
             "kategorie": "root",
             "begruendung": "lib/ benutzt es nicht, aber die ausgelieferte custom/config.php tut es — und die gehoert zum Framework. Der dortige class_exists-Schutz war nur noetig, weil das Paket in custom/ lag und fehlen konnte; im Root eruebrigt er sich."
         },
-
-        "silex/silex": { "kategorie": "root", "begruendung": "Der Kernel. 26 Dateien haengen daran. Faellt mit Epic 009." },
-        "pimple/pimple": { "kategorie": "root", "begruendung": "Der DI-Container von Silex. Faellt mit Epic 009." },
-        "dflydev/doctrine-orm-service-provider": { "kategorie": "root", "begruendung": "Bindet Doctrine in den Silex-Container. Faellt mit Epic 009." },
-        "knplabs/console-service-provider": { "kategorie": "root", "begruendung": "Bindet die Console in den Silex-Container; deckelt symfony/console auf ^4.0. Faellt mit Epic 009." },
-
-        "doctrine/orm": { "kategorie": "root", "begruendung": "Der Entity-Layer. Wechselt von einem eigenen Fork (area-net-gmbh/doctrine2, 2018) auf ein Release — siehe 006-001-0003." },
-        "doctrine/dbal": { "kategorie": "root", "begruendung": "Datenbankschicht unter dem ORM. Bleibt vorerst bei 2.x, um den API-Bruch von DBAL 3 zu vermeiden." },
-        "doctrine/annotations": { "kategorie": "root", "begruendung": "Die @PIM- und @ORM-Annotationen haengen daran. Abandoned — Ersatz gehoert zu Epic 010." },
-
-        "ramsey/uuid": { "kategorie": "root", "begruendung": "Traegt die ID-Strategie UUID (APPCMS_ID_STRATEGY in bootstrap.php). Muss von 3.8 auf ^4, weil 3.8 auf PHP 7 cappt." },
-
-        "phpstan/phpstan": { "kategorie": "require-dev", "begruendung": "Statische Analyse. Liegt heute im Root-PRODUKTIONSbaum — ein Werkzeug, das in kein Deployment-Artefakt gehoert." },
-        "rector/rector": { "kategorie": "require-dev", "begruendung": "Automatisierte Refactorings; Epic 007 baut darauf seine Migrationsregeln. Liegt heute ebenfalls im Produktionsbaum." },
-        "phpunit/phpunit": { "kategorie": "require-dev", "begruendung": "Die Testsuite. Wandert von custom/ ins Root — der Pfad in .gitlab-ci.yml steht als Variable an einer Stelle, damit das ein Einzeiler bleibt." },
-
+        "silex/silex": {
+            "kategorie": "root",
+            "begruendung": "Der Kernel. 26 Dateien haengen daran. Faellt mit Epic 009."
+        },
+        "pimple/pimple": {
+            "kategorie": "root",
+            "begruendung": "Der DI-Container von Silex. Faellt mit Epic 009."
+        },
+        "dflydev/doctrine-orm-service-provider": {
+            "kategorie": "root",
+            "begruendung": "Bindet Doctrine in den Silex-Container. Faellt mit Epic 009."
+        },
+        "knplabs/console-service-provider": {
+            "kategorie": "root",
+            "begruendung": "Bindet die Console in den Silex-Container; deckelt symfony/console auf ^4.0. Faellt mit Epic 009."
+        },
+        "doctrine/orm": {
+            "kategorie": "root",
+            "begruendung": "Der Entity-Layer. Wechselt von einem eigenen Fork (area-net-gmbh/doctrine2, 2018) auf ein Release — siehe 006-001-0003."
+        },
+        "doctrine/dbal": {
+            "kategorie": "root",
+            "begruendung": "Datenbankschicht unter dem ORM. Bleibt vorerst bei 2.x, um den API-Bruch von DBAL 3 zu vermeiden."
+        },
+        "doctrine/annotations": {
+            "kategorie": "root",
+            "begruendung": "Die @PIM- und @ORM-Annotationen haengen daran. Abandoned — Ersatz gehoert zu Epic 010."
+        },
+        "ramsey/uuid": {
+            "kategorie": "root",
+            "begruendung": "Traegt die ID-Strategie UUID (APPCMS_ID_STRATEGY in bootstrap.php). Muss von 3.8 auf ^4, weil 3.8 auf PHP 7 cappt."
+        },
+        "phpstan/phpstan": {
+            "kategorie": "require-dev",
+            "begruendung": "Statische Analyse. Liegt heute im Root-PRODUKTIONSbaum — ein Werkzeug, das in kein Deployment-Artefakt gehoert."
+        },
+        "rector/rector": {
+            "kategorie": "require-dev",
+            "begruendung": "Automatisierte Refactorings; Epic 007 baut darauf seine Migrationsregeln. Liegt heute ebenfalls im Produktionsbaum."
+        },
+        "phpunit/phpunit": {
+            "kategorie": "require-dev",
+            "begruendung": "Die Testsuite. Wandert von custom/ ins Root — der Pfad in .gitlab-ci.yml steht als Variable an einer Stelle, damit das ein Einzeiler bleibt."
+        },
         "mockery/mockery": {
             "kategorie": "entfaellt",
             "begruendung": "Steht in custom/composer.json unter require-dev, wird aber in keinem Test benutzt — die Suite aus Epic 008 kommt ohne Mocking-Framework aus. Wer es braucht, nimmt es wieder auf."
@@ -73,7 +113,6 @@
             "kategorie": "entfaellt",
             "begruendung": "Transitive Abhaengigkeit von onelogin/php-saml (^3.1.5) und faellt mit ihm."
         },
-
         "ellumilel/php-excel-writer": {
             "kategorie": "entfaellt",
             "begruendung": "Konsument war der ExportController, geloescht mit 012-001-0003. Cappt zudem auf php ^5.4|^7.0 und ist damit unter PHP 8 ohnehin nicht installierbar."
@@ -86,7 +125,6 @@
             "kategorie": "entfaellt",
             "begruendung": "Konsument war der SCSS-Compiler in bootstrap.php, entfernt mit 006-001-0001. Geisterpaket: stand in keiner installed.json, nur im Autoloader."
         },
-
         "paragonie/random_compat": {
             "kategorie": "entfaellt",
             "begruendung": "Polyfill fuer random_bytes() unter PHP 5. Unter PHP 8 ueberfluessig."

@@ -21,6 +21,139 @@
 
 <!-- Entscheidung · erwogene Alternativen · warum diese. -->
 
+### 2026-09-11 — Das Framework wird ein Bibliothekspaket, und dieses Repo ist zugleich das Skeleton
+
+**Entscheidung.** `lib/contentfly/` wird zum Composer-Paket `areanet/contentfly` mit
+`type: library` und **einem** Namensraum, `Areanet\PIM\`. Ein Projekt bezieht es über
+`composer require` statt den Baum zu kopieren. Ein zweites, eigens gepflegtes Skeleton-Paket
+entsteht **nicht**: Die Wurzel dieses Repos — abzüglich der Einträge, die nur der Entwicklung
+dienen — **ist** das Skeleton.
+
+#### Die Zuordnung, Eintrag für Eintrag
+
+Alle 26 versionierten Top-Level-Einträge, Stand 2026-09-11. Kein Eintrag bleibt offen.
+
+| Eintrag | wohin | warum |
+|---|---|---|
+| `lib/` | **Paket** | der Frameworkcode; `lib/contentfly-ui/` liegt unversioniert als Rest aus `012` noch auf der Platte und fällt mit |
+| `index.php` | Projekt | Einstiegspunkt, gehört dem, der ausliefert |
+| `bin/` | Projekt | `console.php` und `cli-config.php`, aus demselben Grund |
+| `custom/` | Projekt | Projektcode und Konfiguration; bleibt die Vorlage |
+| `plugins/` | Projekt | der Slot des Projekts, künftig in **dessen** Manifest deklariert |
+| `data/` | Projekt | beschreibbare Laufzeitverzeichnisse; versioniert sind nur vier `.gitkeep` |
+| `.htaccess` · `robots.txt` · `favicon.ico` | Projekt | Artefakte des Webservers, nicht der Bibliothek |
+| `composer.json` · `composer.lock` | beide, getrennt | das Paket deklariert seine Abhängigkeiten, das Projekt seine — inklusive des Pakets |
+| `LICENSE` | beide | ein Paket ohne Lizenz ist keines |
+| `README.md` | beide, verschieden | das Paket beschreibt das Paket, das Projekt das Projekt |
+| `tests/` | Entwicklungs-Repo | die Suite prüft das Framework **durch eine Installation**; sie gehört zur Entwicklung, nicht in den Lieferumfang |
+| `tools/` | Entwicklungs-Repo | CI-Werkzeuge |
+| `phpunit.xml.dist` · `phpstan.neon.dist` · `.gitlab-ci.yml` · `docker-compose.yml` · `build.xml` · `apidoc.json` | Entwicklungs-Repo | dito |
+| `an_project/` · `.an_framework/` · `.claude/` · `CLAUDE.md` | Entwicklungs-Repo | Arbeitsorganisation, kein Lieferbestandteil |
+| `.gitignore` | je Repo | — |
+
+#### Warum kein eigenes Skeleton-Paket
+
+**Erwogen: ein zweites Paket `areanet/contentfly-skeleton`** für `composer create-project`.
+Verworfen aus zwei Gründen. Erstens liefe es auseinander: Ein Skeleton, das niemand fährt, ist
+dieselbe Fehlerart wie eine Anleitung, der niemand folgt — und gefahren wird hier die Wurzel
+dieses Repos, gegen die auf jedem Commit die volle Suite läuft. Zweitens verdoppelte es die
+Release-Fläche von Epic `011`, das ohnehin eine neue Hauptversion vergibt.
+
+**Erwogen: nur das Bibliothekspaket, das Projektgerüst bloss beschrieben.** Verworfen, weil
+dann jedes Projekt den Rahmen selbst nachbaut und jedes ein bisschen anders — und weil eine
+Beschreibung keinen Test hat.
+
+**Was bleibt zu tun, wenn `create-project` gewünscht ist:** Die Wurzel wird als Skeleton
+veröffentlicht. Das ist ein Verpackungsschritt für `011`, kein Bau.
+
+#### Wie das Paket die Konfiguration des Projekts findet
+
+**Der Einstiegspunkt übergibt das Projektverzeichnis, ausdrücklich.** Das Paket erwartet die
+Konfiguration darunter an der bisherigen Stelle, `custom/config.php`. Fehlt sie, bricht der
+Start mit einer Meldung ab, die **den erwarteten Pfad** nennt.
+
+**Erwogen: eine Umgebungsvariable.** Verworfen — sie ist im Code unsichtbar und lässt sich
+global falsch setzen, mit einer Wirkung, die niemand an der Aufrufstelle sieht.
+
+**Erwogen: nach oben suchen, bis eine `composer.json` auftaucht.** Verworfen, und zwar mit
+Nachdruck: Das ist Raten, und Raten ist genau das, was `ROOT_DIR` getan hat. Ein geratener Pfad
+existiert entweder zufällig oder erzeugt eine Meldung über die falsche Sache.
+
+#### Wie ein Projekt Frameworkverhalten überschreibt
+
+**Über die Registrierungsstellen, die es schon gibt** — `custom/app.php` für Routen und
+Anmeldeprovider, die Konfigurationskonstanten für Typen (`APP_SYSTEM_TYPES`,
+`APP_CUSTOM_TYPES`), die Plugin-Schnittstelle. **Nicht mehr durch Danebenlegen im selben Baum**;
+das ist ab jetzt unmöglich, weil der Frameworkcode in `vendor/` bei jedem Update überschrieben
+wird.
+
+**Das kostet weniger als befürchtet, und das ist nachgemessen:** Das Framework verweist auf
+**keine** Projektklasse. Die beiden einzigen Verweise waren tote Importe —
+`Classes/Types/OnejoinType` importierte `Custom\Entity\TestMeta`,
+`Controller/SystemController` importierte `Custom\Entity\Ansprechpartner`, und **beide Klassen
+existieren nicht**, in keinem der beiden Bäume. Ein ungenutztes `use` wertet PHP nie aus,
+deshalb ist es nie aufgefallen. Sie fallen mit `007-001-0004`.
+
+**Fehlt für einen Fall eine Registrierungsstelle,** ist das eine Lücke des Frameworks und wird
+als Task aufgeschrieben — nicht durch Kopieren umgangen. Eine Umgehung, die funktioniert,
+verhindert, dass die Lücke je geschlossen wird.
+
+#### Was aus `custom/vendor/` und „Framework schlägt Projekt" wird
+
+**Beides fällt.** Ein Projekt hat künftig **einen** Composer-Baum, in dem `areanet/contentfly`
+als Abhängigkeit liegt. Damit gibt es keine zwei Bäume mehr, zwischen denen eine Rangfolge zu
+zusichern wäre — die Frage stellt sich nicht mehr, statt anders beantwortet zu werden.
+
+**Der Ersatz ist stärker als die Zusicherung, die er ablöst.** Die alte Regel hielt eine
+Überschneidung *fern*, solange ein Test die Bedingung prüfte. Composer *verweigert* unvereinbare
+Constraints beim Auflösen — der Fall `psr/log` in 1.1.3 und 3.0.2 gleichzeitig im Prozess kann
+gar nicht mehr entstehen.
+
+**`AutoloaderUeberschneidungTest` wird umgedreht, nicht gelöscht.** Er prüft danach, dass es
+genau einen Baum gibt. Ein Test, der eine Bedingung bewacht hat, die weggefallen ist, bewacht
+danach, dass sie weggefallen bleibt.
+
+> **Umgesetzt mit `007-001-0003`.** Der zweite Autoloader wird nicht mehr geladen; ein
+> liegengebliebenes `custom/vendor/` weist `Classes\Kernel\Start` zur Laufzeit ab, statt es
+> stillschweigend zu übergehen. Der Test prüft drei Dinge: dass der Baum des Projekts das
+> Framework führt, dass es keinen zweiten gibt, und dass das Framework seinen eigenen
+> Autoloader nicht mehr lädt.
+>
+> **Dabei ist ein Fall aufgefallen, den diese Entscheidung nicht bedacht hatte:**
+> `Classes/Plugin::initComposer()` lädt den eigenen `vendor/`-Baum **jedes Plugins**. „Ein Baum
+> je Projekt" gilt damit nicht ausnahmslos, und die Überschneidungsgefahr aus `006-004` ist je
+> Plugin zurück — ungeprüft. Der Test führt es als benannte Ausnahme; entschieden wird es mit
+> `007-001-0004`, zusammen mit der Frage, was aus `plugins/` wird.
+
+#### `plugins/` bleibt der Slot des Projekts — mit einer benannten Ausnahme
+
+**Entschieden mit `007-001-0004`.** Der Namensraum `Plugins\` steht jetzt im Manifest des
+Projekts, nicht mehr in dem des Frameworks. Das Verzeichnis ist im Entwicklungs-Repo leer;
+versioniert liegt dort keine Datei.
+
+**Die Ausnahme ist der eigene Composer-Baum je Plugin.** `Classes/Plugin::initComposer()` lädt
+`plugins/<key>/vendor/autoload.php`, wenn es existiert. Damit gilt „ein Baum je Projekt" nicht
+ausnahmslos, und die Überschneidungsgefahr aus `006-004` ist je Plugin zurück.
+
+**Sie bleibt trotzdem, und zwar begründet.** Ein Plugin ist kein Bestandteil des Projekts im
+Sinne von Composer: Es wird nicht aufgelöst, sondern als Verzeichnis abgelegt. Ihm seine
+Abhängigkeiten zu nehmen hiesse, jedes Plugin in das Manifest des Projekts zu zwingen — und
+damit genau die Vermischung wiederherzustellen, die diese Entscheidung auflöst, nur an anderer
+Stelle.
+
+**Was dafür der Preis ist, steht hier und nicht nur im Code:** Lädt ein Plugin ein Paket, das
+das Projekt in einer anderen Version führt, gewinnt der zuerst geladene Baum — und das ist der
+des Projekts. Ein Plugin, dessen Pakete kollidieren, ist ein Fehler des Plugins.
+
+**Ungeprüft, und das wird ausdrücklich gesagt.** `plugins/` ist leer; es gibt hier nichts, wogegen
+sich das messen liesse. `tests/Unit/AutoloaderUeberschneidungTest.php` führt den Fall als
+benannte Ausnahme mit Begründung, damit er sichtbar bleibt statt unterzugehen.
+
+**Revidieren, wenn** ein Projekt Pakete braucht, die es dem Framework *vorenthalten* muss —
+dann wäre ein zweiter Baum wieder ein Mittel. Heute gibt es diesen Fall nicht: Nach
+`006-001-0004` gehört kein einziges der ehemals neun `custom/`-Pakete dorthin, und
+`custom/composer.json` hat ein leeres `require`.
+
 ### 2026-09-09 — Der Antwort-Envelope wird vereinheitlicht, aber erst mit dem Release
 
 **Entscheidung.** Die sieben verschiedenen Antwortformen der API werden auf eine gebracht:
@@ -49,6 +182,11 @@ neuen Vertrag braucht. Dann ist die Reihenfolge zu tauschen und der Vergleich f�
 abzusichern — nicht stillschweigend.
 
 ### 2026-09-09 — Zwei Composer-Bäume, Root vor `custom/` (nicht ein Autoloader)
+
+> **REVIDIERT AM 2026-09-11 durch die Entscheidung darunter** (*Das Framework wird ein
+> Bibliothekspaket*). Sie hat es selbst so vorgesehen — siehe *Revidieren, wenn* am Ende dieses
+> Eintrags. Der Text bleibt stehen, weil er die Begründung des Zustands trägt, den ein
+> Bestandsprojekt heute noch vorfindet.
 
 **Entscheidung.** Framework und Projekt behalten **je ein eigenes Manifest**.
 `lib/contentfly/bootstrap.php` lädt `vendor/autoload.php` zuerst und

@@ -7,7 +7,6 @@ composer.lock
 # Der fuehrende Slash bei /composer.lock ist noetig: Ohne ihn greift die Ausnahme auf jeder
 # Ebene und holt genau die vendor-internen Locks zurueck, die die Regel darueber fernhaelt.
 # Der Root-Lock kam mit 006-002-0003 dazu.
-!custom/composer.lock
 !/composer.lock
 
 # Die Vendor-Baeume entstehen seit 006-003-0001 beim Build, nicht in Git. Vorher lagen hier
@@ -45,7 +44,6 @@ plugins/*
 .vscode
 # Composer-Temp-Artefakte aus abgebrochenen Downloads
 *.zip~
-custom/vendor/composer/tmp-*
 # Vendored npm-Debug-Logs aus bower_components (funktionslos)
 npm-debug.log
 

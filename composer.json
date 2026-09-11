@@ -1,8 +1,14 @@
 {
-    "name": "areanet/contentfly-framework",
-    "description": "Contentfly — Datenhaltung und Core-Funktionen. Manifest fuer den Symfony-7.4-Stand seit Epic 009; Doctrine bleibt bis Epic 010 auf ORM 2.20 / DBAL 3.10.",
+    "name": "areanet/contentfly-skeleton",
+    "description": "Contentfly — Projektgeruest und Entwicklungs-Repo. Bezieht das Framework als Paket areanet/contentfly.",
     "type": "project",
     "license": "proprietary",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "lib/contentfly"
+        }
+    ],
     "config": {
         "platform": {
             "php": "8.3.0"
@@ -13,27 +19,8 @@
         }
     },
     "require": {
-        "php": "^8.3",
-        "ext-openssl": "*",
-        "ext-sodium": "*",
-        "doctrine/dbal": "^3.10",
-        "doctrine/orm": "^3",
-        "firebase/php-jwt": "^7.0",
-        "phpmailer/phpmailer": "^6.10",
-        "ramsey/uuid": "^4.0",
-        "symfony/cache": "^7.4",
-        "symfony/console": "^7.4",
-        "symfony/event-dispatcher": "^7.4",
-        "symfony/http-client": "^7.4",
-        "symfony/http-foundation": "^7.4",
-        "symfony/http-kernel": "^7.4",
-        "symfony/rate-limiter": "^7.4",
-        "symfony/routing": "^7.4",
-        "symfony/security-http": "^7.4",
+        "areanet/contentfly": "^2.0",
         "vlucas/phpdotenv": "^5.6"
-    },
-    "suggest": {
-        "symfony/ldap": "Fuer Classes\\Security\\LdapProvider — Anmeldung gegen LDAP oder Active Directory. Bewusst NICHT in require: Das Paket verlangt die Systemerweiterung ext-ldap, und die dann jeder Installation abzuverlangen, die gar kein Verzeichnis benutzt, waere die falsche Richtung (013-005-0004)."
     },
     "require-dev": {
         "phpstan/phpstan": "^1.10",
@@ -44,7 +31,6 @@
     },
     "autoload": {
         "psr-4": {
-            "Areanet\\PIM\\": "lib/contentfly/",
             "Custom\\": "custom/",
             "Plugins\\": "plugins/"
         }
@@ -56,46 +42,49 @@
     },
     "extra": {
         "hinweis": [
-            "BEVOR JEMAND DIE CONSTRAINTS ANFASST — die Zahlen sind nicht gewaehlt, sondern",
-            "begruendet. Was sie erzwingt, hat sich zweimal verschoben: Bis Epic 009 deckelten",
-            "Silex und knplabs nach oben, danach Doctrine — und seit Epic 010 deckelt nach oben",
-            "gar nichts mehr. Was bleibt, sind Untergrenzen und Entscheidungen.",
+            "DAS IST DAS MANIFEST DES PROJEKTS (seit 007-001-0004). Bis dahin trug EIN",
+            "Manifest Framework, Projektcode und Plugins — genau die Vermischung, die ein",
+            "Update unmoeglich machte: Wer eine neue Frameworkversion wollte, bekam sie nur,",
+            "indem er den Baum ueberschrieb, in dem auch sein eigener Code lag.",
             "",
-            "  1. symfony/* steht auf ^7.4 — LTS, Bugfixes bis Nov 2028, Security bis Nov 2029.",
-            "     Bewusst nicht 8.x: gleicher Funktionsumfang, aber PHP >= 8.4 in JEDER Umgebung",
-            "     und ein Pflicht-Minor alle 6 Monate. Begruendung in",
-            "     an_project/docs/architecture.md, Key decisions, 2026-09-04.",
-            "  2. doctrine/orm steht auf ^3 und damit real auf 3.7. Der Sprung von ORM 2 kam mit",
-            "     Epic 010: Die Entities tragen seither PHP-Attribute statt Annotationen, und",
-            "     doctrine/annotations ist aus dem Baum.",
-            "     Bis 000-000-0027 stand hier ^2.14 mit der Begruendung, der Umbau sei noch",
-            "     offen — ein Block, der erklaeren soll, warum man die Zahlen nicht anfasst, mit",
-            "     einem Grund, den es nicht mehr gibt.",
-            "  3. doctrine/dbal steht auf ^3.10. Die UNTERGRENZE ist erzwungen:",
-            "     symfony/http-foundation 7.4 fuehrt doctrine/dbal <3.6 in conflict. Die",
-            "     OBERGRENZE ist eine Entscheidung — ORM 3.7 verlangt ^3.8.2 || ^4, DBAL 4 waere",
-            "     also erlaubt. Wer ihn will, prueft ihn als eigenen Schritt; hier bleibt es bei",
-            "     3.x, solange niemand einen Grund dafuer hat.",
-            "     (Der Sprung von DBAL 2 auf 3 — fetchAll() entfernt, Statement::execute()",
-            "     umgebaut — war Voraussetzung des Kernel-Schnitts und ist mit 009-005 erledigt.)",
+            "DIESES REPO IST ZUGLEICH DAS SKELETON. Die Wurzel abzueglich der Eintraege, die",
+            "nur der Entwicklung dienen (tests/, tools/, an_project/, die Gate-Konfigurationen),",
+            "ist das, was ein Projekt vor sich hat. Ein eigenes Skeleton-Paket entsteht bewusst",
+            "nicht — es liefe auseinander, weil es niemand faehrt, waehrend hier auf jedem",
+            "Commit die volle Suite laeuft. Begruendung und verworfene Alternativen:",
+            "an_project/docs/architecture.md, Key decisions, 2026-09-11.",
             "",
-            "Die Kette ist damit kuerzer als frueher: Nach oben deckelt nichts mehr. Wer eine",
-            "der drei Zeilen aendert, prueft die anderen beiden trotzdem mit.",
+            "DIE path-QUELLE ist der Grund, warum der Paketweg hier ueberhaupt geprueft wird",
+            "und nicht nur beschrieben: composer install legt areanet/contentfly nach",
+            "vendor/areanet/contentfly, und von dort laedt der Autoloader das Framework. Was",
+            "noch stillschweigend annimmt, im selben Baum zu liegen, faellt dabei auf.",
             "",
-            "platform.php steht auf 8.3, weil die Suite darauf gruen ist und die Pipeline sie",
-            "dagegen faehrt. Auf PHP 8.4 laeuft sie ebenfalls gruen — zuletzt gemessen am",
-            "2026-09-11 mit 013-005-0004: 471 Tests, 0 Deprecations. Die Zahl traegt ihr Datum,",
-            "weil sie mit jeder Story veraltet.",
+            "WAS HIER STEHT UND WARUM:",
             "",
-            "Der Sprung auf 8.5 ist ein eigener Schritt. Was ihn frueher blockierte, ist weg:",
-            "ellumilel/php-excel-writer cappte auf php ^5.4|^7.0 und fiel mit seinem Konsumenten,",
-            "dem ExportController, in 012-001-0003. Der Stand steht in",
+            "  vlucas/phpdotenv   benutzt custom/config.php, also die Vorlage, also das",
+            "                     Projekt. Nachgezaehlt: 0 Treffer in lib/, 1 in custom/.",
+            "  require-dev        PHPUnit, PHPStan, Rector — Werkzeuge des Repos, in dem",
+            "                     entwickelt wird.",
+            "  Custom\\, Plugins\\  die beiden Slots des Projekts.",
+            "  Tests\\             die Suite des Frameworks laeuft von hier gegen eine",
+            "                     Installation; sie gehoert zur Entwicklung, nicht in den",
+            "                     Lieferumfang des Pakets.",
+            "",
+            "  config.platform    steht auf 8.3, weil die Suite darauf gruen ist und die",
+            "                     Pipeline sie dagegen faehrt. Auf PHP 8.4 laeuft sie ebenfalls",
+            "                     gruen — zuletzt gemessen am 2026-09-11. Die Zahl traegt ihr",
+            "                     Datum, weil sie mit jeder Story veraltet. Ein Bibliothekspaket",
+            "                     darf so etwas nicht vorschreiben; deshalb steht es hier.",
+            "  config.audit       Das Gate laeuft gegen diesen Lock.",
+            "",
+            "Der Sprung auf PHP 8.5 ist ein eigener Schritt. Was ihn frueher blockierte, ist",
+            "weg: ellumilel/php-excel-writer cappte auf php ^5.4|^7.0 und fiel mit seinem",
+            "Konsumenten, dem ExportController, in 012-001-0003. Der Stand steht in",
             "an_project/docs/technical.md.",
             "",
-            "an_project/docs/abhaengigkeiten-inventar.md ist eine MOMENTAUFNAHME vom 2026-09-08,",
-            "erzeugt von tools/dependency-inventory.php: Sie beschreibt den Baum VOR Epic 006 und",
-            "traegt die Zuordnung, mit der damals entschieden wurde. Fuer den heutigen",
-            "Paketstand ist sie nicht die Quelle — dafuer sind es composer.json und composer.lock."
+            "an_project/docs/abhaengigkeiten-inventar.md ist eine MOMENTAUFNAHME vom 2026-09-08.",
+            "Sie beschreibt den Baum VOR Epic 006. Fuer den heutigen Paketstand ist sie nicht",
+            "die Quelle — dafuer sind es die beiden composer.json und composer.lock."
         ]
     }
 }

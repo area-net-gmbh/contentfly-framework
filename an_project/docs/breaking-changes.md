@@ -496,6 +496,159 @@ die drei anderen Fälle in derselben Methode es immer schon taten.
 *Was zu tun ist:* Auf 409 prüfen statt auf 500. Ein Client, der den 500 als „gibt es schon"
 gelesen hat, liest ihn jetzt falsch.
 
+## Paketgrenze (Epic `007`)
+
+Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —
+auch eines, das die Vorlage unverändert übernommen hat, denn `index.php` gehört ihm.
+
+### `ROOT_DIR` gibt es nicht mehr — der Einstiegspunkt setzt `CONTENTFLY_PROJEKT`
+**Seit `007-001-0002` (2026-09-11).**
+
+`lib/contentfly/bootstrap.php` definierte die Konstante `ROOT_DIR` und rechnete sie aus der
+eigenen Lage: `__DIR__ . '/../..'`. Das ist der Grund, warum das Framework bisher nicht in
+`vendor/` liegen konnte — dort zeigt derselbe Ausdruck nach `vendor/areanet/`, nicht ins
+Projekt.
+
+**Und es ging leise schief.** Der gerechnete Pfad existiert dann nicht, aber es *gibt* ihn.
+Nachgemessen mit dem alten Stand, das Framework unter `vendor/areanet/contentfly/` abgelegt:
+
+```
+Failed opening required '…/vendor/areanet/contentfly/lib/contentfly/../../custom/config.php'
+```
+
+Eine Meldung über eine fehlende Datei. Dass die *Wurzel* falsch ist, steht dort nicht.
+
+*Was zu tun ist:* Im Einstiegspunkt das Projektverzeichnis benennen, **bevor** der Bootstrap
+eingebunden wird:
+
+```php
+// index.php
+define('CONTENTFLY_PROJEKT', __DIR__);
+require_once __DIR__.'/lib/contentfly/bootstrap-web.php';
+```
+
+Dasselbe in `bin/console.php` und `bin/cli-config.php` mit `dirname(__DIR__)`. Fehlt die
+Konstante, endet der Start mit einer Meldung, die genau das sagt — statt mit einer über eine
+Datei.
+
+*Wenn Projektcode `ROOT_DIR` benutzt:* Es gibt zwei Nachfolger, und der Unterschied ist neu.
+
+| Zweck | vorher | nachher |
+|---|---|---|
+| Verzeichnis des **Projekts** | `ROOT_DIR` | `Areanet\PIM\Classes\Kernel\Pfade::projekt()` |
+| `custom/`, `data/`, `plugins/` darunter | `ROOT_DIR.'/data'` | `Pfade::daten()`, `Pfade::custom()`, `Pfade::plugins()` |
+| Verzeichnis des **Frameworks** | `ROOT_DIR` — dasselbe | `Pfade::paket()` |
+
+**Die letzte Zeile ist die eigentliche Änderung.** Projekt und Framework waren dieselbe
+Konstante, weil sie dasselbe Verzeichnis waren. Sobald das Framework als Paket kommt, sind es
+zwei — und ein Aufruf, der bisher beides meinte, muss sich entscheiden.
+
+In `custom/config.php` steht die Konstante ebenfalls, für den Fundort der `.env`. Die
+ausgelieferte Vorlage ist nachgezogen; wer sie angepasst hat, zieht die eine Zeile mit.
+
+### Der Einstiegspunkt lädt den Autoloader und ruft `Start`
+**Seit `007-001-0003` (2026-09-11).**
+
+`index.php` band bisher direkt `lib/contentfly/bootstrap-web.php` ein, und der Bootstrap lud
+daraufhin selbst `vendor/autoload.php`. **Ein Paket wird vom Autoloader geladen — es lädt ihn
+nicht.** Solange der Bootstrap die erste eingebundene Datei ist, kann der Frameworkcode nicht in
+`vendor/` liegen: Um ihn zu finden, bräuchte man den Autoloader, den er selbst erst lädt.
+
+*Was zu tun ist:* Die drei Einstiegspunkte auf dieselbe Form bringen.
+
+```php
+// index.php
+require_once __DIR__ . '/vendor/autoload.php';
+\Areanet\PIM\Classes\Kernel\Start::web(__DIR__);
+```
+
+```php
+// bin/console.php und bin/cli-config.php
+require_once dirname(__DIR__) . '/vendor/autoload.php';
+$app = \Areanet\PIM\Classes\Kernel\Start::konsole(dirname(__DIR__));
+```
+
+**Damit steht in keinem Einstiegspunkt mehr ein Pfad in den Frameworkcode.** Das ist der Zweck:
+Ob Contentfly unter `lib/` im Projekt liegt oder unter `vendor/areanet/contentfly/`, sieht die
+Datei nicht mehr. `APPCMS_CONSOLE` setzt `Start::konsole()` selbst.
+
+`lib/contentfly/bootstrap.php` direkt einzubinden bricht ab, mit einer Meldung, die auf `Start`
+zeigt.
+
+### `custom/vendor/` wird nicht mehr geladen — und ein Rest davon bricht den Start ab
+**Seit `007-001-0003` (2026-09-11).**
+
+Ein Projekt hatte zwei Composer-Bäume: den Root und `custom/vendor/`, geladen in dieser
+Reihenfolge, mit der Zusicherung aus `006-004-0001`, dass bei einem gemeinsamen PSR-4-Präfix der
+Root gewinnt. Mit dem Bibliothekspaket fällt die Grundlage weg — das Framework ist dann eine
+Abhängigkeit **im** Baum des Projekts.
+
+**Der Ersatz ist stärker als die Zusicherung, die er ablöst.** Die alte Regel hielt eine
+Überschneidung *fern*, solange ein Test die Bedingung prüfte. Composer *verweigert* unvereinbare
+Constraints beim Auflösen. Der Fall, an dem das jahrelang scheiterte — `psr/log` in 1.1.3 und
+3.0.2 gleichzeitig im Prozess —, kann nicht mehr entstehen.
+
+*Was zu tun ist:* Was `custom/composer.json` noch braucht, in das Manifest des Projekts
+übernehmen, dann `custom/vendor/` und `custom/composer.json` entfernen.
+
+**Liegen bleiben geht nicht.** Findet der Start ein `custom/vendor/autoload.php`, bricht er ab
+und sagt warum. Das ist Absicht: Ein Baum, der daliegt und nicht mehr geladen wird, sieht aus
+wie einer, der benutzt wird — die Folgemeldung handelte dann von einer fehlenden Klasse und
+nicht von einem Baum, der nicht mehr gilt.
+
+**Nicht betroffen sind Plugins.** Ein Plugin bringt weiterhin seinen eigenen `vendor/`-Baum mit,
+und `Classes/Plugin::initComposer()` lädt ihn — entschieden mit `007-001-0004`, mit dem Preis
+ausgesprochen in `an_project/docs/architecture.md`.
+
+### Zwei Manifeste statt einem — `custom/composer.json` entfällt
+**Seit `007-001-0004` (2026-09-11).**
+
+Ein Manifest trug bisher drei Namensräume: `Areanet\PIM\`, `Custom\` und `Plugins\`.
+**Genau diese Vermischung machte das Update unmöglich** — wer eine neue Frameworkversion wollte,
+bekam sie nur, indem er den Baum überschrieb, in dem auch sein eigener Code lag.
+
+| | vorher | nachher |
+|---|---|---|
+| Framework | `areanet/contentfly-framework`, `type: project` | `areanet/contentfly`, `type: library`, Manifest in `lib/contentfly/` |
+| Projekt | dasselbe Manifest | eigenes Manifest, `require: areanet/contentfly` |
+| Projektpakete | `custom/composer.json` | Manifest des Projekts |
+
+*Was zu tun ist:*
+
+1. Das Framework als Abhängigkeit aufnehmen: `areanet/contentfly` in das `require` des Projekts.
+2. Was in `custom/composer.json` stand, in dasselbe `require` übernehmen. `custom/composer.json`
+   und `custom/composer.lock` entfallen, ebenso die `.gitignore`-Ausnahme dafür.
+3. Im Autoload des Projekts bleiben `Custom\` und `Plugins\`. **`Areanet\PIM\` gehört dort
+   nicht mehr hinein** — sonst gäbe es zwei Wege zu denselben Klassen, und welcher gewinnt,
+   entschiede die Ladereihenfolge.
+
+#### Der Ablauf, Schritt für Schritt — von der Kopie auf das Paket
+
+**Einmal durchgespielt mit `007-001-0005`**, in einem leeren Verzeichnis, gegen ein Projekt, das
+keinen Frameworkcode enthält. Was hier steht, ist der gemessene Weg, nicht der geplante.
+
+1. **`lib/` aus dem Projekt entfernen.** Der Frameworkcode kommt ab jetzt aus `vendor/`.
+2. **Manifest anlegen** mit `areanet/contentfly` im `require`, den beiden Autoload-Präfixen
+   `Custom\` und `Plugins\`, und dem, was vorher in `custom/composer.json` stand.
+3. **Einstiegspunkte** auf die Form aus `007-001-0003` bringen: `index.php`, `bin/console.php`,
+   `bin/cli-config.php`.
+4. **`composer install`** — das Framework landet in `vendor/areanet/contentfly`.
+5. **`php bin/console.php appcms:install`** wie bisher.
+
+**Was mitgeht und was nicht.** Mit: `custom/`, `plugins/`, `data/`, die Einstiegspunkte, die
+`.htaccess`. Nicht mit: `lib/`, `custom/vendor/`, `custom/composer.json`.
+
+**Das Verzeichnis `data/` muss beschreibbar sein und dem Projekt gehören** — nicht dem Paket.
+Es trägt Cache, Dateien, Import und Temp; ein Update des Frameworks darf es nicht anfassen.
+
+**Ein Paket wechselt dabei die Seite:** `vlucas/phpdotenv` stand im Framework-Manifest und steht
+jetzt im Projekt. Es wird nur von `custom/config.php` benutzt — nachgezählt: 0 Treffer in `lib/`,
+1 in `custom/`. Die Einordnungsregel in `tools/dependency-assignment.json` ist entsprechend
+nachgezogen: Schritt 2 („benutzt die ausgelieferte Vorlage es?") führt jetzt zum Projekt und
+nicht mehr zum Framework.
+
+---
+
 ## Kernel (Epic `009`)
 
 Der Kernel ist mit Epic `009` von Silex 2 auf Symfony 7.4 gewechselt. **Der Schnitt war so

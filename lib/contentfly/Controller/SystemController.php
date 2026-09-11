@@ -8,7 +8,6 @@ use Areanet\PIM\Entity\Log;
 use Areanet\PIM\Entity\ThumbnailSetting;
 use Areanet\PIM\Entity\Token;
 use Areanet\PIM\Entity\User;
-use Custom\Entity\Ansprechpartner;
 use Doctrine\ORM\Tools\Console\Command\SchemaTool\UpdateCommand;
 use Doctrine\ORM\Tools\Console\Helper\EntityManagerHelper;
 use Doctrine\ORM\Tools\SchemaTool;
@@ -20,6 +19,7 @@ use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Areanet\PIM\Classes\Kernel\Pfade;
 
 class SystemController extends BaseController
 {
@@ -116,8 +116,8 @@ class SystemController extends BaseController
      */
     protected function flushSchemaCache(Request $request)
     {
-        if(file_exists(ROOT_DIR.'/data/cache/schema.cache')){
-            unlink(ROOT_DIR.'/data/cache/schema.cache');
+        if(file_exists(Pfade::daten().'/cache/schema.cache')){
+            unlink(Pfade::daten().'/cache/schema.cache');
         }
 
         $konfiguration = $this->app['orm.em']->getConfiguration();
