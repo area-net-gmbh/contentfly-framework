@@ -98,7 +98,7 @@ class PfadeTest extends TestCase
         Pfade::zuruecksetzen();
 
         $this->assertDirectoryExists(Pfade::paket());
-        $this->assertFileExists(Pfade::paket() . '/lib/contentfly/bootstrap.php');
+        $this->assertFileExists(Pfade::paket() . '/bootstrap.php');
     }
 
     /**
@@ -178,7 +178,7 @@ class PfadeTest extends TestCase
      */
     private function frameworkdateien(): array
     {
-        $wurzel  = Pfade::paket() . '/lib/contentfly';
+        $wurzel  = Pfade::paket();
         $dateien = array();
 
         $lauf = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($wurzel));

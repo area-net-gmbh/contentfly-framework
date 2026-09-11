@@ -125,6 +125,30 @@ danach, dass sie weggefallen bleibt.
 > Plugin zurück — ungeprüft. Der Test führt es als benannte Ausnahme; entschieden wird es mit
 > `007-001-0004`, zusammen mit der Frage, was aus `plugins/` wird.
 
+#### `plugins/` bleibt der Slot des Projekts — mit einer benannten Ausnahme
+
+**Entschieden mit `007-001-0004`.** Der Namensraum `Plugins\` steht jetzt im Manifest des
+Projekts, nicht mehr in dem des Frameworks. Das Verzeichnis ist im Entwicklungs-Repo leer;
+versioniert liegt dort keine Datei.
+
+**Die Ausnahme ist der eigene Composer-Baum je Plugin.** `Classes/Plugin::initComposer()` lädt
+`plugins/<key>/vendor/autoload.php`, wenn es existiert. Damit gilt „ein Baum je Projekt" nicht
+ausnahmslos, und die Überschneidungsgefahr aus `006-004` ist je Plugin zurück.
+
+**Sie bleibt trotzdem, und zwar begründet.** Ein Plugin ist kein Bestandteil des Projekts im
+Sinne von Composer: Es wird nicht aufgelöst, sondern als Verzeichnis abgelegt. Ihm seine
+Abhängigkeiten zu nehmen hiesse, jedes Plugin in das Manifest des Projekts zu zwingen — und
+damit genau die Vermischung wiederherzustellen, die diese Entscheidung auflöst, nur an anderer
+Stelle.
+
+**Was dafür der Preis ist, steht hier und nicht nur im Code:** Lädt ein Plugin ein Paket, das
+das Projekt in einer anderen Version führt, gewinnt der zuerst geladene Baum — und das ist der
+des Projekts. Ein Plugin, dessen Pakete kollidieren, ist ein Fehler des Plugins.
+
+**Ungeprüft, und das wird ausdrücklich gesagt.** `plugins/` ist leer; es gibt hier nichts, wogegen
+sich das messen liesse. `tests/Unit/AutoloaderUeberschneidungTest.php` führt den Fall als
+benannte Ausnahme mit Begründung, damit er sichtbar bleibt statt unterzugehen.
+
 **Revidieren, wenn** ein Projekt Pakete braucht, die es dem Framework *vorenthalten* muss —
 dann wäre ein zweiter Baum wieder ein Mittel. Heute gibt es diesen Fall nicht: Nach
 `006-001-0004` gehört kein einziges der ehemals neun `custom/`-Pakete dorthin, und

@@ -597,7 +597,36 @@ wie einer, der benutzt wird — die Folgemeldung handelte dann von einer fehlend
 nicht von einem Baum, der nicht mehr gilt.
 
 **Nicht betroffen sind Plugins.** Ein Plugin bringt weiterhin seinen eigenen `vendor/`-Baum mit,
-und `Classes/Plugin::initComposer()` lädt ihn. Ob das so bleibt, entscheidet `007-001-0004`.
+und `Classes/Plugin::initComposer()` lädt ihn — entschieden mit `007-001-0004`, mit dem Preis
+ausgesprochen in `an_project/docs/architecture.md`.
+
+### Zwei Manifeste statt einem — `custom/composer.json` entfällt
+**Seit `007-001-0004` (2026-09-11).**
+
+Ein Manifest trug bisher drei Namensräume: `Areanet\PIM\`, `Custom\` und `Plugins\`.
+**Genau diese Vermischung machte das Update unmöglich** — wer eine neue Frameworkversion wollte,
+bekam sie nur, indem er den Baum überschrieb, in dem auch sein eigener Code lag.
+
+| | vorher | nachher |
+|---|---|---|
+| Framework | `areanet/contentfly-framework`, `type: project` | `areanet/contentfly`, `type: library`, Manifest in `lib/contentfly/` |
+| Projekt | dasselbe Manifest | eigenes Manifest, `require: areanet/contentfly` |
+| Projektpakete | `custom/composer.json` | Manifest des Projekts |
+
+*Was zu tun ist:*
+
+1. Das Framework als Abhängigkeit aufnehmen: `areanet/contentfly` in das `require` des Projekts.
+2. Was in `custom/composer.json` stand, in dasselbe `require` übernehmen. `custom/composer.json`
+   und `custom/composer.lock` entfallen, ebenso die `.gitignore`-Ausnahme dafür.
+3. Im Autoload des Projekts bleiben `Custom\` und `Plugins\`. **`Areanet\PIM\` gehört dort
+   nicht mehr hinein** — sonst gäbe es zwei Wege zu denselben Klassen, und welcher gewinnt,
+   entschiede die Ladereihenfolge.
+
+**Ein Paket wechselt dabei die Seite:** `vlucas/phpdotenv` stand im Framework-Manifest und steht
+jetzt im Projekt. Es wird nur von `custom/config.php` benutzt — nachgezählt: 0 Treffer in `lib/`,
+1 in `custom/`. Die Einordnungsregel in `tools/dependency-assignment.json` ist entsprechend
+nachgezogen: Schritt 2 („benutzt die ausgelieferte Vorlage es?") führt jetzt zum Projekt und
+nicht mehr zum Framework.
 
 ---
 
