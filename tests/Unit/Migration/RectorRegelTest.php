@@ -145,21 +145,123 @@ class RectorRegelTest extends TestCase
     }
 
     /**
-     * Der Lauf geht durch.
+     * Der Lauf geht durch und hat etwas zu tun.
      *
-     * Mit `007-002-0001` ist noch keine Regel eingetragen, also ändert er nichts und warnt
-     * genau darüber. Der Test hält beides fest — und wird mit `0002` umgeschrieben, sobald es
-     * etwas zu ändern gibt.
+     * **Dieser Test ist umgedreht worden (007-002-0002).** Mit `0001` war noch keine Regel
+     * eingetragen, und er hielt fest, dass Rector genau darüber warnt („Register rules or
+     * sets"). Diese Zusicherung ist mit der ersten eingetragenen Regel gegenstandslos
+     * geworden — und eine Zusicherung, die nicht mehr stimmt, ist ein Defekt, kein
+     * Altbestand.
+     *
+     * Jetzt gilt die Umkehrung: Rector **muss** etwas vorschlagen. Ein Lauf, der nichts
+     * findet, hiesse, dass die Regel nicht greift oder der Prüfstein nicht mehr Altstand ist.
      */
-    public function testDerLaufGehtDurch(): void
+    public function testDerLaufGehtDurchUndHatEtwasZuTun(): void
     {
         $ergebnis = $this->rectorFahren();
 
-        $this->assertSame(0, $ergebnis['code'], "Rector ist abgebrochen:\n" . $ergebnis['ausgabe']);
-        $this->assertStringContainsString(
+        /*
+         * EINE FALLE, UND SIE IST GENAU DIE VERKEHRTE RICHTUNG.
+         *
+         * Rector beendet einen `--dry-run` mit **Exit 2**, wenn er Aenderungen gefunden hat,
+         * und mit 0, wenn nichts zu tun war. Ein Test, der hier `assertSame(0, …)` schreibt —
+         * und das war mein erster Entwurf —, ist also genau dann gruen, wenn die Regel NICHT
+         * greift.
+         *
+         * Beim anwendenden Lauf (ohne --dry-run) ist es umgekehrt: 0 heisst erledigt.
+         */
+        $this->assertSame(
+            2,
+            $ergebnis['code'],
+            "Ein Trockenlauf mit Funden endet mit 2. Kam 0, hat die Regel nichts gefunden:\n"
+            . $ergebnis['ausgabe']
+        );
+
+        $this->assertStringNotContainsString(
             'Register rules or sets',
             $ergebnis['ausgabe'],
-            'Solange keine Regel eingetragen ist, muss Rector genau das sagen.'
+            'Es ist eine Regel eingetragen — die Warnung darf nicht mehr kommen.'
+        );
+
+        $this->assertStringContainsString(
+            'would have been changed',
+            $ergebnis['ausgabe'],
+            'Rector findet nichts zu tun. Entweder greift die Regel nicht, oder der Pruefstein '
+            .'ist kein Altstand mehr.'
+        );
+    }
+
+    /**
+     * Nach dem Lauf steht keine ORM-Annotation mehr da (007-002-0002).
+     *
+     * Das ist die erste Hälfte der Regel, und die einzige, für die es fertige Regeln gibt:
+     * `DoctrineSetList::ANNOTATIONS_TO_ATTRIBUTES`.
+     */
+    public function testNachDemLaufStehtKeineOrmAnnotationMehrDa(): void
+    {
+        $ergebnis = $this->rectorFahren(true);
+
+        $this->assertSame(0, $ergebnis['code'], $ergebnis['ausgabe']);
+
+        foreach ($ergebnis['dateien'] as $name => $inhalt) {
+            $this->assertStringNotContainsString(
+                '@ORM\\',
+                $this->wirksameZeilen($inhalt),
+                sprintf('In %s steht nach dem Lauf noch eine ORM-Annotation.', $name)
+            );
+
+            $this->assertStringContainsString('#[ORM\\', $inhalt,
+                sprintf('In %s ist kein ORM-Attribut entstanden.', $name));
+        }
+    }
+
+    /**
+     * Der verschachtelte Fall — der, an dem eine Umstellung erfahrungsgemäss scheitert.
+     *
+     * Aus `@ORM\JoinTable(joinColumns={@ORM\JoinColumn(…)}, inverseJoinColumns={…})` müssen
+     * drei eigenständige Attribute werden. Der Task hat das als Messung verlangt und nicht als
+     * Annahme — hier ist sie.
+     */
+    public function testDerVerschachtelteFallWirdRichtigUmgesetzt(): void
+    {
+        $ergebnis = $this->rectorFahren(true);
+        $rubrik   = $ergebnis['dateien']['Rubrik.php'] ?? '';
+
+        $this->assertNotSame('', $rubrik, 'Rubrik.php fehlt im Ergebnis.');
+
+        $this->assertStringContainsString("#[ORM\\JoinTable(name: 'fixture_rubrik_artikel')]", $rubrik);
+        $this->assertStringContainsString("#[ORM\\JoinColumn(name: 'rubrik_id', referencedColumnName: 'id')]", $rubrik);
+        $this->assertStringContainsString("#[ORM\\InverseJoinColumn(name: 'artikel_id', referencedColumnName: 'id')]", $rubrik);
+
+        $this->assertStringNotContainsString('joinColumns=', $rubrik, 'Die verschachtelte Form steht noch da.');
+        $this->assertStringNotContainsString('inverseJoinColumns=', $rubrik);
+    }
+
+    /**
+     * Und die Gegenprobe: Gegen bereits umgestellte Entities darf die Regel **nichts** tun.
+     *
+     * `lib/contentfly/Entity/` steht seit Epic `010` auf Attributen. Ein Vorschlag dort wäre
+     * das Zeichen, dass die Regel mehr tut, als sie soll — und ein Projekt, das sie zweimal
+     * laufen liesse, bekäme beim zweiten Mal Schaden.
+     */
+    public function testGegenUmgestellteEntitiesTutDieRegelNichts(): void
+    {
+        $ergebnis = $this->rectorFahren(false, $this->wurzel() . '/lib/contentfly/Entity');
+
+        // Hier ist 0 das richtige Ergebnis: Ein Trockenlauf OHNE Funde endet mit 0.
+        $this->assertSame(
+            0,
+            $ergebnis['code'],
+            "Die Regel schlaegt an bereits umgestellten Entities etwas vor:\n" . $ergebnis['ausgabe']
+        );
+
+        $this->assertStringContainsString('Rector is done!', $ergebnis['ausgabe']);
+
+        $this->assertStringNotContainsString(
+            'would have been changed',
+            $ergebnis['ausgabe'],
+            'Die Regel tut an bereits umgestellten Entities etwas — ein Projekt, das sie '
+            .'zweimal laufen liesse, bekaeme beim zweiten Mal Schaden.'
         );
     }
 
@@ -416,34 +518,50 @@ class RectorRegelTest extends TestCase
      * Ohne die Kopie schriebe ein Lauf ohne `--dry-run` den Altstand um, und der Test wäre
      * beim zweiten Aufruf grün, weil es nichts mehr zu tun gibt.
      *
-     * @return array{code:int,ausgabe:string}
+     * @param bool        $anwenden Ohne `--dry-run` fahren und die Dateien zurückgeben.
+     * @param string|null $quelle   Ein anderes Verzeichnis; wird dann **nicht** kopiert und
+     *                              immer mit `--dry-run` gefahren.
+     *
+     * @return array{code:int,ausgabe:string,dateien:array<string,string>}
      */
-    private function rectorFahren(): array
+    private function rectorFahren(bool $anwenden = false, ?string $quelle = null): array
     {
-        $ziel = sys_get_temp_dir() . '/contentfly-rector-' . bin2hex(random_bytes(6));
-        mkdir($ziel, 0777, true);
+        if ($quelle !== null) {
+            // Ein fremdes Verzeichnis wird nie verändert — nur befragt.
+            $ziel     = $quelle;
+            $anwenden = false;
+        } else {
+            $ziel = sys_get_temp_dir() . '/contentfly-rector-' . bin2hex(random_bytes(6));
+            mkdir($ziel, 0777, true);
 
-        foreach ((array) glob($this->fixtures('alt') . '/*.php') as $pfad) {
-            copy((string) $pfad, $ziel . '/' . basename((string) $pfad));
+            foreach ((array) glob($this->fixtures('alt') . '/*.php') as $pfad) {
+                copy((string) $pfad, $ziel . '/' . basename((string) $pfad));
+            }
         }
 
         $befehl = sprintf(
-            '%s %s process %s --dry-run --no-progress-bar --clear-cache 2>&1',
+            '%s %s process %s%s --no-progress-bar --clear-cache 2>&1',
             escapeshellarg(PHP_BINARY),
             escapeshellarg($this->wurzel() . '/vendor/bin/rector'),
-            escapeshellarg($ziel)
+            escapeshellarg($ziel),
+            $anwenden ? '' : ' --dry-run'
         );
 
         $ausgabe = array();
         $code    = 0;
         exec($befehl, $ausgabe, $code);
 
-        foreach ((array) glob($ziel . '/*.php') as $pfad) {
-            unlink((string) $pfad);
+        $dateien = array();
+
+        if ($quelle === null) {
+            foreach ((array) glob($ziel . '/*.php') as $pfad) {
+                $dateien[basename((string) $pfad)] = (string) file_get_contents((string) $pfad);
+                unlink((string) $pfad);
+            }
+
+            rmdir($ziel);
         }
 
-        rmdir($ziel);
-
-        return array('code' => $code, 'ausgabe' => implode("\n", $ausgabe));
+        return array('code' => $code, 'ausgabe' => implode("\n", $ausgabe), 'dateien' => $dateien);
     }
 }

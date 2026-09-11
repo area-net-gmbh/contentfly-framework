@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 use Rector\Config\RectorConfig;
+use Rector\Doctrine\Set\DoctrineSetList;
 
 /*
  * Die Migrationsregel für das `Entity/`-Verzeichnis eines Bestandsprojekts (Story 007-002).
@@ -38,11 +39,30 @@ use Rector\Config\RectorConfig;
  *
  * ── Stand ─────────────────────────────────────────────────────────────────────────────
  *
- * Mit `007-002-0001` steht hier der Rahmen und noch keine Regel: Der Lauf geht durch und
- * ändert nichts. Die Regeln kommen mit `007-002-0002` (ORM-Attribute), `007-002-0003` (die
- * sieben gestrichenen Annotationen) und `007-002-0004` (die gestrichenen Felder).
+ * Eingetragen: der ORM-Teil (`007-002-0002`). Noch offen: die sieben gestrichenen
+ * `@PIM\*`-Annotationen (`007-002-0003`) und die gestrichenen Felder (`007-002-0004`).
  */
 return RectorConfig::configure()
     ->withPaths([
         __DIR__ . '/custom/Entity',
+    ])
+    /*
+     * DER ORM-TEIL (007-002-0002).
+     *
+     * `ANNOTATIONS_TO_ATTRIBUTES` aus `rector-doctrine` — und zwar dieses Set und nicht die
+     * generische `AnnotationToAttributeRector`, bei der jede Mapping-Annotation einzeln
+     * einzutragen wäre. Das Set kennt sie alle, samt der verschachtelten Formen, und wird mit
+     * Doctrine gepflegt.
+     *
+     * ES KOMMT OHNE ZUSAETZLICHES PAKET: `rector/rector` 1.2 liefert `rector-doctrine` in
+     * seinem eigenen Vendor mit. Nachgesehen am 2026-09-11 — ein `composer require
+     * rector/rector-doctrine` ist nicht nötig und würde eine zweite Fassung derselben Regeln
+     * in den Baum holen.
+     *
+     * DIE ANDEREN SETS BLEIBEN BEWUSST DRAUSSEN. `DOCTRINE_CODE_QUALITY` und
+     * `TYPED_COLLECTIONS` ändern Code, nicht Mapping — das gehört einem Projekt und nicht
+     * einer Migrationsregel. Wer sie will, trägt sie selbst ein.
+     */
+    ->withSets([
+        DoctrineSetList::ANNOTATIONS_TO_ATTRIBUTES,
     ]);
