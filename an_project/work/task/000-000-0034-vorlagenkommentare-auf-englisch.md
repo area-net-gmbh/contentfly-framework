@@ -1,7 +1,7 @@
 ---
 id: 000-000-0034
 title: Kommentare der Vorlage custom/ auf Englisch
-status: review
+status: done
 depends_on: []
 ---
 
