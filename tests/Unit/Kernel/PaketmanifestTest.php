@@ -1,7 +1,7 @@
 <?php
 namespace Tests\Unit\Kernel;
 
-use Areanet\PIM\Classes\Kernel\Pfade;
+use Areanet\PIM\Classes\Kernel\Paths;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -102,28 +102,28 @@ class PaketmanifestTest extends TestCase
     }
 
     /**
-     * Und es steht wirklich dort, wo Pfade::paket() hinzeigt.
+     * Und es steht wirklich dort, wo Paths::package() hinzeigt.
      *
      * Ohne diese Prüfung könnte der Test oben aus dem falschen Grund grün sein — etwa weil er
      * ein Manifest liest, das gar nicht das des Pakets ist.
      */
     public function testDasManifestLiegtInDerPaketwurzel(): void
     {
-        $this->assertFileExists(Pfade::paket() . '/composer.json');
-        $this->assertFileExists(Pfade::paket() . '/version.php');
-        $this->assertFileExists(Pfade::paket() . '/bootstrap.php');
+        $this->assertFileExists(Paths::package() . '/composer.json');
+        $this->assertFileExists(Paths::package() . '/version.php');
+        $this->assertFileExists(Paths::package() . '/bootstrap.php');
     }
 
     /** @return array<string,mixed> */
     private function paketmanifest(): array
     {
-        return $this->lesen(Pfade::paket() . '/composer.json');
+        return $this->lesen(Paths::package() . '/composer.json');
     }
 
     /** @return array<string,mixed> */
     private function projektmanifest(): array
     {
-        return $this->lesen(Pfade::projekt() . '/composer.json');
+        return $this->lesen(Paths::project() . '/composer.json');
     }
 
     /** @return array<string,mixed> */

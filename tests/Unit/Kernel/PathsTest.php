@@ -1,7 +1,7 @@
 <?php
 namespace Tests\Unit\Kernel;
 
-use Areanet\PIM\Classes\Kernel\Pfade;
+use Areanet\PIM\Classes\Kernel\Paths;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -22,20 +22,20 @@ use PHPUnit\Framework\TestCase;
  * `__DIR__`-Sprung aus `lib/contentfly/` heraus schreibt — und das ist die naheliegendste Art,
  * "schnell" an eine Datei im Projekt zu kommen. Der zweite Teil dieses Tests sucht danach.
  */
-class PfadeTest extends TestCase
+class PathsTest extends TestCase
 {
     /**
      * Ein Sprung nach oben, der das Paket verlaesst, ist erlaubt — aber nur fuer das Paket.
      *
-     * `Pfade::paket()` tut genau das mit `dirname(__DIR__, 4)`, und das ist richtig: Eine Datei
+     * `Paths::package()` tut genau das mit `dirname(__DIR__, 4)`, und das ist richtig: Eine Datei
      * darf ihr eigenes Paket finden. Sie darf nur nicht daraus schliessen, wo das PROJEKT liegt.
      * Der Eintrag steht deshalb hier und nicht als Ausnahme im Suchmuster.
      *
      * @var array<string,string> Datei → warum der Sprung dort richtig ist
      */
     private const ERLAUBT = array(
-        'Classes/Kernel/Pfade.php' =>
-            'Pfade::paket() leitet das Verzeichnis des Frameworks aus der eigenen Lage ab. Das '
+        'Classes/Kernel/Paths.php' =>
+            'Paths::package() leitet das Verzeichnis des Frameworks aus der eigenen Lage ab. Das '
             .'ist die eine Stelle, an der das richtig ist — und der Grund, warum es eine eigene '
             .'Methode ist statt eines Ausdrucks an zwanzig Stellen.',
     );
@@ -44,19 +44,19 @@ class PfadeTest extends TestCase
     {
         // Die Suite hat den Wert in tests/bootstrap.php gesetzt; wer ihn hier wegnimmt, gibt
         // ihn zurueck, sonst laufen die folgenden Tests gegen eine leere Klasse.
-        Pfade::setzen(CONTENTFLY_PROJEKT);
+        Paths::set(CONTENTFLY_PROJECT_DIR);
     }
 
     public function testOhneGesetztesVerzeichnisWirftJederZugriff(): void
     {
-        Pfade::zuruecksetzen();
+        Paths::reset();
 
-        $this->assertFalse(Pfade::istGesetzt());
+        $this->assertFalse(Paths::isSet());
 
         $this->expectException(\LogicException::class);
-        $this->expectExceptionMessageMatches('/Projektverzeichnis ist nicht gesetzt/');
+        $this->expectExceptionMessageMatches('/project directory has not been set/');
 
-        Pfade::projekt();
+        Paths::project();
     }
 
     /**
@@ -67,23 +67,23 @@ class PfadeTest extends TestCase
      */
     public function testEinVerzeichnisDasEsNichtGibtWirdBeimSetzenAbgewiesen(): void
     {
-        Pfade::zuruecksetzen();
+        Paths::reset();
 
         $this->expectException(\LogicException::class);
-        $this->expectExceptionMessageMatches('/gibt es nicht/');
+        $this->expectExceptionMessageMatches('/does not exist/');
 
-        Pfade::setzen(CONTENTFLY_PROJEKT . '/dieses-verzeichnis-gibt-es-nicht');
+        Paths::set(CONTENTFLY_PROJECT_DIR . '/dieses-verzeichnis-gibt-es-nicht');
     }
 
     public function testDiePfadeHaengenAmUebergebenenVerzeichnis(): void
     {
-        Pfade::zuruecksetzen();
-        Pfade::setzen(CONTENTFLY_PROJEKT);
+        Paths::reset();
+        Paths::set(CONTENTFLY_PROJECT_DIR);
 
-        $this->assertSame(realpath(CONTENTFLY_PROJEKT), Pfade::projekt());
-        $this->assertSame(Pfade::projekt() . '/custom',  Pfade::custom());
-        $this->assertSame(Pfade::projekt() . '/data',    Pfade::daten());
-        $this->assertSame(Pfade::projekt() . '/plugins', Pfade::plugins());
+        $this->assertSame(realpath(CONTENTFLY_PROJECT_DIR), Paths::project());
+        $this->assertSame(Paths::project() . '/custom',  Paths::custom());
+        $this->assertSame(Paths::project() . '/data',    Paths::data());
+        $this->assertSame(Paths::project() . '/plugins', Paths::plugins());
     }
 
     /**
@@ -95,10 +95,10 @@ class PfadeTest extends TestCase
      */
     public function testDasPaketverzeichnisBrauchtKeinProjekt(): void
     {
-        Pfade::zuruecksetzen();
+        Paths::reset();
 
-        $this->assertDirectoryExists(Pfade::paket());
-        $this->assertFileExists(Pfade::paket() . '/bootstrap.php');
+        $this->assertDirectoryExists(Paths::package());
+        $this->assertFileExists(Paths::package() . '/bootstrap.php');
     }
 
     /**
@@ -139,8 +139,8 @@ class PfadeTest extends TestCase
             $verdaechtig,
             array(
                 '',
-                'Wer das Projektverzeichnis braucht, nimmt Pfade::projekt() (custom(), daten(),',
-                'plugins()); wer das Paket braucht, Pfade::paket().',
+                'Wer das Projektverzeichnis braucht, nimmt Paths::project() (custom(), daten(),',
+                'plugins()); wer das Paket braucht, Paths::package().',
             )
         )));
     }
@@ -178,7 +178,7 @@ class PfadeTest extends TestCase
      */
     private function frameworkdateien(): array
     {
-        $wurzel  = Pfade::paket();
+        $wurzel  = Paths::package();
         $dateien = array();
 
         $lauf = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($wurzel));

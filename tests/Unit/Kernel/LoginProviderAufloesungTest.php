@@ -38,7 +38,7 @@ class LoginProviderAufloesungTest extends TestCase
      */
     public function testKeinKlassennameWirdMehrAusEinemParameterGebaut(): void
     {
-        $quelle = file_get_contents(CONTENTFLY_PROJEKT.'/lib/contentfly/Controller/AuthController.php');
+        $quelle = file_get_contents(CONTENTFLY_PROJECT_DIR.'/lib/contentfly/Controller/AuthController.php');
 
         $this->assertStringNotContainsString("'Custom\\Classes\\\\'", $quelle);
         $this->assertStringNotContainsString('class_exists(', $quelle);

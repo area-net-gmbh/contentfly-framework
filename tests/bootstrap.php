@@ -1,54 +1,52 @@
 <?php
 /**
- * Bootstrap für die Testsuite.
+ * Bootstrap for the test suite.
  *
- * Bewusst **nicht** `lib/contentfly/bootstrap.php`: Der baut die komplette Anwendung
- * auf, verlangt eine konfigurierte Datenbank und startet eine Session. Für Tests, die eine
- * einzelne Klasse prüfen, ist das weder nötig noch erwünscht — ein Testlauf, der ohne
- * laufenden Container nicht startet, wird nicht ausgeführt.
+ * Deliberately **not** `lib/contentfly/bootstrap.php`: that one builds the complete application,
+ * requires a configured database and starts a session. For tests that check a single class this
+ * is neither necessary nor wanted — a test run that does not start without a running container
+ * does not get run.
  *
- * Hier steht deshalb nur das Minimum: die beiden Autoloader und die Konstanten, die
- * Framework-Klassen beim Laden erwarten. Tests, die mehr brauchen, holen es sich selbst —
- * siehe `tests/README.md`.
+ * So only the minimum lives here: the autoloader and the constants framework classes expect when
+ * they are loaded. Tests that need more fetch it themselves — see `tests/README.md`.
  */
 
 /*
- * Dieselbe Konstante, die auch die Einstiegspunkte setzen (007-001-0002). Sie hiess bis dahin
- * ROOT_DIR und wurde vom Framework aus dessen eigener Lage gerechnet; jetzt benennt sie, wer
- * startet — hier also die Suite.
+ * The same constant the entry points define (007-001-0002). It used to be called ROOT_DIR and
+ * was computed by the framework from its own location; now whoever starts names it — here, the
+ * suite.
  */
-define('CONTENTFLY_PROJEKT', dirname(__DIR__));
+define('CONTENTFLY_PROJECT_DIR', dirname(__DIR__));
 
 /*
- * EIN Autoloader, nicht zwei (007-001-0003).
+ * ONE autoloader, not two (007-001-0003).
  *
- * Hier wurde zusätzlich `custom/vendor/autoload.php` geladen, gespiegelt aus
- * `lib/contentfly/bootstrap.php` — mit der Zusicherung aus `006-004-0001`, dass bei einem
- * gemeinsamen PSR-4-Präfix der Root gewinnt. Mit dem Bibliothekspaket hat ein Projekt genau
- * einen Baum, in dem das Framework als Abhängigkeit liegt; die Rangfolge hat dann nichts mehr
- * zu regeln.
+ * `custom/vendor/autoload.php` used to be loaded here as well, mirrored from
+ * `lib/contentfly/bootstrap.php` — with the guarantee from `006-004-0001` that the root wins on a
+ * shared PSR-4 prefix. With the library package a project has exactly one tree, with the
+ * framework inside it as a dependency; there is no precedence left to settle.
  *
- * Die Spiegelung bleibt Absicht: Ein Testlauf, der anders lädt als die Anwendung, prüft eine
- * andere Anwendung.
+ * The mirroring stays deliberate: a test run that loads differently from the application tests a
+ * different application.
  */
-require_once CONTENTFLY_PROJEKT . '/vendor/autoload.php';
+require_once CONTENTFLY_PROJECT_DIR . '/vendor/autoload.php';
 
 /*
- * Die Suite ist ein Einstiegspunkt wie index.php und bin/console.php — also uebergibt sie das
- * Projektverzeichnis genauso (007-001-0002). Ohne diese Zeile wirft jeder Zugriff auf einen
- * Pfad, und genau das soll er: Ein nicht gesetztes Projektverzeichnis ist ein Fehler des
- * Aufrufers, kein Fall fuer einen stillen Standardwert.
+ * The suite is an entry point like index.php and bin/console.php — so it passes the project
+ * directory the same way (007-001-0002). Without this line every path access throws, and that is
+ * intended: an unset project directory is a mistake of the caller, not a case for a silent
+ * default.
  */
-\Areanet\PIM\Classes\Kernel\Pfade::setzen(CONTENTFLY_PROJEKT);
+\Areanet\PIM\Classes\Kernel\Paths::set(CONTENTFLY_PROJECT_DIR);
 
-require_once CONTENTFLY_PROJEKT . '/lib/contentfly/version.php';
-require_once CONTENTFLY_PROJEKT . '/custom/version.php';
+require_once CONTENTFLY_PROJECT_DIR . '/lib/contentfly/version.php';
+require_once CONTENTFLY_PROJECT_DIR . '/custom/version.php';
 
 /*
- * `lib/contentfly/bootstrap.php` setzt diese Konstanten aus der Konfiguration. Entity-Klassen
- * lesen sie in ihren Annotationen (`@ORM\Column(type=APPCMS_ID_TYPE)`), also müssen sie
- * definiert sein, bevor eine Entity geladen wird — sonst stirbt schon das Einlesen der
- * Metadaten. Die Werte hier sind Testwerte, keine Konfiguration.
+ * `lib/contentfly/bootstrap.php` defines these constants from the configuration. Entity classes
+ * read them in their mapping (`#[ORM\Column(type: APPCMS_ID_TYPE)]`), so they must be defined
+ * before an entity is loaded — otherwise reading the metadata already dies. The values here are
+ * test values, not configuration.
  */
 if (!defined('HOST')) {
     define('HOST', 'test');

@@ -244,7 +244,7 @@ class SyncApiTest extends IntegrationTestCase
         // Der eigentliche Punkt von 000-000-0013 A: Ein Projekt soll sehen koennen, warum
         // eine Entity nie synchronisiert wird. Solange die Liste im Code stand, konnte es das
         // nicht. Dieser Test haelt fest, dass sie dort nicht zurueckkehrt.
-        $quelle = file_get_contents(CONTENTFLY_PROJEKT.'/lib/contentfly/Classes/Api.php');
+        $quelle = file_get_contents(CONTENTFLY_PROJECT_DIR.'/lib/contentfly/Classes/Api.php');
 
         $this->assertStringNotContainsString('$entitiesToExclude', $quelle,
             'Die fest verdrahteten Ausschlusslisten sind zu excludeFromSync geworden');

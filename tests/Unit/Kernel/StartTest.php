@@ -1,7 +1,7 @@
 <?php
 namespace Tests\Unit\Kernel;
 
-use Areanet\PIM\Classes\Kernel\Pfade;
+use Areanet\PIM\Classes\Kernel\Paths;
 use Areanet\PIM\Classes\Kernel\Start;
 use PHPUnit\Framework\TestCase;
 
@@ -13,8 +13,8 @@ use PHPUnit\Framework\TestCase;
  * ist ein Abbruchweg, auf den man sich nicht verlassen kann. Dann waere die Zusicherung, dass
  * eine Fehlkonfiguration laut auffaellt, wieder nur ein Kommentar.
  *
- * **Geprueft wird ueber `web()`, nicht `konsole()`.** Beide gehen durch dieselbe Vorbereitung,
- * aber `konsole()` definiert `APPCMS_CONSOLE` — und eine Konstante laesst sich nicht wieder
+ * **Geprueft wird ueber `web()`, nicht `console()`.** Beide gehen durch dieselbe Vorbereitung,
+ * aber `console()` definiert `APPCMS_CONSOLE` — und eine Konstante laesst sich nicht wieder
  * zuruecknehmen. Ein Test, der sie setzt, veraendert jeden danach laufenden Test im selben
  * Prozess.
  */
@@ -33,14 +33,14 @@ class StartTest extends TestCase
         $this->aufraeumen($this->wegwerf);
 
         // Die Suite hat das Verzeichnis in tests/bootstrap.php gesetzt; zurueckgeben, sonst
-        // laufen die folgenden Tests gegen eine leere Pfade-Klasse.
-        Pfade::setzen(CONTENTFLY_PROJEKT);
+        // laufen die folgenden Tests gegen eine leere Paths-Klasse.
+        Paths::set(CONTENTFLY_PROJECT_DIR);
     }
 
     public function testEinVerzeichnisDasEsNichtGibtWirdAbgewiesen(): void
     {
         $this->expectException(\LogicException::class);
-        $this->expectExceptionMessageMatches('/gibt es nicht/');
+        $this->expectExceptionMessageMatches('/does not exist/');
 
         Start::web($this->wegwerf . '/gibt-es-nicht');
     }
@@ -58,7 +58,7 @@ class StartTest extends TestCase
             Start::web($this->wegwerf);
             $this->fail('Ohne custom/config.php darf der Start nicht durchlaufen.');
         } catch (\RuntimeException $e) {
-            $this->assertStringContainsString('Konfiguration des Projekts', $e->getMessage());
+            $this->assertStringContainsString('project configuration', $e->getMessage());
             $this->assertStringContainsString($this->wegwerf . '/custom/config.php', $e->getMessage());
             $this->assertStringContainsString('appcms:install', $e->getMessage());
         }
@@ -82,7 +82,7 @@ class StartTest extends TestCase
             $this->fail('Ein zweiter Composer-Baum darf nicht stillschweigend uebergangen werden.');
         } catch (\RuntimeException $e) {
             $this->assertStringContainsString('custom/vendor', $e->getMessage());
-            $this->assertStringContainsString('genau EINEN Baum', $e->getMessage());
+            $this->assertStringContainsString('exactly ONE tree', $e->getMessage());
         }
     }
 

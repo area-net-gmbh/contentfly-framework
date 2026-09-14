@@ -362,7 +362,7 @@ class VorlageApiTest extends IntegrationTestCase
         // Geprueft ist deshalb, was pruefbar ist: dass der Hook registriert wird, und dass
         // die Vorlage die Reihenfolge als bedeutsam beschreibt. Wer Epic 009 umsetzt, findet
         // hier, was der neue Kernel nachbilden muss.
-        $vorlage = file_get_contents(CONTENTFLY_PROJEKT.'/custom/app.php');
+        $vorlage = file_get_contents(CONTENTFLY_PROJECT_DIR.'/custom/app.php');
 
         $this->assertStringContainsString('$app->before(function (Request $request) use ($app) {', $vorlage,
             'Der before-Hook ist registriert');
@@ -394,11 +394,11 @@ class VorlageApiTest extends IntegrationTestCase
          * Frameworks ueberschreibt. Waere der Manager fuer jedes Symfony-Command offen, waere
          * der Praefix nur noch ein Angebot.
          */
-        $command = file_get_contents(CONTENTFLY_PROJEKT.'/custom/Command/ExampleCommand.php');
+        $command = file_get_contents(CONTENTFLY_PROJECT_DIR.'/custom/Command/ExampleCommand.php');
         $this->assertStringContainsString('class ExampleCommand extends CustomCommand', $command,
             'Er erbt von CustomCommand, dem Weg, den das Framework anbietet');
 
-        $vorlage = file_get_contents(CONTENTFLY_PROJEKT.'/custom/app.php');
+        $vorlage = file_get_contents(CONTENTFLY_PROJECT_DIR.'/custom/app.php');
         $this->assertStringContainsString('addCommand(new \\Custom\\Command\\ExampleCommand', $vorlage,
             'und ist in custom/app.php registriert');
 

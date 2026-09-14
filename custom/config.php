@@ -50,11 +50,11 @@ use Areanet\PIM\Classes\Config\Factory;
 if (class_exists(\Dotenv\Dotenv::class)) {
     $envFile = $_ENV['CONTENTFLY_ENV_FILE'] ?? getenv('CONTENTFLY_ENV_FILE') ?: null;
     if (!is_string($envFile) || $envFile === '') {
-        // CONTENTFLY_PROJEKT is the directory containing index.php — one level above it
+        // CONTENTFLY_PROJECT_DIR is the directory containing index.php — one level above it
         // is outside the document root. Until 007-001-0002 the constant was called ROOT_DIR
         // and was computed by the framework from its own location; now the entry point
         // names it.
-        $envFile = (defined('CONTENTFLY_PROJEKT') ? CONTENTFLY_PROJEKT : __DIR__ . '/..') . '/../.env';
+        $envFile = (defined('CONTENTFLY_PROJECT_DIR') ? CONTENTFLY_PROJECT_DIR : __DIR__ . '/..') . '/../.env';
     }
 
     if (is_file($envFile) && is_readable($envFile)) {

@@ -1,14 +1,14 @@
 <?php
 /*
- * Der Web-Einstiegspunkt (007-001-0003).
+ * The web entry point (007-001-0003).
  *
- * Er tut zwei Dinge und kennt dabei keinen Pfad in den Frameworkcode: Er laedt den Autoloader
- * und benennt das Projektverzeichnis. Ob Contentfly unter `lib/` im Projekt liegt oder unter
- * `vendor/areanet/contentfly/`, sieht diese Datei nicht.
+ * It does two things and knows no path into the framework code: it loads the autoloader and
+ * names the project directory. Whether Contentfly lives under `lib/` in the project or under
+ * `vendor/areanet/contentfly/`, this file cannot tell.
  *
- * Bis 007-001-0002 stand hier `require_once __DIR__.'/lib/contentfly/bootstrap-web.php';` — der
- * Bootstrap lud daraufhin selbst den Autoloader. Ein Paket wird vom Autoloader geladen, es
- * laedt ihn nicht.
+ * Until 007-001-0002 this said `require_once __DIR__.'/lib/contentfly/bootstrap-web.php';` — the
+ * bootstrap then loaded the autoloader by itself. A package is loaded by the autoloader; it does
+ * not load it.
  */
 require_once __DIR__ . '/vendor/autoload.php';
 
