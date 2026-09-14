@@ -43,6 +43,8 @@ class EnglishOnlyTest extends TestCase
     private const PATHS = array(
         'index.php',
         'bin',
+        'composer.json',
+        'custom',
         'phpunit.xml.dist',
         'lib/contentfly',
         'tests/bootstrap.php',
@@ -89,6 +91,7 @@ class EnglishOnlyTest extends TestCase
         array('lib/contentfly/Classes/Security/FieldEncryption.php', 'testEineManipulationFaelltAuf', 'renamed in 014-005'),
         array('lib/contentfly/bootstrap.php', 'AutoloaderUeberschneidungTest', 'renamed in 014-005'),
         array('lib/contentfly/composer.json', 'PaketmanifestTest', 'renamed in 014-005'),
+        array('custom/app.php', 'HookReihenfolgeTest', 'renamed in 014-005'),
         array('lib/contentfly/bootstrap.php', 'KeineSilexTypenTest', 'renamed in 014-005'),
         array('lib/contentfly/bootstrap-web.php', 'FehlerantwortApiTest', 'renamed in 014-005'),
         array('lib/contentfly/Classes/Kernel/Application.php', 'FehlerantwortApiTest', 'renamed in 014-005'),
