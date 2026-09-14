@@ -2,136 +2,134 @@
 declare(strict_types=1);
 
 use Rector\Config\RectorConfig;
-use Areanet\PIM\Migration\EntfalleneAttributfelderRector;
+use Areanet\PIM\Migration\RemovedAttributeFieldsRector;
 use Rector\DeadCode\Rector\ClassLike\RemoveAnnotationRector;
 use Rector\Php80\Rector\Class_\AnnotationToAttributeRector;
 use Rector\Php80\ValueObject\AnnotationToAttribute;
 use Rector\Doctrine\Set\DoctrineSetList;
 
 /*
- * Die Migrationsregel für das `Entity/`-Verzeichnis eines Bestandsprojekts (Story 007-002).
+ * The migration rule for the `Entity/` directory of an existing project (Story 007-002).
  *
- * ── Wofür ─────────────────────────────────────────────────────────────────────────────
+ * ── Purpose ───────────────────────────────────────────────────────────────────────────
  *
- * Ein Projekt, das von einem Contentfly-Stand vor Epic 010/012 kommt, lässt diese Regel
- * einmal über sein `Entity/`-Verzeichnis laufen und hat danach
+ * A project that comes from a Contentfly version before Epic 010/012 runs this rule once over
+ * its `Entity/` directory and afterwards has
  *
- *   - PHP-Attribute statt `@ORM\*`-Annotationen (Epic 010),
- *   - keine der mit Epic 012 gestrichenen `@PIM\*`-Annotationen,
- *   - keines der gestrichenen Felder in den `@PIM\*`-Annotationen, die geblieben sind.
+ *   - PHP attributes instead of `@ORM\*` annotations (Epic 010),
+ *   - none of the `@PIM\*` annotations removed with Epic 012,
+ *   - none of the removed fields in the `@PIM\*` annotations that remained.
  *
- * Die vollständige Liste, aus der die Regel gebaut ist, steht in
- * `an_project/docs/pim-annotationen-migration.md`. Sie ist die Quelle; was hier steht, ist
- * ihre Umsetzung.
+ * The complete list the rule is built from is in
+ * `an_project/docs/pim-annotationen-migration.md`. It is the source; what is written here is
+ * its implementation.
  *
- * ── DER AUFRUF — UND ER MUSS ZWEIMAL LAUFEN ───────────────────────────────────────────
+ * ── THE INVOCATION — AND IT MUST RUN TWICE ────────────────────────────────────────────
  *
- *     ./vendor/bin/rector process pfad/zu/Entity --dry-run     # ansehen
- *     ./vendor/bin/rector process pfad/zu/Entity               # erster Lauf
- *     ./vendor/bin/rector process pfad/zu/Entity               # zweiter Lauf
- *     ./vendor/bin/rector process pfad/zu/Entity --dry-run     # muss "Rector is done!" sagen
+ *     ./vendor/bin/rector process path/to/Entity --dry-run     # review
+ *     ./vendor/bin/rector process path/to/Entity               # first run
+ *     ./vendor/bin/rector process path/to/Entity               # second run
+ *     ./vendor/bin/rector process path/to/Entity --dry-run     # must say "Rector is done!"
  *
- * **ZWEI LÄUFE SIND KEINE BEQUEMLICHKEIT, SONDERN NÖTIG.** Die Regel, die Felder aus
- * Attributen entfernt, sieht Attribute — und die entstehen erst, wenn die Umstellung im
- * selben Lauf die Annotation umgeschrieben hat. Ein Rector-Durchgang wendet die Regeln auf
- * den Baum an, den er vorgefunden hat; was eine Regel neu erzeugt, erreicht eine andere erst
- * im nächsten Durchgang.
+ * **TWO RUNS ARE NOT A CONVENIENCE BUT A NECESSITY.** The rule that removes fields from
+ * attributes sees attributes — and those only come into existence once the conversion has
+ * rewritten the annotation in the same run. A Rector pass applies the rules to the tree it
+ * found; what one rule newly creates only reaches another rule in the next pass.
  *
- * WER NUR EINMAL LÄUFT, HAT EINEN KAPUTTEN BAUM — nicht einen halb migrierten. Dort steht
- * dann `#[PIM\Config(label: 'Artikel')]`, und `Config::__construct()` hat kein `$label`:
+ * WHOEVER RUNS IT ONLY ONCE HAS A BROKEN TREE — not a half-migrated one. The code then reads
+ * `#[PIM\Config(label: 'Article')]`, and `Config::__construct()` has no `$label`:
  *
  *     Unknown named parameter $label
  *
- * Ein Fatal Error beim Laden der Entity. Die Abbruchbedingung ist deshalb nicht „zweimal",
- * sondern **laufen, bis ein Trockenlauf nichts mehr meldet**. Nachgemessen am Prüfstein:
- * Der zweite Lauf ändert noch etwas, der dritte nichts mehr
+ * A fatal error when loading the entity. The stop condition is therefore not "twice" but
+ * **run until a dry run reports nothing more**. Verified against the reference fixture:
+ * the second run still changes something, the third nothing more
  * (`tests/Unit/Migration/RectorRegelTest.php`).
  *
- * Der Pfad hinter `process` übersteuert `withPaths()` unten. Ohne Pfad läuft die Regel über
- * das, was hier eingetragen ist.
+ * The path after `process` overrides `withPaths()` below. Without a path, the rule runs over
+ * what is configured here.
  *
- * ── WARUM DER PFAD ENG IST ────────────────────────────────────────────────────────────
+ * ── WHY THE PATH IS NARROW ────────────────────────────────────────────────────────────
  *
- * Rectors eigenes Gerüst (`rector init`) trägt `custom`, `lib`, `tests` und `tools` ein — also
- * den ganzen Baum. Hier wäre das falsch und gefährlich: `lib/` ist der Frameworkcode, der
- * längst auf Attributen steht, und `tests/Fixtures/RectorMigration/alt/` ist der Prüfstein
- * DIESER Regel, der im Altstand bleiben muss. Ein Lauf über den ganzen Baum schriebe beide um.
+ * Rector's own scaffold (`rector init`) configures `custom`, `lib`, `tests` and `tools` — that
+ * is, the whole tree. Here that would be wrong and dangerous: `lib/` is the framework code,
+ * which has long been on attributes, and `tests/Fixtures/RectorMigration/alt/` is the
+ * reference fixture of THIS rule, which must stay in the legacy state. A run over the whole
+ * tree would rewrite both.
  *
- * Eingetragen ist deshalb nur `custom/Entity` — das Verzeichnis, das ein Projekt migriert.
+ * Therefore only `custom/Entity` is configured — the directory a project migrates.
  *
- * ── WAS DIESE REGEL NICHT TUN KANN ───────────────────────────────────────────────────
+ * ── WHAT THIS RULE CANNOT DO ─────────────────────────────────────────────────────────
  *
- * Sie laeuft ueber `Entity/`. Alles andere bleibt Handarbeit, und es gehoert hier genannt,
- * damit niemand den Lauf fuer vollstaendig haelt:
+ * It runs over `Entity/`. Everything else remains manual work, and it belongs named here so
+ * that nobody considers the run complete:
  *
- *   DREI TYPE-KLASSEN AUS DER KONFIGURATION STREICHEN. Mit den Annotationen sind `RteType`,
- *   `PasswordType` und `EntitySelectorType` entfallen. Ein Projekt, das eine davon in
- *   `APP_SYSTEM_TYPES` oder `APP_CUSTOM_TYPES` auffuehrt, bricht beim Start mit
- *   `contentfly_type_class_not_found` ab. Das steht in `custom/config.php`, nicht in einer
- *   Entity — eine Regel ueber `Entity/` kommt dort nie vorbei, und sie zu erweitern hiesse,
- *   die Konfiguration eines Projekts umzuschreiben.
+ *   REMOVE THREE TYPE CLASSES FROM THE CONFIGURATION. Along with the annotations, `RteType`,
+ *   `PasswordType` and `EntitySelectorType` were dropped. A project that lists one of them in
+ *   `APP_SYSTEM_TYPES` or `APP_CUSTOM_TYPES` aborts at startup with
+ *   `contentfly_type_class_not_found`. That lives in `custom/config.php`, not in an entity — a
+ *   rule over `Entity/` never gets there, and extending it would mean rewriting a project's
+ *   configuration.
  *
- *   Die entfallene Plugin-Schnittstelle und die `FRONTEND_*`-Konfiguration ebenso; beides
- *   steht in `an_project/docs/pim-annotationen-migration.md`, Abschnitte 5 und 6.
+ *   The same goes for the dropped plugin interface and the `FRONTEND_*` configuration; both
+ *   are described in `an_project/docs/pim-annotationen-migration.md`, sections 5 and 6.
  *
- * Die vollstaendige Liste dessen, was die Regel abdeckt und was nicht, steht in
- * `an_project/docs/pim-annotationen-migration.md`, Abschnitt 7 — an einer Stelle, damit sie
- * nicht auseinanderlaeuft.
+ * The complete list of what the rule covers and what it does not is in
+ * `an_project/docs/pim-annotationen-migration.md`, section 7 — in one place, so that it does
+ * not drift apart.
  *
- * ── Stand ─────────────────────────────────────────────────────────────────────────────
+ * ── Status ────────────────────────────────────────────────────────────────────────────
  *
- * Vollstaendig: der ORM-Teil (`007-002-0002`), die sieben gestrichenen `@PIM\*`-Annotationen
- * und die Umstellung der gebliebenen auf Attribute (`007-002-0003`), die gestrichenen Felder
- * aus den Annotationen, die bleiben (`007-002-0004`).
+ * Complete: the ORM part (`007-002-0002`), the seven removed `@PIM\*` annotations and the
+ * conversion of the remaining ones to attributes (`007-002-0003`), the removed fields from the
+ * annotations that remain (`007-002-0004`).
  */
 return RectorConfig::configure()
     ->withPaths([
         __DIR__ . '/custom/Entity',
     ])
     /*
-     * DER ORM-TEIL (007-002-0002).
+     * THE ORM PART (007-002-0002).
      *
-     * `ANNOTATIONS_TO_ATTRIBUTES` aus `rector-doctrine` — und zwar dieses Set und nicht die
-     * generische `AnnotationToAttributeRector`, bei der jede Mapping-Annotation einzeln
-     * einzutragen wäre. Das Set kennt sie alle, samt der verschachtelten Formen, und wird mit
-     * Doctrine gepflegt.
+     * `ANNOTATIONS_TO_ATTRIBUTES` from `rector-doctrine` — specifically this set and not the
+     * generic `AnnotationToAttributeRector`, for which every mapping annotation would have to
+     * be entered individually. The set knows them all, including the nested forms, and is
+     * maintained alongside Doctrine.
      *
-     * ES KOMMT OHNE ZUSAETZLICHES PAKET: `rector/rector` 1.2 liefert `rector-doctrine` in
-     * seinem eigenen Vendor mit. Nachgesehen am 2026-09-11 — ein `composer require
-     * rector/rector-doctrine` ist nicht nötig und würde eine zweite Fassung derselben Regeln
-     * in den Baum holen.
+     * IT COMES WITHOUT AN ADDITIONAL PACKAGE: `rector/rector` 1.2 ships `rector-doctrine` in
+     * its own vendor directory. Checked on 2026-09-11 — a `composer require
+     * rector/rector-doctrine` is not necessary and would pull a second copy of the same rules
+     * into the tree.
      *
-     * DIE ANDEREN SETS BLEIBEN BEWUSST DRAUSSEN. `DOCTRINE_CODE_QUALITY` und
-     * `TYPED_COLLECTIONS` ändern Code, nicht Mapping — das gehört einem Projekt und nicht
-     * einer Migrationsregel. Wer sie will, trägt sie selbst ein.
+     * THE OTHER SETS ARE DELIBERATELY LEFT OUT. `DOCTRINE_CODE_QUALITY` and
+     * `TYPED_COLLECTIONS` change code, not mapping — that belongs to a project and not to a
+     * migration rule. Anyone who wants them adds them on their own.
      */
     ->withSets([
         DoctrineSetList::ANNOTATIONS_TO_ATTRIBUTES,
     ])
     /*
-     * DIE SIEBEN GESTRICHENEN @PIM-ANNOTATIONEN (007-002-0003).
+     * THE SEVEN REMOVED @PIM ANNOTATIONS (007-002-0003).
      *
-     * Mit Epic 012 ist der Teil der `@PIM`-Annotationen weggefallen, der Eingabemasken
-     * beschrieb. Diese sieben sind ersatzlos zu loeschen; die Liste steht in
-     * an_project/docs/pim-annotationen-migration.md, Abschnitt 1.
+     * With Epic 012, the part of the `@PIM` annotations that described input forms was
+     * dropped. These seven are to be deleted without replacement; the list is in
+     * an_project/docs/pim-annotationen-migration.md, section 1.
      *
-     * WARUM DAS NICHT OPTIONAL IST: Ein stehengebliebenes Feld ist kein geduldetes Relikt.
-     * `Doctrine\Common\Annotations\Annotation::__get()` wirft eine BadMethodCallException,
-     * und der AnnotationReader bricht schon beim Einlesen ab — das Projekt startet dann gar
-     * nicht.
+     * WHY THIS IS NOT OPTIONAL: a leftover field is not a tolerated relic.
+     * `Doctrine\Common\Annotations\Annotation::__get()` throws a BadMethodCallException,
+     * and the AnnotationReader already aborts while reading — the project then does not start
+     * at all.
      *
-     * VOLLQUALIFIZIERT UND NICHT `PIM\Rte`, und das ist der Unterschied, der zaehlt: Beide
-     * Schreibweisen funktionieren (nachgemessen am 2026-09-11), aber die kurze haengt am
-     * Alias. Ein Projekt, das `use Areanet\PIM\Classes\Annotations as Anders;` schreibt,
-     * wuerde von `PIM\Rte` nicht erfasst. Rector loest den vollen Namen ueber die
-     * use-Anweisungen auf und findet ihn unter jedem Alias; `tests/Fixtures/RectorMigration/`
-     * traegt dafuer eine eigene Datei.
+     * FULLY QUALIFIED AND NOT `PIM\Rte`, and that is the difference that counts: both
+     * spellings work (verified on 2026-09-11), but the short one depends on the alias. A
+     * project that writes `use Areanet\PIM\Classes\Annotations as Anders;` would not be
+     * caught by `PIM\Rte`. Rector resolves the full name via the use statements and finds it
+     * under any alias; `tests/Fixtures/RectorMigration/` has a dedicated file for this.
      *
-     * KEIN EIGENER CODE NOETIG. Die Story nahm an, fuer den @PIM-Teil gebe es keinen fertigen
-     * Rector-Satz. Fuer das Entfernen einer GANZEN Annotation gibt es einen —
-     * RemoveAnnotationRector, konfigurierbar, und er greift auch auf Eigenschaften
-     * (`getNodeTypes()` nennt Property). Der eigene Anteil liegt bei den FELDERN und damit in
-     * 007-002-0004.
+     * NO CUSTOM CODE NEEDED. The story assumed there was no ready-made Rector set for the @PIM
+     * part. For removing an ENTIRE annotation there is one — RemoveAnnotationRector,
+     * configurable, and it also applies to properties (`getNodeTypes()` lists Property). The
+     * custom part lies with the FIELDS and therefore in 007-002-0004.
      */
     ->withConfiguredRule(RemoveAnnotationRector::class, [
         'Areanet\\PIM\\Classes\\Annotations\\Rte',
@@ -143,22 +141,22 @@ return RectorConfig::configure()
         'Areanet\\PIM\\Classes\\Annotations\\EntitySelector',
     ])
     /*
-     * UND DIE GEBLIEBENEN @PIM-ANNOTATIONEN WERDEN ATTRIBUTE (007-002-0003).
+     * AND THE REMAINING @PIM ANNOTATIONS BECOME ATTRIBUTES (007-002-0003).
      *
-     * DAS WAR NICHT GEPLANT UND IST DER WICHTIGERE TEIL. Der Schnitt dieser Story ging davon
-     * aus, die gebliebenen Annotationen seien nicht anzufassen. Sie sind es, und der Grund ist
-     * ein STILLER AUSFALL:
+     * THIS WAS NOT PLANNED AND IS THE MORE IMPORTANT PART. The scope of this story assumed
+     * that the remaining annotations were not to be touched. They have to be, and the reason
+     * is a SILENT FAILURE:
      *
-     * `Classes/Metadata/MetadataReader` liest seit 010-001-0003 ausschliesslich PHP-Attribute
-     * per Reflection; der AnnotationReader ist aus dem Framework verschwunden. Ein Projekt,
-     * das nach der Migration `@PIM\Config(excludeFromSync=true)` im Docblock behaelt, hat
-     * damit eine Konfiguration, die NIEMAND MEHR LIEST — und es gibt keine Fehlermeldung. Die
-     * Entity landet wieder in der Sync-API, ein `encoded`-Feld wird unverschluesselt
-     * geschrieben, ein `isFilterable` verschwindet aus den Filtern. Alles lautlos.
+     * Since 010-001-0003, `Classes/Metadata/MetadataReader` reads exclusively PHP attributes
+     * via reflection; the AnnotationReader has disappeared from the framework. A project that
+     * keeps `@PIM\Config(excludeFromSync=true)` in the docblock after the migration thereby
+     * has a configuration that NOBODY READS ANY MORE — and there is no error message. The
+     * entity ends up in the sync API again, an `encoded` field is written unencrypted, an
+     * `isFilterable` disappears from the filters. All silently.
      *
-     * Der ORM-Satz oben faesst die @PIM-Angaben nicht an, also braucht es diese Regel.
-     * `ManyToMany` ist mit dabei: Die Annotation gehoert zur PIM-Seite und steht in
-     * Abschnitt 2 der Streichliste ausdruecklich unter denen, die bleiben.
+     * The ORM set above does not touch the @PIM declarations, so this rule is needed.
+     * `ManyToMany` is included: the annotation belongs to the PIM side and is explicitly
+     * listed in section 2 of the removal list among those that remain.
      */
     ->withConfiguredRule(AnnotationToAttributeRector::class, [
         new AnnotationToAttribute('Areanet\\PIM\\Classes\\Annotations\\Config'),
@@ -171,21 +169,21 @@ return RectorConfig::configure()
         new AnnotationToAttribute('Areanet\\PIM\\Classes\\Annotations\\ManyToMany'),
     ])
     /*
-     * DIE GESTRICHENEN FELDER AUS DEN ANNOTATIONEN, DIE BLEIBEN (007-002-0004).
+     * THE REMOVED FIELDS FROM THE ANNOTATIONS THAT REMAIN (007-002-0004).
      *
-     * Der eigene Anteil dieser Regel, und der einzige: Fuer das Entfernen eines FELDES aus
-     * einem Attribut, das bleibt, gibt es in Rector nichts — RemoveAnnotationRector nimmt
-     * eine ganze Annotation, ArgumentRemoverRector arbeitet auf Methodenaufrufen.
-     * Nachgesehen am 2026-09-11 ueber alle konfigurierbaren Regeln.
+     * The custom part of this rule, and the only one: for removing a FIELD from an attribute
+     * that remains, Rector has nothing — RemoveAnnotationRector takes an entire annotation,
+     * ArgumentRemoverRector works on method calls. Checked on 2026-09-11 across all
+     * configurable rules.
      *
-     * WARUM DAS NICHT KOSMETIK IST: Nach der Umstellung auf Attribute stuende dort
-     * `#[PIM\Config(label: 'Artikel')]`, und Config::__construct() hat kein $label mehr —
-     * "Unknown named parameter $label", ein Fatal Error beim Laden der Entity. Ohne diesen
-     * Schritt waere die Migration nicht unvollstaendig, sondern kaputt.
+     * WHY THIS IS NOT COSMETIC: after the conversion to attributes, the code would read
+     * `#[PIM\Config(label: 'Article')]`, and Config::__construct() no longer has a $label —
+     * "Unknown named parameter $label", a fatal error when loading the entity. Without this
+     * step the migration would not be incomplete but broken.
      *
-     * Die Listen stehen in an_project/docs/pim-annotationen-migration.md, Abschnitte 2 und 3.
+     * The lists are in an_project/docs/pim-annotationen-migration.md, sections 2 and 3.
      */
-    ->withConfiguredRule(EntfalleneAttributfelderRector::class, [
+    ->withConfiguredRule(RemovedAttributeFieldsRector::class, [
         'Areanet\\PIM\\Classes\\Annotations\\Config' => [
             'viewMode', 'showInList', 'listShorten', 'hide', 'label', 'tab', 'tabs', 'sort',
             'isDatalist', 'isSidebar', 'lines', 'accept', 'readonly', 'filter',

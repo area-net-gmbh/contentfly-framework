@@ -81,7 +81,7 @@ final class BeispielProvider implements LoginProvider, UserExistenceCheck
      * The template implements `UserExistenceCheck` because it **can**: its list lives in
      * the environment, and looking it up needs no secret. A real provider cannot always
      * do that — an OIDC provider, for instance, verifies a token the client brings along and has
-     * no means without it. Then this interface is left out, and `appcms:provider:abgleich`
+     * no means without it. Then this interface is left out, and `appcms:provider:sync`
      * visibly skips the provider.
      *
      * **Without a configured list there is no answer, not "knows nobody".** The
