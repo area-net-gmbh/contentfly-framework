@@ -3,7 +3,7 @@ namespace Tests\Integration\Command;
 
 use Areanet\PIM\Classes\Config;
 use Areanet\PIM\Classes\Config\Factory;
-use Areanet\PIM\Classes\Security\Feldverschluesselung;
+use Areanet\PIM\Classes\Security\FieldEncryption;
 use Areanet\PIM\Command\ReencryptCommand;
 use Doctrine\DBAL\DriverManager;
 use Tests\Integration\IntegrationTestCase;
@@ -107,19 +107,19 @@ class ReencryptCommandTest extends TestCase
         }
 
         $befehl = new ReencryptCommand();
-        $krypto = new Feldverschluesselung();
+        $krypto = new FieldEncryption();
 
         $erster = $befehl->spalteUmschluesseln($this->db, self::TABELLE, 'geheim', 'id', false, 500);
         $this->assertSame(3, $erster['umgeschluesselt']);
 
         // Der Klartext ist derselbe — das ist der eigentliche Punkt der Umschluesselung.
         $this->assertSame($klartexte, array_values(array_map(
-            static fn (string $wert): string => (string) (new Feldverschluesselung())->entschluesseln($wert),
+            static fn (string $wert): string => (string) (new FieldEncryption())->decrypt($wert),
             $this->werteLesen()
         )));
 
         foreach ($this->werteLesen() as $wert) {
-            $this->assertTrue($krypto->istNeuesFormat($wert), 'und jeder Wert traegt jetzt das AEAD-Format');
+            $this->assertTrue($krypto->isNewFormat($wert), 'und jeder Wert traegt jetzt das AEAD-Format');
         }
 
         $zweiter = $befehl->spalteUmschluesseln($this->db, self::TABELLE, 'geheim', 'id', false, 500);
@@ -140,10 +140,10 @@ class ReencryptCommandTest extends TestCase
 
         $this->assertSame(25, $ergebnis['umgeschluesselt']);
 
-        $krypto = new Feldverschluesselung();
+        $krypto = new FieldEncryption();
 
         foreach ($this->werteLesen() as $wert) {
-            $this->assertTrue($krypto->istNeuesFormat($wert));
+            $this->assertTrue($krypto->isNewFormat($wert));
         }
     }
 

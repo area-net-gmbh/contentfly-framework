@@ -4,9 +4,9 @@ namespace Tests\Integration\Api;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * Die Anmeldebremse am laufenden Login (013-001-0003).
+ * Die LoginThrottle am laufenden Login (013-001-0003).
  *
- * `AnmeldebremseTest` misst die Mechanik ohne HTTP. Hier geht es um die andere Haelfte: dass
+ * `LoginThrottleTest` misst die Mechanik ohne HTTP. Hier geht es um die andere Haelfte: dass
  * sie an `/auth/login` tatsaechlich haengt, dass sie vor der Passwortpruefung greift und dass
  * ihre Antwort nichts ueber die Kennung verraet.
  *
@@ -23,7 +23,7 @@ use Tests\Integration\IntegrationTestCase;
  */
 class AnmeldebremseApiTest extends IntegrationTestCase
 {
-    /** Fuenf Fehlversuche pro Kennung und Minute — wie in Anmeldebremse::STUFEN_KENNUNG. */
+    /** Fuenf Fehlversuche pro Kennung und Minute — wie in LoginThrottle::TIERS_IDENTIFIER. */
     private const GRENZE_KENNUNG = 5;
 
     /** Zwanzig pro IP und Minute. */
@@ -175,6 +175,6 @@ class AnmeldebremseApiTest extends IntegrationTestCase
             );
         }
 
-        $this->verzeichnisEntfernen($daten.'/cache/loginbremse');
+        $this->verzeichnisEntfernen($daten.'/cache/login-throttle');
     }
 }

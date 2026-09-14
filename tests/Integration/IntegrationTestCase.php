@@ -73,7 +73,7 @@ abstract class IntegrationTestCase extends TestCase
     }
 
     /**
-     * Leert den Speicher der Anmeldebremse (013-003-0003).
+     * Leert den Speicher der LoginThrottle (013-003-0003).
      *
      * DIE SUITE IST KEIN REALISTISCHER CLIENT. Sie erzeugt in wenigen Sekunden mehr
      * Fehlversuche, als eine Adresse pro Minute machen darf — falsche Passwoerter, unbekannte
@@ -94,7 +94,7 @@ abstract class IntegrationTestCase extends TestCase
         $daten = self::datenverzeichnis();
 
         if (is_dir($daten.'/cache')) {
-            $this->verzeichnisEntfernen($daten.'/cache/loginbremse');
+            $this->verzeichnisEntfernen($daten.'/cache/login-throttle');
         }
     }
 

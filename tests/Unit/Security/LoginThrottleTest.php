@@ -1,13 +1,13 @@
 <?php
 namespace Tests\Unit\Security;
 
-use Areanet\PIM\Classes\Security\Anmeldebremse;
+use Areanet\PIM\Classes\Security\LoginThrottle;
 use Areanet\PIM\Controller\AuthController;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 
 /**
- * Die Anmeldebremse, ohne HTTP (013-001-0003).
+ * Die LoginThrottle, ohne HTTP (013-001-0003).
  *
  * Was hier steht, ist die Mechanik: zwei Achsen, ansteigende Verzoegerung, Ruecksetzen nur auf
  * der einen. Dass sie am Login auch wirklich haengt, misst `AnmeldebremseApiTest` gegen eine
@@ -16,7 +16,7 @@ use Symfony\Component\Cache\Adapter\ArrayAdapter;
  * Der Speicher ist ein `ArrayAdapter` — jeder Test bekommt einen frischen, es gibt nichts
  * aufzuraeumen, und die Zeit spielt keine Rolle: Kein Test wartet ein Fenster ab.
  */
-class AnmeldebremseTest extends TestCase
+class LoginThrottleTest extends TestCase
 {
     /** Fuenf Fehlversuche pro Kennung und Minute. */
     private const GRENZE_KENNUNG = 5;
@@ -24,16 +24,16 @@ class AnmeldebremseTest extends TestCase
     /** Zwanzig pro IP und Minute — weiter gefasst, weil hinter einer Adresse viele sitzen. */
     private const GRENZE_IP = 20;
 
-    private function bremse(): Anmeldebremse
+    private function bremse(): LoginThrottle
     {
-        return new Anmeldebremse(new ArrayAdapter());
+        return new LoginThrottle(new ArrayAdapter());
     }
 
     // ── Die Achse Kennung ──────────────────────────────────────────────────────────────
 
     public function testFrischIstNichtsGebremst(): void
     {
-        $this->assertNull($this->bremse()->wartezeit('admin', '10.0.0.1'));
+        $this->assertNull($this->bremse()->retryAfter('admin', '10.0.0.1'));
     }
 
     public function testNachDerGrenzeWirdGebremst(): void
@@ -41,13 +41,13 @@ class AnmeldebremseTest extends TestCase
         $bremse = $this->bremse();
 
         for ($i = 1; $i <= self::GRENZE_KENNUNG - 1; $i++) {
-            $bremse->fehlversuch('admin', '10.0.0.1');
-            $this->assertNull($bremse->wartezeit('admin', '10.0.0.1'), "nach $i Fehlversuchen noch frei");
+            $bremse->recordFailure('admin', '10.0.0.1');
+            $this->assertNull($bremse->retryAfter('admin', '10.0.0.1'), "nach $i Fehlversuchen noch frei");
         }
 
-        $bremse->fehlversuch('admin', '10.0.0.1');
+        $bremse->recordFailure('admin', '10.0.0.1');
 
-        $this->assertNotNull($bremse->wartezeit('admin', '10.0.0.1'));
+        $this->assertNotNull($bremse->retryAfter('admin', '10.0.0.1'));
     }
 
     /**
@@ -59,10 +59,10 @@ class AnmeldebremseTest extends TestCase
         $bremse = $this->bremse();
 
         for ($i = 1; $i <= self::GRENZE_KENNUNG; $i++) {
-            $bremse->fehlversuch('admin', '10.0.0.'.$i);
+            $bremse->recordFailure('admin', '10.0.0.'.$i);
         }
 
-        $this->assertNotNull($bremse->wartezeit('admin', '198.51.100.99'));
+        $this->assertNotNull($bremse->retryAfter('admin', '198.51.100.99'));
     }
 
     /**
@@ -73,10 +73,10 @@ class AnmeldebremseTest extends TestCase
         $bremse = $this->bremse();
 
         for ($i = 1; $i <= self::GRENZE_KENNUNG; $i++) {
-            $bremse->fehlversuch('admin', '10.0.0.'.$i);
+            $bremse->recordFailure('admin', '10.0.0.'.$i);
         }
 
-        $this->assertNotNull($bremse->wartezeit('ADMIN', '198.51.100.99'));
+        $this->assertNotNull($bremse->retryAfter('ADMIN', '198.51.100.99'));
     }
 
     public function testEineAndereKennungBleibtFrei(): void
@@ -84,10 +84,10 @@ class AnmeldebremseTest extends TestCase
         $bremse = $this->bremse();
 
         for ($i = 1; $i <= self::GRENZE_KENNUNG; $i++) {
-            $bremse->fehlversuch('admin', '10.0.0.1');
+            $bremse->recordFailure('admin', '10.0.0.1');
         }
 
-        $this->assertNull($bremse->wartezeit('redakteur', '10.0.0.1'));
+        $this->assertNull($bremse->retryAfter('redakteur', '10.0.0.1'));
     }
 
     // ── Die Achse IP ───────────────────────────────────────────────────────────────────
@@ -101,11 +101,11 @@ class AnmeldebremseTest extends TestCase
         $bremse = $this->bremse();
 
         for ($i = 1; $i <= self::GRENZE_IP; $i++) {
-            $bremse->fehlversuch('niemand'.$i, '10.0.0.1');
+            $bremse->recordFailure('niemand'.$i, '10.0.0.1');
         }
 
-        $this->assertNotNull($bremse->wartezeit('nochjemand', '10.0.0.1'));
-        $this->assertNull($bremse->wartezeit('nochjemand', '198.51.100.99'), 'Eine andere Adresse bleibt frei');
+        $this->assertNotNull($bremse->retryAfter('nochjemand', '10.0.0.1'));
+        $this->assertNull($bremse->retryAfter('nochjemand', '198.51.100.99'), 'Eine andere Adresse bleibt frei');
     }
 
     // ── Ruecksetzen ────────────────────────────────────────────────────────────────────
@@ -115,13 +115,13 @@ class AnmeldebremseTest extends TestCase
         $bremse = $this->bremse();
 
         for ($i = 1; $i <= self::GRENZE_KENNUNG; $i++) {
-            $bremse->fehlversuch('admin', '10.0.0.1');
+            $bremse->recordFailure('admin', '10.0.0.1');
         }
-        $this->assertNotNull($bremse->wartezeit('admin', '10.0.0.1'));
+        $this->assertNotNull($bremse->retryAfter('admin', '10.0.0.1'));
 
-        $bremse->entsperren('admin');
+        $bremse->reset('admin');
 
-        $this->assertNull($bremse->wartezeit('admin', '10.0.0.1'));
+        $this->assertNull($bremse->retryAfter('admin', '10.0.0.1'));
     }
 
     /**
@@ -135,12 +135,12 @@ class AnmeldebremseTest extends TestCase
         $bremse = $this->bremse();
 
         for ($i = 1; $i <= self::GRENZE_IP; $i++) {
-            $bremse->fehlversuch('niemand'.$i, '10.0.0.1');
+            $bremse->recordFailure('niemand'.$i, '10.0.0.1');
         }
 
-        $bremse->entsperren('nochjemand');
+        $bremse->reset('nochjemand');
 
-        $this->assertNotNull($bremse->wartezeit('nochjemand', '10.0.0.1'));
+        $this->assertNotNull($bremse->retryAfter('nochjemand', '10.0.0.1'));
     }
 
     // ── Die Pruefung verbraucht nichts ─────────────────────────────────────────────────
@@ -155,11 +155,11 @@ class AnmeldebremseTest extends TestCase
         $bremse = $this->bremse();
 
         for ($i = 1; $i <= self::GRENZE_KENNUNG - 1; $i++) {
-            $bremse->fehlversuch('admin', '10.0.0.1');
+            $bremse->recordFailure('admin', '10.0.0.1');
         }
 
         for ($i = 1; $i <= 50; $i++) {
-            $this->assertNull($bremse->wartezeit('admin', '10.0.0.1'));
+            $this->assertNull($bremse->retryAfter('admin', '10.0.0.1'));
         }
     }
 
@@ -176,19 +176,19 @@ class AnmeldebremseTest extends TestCase
         $bremse = $this->bremse();
 
         for ($i = 1; $i <= 5; $i++) {
-            $bremse->fehlversuch('admin', '10.0.'.$i.'.1');
+            $bremse->recordFailure('admin', '10.0.'.$i.'.1');
         }
-        $ersteStufe = $bremse->wartezeit('admin', null);
+        $ersteStufe = $bremse->retryAfter('admin', null);
 
         for ($i = 6; $i <= 20; $i++) {
-            $bremse->fehlversuch('admin', '10.0.'.$i.'.1');
+            $bremse->recordFailure('admin', '10.0.'.$i.'.1');
         }
-        $zweiteStufe = $bremse->wartezeit('admin', null);
+        $zweiteStufe = $bremse->retryAfter('admin', null);
 
         for ($i = 21; $i <= 50; $i++) {
-            $bremse->fehlversuch('admin', '10.0.'.$i.'.1');
+            $bremse->recordFailure('admin', '10.0.'.$i.'.1');
         }
-        $dritteStufe = $bremse->wartezeit('admin', null);
+        $dritteStufe = $bremse->retryAfter('admin', null);
 
         $this->assertNotNull($ersteStufe);
         $this->assertNotNull($zweiteStufe);

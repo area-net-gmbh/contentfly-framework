@@ -81,14 +81,10 @@ class EnglishOnlyTest extends TestCase
      * @var array<int,array{0:string,1:string,2:string}>
      */
     private const EXCEPTIONS = array(
-        array('lib/contentfly/bootstrap.php', 'Anmeldebremse', 'renamed in 014-002'),
-        array('lib/contentfly/bootstrap.php', 'loginbremse', 'renamed in 014-002'),
         array('lib/contentfly/bootstrap.php', 'ProviderAbgleichCommand', 'renamed in 014-003'),
         array('lib/contentfly/bootstrap.php', 'EntityManagerFactory::erzeugen', 'renamed in 014-003'),
         array('lib/contentfly/bootstrap.php', 'AutoloaderUeberschneidungTest', 'renamed in 014-005'),
         array('lib/contentfly/bootstrap.php', 'KeineSilexTypenTest', 'renamed in 014-005'),
-        array('lib/contentfly/bootstrap-web.php', 'VertrauteProxies::anwenden', 'renamed in 014-002'),
-        array('lib/contentfly/bootstrap-web.php', 'VertrauteProxies', 'renamed in 014-002'),
         array('lib/contentfly/bootstrap-web.php', 'FehlerantwortApiTest', 'renamed in 014-005'),
         array('lib/contentfly/Classes/Kernel/Application.php', 'FehlerantwortApiTest', 'renamed in 014-005'),
     );

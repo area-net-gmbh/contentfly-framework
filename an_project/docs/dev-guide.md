@@ -98,7 +98,7 @@ es ihn nie.
 ### Was **nicht** zugesichert ist
 
 Alles andere, was das Framework registriert, ist interne Verdrahtung: `dbs.options`, `auth`,
-`console`, `helper`, `loginbremse`, `tokenAuthenticator`, `userProvisioning`,
+`console`, `helper`, `loginThrottle`, `tokenAuthenticator`, `userProvisioning`,
 `groupMapping`, `tokenHandler`, `thumbnailSettings`, `schema`, `typeManager`,
 `pluginManager` — dazu `kernel`, `resolver` und `argument_resolver`, die aus
 `Classes/Kernel/Application` kommen und den HttpKernel verdrahten.
