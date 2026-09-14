@@ -4,9 +4,9 @@ namespace Tests\Integration\Api;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * Der ganze Weg über einen Anmeldeprovider, end-to-end (`013-004-0004`).
+ * Der ganze Weg über einen LoginProvider, end-to-end (`013-004-0004`).
  *
- * `013-004-0001` bis `0003` haben Vertrag, Provisionierung und Gruppenabbildung je für sich
+ * `013-004-0001` bis `0003` haben Vertrag, Provisionierung und GroupMapping je für sich
  * gemessen. **Erst ein Provider, der wirklich läuft, zeigt, dass sie zusammenpassen** — und den
  * gab es bis hierhin nicht: `custom/Classes/` enthielt zwei Service-Klassen und keinen Provider.
  *
@@ -165,7 +165,7 @@ class AnmeldeproviderApiTest extends IntegrationTestCase
                 array(), array('alias' => $eintrag['kennung'], 'pass' => $eintrag['geheimnis'])
             );
 
-            $this->assertNull($provider->pruefen($request));
+            $this->assertNull($provider->authenticate($request));
         } finally {
             if ($vorher !== false) {
                 putenv(\Custom\Classes\Anmeldung\BeispielProvider::UMGEBUNGSVARIABLE.'='.$vorher);
@@ -174,10 +174,10 @@ class AnmeldeproviderApiTest extends IntegrationTestCase
         }
     }
 
-    // ── Die Gruppenabbildung, end-to-end ───────────────────────────────────────────────
+    // ── Die GroupMapping, end-to-end ───────────────────────────────────────────────
 
     /**
-     * Was der Provider an Gruppen liefert, landet über `SECURITY_PROVIDER_GRUPPEN` in
+     * Was der Provider an Gruppen liefert, landet über `SECURITY_PROVIDER_GROUPS` in
      * `pim_user.group_id` — oder eben nicht.
      *
      * **Die Testinstallation konfiguriert keine Abbildung**, und genau das ist hier die

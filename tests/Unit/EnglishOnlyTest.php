@@ -20,7 +20,9 @@ use PHPUnit\Framework\TestCase;
  * - one of `WORDS` as a whole word (German words that are not also English words — `die`, `den`,
  *   `dies`, `hat` or `will` are left out for that reason), or
  * - one of `STEMS` anywhere, case-insensitively (German word parts that show up inside compound
- *   identifiers such as `Anmeldebremse`).
+ *   identifiers such as `Anmeldebremse`), or
+ * - one of `VERB_PREFIXES` followed by an upper-case letter (camelCase identifiers such as
+ *   `istRefreshToken()`, which the word rule cannot see because there is no word boundary).
  *
  * ── The path list grows with the epic ─────────────────────────────────────────────────
  *
@@ -46,6 +48,8 @@ class EnglishOnlyTest extends TestCase
         'lib/contentfly/bootstrap-web.php',
         'lib/contentfly/Classes/Kernel',
         'lib/contentfly/Classes/Metadata',
+        'lib/contentfly/Classes/Security',
+        'lib/contentfly/Controller/AuthController.php',
         'tests/bootstrap.php',
     );
 
@@ -70,7 +74,11 @@ class EnglishOnlyTest extends TestCase
         'sammlung', 'schluessel', 'treiber', 'ueberschneid', 'umgebung', 'verschluessel',
         'vertraut', 'verzeichnis', 'vorlage', 'waechter', 'zugang', 'abgleich', 'einstieg',
         'anwendung', 'absicherung', 'keinesilex', 'paketmanifest', 'letzt', 'kette',
+        'hashen', 'zweck', 'klartext', 'brauchtneu', 'passwort', 'sperren', 'faellt',
     );
+
+    /** German verbs that start a camelCase identifier such as `istRefreshToken()`. */
+    private const VERB_PREFIXES = array('ist', 'sind', 'wird', 'gibt', 'kann', 'darf', 'muss', 'soll', 'braucht');
 
     /**
      * German text allowed to stay for now: [path, exact text, reason].
@@ -81,26 +89,21 @@ class EnglishOnlyTest extends TestCase
      * @var array<int,array{0:string,1:string,2:string}>
      */
     private const EXCEPTIONS = array(
-        array('lib/contentfly/bootstrap.php', 'Anbieterverzeichnis', 'renamed in 014-002'),
-        array('lib/contentfly/bootstrap.php', 'Anmeldebremse', 'renamed in 014-002'),
-        array('lib/contentfly/bootstrap.php', 'Benutzerbereitstellung', 'renamed in 014-002'),
-        array('lib/contentfly/bootstrap.php', 'Gruppenabbildung', 'renamed in 014-002'),
-        array('lib/contentfly/bootstrap.php', 'Anmeldetreiber', 'renamed in 014-002'),
-        array('lib/contentfly/bootstrap.php', 'Benutzerlader', 'renamed in 014-002'),
-        array('lib/contentfly/bootstrap.php', 'Tokenquellen::kette', 'renamed in 014-002'),
-        array('lib/contentfly/bootstrap.php', 'Tokenquellen', 'renamed in 014-002'),
-        array('lib/contentfly/bootstrap.php', 'anmeldeanbieter', 'renamed in 014-002'),
-        array('lib/contentfly/bootstrap.php', 'anmeldetreiber', 'renamed in 014-002'),
-        array('lib/contentfly/bootstrap.php', 'benutzerbereitstellung', 'renamed in 014-002'),
-        array('lib/contentfly/bootstrap.php', 'gruppenabbildung', 'renamed in 014-002'),
-        array('lib/contentfly/bootstrap.php', 'loginbremse', 'renamed in 014-002'),
-        array('lib/contentfly/bootstrap.php', 'letzterToken', 'renamed in 014-002'),
         array('lib/contentfly/bootstrap.php', 'ProviderAbgleichCommand', 'renamed in 014-003'),
+        array('lib/contentfly/Classes/Security/TokenAuthenticator.php', 'BaseControllerProvider::anmelden', 'renamed in 014-003'),
+        array('lib/contentfly/Classes/Security/UserExistenceCheck.php', 'appcms:provider:abgleich', 'renamed in 014-003'),
+        array('lib/contentfly/Classes/Security/TokenHandler.php', 'Token::hashen', 'renamed in 014-003'),
+        array('lib/contentfly/Classes/Security/TokenHandler.php', 'istRefreshToken', 'renamed in 014-003'),
+        array('lib/contentfly/Classes/Security/UserProvisioning.php', 'passwortSperren', 'renamed in 014-003'),
+        array('lib/contentfly/Classes/Security/FieldEncryption.php', 'testEineManipulationFaelltAuf', 'renamed in 014-005'),
+        array('lib/contentfly/Controller/AuthController.php', 'Token::hashen', 'renamed in 014-003'),
+        array('lib/contentfly/Controller/AuthController.php', 'istRefreshToken', 'renamed in 014-003'),
+        array('lib/contentfly/Controller/AuthController.php', 'getKlartext', 'renamed in 014-003'),
+        array('lib/contentfly/Controller/AuthController.php', 'Token::ZWECK_REFRESH', 'renamed in 014-003'),
+        array('lib/contentfly/Controller/AuthController.php', 'brauchtNeuenHash', 'renamed in 014-003'),
         array('lib/contentfly/bootstrap.php', 'EntityManagerFactory::erzeugen', 'renamed in 014-003'),
         array('lib/contentfly/bootstrap.php', 'AutoloaderUeberschneidungTest', 'renamed in 014-005'),
         array('lib/contentfly/bootstrap.php', 'KeineSilexTypenTest', 'renamed in 014-005'),
-        array('lib/contentfly/bootstrap-web.php', 'VertrauteProxies::anwenden', 'renamed in 014-002'),
-        array('lib/contentfly/bootstrap-web.php', 'VertrauteProxies', 'renamed in 014-002'),
         array('lib/contentfly/bootstrap-web.php', 'FehlerantwortApiTest', 'renamed in 014-005'),
         array('lib/contentfly/Classes/Kernel/Application.php', 'FehlerantwortApiTest', 'renamed in 014-005'),
     );
@@ -171,9 +174,12 @@ class EnglishOnlyTest extends TestCase
         $this->assertNotNull($this->germanIn('throw new \RuntimeException("Zugriff verweigert, bitte anmelden");'), 'a German message');
         $this->assertNotNull($this->germanIn('$app[\'loginbremse\'] = new Anmeldebremse();'), 'a German compound identifier');
         $this->assertNotNull($this->germanIn('// Größe'), 'an umlaut');
+        $this->assertNotNull($this->germanIn('if ($row->istRefreshToken()) {'), 'a German verb prefix in camelCase');
+        $this->assertNotNull($this->germanIn('$token->getKlartext();'), 'a German word inside a getter');
 
         $this->assertNull($this->germanIn('// The container does not know "%s".'), 'an English message');
         $this->assertNull($this->germanIn('public function routes(): RouteCollection'), 'an English identifier');
+        $this->assertNull($this->germanIn('if ($user->isActive() && $this->hasGroup()) {'), 'English verb prefixes');
         $this->assertNull($this->germanIn(' * See an_project/docs/breaking-changes.md (007-001-0002).'), 'references to docs and work items');
     }
 
@@ -186,6 +192,10 @@ class EnglishOnlyTest extends TestCase
 
         if (preg_match('/\b(' . implode('|', self::WORDS) . ')\b/', $line, $match) === 1) {
             return 'word "' . $match[1] . '"';
+        }
+
+        if (preg_match('/\b(' . implode('|', self::VERB_PREFIXES) . ')[A-Z]\w*/', $line, $match) === 1) {
+            return 'verb prefix "' . $match[0] . '"';
         }
 
         $lower = strtolower($line);

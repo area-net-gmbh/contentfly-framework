@@ -121,7 +121,7 @@ $app['consoleManager']->addCommand(new \Custom\Command\ExampleCommand());
  *    `Custom\Classes\<Name>`. The prefix and an `instanceof` check limited
  *    the damage — but the choice lay with the caller.
  *
- *    The provider implements `Areanet\PIM\Classes\Security\Anmeldeprovider` and has exactly one
+ *    The provider implements `Areanet\PIM\Classes\Security\LoginProvider` and has exactly one
  *    duty: verify against the external system. It does **not** touch the database — finding or
  *    creating users, assigning groups and issuing the token is done by the framework.
  *
@@ -135,7 +135,7 @@ $app['consoleManager']->addCommand(new \Custom\Command\ExampleCommand());
  *    in unless `CONTENTFLY_BEISPIEL_PROVIDER` is set. A template that could accidentally
  *    leave an installation open would be worse than none at all.
  * --------------------------------------------------------------------------------------- */
-$app['anmeldeanbieter']->eintragen('beispiel', function () {
+$app['loginProviders']->register('beispiel', function () {
     return new \Custom\Classes\Anmeldung\BeispielProvider();
 });
 
@@ -145,20 +145,20 @@ $app['anmeldeanbieter']->eintragen('beispiel', function () {
 //   Active Directory / LDAP. Configured via the SECURITY_LDAP_* fields; the flow is
 //   search, then bind. Requires the PHP extension `ldap`.
 //
-//   $app['anmeldeanbieter']->eintragen('ldap', function () {
-//       return \Areanet\PIM\Classes\Security\LdapProvider::ausKonfiguration();
+//   $app['loginProviders']->register('ldap', function () {
+//       return \Areanet\PIM\Classes\Security\LdapProvider::fromConfig();
 //   });
 //
 //   OIDC. Verified against the provider's userinfo endpoint; configured via the
 //   SECURITY_OIDC_* fields. The client obtains its access token from the identity provider and
 //   sends it as `accessToken` (or `pass`) to /auth/login.
 //
-//   $app['anmeldeanbieter']->eintragen('oidc', function () {
-//       return \Areanet\PIM\Classes\Security\OidcProvider::ausKonfiguration();
+//   $app['loginProviders']->register('oidc', function () {
+//       return \Areanet\PIM\Classes\Security\OidcProvider::fromConfig();
 //   });
 //
 //   A custom provider, where neither of the two fits:
 //
-//   $app['anmeldeanbieter']->eintragen('my-sso', function () use ($app) {
+//   $app['loginProviders']->register('my-sso', function () use ($app) {
 //       return new \Custom\Classes\Anmeldung\MySsoProvider($app);
 //   });

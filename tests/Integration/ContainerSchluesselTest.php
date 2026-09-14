@@ -40,7 +40,7 @@ class ContainerSchluesselTest extends IntegrationTestCase
      */
     private const IMMER = array(
         'is_installed', 'debug', 'database', 'mailer', 'routeManager', 'consoleManager',
-        'request_stack', 'dispatcher', 'auth.user', 'anmeldeanbieter',
+        'request_stack', 'dispatcher', 'auth.user', 'loginProviders',
         // Immer DA, aber null, solange nicht installiert ist — siehe
         // testDerEntityManagerIstDaAberNullSolangeNichtInstalliertIst().
         'orm.em',
@@ -72,8 +72,8 @@ class ContainerSchluesselTest extends IntegrationTestCase
      * @var array<int,string>
      */
     private const INTERN = array(
-        'dbs.options', 'auth', 'console', 'helper', 'loginbremse', 'anmeldetreiber',
-        'benutzerbereitstellung', 'gruppenabbildung', 'tokenhandler', 'thumbnailSettings',
+        'dbs.options', 'auth', 'console', 'helper', 'loginThrottle', 'tokenAuthenticator',
+        'userProvisioning', 'groupMapping', 'tokenHandler', 'thumbnailSettings',
         'schema', 'typeManager', 'pluginManager',
         // Die Verdrahtung des HttpKernels aus Classes/Kernel/Application — sie gehoert der
         // Anwendung, nicht dem Projekt.

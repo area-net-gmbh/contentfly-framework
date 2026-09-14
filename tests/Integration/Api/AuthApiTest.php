@@ -331,7 +331,7 @@ class AuthApiTest extends IntegrationTestCase
         $this->assertSame(200, $abmelden);
     }
 
-    // ── Alle fünf Tokenquellen am laufenden System (013-002-0004) ─────────────────────
+    // ── Alle fünf TokenSources am laufenden System (013-002-0004) ─────────────────────
 
     /**
      * Der Nachweis für den Umstieg: Jede Quelle öffnet eine geschützte Route.
@@ -340,7 +340,7 @@ class AuthApiTest extends IntegrationTestCase
      * schicken sie. Ohne sie bräche jeder bestehende Ionic-Client beim Update. Die fünfte,
      * `Authorization: Bearer`, ist neu und der Weg, auf den alles zuläuft.
      *
-     * `TokenquellenTest` misst dasselbe ohne HTTP; hier geht es darum, dass es **verdrahtet**
+     * `TokenSourcesTest` misst dasselbe ohne HTTP; hier geht es darum, dass es **verdrahtet**
      * ist.
      */
     public function testJedeTokenquelleOeffnetEineGeschuetzteRoute(): void
@@ -435,7 +435,7 @@ class AuthApiTest extends IntegrationTestCase
     }
 
     /**
-     * **Ein Refresh-Token ist kein Zugangstoken.**
+     * **Ein Refresh-Token ist kein JwtAccessToken.**
      *
      * Es ist eine gewöhnliche Zeile in `pim_token`, und der opaque Zweig nahm bis `013-003-0001`
      * jede Zeile an. Ein Refresh-Token gilt länger als ein Access-JWT — das ist sein Zweck —,
@@ -694,7 +694,7 @@ class AuthApiTest extends IntegrationTestCase
      *
      * Der Story-Text nannte die Sperrung als Anwendungsfall der Liste. Sie ist es seit
      * `013-002-0001` nicht mehr: Der JWT-Zweig gibt sein `UserBadge` ohne eigenen Lader zurück,
-     * also lädt der `Benutzerlader` den Benutzer aus `pim_user` und weist einen gesperrten mit
+     * also lädt der `UserLoader` den Benutzer aus `pim_user` und weist einen gesperrten mit
      * derselben Ausnahme ab wie einen unbekannten.
      *
      * Der Test steht hier, damit die Zusicherung nicht unbelegt dasteht — und damit auffällt,

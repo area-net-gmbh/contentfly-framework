@@ -1,7 +1,7 @@
 <?php
 namespace Tests\Unit\Security;
 
-use Areanet\PIM\Classes\Security\VertrauteProxies;
+use Areanet\PIM\Classes\Security\TrustedProxies;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -17,7 +17,7 @@ use Symfony\Component\HttpFoundation\Request;
  * vorherige Stand wird deshalb in `setUp()` gesichert und in `tearDown()` zurueckgestellt;
  * andernfalls truege jeder Test dieser Datei seine Einstellung in alle folgenden.
  */
-class VertrauteProxiesTest extends TestCase
+class TrustedProxiesTest extends TestCase
 {
     /** @var list<string> */
     private array $vorherProxies = array();
@@ -42,9 +42,9 @@ class VertrauteProxiesTest extends TestCase
      */
     public function testOhneAngabeWirdNichtsGesetzt(): void
     {
-        $this->assertFalse(VertrauteProxies::anwenden(array(), 'x-forwarded'));
-        $this->assertFalse(VertrauteProxies::anwenden('', 'x-forwarded'));
-        $this->assertFalse(VertrauteProxies::anwenden(null, 'x-forwarded'));
+        $this->assertFalse(TrustedProxies::apply(array(), 'x-forwarded'));
+        $this->assertFalse(TrustedProxies::apply('', 'x-forwarded'));
+        $this->assertFalse(TrustedProxies::apply(null, 'x-forwarded'));
 
         $this->assertSame(array(), Request::getTrustedProxies());
     }
@@ -55,7 +55,7 @@ class VertrauteProxiesTest extends TestCase
     {
         $this->assertSame(
             array('10.0.0.0/8', '192.168.1.5'),
-            VertrauteProxies::liste(array('10.0.0.0/8', ' 192.168.1.5 '))
+            TrustedProxies::list(array('10.0.0.0/8', ' 192.168.1.5 '))
         );
     }
 
@@ -67,20 +67,20 @@ class VertrauteProxiesTest extends TestCase
     {
         $this->assertSame(
             array('10.0.0.0/8', '192.168.1.5', 'REMOTE_ADDR'),
-            VertrauteProxies::liste('10.0.0.0/8, 192.168.1.5 ,REMOTE_ADDR')
+            TrustedProxies::list('10.0.0.0/8, 192.168.1.5 ,REMOTE_ADDR')
         );
     }
 
     public function testLeereEintraegeFallenWeg(): void
     {
-        $this->assertSame(array('10.0.0.1'), VertrauteProxies::liste('  ,10.0.0.1,  ,'));
+        $this->assertSame(array('10.0.0.1'), TrustedProxies::list('  ,10.0.0.1,  ,'));
     }
 
     // ── Der Headersatz ─────────────────────────────────────────────────────────────────
 
     public function testDieVorgabeIstDieEnge(): void
     {
-        $satz = VertrauteProxies::headerSatz('x-forwarded');
+        $satz = TrustedProxies::headerSet('x-forwarded');
 
         $this->assertSame(Request::HEADER_X_FORWARDED_FOR, $satz & Request::HEADER_X_FORWARDED_FOR);
         $this->assertSame(0, $satz & Request::HEADER_FORWARDED, 'Forwarded wird nur auf Ansage gelesen');
@@ -88,7 +88,7 @@ class VertrauteProxiesTest extends TestCase
 
     public function testForwardedSchaltetUm(): void
     {
-        $satz = VertrauteProxies::headerSatz('forwarded');
+        $satz = TrustedProxies::headerSet('forwarded');
 
         $this->assertSame(Request::HEADER_FORWARDED, $satz);
         $this->assertSame(0, $satz & Request::HEADER_X_FORWARDED_FOR, 'Nicht beide gleichzeitig');
@@ -104,7 +104,7 @@ class VertrauteProxiesTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessageMatches('/APP_TRUSTED_HEADERS/');
 
-        VertrauteProxies::headerSatz('x-forwaded');
+        TrustedProxies::headerSet('x-forwaded');
     }
 
     // ── Die Wirkung ────────────────────────────────────────────────────────────────────
@@ -131,7 +131,7 @@ class VertrauteProxiesTest extends TestCase
         Request::setTrustedProxies(array(), $this->vorherHeaderSatz);
         $this->assertSame('10.0.0.1', $bauen()->getClientIp(), 'Ohne Angabe zaehlt der naechste Hop');
 
-        VertrauteProxies::anwenden(array('10.0.0.1'), 'x-forwarded');
+        TrustedProxies::apply(array('10.0.0.1'), 'x-forwarded');
         $this->assertSame('203.0.113.7', $bauen()->getClientIp(), 'Mit Angabe zaehlt der Aufrufer');
     }
 
@@ -143,7 +143,7 @@ class VertrauteProxiesTest extends TestCase
      */
     public function testEinNichtVertrauterAbsenderKannDieAdresseNichtSetzen(): void
     {
-        VertrauteProxies::anwenden(array('10.0.0.1'), 'x-forwarded');
+        TrustedProxies::apply(array('10.0.0.1'), 'x-forwarded');
 
         $request = new Request(
             array(), array(), array(), array(), array(),

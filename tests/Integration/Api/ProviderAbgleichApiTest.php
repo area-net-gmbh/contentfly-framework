@@ -117,7 +117,7 @@ class ProviderAbgleichApiTest extends IntegrationTestCase
      *
      * Das ist der Fehler, der eine ganze Belegschaft aussperrt: Wenn „Fremdsystem antwortet
      * nicht" als „Benutzer gibt es nicht mehr" gelesen wird, sperrt ein Netzwerkfehler alle.
-     * Deshalb hat `kenntKennung()` drei Antworten statt zwei, und `null` fasst niemanden an.
+     * Deshalb hat `knowsIdentifier()` drei Antworten statt zwei, und `null` fasst niemanden an.
      *
      * Beim `BeispielProvider` ist eine **leere** Liste genau dieser Fall — sie heisst „keine
      * Auskunft" und nicht „kennt niemanden". Würde eine fehlende Konfiguration als `false`

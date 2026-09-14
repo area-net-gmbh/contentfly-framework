@@ -1,7 +1,7 @@
 <?php
 namespace Tests\Unit\Security;
 
-use Areanet\PIM\Classes\Security\Anmeldetreiber;
+use Areanet\PIM\Classes\Security\TokenAuthenticator;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
@@ -19,7 +19,7 @@ use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
  * Tasks: Der Treiber muss stehen und messbar sein, **bevor** es einen echten Handler gibt —
  * der kommt erst mit `013-002-0003`.
  */
-class AnmeldetreiberTest extends TestCase
+class TokenAuthenticatorTest extends TestCase
 {
     /** Ein Extractor, der immer denselben Wert liefert — oder keinen. */
     private function extractor(?string $token): AccessTokenExtractorInterface
@@ -56,9 +56,9 @@ class AnmeldetreiberTest extends TestCase
 
     public function testEinGueltigesTokenLiefertDenBenutzer(): void
     {
-        $treiber = new Anmeldetreiber($this->handler('admin'), $this->extractor('irgendein-token'));
+        $treiber = new TokenAuthenticator($this->handler('admin'), $this->extractor('irgendein-token'));
 
-        $benutzer = $treiber->benutzer(new Request());
+        $benutzer = $treiber->user(new Request());
 
         $this->assertNotNull($benutzer);
         $this->assertSame('admin', $benutzer->getUserIdentifier());
@@ -66,9 +66,9 @@ class AnmeldetreiberTest extends TestCase
 
     public function testOhneTokenGreiftDerTreiberNicht(): void
     {
-        $treiber = new Anmeldetreiber($this->handler('admin'), $this->extractor(null));
+        $treiber = new TokenAuthenticator($this->handler('admin'), $this->extractor(null));
 
-        $this->assertNull($treiber->benutzer(new Request()));
+        $this->assertNull($treiber->user(new Request()));
     }
 
     /**
@@ -81,9 +81,9 @@ class AnmeldetreiberTest extends TestCase
      */
     public function testEinVorhandenesTokenWirdNichtVorschnellAbgewiesen(): void
     {
-        $treiber = new Anmeldetreiber($this->handler('redakteur'), $this->extractor('token'));
+        $treiber = new TokenAuthenticator($this->handler('redakteur'), $this->extractor('token'));
 
-        $this->assertNotNull($treiber->benutzer(new Request()));
+        $this->assertNotNull($treiber->user(new Request()));
     }
 
     /**
@@ -102,9 +102,9 @@ class AnmeldetreiberTest extends TestCase
         );
 
         foreach ($faelle as $name => $fehler) {
-            $treiber = new Anmeldetreiber($this->handler(null, $fehler), $this->extractor('token'));
+            $treiber = new TokenAuthenticator($this->handler(null, $fehler), $this->extractor('token'));
 
-            $this->assertNull($treiber->benutzer(new Request()), $name.' muss wie alles andere scheitern');
+            $this->assertNull($treiber->user(new Request()), $name.' muss wie alles andere scheitern');
         }
     }
 }

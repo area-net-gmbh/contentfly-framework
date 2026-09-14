@@ -3,11 +3,11 @@ namespace Tests\Unit\Security;
 
 use Areanet\PIM\Classes\Config;
 use Areanet\PIM\Classes\Config\Factory;
-use Areanet\PIM\Classes\Security\Feldverschluesselung;
+use Areanet\PIM\Classes\Security\FieldEncryption;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Die ersten Tests, die die Feldverschluesselung ueberhaupt ausfuehren (010-004-0001).
+ * Die ersten Tests, die die FieldEncryption ueberhaupt ausfuehren (010-004-0001).
  *
  * WARUM ES SIE VORHER NICHT GAB: Der Code hatte keinen Pruefgegenstand. Keine Entity setzt
  * `encoded: true`, und `SECURITY_CIPHER_KEY` steht in der Vorgabe auf `null` — die
@@ -20,7 +20,7 @@ use PHPUnit\Framework\TestCase;
  * doppelten Code zusammen, ohne das Verfahren zu aendern — diese Tests sagen, ob das gelungen
  * ist. Mit `010-004-0002` aendern sich zwei von ihnen, und das wird dort begruendet.
  */
-class FeldverschluesselungTest extends TestCase
+class FieldEncryptionTest extends TestCase
 {
     /**
      * Ein Chiffretext, den der Code VOR 010-004-0001 erzeugt hat.
@@ -54,10 +54,10 @@ class FeldverschluesselungTest extends TestCase
 
     public function testEinWertKommtDurchDenRundlaufUnveraendertZurueck(): void
     {
-        $krypto = new Feldverschluesselung();
+        $krypto = new FieldEncryption();
         $wert   = 'Ein Wert mit Umlauten: äöü, und einem Zeilenumbruch:'."\n".'zweite Zeile.';
 
-        $this->assertSame($wert, $krypto->entschluesseln($krypto->verschluesseln($wert)));
+        $this->assertSame($wert, $krypto->decrypt($krypto->encrypt($wert)));
     }
 
     public function testEinChiffretextAusDemAltenCodeBleibtLesbar(): void
@@ -66,7 +66,7 @@ class FeldverschluesselungTest extends TestCase
         // und ein Bestandsprojekt haette es erst beim naechsten Lesen gemerkt.
         $this->assertSame(
             self::ALTER_KLARTEXT,
-            (new Feldverschluesselung())->entschluesseln(self::ALTER_CHIFFRETEXT)
+            (new FieldEncryption())->decrypt(self::ALTER_CHIFFRETEXT)
         );
     }
 
@@ -75,9 +75,9 @@ class FeldverschluesselungTest extends TestCase
         // Der IV ist zufaellig. Waeren zwei Chiffretexte gleich, liesse sich aus der Datenbank
         // ablesen, welche Zeilen denselben Wert tragen — bei einem verschluesselten Feld ist
         // das genau die Auskunft, die niemand geben will.
-        $krypto = new Feldverschluesselung();
+        $krypto = new FieldEncryption();
 
-        $this->assertNotSame($krypto->verschluesseln('derselbe Wert'), $krypto->verschluesseln('derselbe Wert'));
+        $this->assertNotSame($krypto->encrypt('derselbe Wert'), $krypto->encrypt('derselbe Wert'));
     }
 
     public function testOhneSchluesselWirdNichtVerschluesselt(): void
@@ -87,15 +87,15 @@ class FeldverschluesselungTest extends TestCase
         Factory::getInstance()->setConfig($config);
 
         $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('Für die Verschlüsselung muss ein Wert für SECURITY_CIPHER_KEY gesetzt sein.');
+        $this->expectExceptionMessage('A value for SECURITY_CIPHER_KEY must be set for encryption.');
 
-        (new Feldverschluesselung())->verschluesseln('irgendwas');
+        (new FieldEncryption())->encrypt('irgendwas');
     }
 
     public function testOhneSchluesselWirdNichtEntschluesselt(): void
     {
-        $krypto     = new Feldverschluesselung();
-        $chiffretext = $krypto->verschluesseln('irgendwas');
+        $krypto     = new FieldEncryption();
+        $chiffretext = $krypto->encrypt('irgendwas');
 
         $config = new Config();
         $config->SECURITY_CIPHER_KEY = null;
@@ -103,7 +103,7 @@ class FeldverschluesselungTest extends TestCase
 
         $this->expectException(\Exception::class);
 
-        (new Feldverschluesselung())->entschluesseln($chiffretext);
+        (new FieldEncryption())->decrypt($chiffretext);
     }
 
     /**
@@ -125,9 +125,9 @@ class FeldverschluesselungTest extends TestCase
      */
     public function testJedeManipulationFaelltAuf(): void
     {
-        $krypto      = new Feldverschluesselung();
+        $krypto      = new FieldEncryption();
         $klartext    = 'Ueberweisung an Konto A, Betrag 100 Euro, dringend bitte';
-        $chiffretext = $krypto->verschluesseln($klartext);
+        $chiffretext = $krypto->encrypt($klartext);
 
         $roh          = base64_decode(substr($chiffretext, strlen('PIM1:')));
         $durchgekommen = array();
@@ -136,7 +136,7 @@ class FeldverschluesselungTest extends TestCase
             $manipuliert       = $roh;
             $manipuliert[$pos] = chr(ord($manipuliert[$pos]) ^ 0x01);
 
-            $ergebnis = $krypto->entschluesseln('PIM1:'.base64_encode($manipuliert));
+            $ergebnis = $krypto->decrypt('PIM1:'.base64_encode($manipuliert));
 
             if ($ergebnis !== false) {
                 $durchgekommen[] = $pos;
@@ -151,26 +151,26 @@ class FeldverschluesselungTest extends TestCase
     {
         // Das Praefix ist eine Formatangabe, keine Zusicherung. Wer es davorschreibt, bekommt
         // trotzdem nichts entschluesselt.
-        $this->assertFalse((new Feldverschluesselung())->entschluesseln('PIM1:'.base64_encode(random_bytes(60))));
+        $this->assertFalse((new FieldEncryption())->decrypt('PIM1:'.base64_encode(random_bytes(60))));
     }
 
     public function testDieAbleitungIstDeterministisch(): void
     {
         // Waere sie es nicht, waeren Bestandsdaten nach jedem Neustart verloren. Belegt ueber
         // zwei Instanzen: Was die eine verschluesselt, liest die andere.
-        $eine    = new Feldverschluesselung();
-        $andere  = new Feldverschluesselung();
+        $eine    = new FieldEncryption();
+        $andere  = new FieldEncryption();
 
-        $this->assertSame('ein Wert', $andere->entschluesseln($eine->verschluesseln('ein Wert')));
+        $this->assertSame('ein Wert', $andere->decrypt($eine->encrypt('ein Wert')));
     }
 
     public function testNeueWerteTragenDasPraefixUndAlteNicht(): void
     {
-        $krypto = new Feldverschluesselung();
+        $krypto = new FieldEncryption();
 
-        $this->assertTrue($krypto->istNeuesFormat($krypto->verschluesseln('frisch')),
+        $this->assertTrue($krypto->isNewFormat($krypto->encrypt('frisch')),
             'Was jetzt geschrieben wird, ist AEAD');
-        $this->assertFalse($krypto->istNeuesFormat(self::ALTER_CHIFFRETEXT),
+        $this->assertFalse($krypto->isNewFormat(self::ALTER_CHIFFRETEXT),
             'und ein Bestandswert ist daran zu erkennen, dass ihm das Praefix fehlt');
     }
 }

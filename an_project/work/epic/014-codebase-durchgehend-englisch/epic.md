@@ -104,7 +104,7 @@ Preis.
 
 ## Stories
 - [x] 014-001-0000 — Kernel, Routing, Metadaten und Einstiegspunkte auf Englisch
-- [ ] 014-002-0000 — Security-Schicht auf Englisch
+- [x] 014-002-0000 — Security-Schicht auf Englisch
 - [ ] 014-003-0000 — Restliches Framework-Paket auf Englisch
 - [ ] 014-004-0000 — Vorlage custom/ auf Englisch
 - [ ] 014-005-0000 — Testsuite auf Englisch

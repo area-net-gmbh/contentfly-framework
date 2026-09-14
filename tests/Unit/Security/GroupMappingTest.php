@@ -3,8 +3,8 @@ namespace Tests\Unit\Security;
 
 use Areanet\PIM\Classes\Config;
 use Areanet\PIM\Classes\Config\Factory;
-use Areanet\PIM\Classes\Security\Fremdkennung;
-use Areanet\PIM\Classes\Security\Gruppenabbildung;
+use Areanet\PIM\Classes\Security\ExternalIdentity;
+use Areanet\PIM\Classes\Security\GroupMapping;
 use Areanet\PIM\Entity\Group;
 use Areanet\PIM\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
@@ -18,7 +18,7 @@ use PHPUnit\Framework\TestCase;
  * Projekt entschied für sich, wie es von „der Benutzer ist in CN=Redaktion" zu einer
  * Contentfly-Gruppe kommt, und das Ergebnis stand in Projektcode, den niemand mehr liest.
  */
-class GruppenabbildungTest extends TestCase
+class GroupMappingTest extends TestCase
 {
     protected function tearDown(): void
     {
@@ -29,13 +29,13 @@ class GruppenabbildungTest extends TestCase
     private function konfigurieren(array $abbildung): void
     {
         $config = new Config();
-        $config->SECURITY_PROVIDER_GRUPPEN = $abbildung;
+        $config->SECURITY_PROVIDER_GROUPS = $abbildung;
 
         Factory::getInstance()->setConfig($config);
     }
 
     /** @param array<string, Group> $gruppen */
-    private function abbildung(array $gruppen = array()): Gruppenabbildung
+    private function abbildung(array $gruppen = array()): GroupMapping
     {
         $repository = $this->createMock(EntityRepository::class);
         $repository->method('findOneBy')->willReturnCallback(
@@ -45,7 +45,7 @@ class GruppenabbildungTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($repository);
 
-        return new Gruppenabbildung($em);
+        return new GroupMapping($em);
     }
 
     private function gruppe(string $name): Group
@@ -69,11 +69,11 @@ class GruppenabbildungTest extends TestCase
     public function testEineZugeordneteFremdgruppeSetztDieContentflyGruppe(): void
     {
         $redakteure = $this->gruppe('Redakteure');
-        $this->konfigurieren(array('ldap' => array('gruppen' => array('CN=Redaktion' => 'Redakteure'))));
+        $this->konfigurieren(array('ldap' => array('groups' => array('CN=Redaktion' => 'Redakteure'))));
 
         $benutzer = $this->benutzer();
         $this->abbildung(array('Redakteure' => $redakteure))
-            ->anwenden('ldap', new Fremdkennung('mmustermann', array('CN=Redaktion')), $benutzer);
+            ->apply('ldap', new ExternalIdentity('mmustermann', array('CN=Redaktion')), $benutzer);
 
         $this->assertSame($redakteure, $benutzer->getGroup());
     }
@@ -83,7 +83,7 @@ class GruppenabbildungTest extends TestCase
         $this->konfigurieren(array('ldap' => array('admin' => array('CN=Admins'))));
 
         $benutzer = $this->benutzer();
-        $this->abbildung()->anwenden('ldap', new Fremdkennung('chef', array('CN=Admins')), $benutzer);
+        $this->abbildung()->apply('ldap', new ExternalIdentity('chef', array('CN=Admins')), $benutzer);
 
         $this->assertTrue($benutzer->getIsAdmin());
     }
@@ -100,14 +100,14 @@ class GruppenabbildungTest extends TestCase
         $erste  = $this->gruppe('Erste');
         $zweite = $this->gruppe('Zweite');
 
-        $this->konfigurieren(array('ldap' => array('gruppen' => array(
+        $this->konfigurieren(array('ldap' => array('groups' => array(
             'CN=A' => 'Erste',
             'CN=B' => 'Zweite',
         ))));
 
         $benutzer = $this->benutzer();
         $this->abbildung(array('Erste' => $erste, 'Zweite' => $zweite))
-            ->anwenden('ldap', new Fremdkennung('m', array('CN=B', 'CN=A')), $benutzer);
+            ->apply('ldap', new ExternalIdentity('m', array('CN=B', 'CN=A')), $benutzer);
 
         $this->assertSame($erste, $benutzer->getGroup(), 'Die Reihenfolge der Konfiguration entscheidet');
     }
@@ -125,7 +125,7 @@ class GruppenabbildungTest extends TestCase
         $benutzer = $this->benutzer();
         $benutzer->setIsAdmin(true);
 
-        $this->abbildung()->anwenden('ldap', new Fremdkennung('m', array('CN=Praktikanten')), $benutzer);
+        $this->abbildung()->apply('ldap', new ExternalIdentity('m', array('CN=Praktikanten')), $benutzer);
 
         $this->assertFalse($benutzer->getIsAdmin(), 'Einmal Administrator ist nicht immer Administrator');
     }
@@ -134,13 +134,13 @@ class GruppenabbildungTest extends TestCase
     {
         $gaeste = $this->gruppe('Gaeste');
         $this->konfigurieren(array('ldap' => array(
-            'gruppen' => array('CN=Redaktion' => 'Redakteure'),
-            'vorgabe' => 'Gaeste',
+            'groups' => array('CN=Redaktion' => 'Redakteure'),
+            'default' => 'Gaeste',
         )));
 
         $benutzer = $this->benutzer();
         $this->abbildung(array('Gaeste' => $gaeste))
-            ->anwenden('ldap', new Fremdkennung('m', array('CN=Sonstige')), $benutzer);
+            ->apply('ldap', new ExternalIdentity('m', array('CN=Sonstige')), $benutzer);
 
         $this->assertSame($gaeste, $benutzer->getGroup());
     }
@@ -152,12 +152,12 @@ class GruppenabbildungTest extends TestCase
      */
     public function testOhneTrefferUndOhneVorgabeWirdDieGruppeAbgeraeumt(): void
     {
-        $this->konfigurieren(array('ldap' => array('gruppen' => array('CN=Redaktion' => 'Redakteure'))));
+        $this->konfigurieren(array('ldap' => array('groups' => array('CN=Redaktion' => 'Redakteure'))));
 
         $benutzer = $this->benutzer();
         $benutzer->setGroup($this->gruppe('Redakteure'));
 
-        $this->abbildung()->anwenden('ldap', new Fremdkennung('m', array()), $benutzer);
+        $this->abbildung()->apply('ldap', new ExternalIdentity('m', array()), $benutzer);
 
         $this->assertNull($benutzer->getGroup());
     }
@@ -171,13 +171,13 @@ class GruppenabbildungTest extends TestCase
     public function testOhneEintragFuerDenAnbieterPassiertNichts(): void
     {
         $redakteure = $this->gruppe('Redakteure');
-        $this->konfigurieren(array('saml' => array('gruppen' => array('X' => 'Y'))));
+        $this->konfigurieren(array('saml' => array('groups' => array('X' => 'Y'))));
 
         $benutzer = $this->benutzer();
         $benutzer->setGroup($redakteure);
         $benutzer->setIsAdmin(true);
 
-        $this->abbildung()->anwenden('ldap', new Fremdkennung('m', array('X')), $benutzer);
+        $this->abbildung()->apply('ldap', new ExternalIdentity('m', array('X')), $benutzer);
 
         $this->assertSame($redakteure, $benutzer->getGroup());
         $this->assertTrue($benutzer->getIsAdmin());
@@ -193,12 +193,12 @@ class GruppenabbildungTest extends TestCase
      */
     public function testEineUnbekannteZielgruppeSchlaegtLautDurch(): void
     {
-        $this->konfigurieren(array('ldap' => array('gruppen' => array('CN=Redaktion' => 'GibtsNicht'))));
+        $this->konfigurieren(array('ldap' => array('groups' => array('CN=Redaktion' => 'GibtsNicht'))));
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessageMatches('/GibtsNicht/');
 
-        $this->abbildung()->anwenden('ldap', new Fremdkennung('m', array('CN=Redaktion')), $this->benutzer());
+        $this->abbildung()->apply('ldap', new ExternalIdentity('m', array('CN=Redaktion')), $this->benutzer());
     }
 
     // ── Änderungen wirken bei der nächsten Anmeldung ───────────────────────────────────
@@ -215,18 +215,18 @@ class GruppenabbildungTest extends TestCase
         $gaeste     = $this->gruppe('Gaeste');
 
         $this->konfigurieren(array('ldap' => array(
-            'gruppen' => array('CN=Redaktion' => 'Redakteure', 'CN=Extern' => 'Gaeste'),
+            'groups' => array('CN=Redaktion' => 'Redakteure', 'CN=Extern' => 'Gaeste'),
             'admin'   => array('CN=Admins'),
         )));
 
         $abbildung = $this->abbildung(array('Redakteure' => $redakteure, 'Gaeste' => $gaeste));
         $benutzer  = $this->benutzer();
 
-        $abbildung->anwenden('ldap', new Fremdkennung('m', array('CN=Redaktion', 'CN=Admins')), $benutzer);
+        $abbildung->apply('ldap', new ExternalIdentity('m', array('CN=Redaktion', 'CN=Admins')), $benutzer);
         $this->assertSame($redakteure, $benutzer->getGroup());
         $this->assertTrue($benutzer->getIsAdmin());
 
-        $abbildung->anwenden('ldap', new Fremdkennung('m', array('CN=Extern')), $benutzer);
+        $abbildung->apply('ldap', new ExternalIdentity('m', array('CN=Extern')), $benutzer);
         $this->assertSame($gaeste, $benutzer->getGroup());
         $this->assertFalse($benutzer->getIsAdmin());
     }

@@ -1,7 +1,7 @@
 ---
 id: 014-002-0000
 title: Security-Schicht auf Englisch
-status: todo
+status: done
 depends_on: [014-001-0000]
 ---
 
@@ -20,8 +20,8 @@ Pipeline weiterläuft.
 die IT-Security zuerst liest.
 
 ## Tasks
-- [ ] 014-002-0001 — Token-Prüfung auf Englisch
-- [ ] 014-002-0002 — Anmeldeprovider auf Englisch
-- [ ] 014-002-0003 — Anmeldebremse, Proxies und Feldverschlüsselung auf Englisch
-- [ ] 014-002-0004 — AuthController vollständig englisch
-- [ ] 014-002-0005 — Sprachwächter um die Security-Pfade erweitern
+- [x] 014-002-0001 — Token-Prüfung auf Englisch
+- [x] 014-002-0002 — Anmeldeprovider auf Englisch
+- [x] 014-002-0003 — Anmeldebremse, Proxies und Feldverschlüsselung auf Englisch
+- [x] 014-002-0004 — AuthController vollständig englisch
+- [x] 014-002-0005 — Sprachwächter um die Security-Pfade erweitern
