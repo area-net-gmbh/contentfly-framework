@@ -1,7 +1,7 @@
 ---
 id: 014-004-0000
 title: Vorlage custom/ auf Englisch
-status: review
+status: done
 depends_on: [014-003-0000]
 ---
 
@@ -17,6 +17,6 @@ Das Root-`composer.json` (`description`, `extra.hinweis`) gehört ebenfalls dazu
 Manifest des Projekts ist.
 
 ## Tasks
-- [ ] 014-004-0001 — Beispiel-Provider der Vorlage auf Englisch
-- [ ] 014-004-0002 — ExampleCommand und Root-Manifest auf Englisch
-- [ ] 014-004-0003 — Sprachwächter um Vorlage und Root-Manifest erweitern
+- [x] 014-004-0001 — Beispiel-Provider der Vorlage auf Englisch
+- [x] 014-004-0002 — ExampleCommand und Root-Manifest auf Englisch
+- [x] 014-004-0003 — Sprachwächter um Vorlage und Root-Manifest erweitern

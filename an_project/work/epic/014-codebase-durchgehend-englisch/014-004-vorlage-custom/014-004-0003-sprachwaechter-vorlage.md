@@ -1,7 +1,7 @@
 ---
 id: 014-004-0003
 title: Sprachwächter um Vorlage und Root-Manifest erweitern
-status: review
+status: done
 depends_on: [014-004-0002]
 ---
 

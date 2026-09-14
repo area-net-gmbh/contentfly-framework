@@ -1,7 +1,7 @@
 ---
 id: 014-004-0002
 title: ExampleCommand und Root-Manifest auf Englisch
-status: review
+status: done
 depends_on: [014-004-0001]
 ---
 
