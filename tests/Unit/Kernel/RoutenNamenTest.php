@@ -2,14 +2,14 @@
 namespace Tests\Unit\Kernel;
 
 use Areanet\PIM\Classes\Kernel\Application;
-use Areanet\PIM\Classes\Kernel\Routing\Routensammlung;
+use Areanet\PIM\Classes\Kernel\Routing\RouteCollector;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Routing\RouteCollection;
 
 /**
  * Zwei Sammlungen dürfen sich beim Mounten nicht gegenseitig auffressen (013-001-0005).
  *
- * `Routensammlung` zählt ihre Routen **je Provider** durch: Die erste Route heisst `login_0`,
+ * `RouteCollector` zählt ihre Routen **je Provider** durch: Die erste Route heisst `login_0`,
  * egal aus welchem Provider sie kommt. `RouteCollection::addCollection()` überschreibt beim
  * Namen — die später gemountete Sammlung verdrängte die frühere, lautlos.
  *
@@ -24,10 +24,10 @@ class RoutenNamenTest extends TestCase
 {
     private function sammlung(string $pfad): RouteCollection
     {
-        $sammlung = new Routensammlung();
+        $sammlung = new RouteCollector();
         $sammlung->post($pfad, 'irgendein.dienst:irgendeineAction');
 
-        return $sammlung->sammlung();
+        return $sammlung->collection();
     }
 
     public function testZweiMountpunkteMitGleichemPfadVerlierenKeineRoute(): void

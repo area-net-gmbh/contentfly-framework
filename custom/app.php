@@ -56,7 +56,7 @@ use Symfony\Component\HttpFoundation\Response;
  *
  *    isSecure is the per-route authentication decision. Under Silex it hung on a
  *    before() filter on the controller, now on a listener on kernel.controller
- *    (Kernel\Routing\AbsicherungListener). The call here is unaffected.
+ *    (Kernel\Routing\RouteSecurityListener). The call here is unaffected.
  * --------------------------------------------------------------------------------------- */
 $controllerProvider = $app['routeManager'];
 

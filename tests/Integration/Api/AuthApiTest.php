@@ -298,7 +298,7 @@ class AuthApiTest extends IntegrationTestCase
      *
      * Sie waren registriert und zeigten auf `api.controller:loginAction` und `:logoutAction` —
      * Methoden, die es im `ApiController` nicht gibt und nie gab. Erreicht haben sie den Router
-     * trotzdem nie: `Routensammlung` zählt je Provider durch, `/api/login` hiess `login_0` und
+     * trotzdem nie: `RouteCollector` zählt je Provider durch, `/api/login` hiess `login_0` und
      * wurde beim Mounten von `/auth/login` gleichen Namens verdrängt.
      *
      * Beides ist mit `013-001-0005` behoben — die Namen tragen jetzt den Mountpunkt, und die

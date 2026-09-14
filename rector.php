@@ -149,7 +149,7 @@ return RectorConfig::configure()
      * aus, die gebliebenen Annotationen seien nicht anzufassen. Sie sind es, und der Grund ist
      * ein STILLER AUSFALL:
      *
-     * `Classes/Metadaten/Metadatenleser` liest seit 010-001-0003 ausschliesslich PHP-Attribute
+     * `Classes/Metadata/MetadataReader` liest seit 010-001-0003 ausschliesslich PHP-Attribute
      * per Reflection; der AnnotationReader ist aus dem Framework verschwunden. Ein Projekt,
      * das nach der Migration `@PIM\Config(excludeFromSync=true)` im Docblock behaelt, hat
      * damit eine Konfiguration, die NIEMAND MEHR LIEST — und es gibt keine Fehlermeldung. Die
