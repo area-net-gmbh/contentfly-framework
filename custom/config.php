@@ -1,59 +1,59 @@
 <?php
 /**
- * Projekt-Konfiguration — die Werte, die ein Projekt gegenüber den Framework-Standards
- * ändert. Alles, was hier nicht gesetzt wird, kommt aus `Areanet\PIM\Classes\Config`.
+ * Project configuration — the values a project changes relative to the framework defaults.
+ * Anything not set here comes from `Areanet\PIM\Classes\Config`.
  *
- * Diese Datei ist eine **Vorlage**. Die `$SET_*`-Platzhalter unten sind kein Versehen:
- * `php bin/console.php appcms:install` ersetzt sie durch die eingegebenen Zugangsdaten.
- * Solange `DB_HOST` auf `$SET_DB_HOST` steht, gilt das System als **nicht installiert**
- * (`$app['is_installed']` in `lib/contentfly/bootstrap.php`) — die Installation prüft
- * genau darauf.
+ * This file is a **template**. The `$SET_*` placeholders below are not a mistake:
+ * `php bin/console.php appcms:install` replaces them with the credentials entered.
+ * As long as `DB_HOST` is `$SET_DB_HOST`, the system counts as **not installed**
+ * (`$app['is_installed']` in `lib/contentfly/bootstrap.php`) — the installer checks
+ * exactly that.
  */
 
 use Areanet\PIM\Classes\Config;
 use Areanet\PIM\Classes\Config\Factory;
 
 /*
- * ─── Optional: Werte aus einer .env-Datei laden ────────────────────────────────────
+ * ─── Optional: load values from a .env file ────────────────────────────────────────
  *
- * Nur nötig auf Hostern, die keine echten Prozess-Umgebungsvariablen setzen können
- * (Managed PHP). Wo `docker compose`, systemd oder ein Hosting-Panel die Variablen
- * liefert, ist dieser Block ein No-op — der Rest der Datei liest ohnehin nur `$_ENV`
- * bzw. `getenv()`.
+ * Only needed on hosts that cannot set real process environment variables
+ * (managed PHP). Where `docker compose`, systemd or a hosting panel provides the
+ * variables, this block is a no-op — the rest of the file only reads `$_ENV`
+ * or `getenv()` anyway.
  *
- * SECURITY: Die Datei darf **niemals** im Document-Root liegen. Die `.htaccess` leitet
- * nur Anfragen um, für die keine Datei existiert (`RewriteCond %{REQUEST_FILENAME} !-f`),
- * und Apache blockt von sich aus nur `.ht*` — eine `.env` neben der `index.php` würde im
- * Klartext ausgeliefert. Rechte auf `600` setzen.
+ * SECURITY: The file must **never** live in the document root. The `.htaccess` only rewrites
+ * requests for which no file exists (`RewriteCond %{REQUEST_FILENAME} !-f`),
+ * and Apache itself only blocks `.ht*` — a `.env` next to `index.php` would be served in
+ * plain text. Set permissions to `600`.
  *
- * `createImmutable()` lässt eine bereits gesetzte Umgebungsvariable stehen: Ein echter
- * Wert aus der Prozessumgebung schlägt eine veraltete Datei. `safeLoad()` wirft nicht,
- * wenn die Datei fehlt oder kaputt ist — eine defekte Secrets-Datei darf die Anwendung
- * nicht beim Start umbringen.
+ * `createImmutable()` leaves an already set environment variable alone: a real value
+ * from the process environment beats a stale file. `safeLoad()` does not throw
+ * when the file is missing or broken — a defective secrets file must not kill the
+ * application at startup.
  *
- * DAS `class_exists` BLEIBT — geprüft und bewusst behalten (`006-004-0003`).
+ * THE `class_exists` STAYS — reviewed and deliberately kept (`006-004-0003`).
  *
- * `tools/dependency-assignment.json` hält fest, der Schutz sei nur nötig gewesen, solange
- * `vlucas/phpdotenv` in `custom/` lag und fehlen konnte, und erübrige sich im Root. Für
- * *dieses* Repo stimmt das: Seit `006-002` steht das Paket im Root-Manifest, der Zweig ist
- * hier immer wahr.
+ * `tools/dependency-assignment.json` states that the guard was only needed while
+ * `vlucas/phpdotenv` lived in `custom/` and could be missing, and is unnecessary in the root.
+ * For *this* repo that is true: since `006-002` the package is in the root manifest, and the
+ * branch is always true here.
  *
- * Diese Datei ist aber die **Vorlage**, die ein Bestandsprojekt bekommt — und dessen
- * Root-Manifest kennt `vlucas/phpdotenv` erst, wenn es migriert ist. Ohne den Schutz stürbe
- * genau dort die Anwendung beim Start, mit einem `Class not found` statt mit einer Aussage
- * über die fehlende Abhängigkeit. Der Weg dorthin ist Epic `007` und noch nicht entschieden.
+ * But this file is the **template** an existing project receives — and that project's
+ * root manifest only knows `vlucas/phpdotenv` once it has been migrated. Without the guard the
+ * application would die at startup right there, with a `Class not found` instead of a statement
+ * about the missing dependency. The path there is Epic `007` and not yet decided.
  *
- * Behalten ist die umkehrbare Wahl, Entfernen nicht. Revidieren, wenn `007` festgelegt hat,
- * wie ein Projekt an das Root-Manifest kommt. (Stand 007-001: Das Framework wird ein
- * Bibliothekspaket, das Projekt behaelt sein eigenes Manifest — siehe architecture.md.)
+ * Keeping it is the reversible choice, removing it is not. Revisit once `007` has settled
+ * how a project gets to the root manifest. (As of 007-001: the framework becomes a
+ * library package, the project keeps its own manifest — see architecture.md.)
  */
 if (class_exists(\Dotenv\Dotenv::class)) {
     $envFile = $_ENV['CONTENTFLY_ENV_FILE'] ?? getenv('CONTENTFLY_ENV_FILE') ?: null;
     if (!is_string($envFile) || $envFile === '') {
-        // CONTENTFLY_PROJEKT ist das Verzeichnis mit der index.php — eine Ebene darüber
-        // ist außerhalb des Document-Roots. Bis 007-001-0002 hiess die Konstante ROOT_DIR
-        // und wurde vom Framework aus dessen eigener Lage gerechnet; jetzt benennt sie der
-        // Einstiegspunkt.
+        // CONTENTFLY_PROJEKT is the directory containing index.php — one level above it
+        // is outside the document root. Until 007-001-0002 the constant was called ROOT_DIR
+        // and was computed by the framework from its own location; now the entry point
+        // names it.
         $envFile = (defined('CONTENTFLY_PROJEKT') ? CONTENTFLY_PROJEKT : __DIR__ . '/..') . '/../.env';
     }
 
@@ -68,16 +68,16 @@ $configFactory = Factory::getInstance();
 
 /*
  ************************************************************************************
- * Standard-Konfiguration
+ * Default configuration
  ************************************************************************************
  */
 
 $configDefault = new Config();
 
 /*
- * Datenbank — von `appcms:install` gesetzt. Vor der Installation stehen hier die
- * Platzhalter; danach die echten Werte. Nicht von Hand ändern, solange die
- * Installation noch aussteht: Ein gesetzter DB_HOST lässt den Installer abbrechen.
+ * Database — set by `appcms:install`. Before installation the placeholders are here;
+ * afterwards the real values. Do not edit by hand while the installation is still
+ * pending: a set DB_HOST makes the installer abort.
  */
 $configDefault->DB_HOST                 = '$SET_DB_HOST';
 $configDefault->DB_PORT                 = '$SET_DB_PORT';
@@ -87,13 +87,13 @@ $configDefault->DB_PASS                 = '$SET_DB_PASS';
 $configDefault->DB_GUID_STRATEGY        = '$SET_DB_GUID_STRATEGY';
 
 /*
- * APP_DEBUG steuert ausführliche Fehlerausgabe inklusive vollständiger Stacktraces in
- * API- und HTML-Antworten (`bootstrap-web.php`). In Produktion muss das aus sein.
+ * APP_DEBUG controls verbose error output including full stack traces in
+ * API and HTML responses (`bootstrap-web.php`). It must be off in production.
  *
- * Auflösung: Ein ausdrückliches APP_DEBUG gewinnt; sonst an für eine bekannte
- * Entwicklungsumgebung, aus für alles andere. Bewusst hier ausgeschrieben und nicht in
- * eine Hilfsklasse ausgelagert — diese Datei wird geladen, bevor der Autoloader
- * garantiert bereitsteht.
+ * Resolution: an explicit APP_DEBUG wins; otherwise on for a known development
+ * environment, off for everything else. Deliberately spelled out here rather than moved
+ * into a helper class — this file is loaded before the autoloader is guaranteed
+ * to be available.
  */
 $appEnv      = strtolower(trim((string) ($_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'dev')));
 $appDebugEnv = $_ENV['APP_DEBUG'] ?? getenv('APP_DEBUG');
@@ -107,91 +107,91 @@ unset($appEnv, $appDebugEnv);
 $configDefault->APP_ENABLE_SCHEMA_CACHE = false;
 
 /*
- * Zeitzone. Der Framework-Standard ist 'Europe/Berlin'. Wer Zeitpunkte über Zeitzonen
- * hinweg vergleicht — Auswertungen, Aufbewahrungsfristen, Cron-Jobs — fährt mit UTC
- * besser: Ein gespeicherter Zeitpunkt ist dann eindeutig, die Zeitzone reine Darstellung.
+ * Time zone. The framework default is 'Europe/Berlin'. Anyone comparing points in time across
+ * time zones — reports, retention periods, cron jobs — is better off with UTC:
+ * a stored point in time is then unambiguous, and the time zone is pure presentation.
  */
 // $configDefault->APP_TIMEZONE         = 'UTC';
 
 /*
- * WEB_ROOT — der Pfad, unter dem die Anwendung im Web haengt. Vorgabe '/'.
+ * WEB_ROOT — the path under which the application is served on the web. Default '/'.
  *
- * Nur zu setzen, wenn die Anwendung in einem Unterverzeichnis liegt. Der FileController
- * baut daraus die Weiterleitung auf eine ausgelieferte Datei; steht der Wert falsch, zeigt
- * sie ins Leere.
+ * Only set this if the application lives in a subdirectory. The FileController
+ * builds the redirect to a delivered file from it; if the value is wrong, the redirect
+ * points nowhere.
  *
- * Bis `000-000-0006` wurde der Wert aus `$_SERVER['PHP_SELF']` abgeleitet. Das stimmte unter
- * Apache mit der mitgelieferten .htaccess und sonst nirgends — es ist eine Angabe, die der
- * Betreiber kennt und der Server nur raten kann. Deshalb steht sie jetzt hier.
+ * Until `000-000-0006` the value was derived from `$_SERVER['PHP_SELF']`. That was correct under
+ * Apache with the bundled .htaccess and nowhere else — it is something the
+ * operator knows and the server can only guess. That is why it lives here now.
  */
-// $configDefault->WEB_ROOT             = '/unterverzeichnis/';
+// $configDefault->WEB_ROOT             = '/subdirectory/';
 
 /*
- * APP_TRUSTED_PROXIES — hinter welchen Proxies die Anwendung steht. Vorgabe: keine.
+ * APP_TRUSTED_PROXIES — which proxies the application sits behind. Default: none.
  *
- * Nur zu setzen, wenn ein Reverse Proxy oder Loadbalancer davorsteht. Ohne diese Angabe hält
- * die Anwendung dessen Adresse für die des Aufrufers — die Anmeldebremse aus `013-001-0003`
- * bremste dann ihn und damit alle Benutzer dahinter, während der Angreifer ungebremst
- * weiterrät.
+ * Only set this if a reverse proxy or load balancer sits in front. Without it the
+ * application takes the proxy's address for the caller's — the login throttle from `013-001-0003`
+ * would then throttle the proxy and with it every user behind it, while the attacker keeps
+ * guessing unthrottled.
  *
- * NUR EINTRAGEN, WEM MAN TRAUT. Ein vertrauter Absender darf sagen, wer der Aufrufer ist —
- * wer hier ein zu weites Netz einträgt, lässt sich die Adresse vom Angreifer diktieren.
- * 'REMOTE_ADDR' bedeutet „der unmittelbare Absender, wer immer das ist" und passt für eine
- * Anwendung, die ausschliesslich über einen Proxy erreichbar ist, dessen Adresse wechselt.
+ * ONLY ENTER WHAT YOU TRUST. A trusted sender may state who the caller is —
+ * entering too wide a network lets the attacker dictate the address.
+ * 'REMOTE_ADDR' means "the immediate sender, whoever that is" and suits an
+ * application that is reachable exclusively through a proxy whose address changes.
  *
- * APP_TRUSTED_HEADERS wählt, welchen Weiterleitungs-Headern dabei geglaubt wird:
- * 'x-forwarded' (Vorgabe) oder 'forwarded' nach RFC 7239. Nicht beide gleichzeitig.
+ * APP_TRUSTED_HEADERS selects which forwarding headers are believed:
+ * 'x-forwarded' (default) or 'forwarded' per RFC 7239. Not both at once.
  */
 // $configDefault->APP_TRUSTED_PROXIES  = ['10.0.0.0/8'];
 // $configDefault->APP_TRUSTED_HEADERS  = 'x-forwarded';
 
 /*
- * SECURITY — Schlüssel für die Verschlüsselung von Feldern mit `@PIM\Config(encoded=true)`.
+ * SECURITY — key for encrypting fields with `@PIM\Config(encoded=true)`.
  *
- * **Kein Standardwert, mit Absicht.** Ein im Repository hinterlegter Schlüssel ist kein
- * Schlüssel: Jede Installation, die vergisst ihn zu setzen, verschlüsselt dann mit einem
- * öffentlich bekannten Wert — und niemand merkt es, weil alles funktioniert. Ohne Wert
- * verweigern `StringType` und `TextareaType` die Verschlüsselung mit klarer Meldung.
+ * **No default value, on purpose.** A key stored in the repository is no
+ * key: every installation that forgets to set it then encrypts with a
+ * publicly known value — and nobody notices, because everything works. Without a value
+ * `StringType` and `TextareaType` refuse to encrypt, with a clear message.
  */
 $configDefault->SECURITY_CIPHER_KEY     = $_ENV['SECURITY_CIPHER_KEY'] ?? getenv('SECURITY_CIPHER_KEY') ?: null;
 
 /*
- * SECURITY — Signaturgeheimnis für JWT (`013-002-0003`).
+ * SECURITY — signing secret for JWT (`013-002-0003`).
  *
- * Ebenfalls **kein Standardwert**, aus demselben Grund: Ein im Repository hinterlegtes
- * Geheimnis ist keines. Ohne Wert weist der JWT-Zweig jeden Token ab, statt ihn
- * stillschweigend zu überspringen — eine Prüfung, die sich selbst abschaltet, ist keine.
+ * Likewise **no default value**, for the same reason: a secret stored in the repository
+ * is no secret. Without a value the JWT branch rejects every token instead of
+ * silently skipping it — a check that switches itself off is no check.
  *
- * **Mindestens 32 Byte.** `firebase/php-jwt` weist ein kürzeres Geheimnis für HS256 ab; ein
- * kurzes wäre ohnehin ratbar. Ein brauchbarer Wert entsteht mit
+ * **At least 32 bytes.** `firebase/php-jwt` rejects a shorter secret for HS256; a
+ * short one would be guessable anyway. A usable value is produced with
  * `php -r "echo bin2hex(random_bytes(32));"`.
  *
- * Ausgestellt werden JWT erst mit `013-003`; bis dahin bleibt das Feld in den meisten
- * Installationen leer, und der opaque Token-Weg ist davon unberührt.
+ * JWTs are only issued from `013-003` on; until then the field stays empty in most
+ * installations, and the opaque token path is unaffected.
  */
 $configDefault->SECURITY_JWT_SECRET     = $_ENV['SECURITY_JWT_SECRET'] ?? getenv('SECURITY_JWT_SECRET') ?: null;
 
 /*
- * SECURITY — Schlüsselwechsel für JWT (`013-003-0004`).
+ * SECURITY — key rotation for JWT (`013-003-0004`).
  *
- * Ein Signaturgeheimnis, das sich nicht wechseln lässt, ohne alle Sitzungen zu beenden, wird
- * nicht gewechselt — und damit ist ein Leak dauerhaft. Deshalb trägt jedes Token die Kennung
- * seines Schlüssels im Header, und es lassen sich zwei Schlüssel gleichzeitig akzeptieren.
+ * A signing secret that cannot be rotated without ending every session does not get
+ * rotated — and that makes a leak permanent. That is why every token carries the ID
+ * of its key in the header, and two keys can be accepted at the same time.
  *
- * **So läuft ein Wechsel ab:**
+ * **How a rotation works:**
  *
- *   1. Den bisherigen Wert nach `SECURITY_JWT_SECRET_PREVIOUS`, seine Kennung nach
+ *   1. Move the current value to `SECURITY_JWT_SECRET_PREVIOUS`, its ID to
  *      `SECURITY_JWT_KEY_ID_PREVIOUS`.
- *   2. Einen neuen Wert nach `SECURITY_JWT_SECRET`, eine neue Kennung nach
- *      `SECURITY_JWT_KEY_ID`. Ab jetzt wird mit dem neuen signiert, angenommen werden beide —
- *      niemand muss sich neu anmelden.
- *   3. Nach `SECURITY_JWT_TTL` (Vorgabe 15 Minuten) ist das längste noch mit dem alten
- *      Schlüssel ausgestellte Access-JWT abgelaufen. Dann können die beiden
- *      `*_PREVIOUS`-Felder wieder leer.
+ *   2. Put a new value in `SECURITY_JWT_SECRET`, a new ID in
+ *      `SECURITY_JWT_KEY_ID`. From now on tokens are signed with the new one, both are
+ *      accepted — nobody has to log in again.
+ *   3. After `SECURITY_JWT_TTL` (default 15 minutes) the longest-lived access JWT still issued
+ *      with the old key has expired. The two `*_PREVIOUS` fields can then be
+ *      emptied again.
  *
- * Die Kennungen sind Namen, keine Geheimnisse — sie stehen im Klartext in jedem Token. Sie
- * müssen sich nur voneinander unterscheiden; die Anwendung weist zwei gleiche ab, statt
- * stillschweigend nur einen der beiden Schlüssel zu akzeptieren.
+ * The IDs are names, not secrets — they appear in plain text in every token. They
+ * only have to differ from each other; the application rejects two identical ones instead of
+ * silently accepting only one of the two keys.
  */
 // $configDefault->SECURITY_JWT_KEY_ID          = $_ENV['SECURITY_JWT_KEY_ID'] ?? getenv('SECURITY_JWT_KEY_ID') ?: 'k1';
 // $configDefault->SECURITY_JWT_SECRET_PREVIOUS = $_ENV['SECURITY_JWT_SECRET_PREVIOUS'] ?? getenv('SECURITY_JWT_SECRET_PREVIOUS') ?: null;
@@ -201,11 +201,11 @@ $configFactory->setConfig($configDefault);
 
 /*
  ************************************************************************************
- * Weitere Hosts
+ * Additional hosts
  *
- * Die Factory erlaubt eine eigene Konfiguration je Hostname, die von der Standard-
- * Konfiguration erbt. So bekommt etwa die Produktivdomain eine strengere
- * Content-Security-Policy, ohne dass die lokale Entwicklung darunter leidet.
+ * The factory allows a separate configuration per hostname that inherits from the default
+ * configuration. That way, for example, the production domain gets a stricter
+ * Content Security Policy without local development suffering for it.
  ************************************************************************************
  */
 

@@ -1,62 +1,62 @@
 <?php
 /**
- * Projekt-Bootstrap — die eine Datei, in der ein Projekt sein eigenes Verhalten registriert.
+ * Project bootstrap — the one file in which a project registers its own behaviour.
  *
- * Wird von lib/contentfly/bootstrap.php geladen, nachdem das Framework steht und bevor
- * $app['routeManager']->bindRoutes() die Routen bindet. Alles, was hier registriert wird,
- * gehört dem Projekt — das Framework selbst bleibt unangetastet.
+ * Loaded by lib/contentfly/bootstrap.php once the framework is up and before
+ * $app['routeManager']->bindRoutes() binds the routes. Everything registered here
+ * belongs to the project — the framework itself stays untouched.
  *
- * Diese Datei ist eine **Vorlage**: Sie zeigt die vier Muster, die ein Projekt braucht, an
- * lauffähigen Beispielen. Wie ein echtes Projekt das ausbaut — Middleware-Reihenfolge,
- * Trusted Proxies — steht in an_project/docs/technical.md.
+ * This file is a **template**: it shows the four patterns a project needs, as working
+ * examples. How a real project builds on them — middleware order, trusted proxies — is
+ * described in an_project/docs/technical.md.
  *
- * ── Nach dem Kernel-Wechsel (Epic 009) ──────────────────────────────────────────────────
+ * ── After the kernel switch (Epic 009) ──────────────────────────────────────────────────
  *
- * Unter dieser Datei liegt seit Epic 009 ein Symfony-7.4-Kernel statt Silex 2. **An allen vier
- * Mustern hier ändert das nichts** — genau dafür wurde in 009-001 eine eigene Schnittstelle
- * zwischen Framework und Kernel gelegt, bevor der Kernel getauscht wurde.
+ * Since Epic 009 this file sits on a Symfony 7.4 kernel instead of Silex 2. **None of the four
+ * patterns here are affected** — that is exactly why 009-001 put a dedicated interface
+ * between framework and kernel before the kernel was swapped.
  *
- * Was gleich bleibt: `$app['schlüssel']` als Container, die faule Factory mit `$app` als
- * Argument, `$app->before()` und `->after()` samt Prioritätsargument, der `routeManager` mit
- * `mount()` und `isSecure`, der `consoleManager` mit `CustomCommand`.
+ * What stays the same: `$app['key']` as the container, the lazy factory receiving `$app` as
+ * its argument, `$app->before()` and `->after()` including the priority argument, the
+ * `routeManager` with `mount()` and `isSecure`, the `consoleManager` with `CustomCommand`.
  *
- * Was sich für ein Projekt ändert, steht in an_project/docs/breaking-changes.md. Kurz: Der
- * Container ist nicht mehr Pimple (`protect()`, `share()`, `raw()` gibt es nicht),
- * `$app['request']` und `$app['controllers_factory']` sind entfallen, und ein eigener
- * Controller-Provider liefert jetzt eine RouteCollection.
+ * What changes for a project is listed in an_project/docs/breaking-changes.md. In short: the
+ * container is no longer Pimple (`protect()`, `share()`, `raw()` do not exist),
+ * `$app['request']` and `$app['controllers_factory']` are gone, and a custom
+ * controller provider now returns a RouteCollection.
  */
 
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /* -----------------------------------------------------------------------------------------
- * 1. Services — als Factory im Container, abrufbar über $app['key'] bzw. $this->app['key']
- *    im Controller. Die Factory läuft erst beim ersten Zugriff, nicht beim Bootstrap;
- *    $app steht ihr als Argument zur Verfügung, um Abhängigkeiten aufzulösen.
+ * 1. Services — as a factory in the container, available via $app['key'] or $this->app['key']
+ *    in a controller. The factory runs on first access, not during bootstrap;
+ *    it receives $app as its argument to resolve dependencies.
  *
- *    Das ist Pimples Vertrag, und er gilt weiter: Der Container des Frameworks
- *    (Areanet\PIM\Classes\Kernel\Container) bildet ihn seit 009-002-0002 selbst nach, weil
- *    Symfonys DI-Container zur Laufzeit nur fertige Objekte annimmt und diese Datei hier
- *    Factories registriert.
+ *    This is Pimple's contract, and it still holds: the framework's container
+ *    (Areanet\PIM\Classes\Kernel\Container) has reproduced it itself since 009-002-0002,
+ *    because Symfony's DI container only accepts finished objects at runtime while this file
+ *    registers factories.
  *
- *    Nicht alles gehört in den Container: ApiResponseService und ApiDateTimeFormatter sind
- *    zustandslose statische Helfer und werden direkt aufgerufen. In den Container gehört,
- *    was Abhängigkeiten hat oder Zustand hält.
+ *    Not everything belongs in the container: ApiResponseService and ApiDateTimeFormatter are
+ *    stateless static helpers and are called directly. The container is for things that
+ *    have dependencies or hold state.
  * --------------------------------------------------------------------------------------- */
-//   $app['meine.service'] = function ($app) {
-//       return new \Custom\Classes\Service\Core\MeinService($app['orm.em']);
+//   $app['my.service'] = function ($app) {
+//       return new \Custom\Classes\Service\Core\MyService($app['orm.em']);
 //   };
 
 /* -----------------------------------------------------------------------------------------
- * 2. Routen — über den RouteManager, nicht über $app->get()/post() direkt. Der Manager
- *    sammelt die Mounts ein; bindRoutes() bindet sie unmittelbar nach dieser Datei.
+ * 2. Routes — through the RouteManager, not through $app->get()/post() directly. The manager
+ *    collects the mounts; bindRoutes() binds them right after this file.
  *
- *    mount(<Pfad>, <Controller-Klasse>) und darauf ->get()/->post()/->match() mit
- *    (<Route>, <isSecure>, <Action>). isSecure=true verlangt einen gültigen Token.
+ *    mount(<path>, <controller class>), then ->get()/->post()/->match() on it with
+ *    (<route>, <isSecure>, <action>). isSecure=true requires a valid token.
  *
- *    isSecure ist die Authentifizierungsentscheidung pro Route. Unter Silex hing sie an einem
- *    before()-Filter am Controller, jetzt an einem Listener auf kernel.controller
- *    (Kernel\Routing\AbsicherungListener). Am Aufruf hier ändert das nichts.
+ *    isSecure is the per-route authentication decision. Under Silex it hung on a
+ *    before() filter on the controller, now on a listener on kernel.controller
+ *    (Kernel\Routing\AbsicherungListener). The call here is unaffected.
  * --------------------------------------------------------------------------------------- */
 $controllerProvider = $app['routeManager'];
 
@@ -64,101 +64,101 @@ $controllerProvider->mount('api/v1/example/', '\Custom\Controller\Core\ExampleCo
     ->post('/bootstrap', false, 'bootstrapAction');
 
 /* -----------------------------------------------------------------------------------------
- * 3. Middleware — before-Hooks laufen vor der Action, after-Hooks nach ihr.
+ * 3. Middleware — before hooks run ahead of the action, after hooks after it.
  *
- *    Bei gleicher Priorität ist die Reihenfolge der Registrierung die Ausführungsreihenfolge;
- *    ein zweites Argument hebt oder senkt sie ($app->before($fn, 128)). Das ist kein Detail:
- *    Sicherheits-Hooks, die aufeinander aufbauen, müssen in der gedachten Reihenfolge laufen.
- *    Nachgewiesen wird das von tests/Unit/Kernel/HookReihenfolgeTest.php — dort steht, was
- *    tatsächlich passiert, nicht was man annimmt.
+ *    At equal priority, the order of registration is the order of execution;
+ *    a second argument raises or lowers it ($app->before($fn, 128)). This is not a detail:
+ *    security hooks that build on each other must run in the intended order.
+ *    tests/Unit/Kernel/HookReihenfolgeTest.php proves it — it records what actually
+ *    happens, not what one assumes.
  *
- *    Ein before-Hook, der eine Response zurückgibt, bricht die Verarbeitung ab — genau so
- *    blockiert man einen Request.
+ *    A before hook that returns a Response aborts processing — that is exactly how
+ *    a request is blocked.
  * --------------------------------------------------------------------------------------- */
 $app->before(function (Request $request) use ($app) {
-    // Beispiel: Ein Kennzeichen für alle folgenden Hooks und Actions bereitstellen.
-    // Ein `return new JsonResponse(...)` an dieser Stelle würde den Request abbrechen.
+    // Example: provide a marker for all subsequent hooks and actions.
+    // A `return new JsonResponse(...)` at this point would abort the request.
     $app['request.startedAt'] = microtime(true);
 });
 
 $app->after(function (Request $request, Response $response) {
-    // Beispiel: Response-Header, die für jede Antwort gelten sollen. CORS und die
-    // Basis-Header setzt bereits lib/contentfly/bootstrap-web.php — hier kommt dazu,
-    // was das Projekt zusätzlich braucht.
+    // Example: response headers that should apply to every response. CORS and the
+    // base headers are already set by lib/contentfly/bootstrap-web.php — this is for
+    // whatever the project needs on top.
     $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
 });
 
 /* -----------------------------------------------------------------------------------------
- * 4. Console-Commands — über den ConsoleManager, danach über bin/console.php aufrufbar:
+ * 4. Console commands — through the ConsoleManager, then callable via bin/console.php:
  *
- *        $app['consoleManager']->addCommand(new \Custom\Command\MeinCommand());
+ *        $app['consoleManager']->addCommand(new \Custom\Command\MyCommand());
  *
- *    Der Manager nimmt ausschließlich Commands, die von
- *    Areanet\PIM\Classes\Command\CustomCommand erben — diese Basisklasse stellt den
- *    Namen automatisch auf `custom:<name>`, damit Projekt-Commands nie mit denen des
- *    Frameworks kollidieren.
+ *    The manager only accepts commands that extend
+ *    Areanet\PIM\Classes\Command\CustomCommand — this base class automatically sets the
+ *    name to `custom:<name>`, so project commands never collide with those of the
+ *    framework.
  *
- *    custom/Command/ExampleCommand.php zeigt es. Es erbt seit 009-004-0001 von CustomCommand
- *    und ist unten registriert; bis dahin erbte es von Symfony\…\Command, passte damit nicht
- *    auf diesen Weg und lag unbenutzt herum.
+ *    custom/Command/ExampleCommand.php shows it. Since 009-004-0001 it extends CustomCommand
+ *    and is registered below; before that it extended Symfony\…\Command, did not fit
+ *    this path and sat around unused.
  *
- *    Der Command heisst dadurch `custom:example:command:run` — den Präfix stellt CustomCommand
- *    voran, und das ist die Zusicherung dahinter: Ein Projekt-Command kann nie einen des
- *    Frameworks überschreiben.
+ *    As a result the command is called `custom:example:command:run` — CustomCommand prepends
+ *    the prefix, and that is the guarantee behind it: a project command can never override
+ *    one of the framework's.
  * --------------------------------------------------------------------------------------- */
 
 $app['consoleManager']->addCommand(new \Custom\Command\ExampleCommand());
 
 /* -----------------------------------------------------------------------------------------
- * 5. Anmeldeprovider — Anmeldung gegen ein Fremdsystem (LDAP, SAML, OIDC, was auch immer).
+ * 5. Login providers — authentication against an external system (LDAP, SAML, OIDC, whatever).
  *
- *    Ein Projekt trägt seine Provider hier unter einem **Namen** ein. Der Login wählt über
- *    diesen Namen (Parameter `loginManager`), nicht über einen Klassennamen: Welche Klasse
- *    die Anwendung instanziiert, ist eine Entscheidung des Betreibers und nicht des
- *    Aufrufers. Ein Name, den hier niemand einträgt, existiert nicht.
+ *    A project registers its providers here under a **name**. The login selects by
+ *    this name (parameter `loginManager`), not by a class name: which class the
+ *    application instantiates is a decision for the operator, not for the
+ *    caller. A name that nobody registers here does not exist.
  *
- *    Bis `013-004-0001` kam der Klassenname als Request-Parameter und wurde zu
- *    `Custom\Classes\<Name>` aufgelöst. Der Präfix und eine `instanceof`-Prüfung begrenzten
- *    den Schaden — aber die Auswahl lag beim Aufrufer.
+ *    Until `013-004-0001` the class name came in as a request parameter and was resolved to
+ *    `Custom\Classes\<Name>`. The prefix and an `instanceof` check limited
+ *    the damage — but the choice lay with the caller.
  *
- *    Der Provider erfüllt `Areanet\PIM\Classes\Security\Anmeldeprovider` und hat genau eine
- *    Pflicht: gegen das Fremdsystem prüfen. Er fasst die Datenbank **nicht** an — Benutzer
- *    finden oder anlegen, Gruppen setzen und den Token ausstellen macht das Framework.
+ *    The provider implements `Areanet\PIM\Classes\Security\Anmeldeprovider` and has exactly one
+ *    duty: verify against the external system. It does **not** touch the database — finding or
+ *    creating users, assigning groups and issuing the token is done by the framework.
  *
- *    Der Eintrag ist faul: Die Closure läuft erst, wenn sich jemand über diesen Namen
- *    anmeldet, nicht bei jedem Request.
+ *    The registration is lazy: the closure only runs when someone logs in via this name,
+ *    not on every request.
  *
- *    **Solange hier nichts steht, gibt es keinen Weg an der Passwortprüfung vorbei.** Die
- *    Anmeldung über ein Fremdsystem ist eine Entscheidung, die jemand treffen muss.
+ *    **As long as nothing is registered here, there is no way around the password check.**
+ *    Logging in through an external system is a decision someone has to make.
  *
- *    `BeispielProvider` ist unten eingetragen und läuft wirklich — er lässt aber niemanden
- *    herein, solange `CONTENTFLY_BEISPIEL_PROVIDER` nicht gesetzt ist. Eine Vorlage, die eine
- *    Installation versehentlich offen liesse, wäre schlimmer als gar keine.
+ *    `BeispielProvider` is registered below and really runs — but it lets nobody
+ *    in unless `CONTENTFLY_BEISPIEL_PROVIDER` is set. A template that could accidentally
+ *    leave an installation open would be worse than none at all.
  * --------------------------------------------------------------------------------------- */
 $app['anmeldeanbieter']->eintragen('beispiel', function () {
     return new \Custom\Classes\Anmeldung\BeispielProvider();
 });
 
-//   Das Framework bringt seit `013-005` zwei fertige Provider mit. Beide sind NICHT
-//   eingetragen — das bleibt die Entscheidung des Projekts:
+//   Since `013-005` the framework ships two ready-made providers. Neither is
+//   registered — that remains the project's decision:
 //
-//   Active Directory / LDAP. Konfiguriert wird ueber die SECURITY_LDAP_*-Felder; der Weg ist
-//   suchen, dann binden. Braucht die PHP-Erweiterung `ldap`.
+//   Active Directory / LDAP. Configured via the SECURITY_LDAP_* fields; the flow is
+//   search, then bind. Requires the PHP extension `ldap`.
 //
 //   $app['anmeldeanbieter']->eintragen('ldap', function () {
 //       return \Areanet\PIM\Classes\Security\LdapProvider::ausKonfiguration();
 //   });
 //
-//   OIDC. Geprueft wird am Userinfo-Endpunkt des Providers; konfiguriert wird ueber die
-//   SECURITY_OIDC_*-Felder. Der Client holt sich sein Access-Token beim Identity-Provider und
-//   schickt es als `accessToken` (oder `pass`) an /auth/login.
+//   OIDC. Verified against the provider's userinfo endpoint; configured via the
+//   SECURITY_OIDC_* fields. The client obtains its access token from the identity provider and
+//   sends it as `accessToken` (or `pass`) to /auth/login.
 //
 //   $app['anmeldeanbieter']->eintragen('oidc', function () {
 //       return \Areanet\PIM\Classes\Security\OidcProvider::ausKonfiguration();
 //   });
 //
-//   Ein eigener Provider, wo keiner der beiden passt:
+//   A custom provider, where neither of the two fits:
 //
-//   $app['anmeldeanbieter']->eintragen('mein-sso', function () use ($app) {
-//       return new \Custom\Classes\Anmeldung\MeinSsoProvider($app);
+//   $app['anmeldeanbieter']->eintragen('my-sso', function () use ($app) {
+//       return new \Custom\Classes\Anmeldung\MySsoProvider($app);
 //   });

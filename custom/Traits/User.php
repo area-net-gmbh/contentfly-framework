@@ -4,18 +4,18 @@ namespace Custom\Traits;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * Erweiterungspunkt fuer eigene Felder am Benutzer.
+ * Extension point for custom fields on the user.
  *
- * DER IMPORT OBEN IST NEU UND NOETIG (010-001-0003). Vorher stand hier `@ORM\Column` ohne
- * jeden `use` — und es funktionierte trotzdem, aus einem Grund, den man kennen muss:
- * `ReflectionProperty::getDeclaringClass()` liefert fuer eine aus einem Trait uebernommene
- * Eigenschaft die **benutzende Klasse**, nicht den Trait. Der `AnnotationReader` loeste
- * `@ORM` also gegen die Imports von `Areanet\PIM\Entity\User` auf.
+ * THE IMPORT ABOVE IS NEW AND REQUIRED (010-001-0003). Before, `@ORM\Column` stood here without
+ * any `use` — and it still worked, for a reason worth knowing:
+ * for a property taken over from a trait, `ReflectionProperty::getDeclaringClass()` returns
+ * the **using class**, not the trait. The `AnnotationReader` therefore resolved
+ * `@ORM` against the imports of `Areanet\PIM\Entity\User`.
  *
- * Bei einem Attribut geht das nicht: Es wird gegen die Imports **der Datei** aufgeloest, in
- * der es steht. Ohne den Import waere `ORM\Column` hier eine unbekannte Klasse — und weil
- * ein unaufloesbares Attribut uebergangen wird, fiele `nameExample` **still** aus dem Schema.
- * Genau das ist beim Umstellen passiert und im Schema-Vergleich aufgefallen.
+ * An attribute does not work that way: it is resolved against the imports of **the file** it
+ * appears in. Without the import, `ORM\Column` would be an unknown class here — and because
+ * an unresolvable attribute is skipped, `nameExample` would **silently** drop out of the schema.
+ * That is exactly what happened during the conversion and was caught by the schema comparison.
  */
 trait User
 {
