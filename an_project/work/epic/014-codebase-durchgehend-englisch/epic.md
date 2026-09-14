@@ -87,6 +87,11 @@ Preis.
 - **Am Ende der Story findet eine Suche in ihrem Bereich kein deutsches Wort mehr.** Geprüft
   werden Umlaute, ß und eine Liste typischer deutscher Wörter in Bezeichnern, Strings und
   Kommentaren. Die Suche wird gegen einen absichtlich deutschen Rest gegengeprüft.
+- **Jede Story trägt ihre Pfade in `tests/Unit/EnglishOnlyTest.php` ein** (seit `014-001-0005`).
+  Der Test prüft diese Pfade dauerhaft. Namen, die eine spätere Story umbenennt, stehen dort in
+  `EXCEPTIONS`, jeweils mit der zuständigen Story. Eine Ausnahme, die nichts mehr trifft, macht
+  den Lauf rot. Wer umbenennt, räumt also die Ausnahmeliste mit auf. `014-006` endet mit dem
+  ganzen Baum.
 
 ### Nicht Teil des Epics
 
