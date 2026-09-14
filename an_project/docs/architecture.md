@@ -172,7 +172,7 @@ zusichern wäre — die Frage stellt sich nicht mehr, statt anders beantwortet z
 Constraints beim Auflösen — der Fall `psr/log` in 1.1.3 und 3.0.2 gleichzeitig im Prozess kann
 gar nicht mehr entstehen.
 
-**`AutoloaderUeberschneidungTest` wird umgedreht, nicht gelöscht.** Er prüft danach, dass es
+**`AutoloaderOverlapTest` wird umgedreht, nicht gelöscht.** Er prüft danach, dass es
 genau einen Baum gibt. Ein Test, der eine Bedingung bewacht hat, die weggefallen ist, bewacht
 danach, dass sie weggefallen bleibt.
 
@@ -209,7 +209,7 @@ das Projekt in einer anderen Version führt, gewinnt der zuerst geladene Baum �
 des Projekts. Ein Plugin, dessen Pakete kollidieren, ist ein Fehler des Plugins.
 
 **Ungeprüft, und das wird ausdrücklich gesagt.** `plugins/` ist leer; es gibt hier nichts, wogegen
-sich das messen liesse. `tests/Unit/AutoloaderUeberschneidungTest.php` führt den Fall als
+sich das messen liesse. `tests/Unit/AutoloaderOverlapTest.php` führt den Fall als
 benannte Ausnahme mit Begründung, damit er sichtbar bleibt statt unterzugehen.
 
 **Revidieren, wenn** ein Projekt Pakete braucht, die es dem Framework *vorenthalten* muss —

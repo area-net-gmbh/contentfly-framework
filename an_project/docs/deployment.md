@@ -110,7 +110,7 @@ Schritts, der Exit-Code und die **letzten 40 Zeilen** seiner Ausgabe dazu
 niemand — ein volles Log verdeckt den Fehler so zuverlässig wie ein leeres.
 
 **Was still sein darf, steht in einem Test, nicht in einem Kommentar:**
-`tests/Unit/Ci/CiSchritteTest.php` fährt einen absichtlich scheiternden Schritt und prüft, dass
+`tests/Unit/Ci/CiStepsTest.php` fährt einen absichtlich scheiternden Schritt und prüft, dass
 dessen Meldung zu sehen ist; danach prüft er, dass kein Schritt in `tools/ci/` an der Funktion
 vorbei schweigt. Die Ausnahmen stehen dort mit Begründung — und eine Ausnahme, die nichts mehr
 trifft, macht den Lauf rot. Dieselbe Regel wie bei den Gates aus `006-005`.

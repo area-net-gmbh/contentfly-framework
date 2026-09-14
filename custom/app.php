@@ -69,7 +69,7 @@ $controllerProvider->mount('api/v1/example/', '\Custom\Controller\Core\ExampleCo
  *    At equal priority, the order of registration is the order of execution;
  *    a second argument raises or lowers it ($app->before($fn, 128)). This is not a detail:
  *    security hooks that build on each other must run in the intended order.
- *    tests/Unit/Kernel/HookReihenfolgeTest.php proves it — it records what actually
+ *    tests/Unit/Kernel/HookOrderTest.php proves it — it records what actually
  *    happens, not what one assumes.
  *
  *    A before hook that returns a Response aborts processing — that is exactly how

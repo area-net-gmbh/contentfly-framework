@@ -9,26 +9,24 @@ use PHPUnit\Framework\TestCase;
 use Areanet\PIM\Classes\Kernel\Application;
 
 /**
- * Charakterisierungstests für die Plugin-Infrastruktur.
+ * Characterisation tests for the plugin infrastructure.
  *
- * Story `012-006-0002` hat mit einem Wegwerf-Plugin nachgewiesen, dass die Erweiterbarkeit den
- * Rückbau der Oberfläche überlebt hat. Der Nachweis existierte danach nur als Text. Hier wird
- * er dauerhaft.
+ * Story `012-006-0002` proved with a throwaway plugin that extensibility survived the removal
+ * of the user interface. Afterwards the proof existed only as text. Here it becomes permanent.
  *
- * **Warum als Unit-Test und nicht über HTTP:** Ein Plugin wird ausschließlich in
- * `custom/app.php` registriert — es gibt keinen konfigurationsgesteuerten Weg, und
- * `bootstrap-web.php` endet mit `$app->run()`, bietet also keine Naht für die
- * Testinfrastruktur. Ein Integrationstest müsste die **Vorlage** dauerhaft mit Testcode
- * belasten; `custom/` ist aber die Referenz, an der sich jedes Projekt orientiert
- * (Epic `007`). Das wäre der falsche Preis.
+ * **Why as a unit test and not over HTTP:** a plugin is registered exclusively in
+ * `custom/app.php` — there is no configuration-driven way, and `bootstrap-web.php` ends with
+ * `$app->run()`, so it offers no seam for the test infrastructure. An integration test would
+ * have to burden the **template** permanently with test code; but `custom/` is the reference
+ * every project orients itself by (Epic `007`). That would be the wrong price.
  *
- * Die Plugin-Klassen entstehen deshalb zur Laufzeit unter `plugins/` — ein Verzeichnis, das
- * `.gitignore` ohnehin ausschließt — und werden über die PSR-4-Zuordnung `Plugins\` geladen.
+ * The plugin classes are therefore created at runtime under `plugins/` — a directory that
+ * `.gitignore` excludes anyway — and are loaded via the PSR-4 mapping `Plugins\`.
  */
 class PluginManagerTest extends TestCase
 {
-    /** @var array<int,string> Verzeichnisse, die tearDown() entfernt. */
-    private array $angelegteVerzeichnisse = array();
+    /** @var array<int,string> Directories that tearDown() removes. */
+    private array $createdDirectories = array();
 
     private function app(): Application
     {
@@ -39,18 +37,18 @@ class PluginManagerTest extends TestCase
     }
 
     /**
-     * Schreibt ein lauffähiges Plugin nach `plugins/<Key>/` und liefert seinen Key.
+     * Writes a working plugin to `plugins/<Key>/` and returns its key.
      *
-     * Der Key ist je Aufruf eindeutig: PHP kann eine einmal geladene Klasse nicht wieder
-     * vergessen, zwei Tests mit demselben Key würden sich also überlagern.
+     * The key is unique per call: PHP cannot forget a class once it has been loaded, so two
+     * tests with the same key would overlap.
      */
-    private function pluginSchreiben(string $rumpf = '', string $entityQuelltext = ''): string
+    private function writePlugin(string $body = '', string $entitySource = ''): string
     {
-        $key = 'Probe'.bin2hex(random_bytes(5));
+        $key = 'Sample'.bin2hex(random_bytes(5));
         $dir = CONTENTFLY_PROJECT_DIR.'/plugins/'.$key;
 
         mkdir($dir, 0777, true);
-        $this->angelegteVerzeichnisse[] = $dir;
+        $this->createdDirectories[] = $dir;
 
         file_put_contents($dir.'/'.$key.'Plugin.php', <<<PHP
 <?php
@@ -60,14 +58,14 @@ use Areanet\\PIM\\Classes\\Plugin;
 
 class {$key}Plugin extends Plugin
 {
-$rumpf
+$body
 }
 PHP
         );
 
-        if ($entityQuelltext !== '') {
+        if ($entitySource !== '') {
             mkdir($dir.'/Entity', 0777, true);
-            file_put_contents($dir.'/Entity/Beispiel.php', $entityQuelltext);
+            file_put_contents($dir.'/Entity/Example.php', $entitySource);
         }
 
         return $key;
@@ -75,35 +73,35 @@ PHP
 
     protected function tearDown(): void
     {
-        foreach ($this->angelegteVerzeichnisse as $dir) {
+        foreach ($this->createdDirectories as $dir) {
             $this->removeDirectory($dir);
         }
 
-        $this->angelegteVerzeichnisse = array();
+        $this->createdDirectories = array();
     }
 
-    private function removeDirectory(string $pfad): void
+    private function removeDirectory(string $path): void
     {
-        if (!is_dir($pfad)) {
+        if (!is_dir($path)) {
             return;
         }
 
-        foreach (scandir($pfad) ?: array() as $eintrag) {
-            if ($eintrag === '.' || $eintrag === '..') {
+        foreach (scandir($path) ?: array() as $entry) {
+            if ($entry === '.' || $entry === '..') {
                 continue;
             }
-            $voll = $pfad.'/'.$eintrag;
-            is_dir($voll) ? $this->removeDirectory($voll) : @unlink($voll);
+            $full = $path.'/'.$entry;
+            is_dir($full) ? $this->removeDirectory($full) : @unlink($full);
         }
 
-        @rmdir($pfad);
+        @rmdir($path);
     }
 
-    // ── Registrierung ──────────────────────────────────────────────────────────────────
+    // ── Registration ───────────────────────────────────────────────────────────────────
 
-    public function testEinPluginWirdUnterSeinemKeyAbgelegt(): void
+    public function testAPluginIsStoredUnderItsKey(): void
     {
-        $key     = $this->pluginSchreiben();
+        $key     = $this->writePlugin();
         $manager = new PluginManager($this->app());
 
         $manager->register($key);
@@ -114,12 +112,12 @@ PHP
         );
     }
 
-    public function testDerKeyUndDerNamespaceKommenAusDemKlassennamen(): void
+    public function testTheKeyAndTheNamespaceComeFromTheClassName(): void
     {
-        // Plugin::__construct() zerlegt get_class($this): Teil 1 ist der Key, Teil 0 und 1
-        // zusammen der Namespace. Ein Plugin muss also unter Plugins\<Key>\<Key>Plugin
-        // liegen — das ist nirgends dokumentiert, aber zwingend.
-        $key     = $this->pluginSchreiben();
+        // Plugin::__construct() splits get_class($this): part 1 is the key, parts 0 and 1
+        // together the namespace. A plugin must therefore live at Plugins\<Key>\<Key>Plugin
+        // — that is documented nowhere, but mandatory.
+        $key     = $this->writePlugin();
         $manager = new PluginManager($this->app());
 
         $manager->register($key);
@@ -129,21 +127,21 @@ PHP
         $this->assertSame('Plugins\\'.$key, $plugin->getNamespace());
     }
 
-    public function testEinUnbekanntesPluginWirdMitEinerAusnahmeAbgewiesen(): void
+    public function testAnUnknownPluginIsRejectedWithAnException(): void
     {
         $manager = new PluginManager($this->app());
 
         $this->expectException(ContentflyException::class);
 
-        $manager->register('GibtesNicht');
+        $manager->register('DoesNotExist');
     }
 
-    public function testEineKlasseDieNichtVonPluginErbtWirdAbgewiesen(): void
+    public function testAClassThatDoesNotExtendPluginIsRejected(): void
     {
-        $key = 'Falsch'.bin2hex(random_bytes(5));
+        $key = 'Wrong'.bin2hex(random_bytes(5));
         $dir = CONTENTFLY_PROJECT_DIR.'/plugins/'.$key;
         mkdir($dir, 0777, true);
-        $this->angelegteVerzeichnisse[] = $dir;
+        $this->createdDirectories[] = $dir;
 
         file_put_contents($dir.'/'.$key.'Plugin.php', <<<PHP
 <?php
@@ -163,185 +161,184 @@ PHP
         $manager->register($key);
     }
 
-    // ── Der Fehlerpfad von getPlugin() — siehe 000-000-0011 ────────────────────────────
+    // ── The error path of getPlugin() — see 000-000-0011 ───────────────────────────────
 
     /**
-     * **Umgedreht mit `000-000-0011`, nicht geloescht.**
+     * **Inverted with `000-000-0011`, not deleted.**
      *
-     * Der Test hiess `testGetPluginVerliertDenPluginNamenAusDerFehlermeldung()` und hielt den
-     * Defekt fest: Der Fehlerpfad warf
+     * The test was called `testGetPluginVerliertDenPluginNamenAusDerFehlermeldung()` and
+     * recorded the defect: the error path threw
      *
      *     throw new ContentflyException(Messages::contentfly_general_unknown_plugin, $key);
      *
-     * `$key` gab es in dieser Methode nicht — gemeint war `$pluginName`. Unter PHP 8 ist das
-     * keine Ausnahme, sondern eine **Warning**, und der Ausdruck ergibt null: Die Exception kam
-     * wie vorgesehen, aber **ohne den Namen des gesuchten Plugins**.
+     * `$key` did not exist in this method — `$pluginName` was meant. Under PHP 8 that is not
+     * an exception but a **warning**, and the expression evaluates to null: the exception came
+     * as intended, but **without the name of the plugin being looked for**.
      *
-     * Jetzt traegt sie ihn. Der Error-Handler bleibt trotzdem stehen — er ist nicht mehr die
-     * Zusicherung, sondern ihre Gegenprobe: `assertSame(array(), $warnungen)` faellt auf, wenn
-     * jemand die Variable wieder verliert. `phpunit.xml.dist` setzt `failOnWarning`, eine
-     * ungefangene Warning faerbte den Lauf ohnehin rot — hier wird sie gezaehlt statt nur
-     * verhindert.
+     * Now it carries it. The error handler stays anyway — it is no longer the assertion but its
+     * counter-check: `assertSame(array(), $warnings)` catches it if someone loses the variable
+     * again. `phpunit.xml.dist` sets `failOnWarning`, so an uncaught warning would turn the run
+     * red anyway — here it is counted instead of merely prevented.
      */
-    public function testGetPluginNenntDenGesuchtenPluginNamen(): void
+    public function testGetPluginNamesThePluginBeingLookedFor(): void
     {
-        $manager   = new PluginManager($this->app());
-        $warnungen = array();
+        $manager  = new PluginManager($this->app());
+        $warnings = array();
 
-        set_error_handler(function (int $stufe, string $meldung) use (&$warnungen): bool {
-            $warnungen[] = $meldung;
+        set_error_handler(function (int $level, string $message) use (&$warnings): bool {
+            $warnings[] = $message;
 
             return true;
         }, E_WARNING);
 
         try {
-            $manager->getPlugin('GibtesNicht');
-            $this->fail('Es haette eine ContentflyException kommen muessen');
+            $manager->getPlugin('DoesNotExist');
+            $this->fail('A ContentflyException should have been thrown');
         } catch (ContentflyException $e) {
             $this->assertSame('contentfly_general_unknown_plugin', $e->getMessage());
-            $this->assertSame('GibtesNicht', $e->getValue(),
-                'Wer den Fehler untersucht, muss erfahren, wonach gesucht wurde');
+            $this->assertSame('DoesNotExist', $e->getValue(),
+                'Whoever investigates the error must learn what was being looked for');
         } finally {
             restore_error_handler();
         }
 
-        $this->assertSame(array(), $warnungen, 'Keine Warning mehr — die Variable ist definiert');
+        $this->assertSame(array(), $warnings, 'No warning any more — the variable is defined');
     }
 
     // ── Entities ───────────────────────────────────────────────────────────────────────
 
-    public function testOhneUseOrmMeldetEinPluginKeineEntities(): void
+    public function testWithoutUseOrmAPluginReportsNoEntities(): void
     {
-        $key     = $this->pluginSchreiben();
+        $key     = $this->writePlugin();
         $manager = new PluginManager($this->app());
 
         $manager->register($key);
 
         $this->assertSame(array(), $manager->getEntities(),
-            'getEntities() liefert erst etwas, wenn das Plugin useORM() aufgerufen hat');
+            'getEntities() only returns something once the plugin has called useORM()');
     }
 
-    public function testUseOrmRegistriertEinenAttributeDriverFuerDasPluginVerzeichnis(): void
+    public function testUseOrmRegistersAnAttributeDriverForThePluginDirectory(): void
     {
-        // Der Kern der Erweiterbarkeit: useORM() haengt einen Metadaten-Treiber fuer
-        // plugins/<Key>/Entity unter dem Namespace Plugins\<Key>\Entity in die
-        // Doctrine-Konfiguration. Beobachtet ueber einen Spion auf der Konfiguration —
-        // ein echter EntityManager waere hier nicht ehrlicher, nur langsamer.
+        // The core of extensibility: useORM() hooks a metadata driver for
+        // plugins/<Key>/Entity under the namespace Plugins\<Key>\Entity into the
+        // Doctrine configuration. Observed through a spy on the configuration —
+        // a real EntityManager would not be more honest here, only slower.
         //
-        // ES IST SEIT 010-001-0004 EIN AttributeDriver, vorher ein Annotation-Driver. Das ist
-        // ein Verhaltenswechsel und keine Umformulierung: Ein Plugin, dessen Entities noch
-        // Docblock-Annotationen tragen, wird ab hier nicht mehr gelesen.
+        // SINCE 010-001-0004 IT IS AN AttributeDriver, previously an annotation driver. That is
+        // a change in behaviour and not a rewording: a plugin whose entities still carry
+        // docblock annotations is no longer read from here on.
         //
-        // Die Umstellung war nicht wahlfrei. Eine Plugin-Entity erbt von
-        // Areanet\PIM\Entity\Base, und bei einer MappedSuperclass setzt Doctrine an den
-        // geerbten Feldern kein `inherited` — der Treiber der Unterklasse liest sie neu und
-        // faende an der umgestellten Base nichts mehr. Gemessen in 010-001-0003.
-        $key = $this->pluginSchreiben('    public function init(){ $this->useORM(); }');
+        // The switch was not optional. A plugin entity inherits from
+        // Areanet\PIM\Entity\Base, and for a MappedSuperclass Doctrine sets no `inherited` on
+        // the inherited fields — the driver of the subclass reads them anew and would find
+        // nothing on the converted Base. Measured in 010-001-0003.
+        $key = $this->writePlugin('    public function init(){ $this->useORM(); }');
 
-        $spion = new OrmKonfigurationsSpion();
-        $app   = $this->app();
-        $app['orm.em'] = new EntityManagerAttrappe($spion);
+        $spy = new OrmConfigurationSpy();
+        $app = $this->app();
+        $app['orm.em'] = new EntityManagerStub($spy);
 
         (new PluginManager($app))->register($key);
 
         $this->assertSame(
             'Plugins\\'.$key.'\\Entity',
-            $spion->namespace,
-            'Der Driver wird unter dem Entity-Namespace des Plugins eingehaengt'
+            $spy->namespace,
+            'The driver is hooked in under the entity namespace of the plugin'
         );
         $this->assertInstanceOf(
             AttributeDriver::class,
-            $spion->treiber,
-            'und ist ein AttributeDriver, kein Annotation-Driver'
+            $spy->driver,
+            'and is an AttributeDriver, not an annotation driver'
         );
         $this->assertSame(
             array(CONTENTFLY_PROJECT_DIR.'/plugins/'.$key.'/Entity'),
-            $spion->treiber->getPaths(),
-            'und zeigt auf das Entity-Verzeichnis des Plugins'
+            $spy->driver->getPaths(),
+            'and points to the entity directory of the plugin'
         );
     }
 
-    public function testUseOrmLegtDasEntityVerzeichnisAnWennEsFehlt(): void
+    public function testUseOrmCreatesTheEntityDirectoryIfItIsMissing(): void
     {
-        // initORM() ruft mkdir(), wenn plugins/<Key>/Entity nicht existiert — ein Plugin
-        // muss das Verzeichnis also nicht mitliefern.
-        $key = $this->pluginSchreiben('    public function init(){ $this->useORM(); }');
-        $this->assertDirectoryDoesNotExist(CONTENTFLY_PROJECT_DIR.'/plugins/'.$key.'/Entity', 'Vorbedingung');
+        // initORM() calls mkdir() if plugins/<Key>/Entity does not exist — so a plugin
+        // does not have to ship the directory.
+        $key = $this->writePlugin('    public function init(){ $this->useORM(); }');
+        $this->assertDirectoryDoesNotExist(CONTENTFLY_PROJECT_DIR.'/plugins/'.$key.'/Entity', 'Precondition');
 
         $app = $this->app();
-        $app['orm.em'] = new EntityManagerAttrappe(new OrmKonfigurationsSpion());
+        $app['orm.em'] = new EntityManagerStub(new OrmConfigurationSpy());
 
         (new PluginManager($app))->register($key);
 
         $this->assertDirectoryExists(CONTENTFLY_PROJECT_DIR.'/plugins/'.$key.'/Entity');
     }
 
-    public function testMitUseOrmSammeltGetEntitiesDieKlassenAusDemVerzeichnis(): void
+    public function testWithUseOrmGetEntitiesCollectsTheClassesFromTheDirectory(): void
     {
-        $key = $this->pluginSchreiben(
+        $key = $this->writePlugin(
             '    public function init(){ $this->useORM(); }',
-            "<?php\nnamespace Plugins\\Platzhalter\\Entity;\nclass Beispiel {}\n"
+            "<?php\nnamespace Plugins\\Placeholder\\Entity;\nclass Example {}\n"
         );
 
         $app = $this->app();
-        $app['orm.em'] = new EntityManagerAttrappe(new OrmKonfigurationsSpion());
+        $app['orm.em'] = new EntityManagerStub(new OrmConfigurationSpy());
 
         $manager = new PluginManager($app);
         $manager->register($key);
 
         $this->assertSame(
-            array('Plugins\\'.$key.'\\Entity\\Beispiel'),
+            array('Plugins\\'.$key.'\\Entity\\Example'),
             $manager->getEntities(),
-            'Jede PHP-Datei im Entity-Verzeichnis wird zu einem Klassennamen'
+            'Every PHP file in the entity directory becomes a class name'
         );
     }
 
-    // ── Eigene Feldtypen ───────────────────────────────────────────────────────────────
+    // ── Custom field types ─────────────────────────────────────────────────────────────
 
-    public function testEinPluginKannEinenEigenenFeldtypRegistrieren(): void
+    public function testAPluginCanRegisterItsOwnFieldType(): void
     {
         $app = $this->app();
         $typeManager = new TypeManager($app);
         $app['typeManager'] = $typeManager;
 
-        $key = $this->pluginSchreiben(<<<'RUMPF'
+        $key = $this->writePlugin(<<<'BODY'
     public function init(){
         $this->registerPluginType(new class($this->app) extends \Areanet\PIM\Classes\Type\PluginType {
             public function doMatch($propertyAnnotations) { return false; }
-            public function getAlias() { return 'pluginprobe'; }
+            public function getAlias() { return 'pluginsample'; }
             public function getAnnotationFile() { return null; }
         });
     }
-RUMPF
+BODY
         );
 
         (new PluginManager($app))->register($key);
 
-        $typ = $typeManager->getType('pluginprobe');
+        $type = $typeManager->getType('pluginsample');
 
-        $this->assertNotNull($typ, 'Der Typ ist unter seinem Alias registriert');
-        $this->assertSame($key, $typ->getPluginKey(),
-            'registerPluginType() setzt den Plugin-Key — daran haengt spaeter der Pfad zur '
-            .'Annotationsdatei');
+        $this->assertNotNull($type, 'The type is registered under its alias');
+        $this->assertSame($key, $type->getPluginKey(),
+            'registerPluginType() sets the plugin key — the path to the annotation file '
+            .'depends on it later');
     }
 }
 
-/** Merkt sich, mit welchem Pfad und Namespace ein Driver eingehaengt wurde. */
-class OrmKonfigurationsSpion
+/** Remembers with which path and namespace a driver was hooked in. */
+class OrmConfigurationSpy
 {
     public ?string $namespace = null;
 
     /**
-     * Der Treiber, den Plugin::initORM() eingehaengt hat.
+     * The driver that Plugin::initORM() hooked in.
      *
-     * Vorher fing der Spion stattdessen `newDefaultAnnotationDriver()` ab und merkte sich
-     * dessen Pfade. Die Methode wird nicht mehr gerufen (010-001-0004), und sie steht hier
-     * bewusst NICHT mehr: Rufe der Code sie doch, staerbe der Spion an einer undefinierten
-     * Methode — laut ist besser als still.
+     * Previously the spy intercepted `newDefaultAnnotationDriver()` instead and remembered
+     * its paths. The method is no longer called (010-001-0004), and it is deliberately NOT
+     * here any more: should the code call it after all, the spy would die on an undefined
+     * method — loud is better than silent.
      *
      * @var object|null
      */
-    public $treiber = null;
+    public $driver = null;
 
     public function getMetadataDriverImpl(): self
     {
@@ -350,18 +347,18 @@ class OrmKonfigurationsSpion
 
     public function addDriver($driver, string $namespace): void
     {
-        $this->treiber   = $driver;
+        $this->driver    = $driver;
         $this->namespace = $namespace;
     }
 }
 
-/** Liefert nur die Konfiguration — mehr fragt Plugin::initORM() nicht ab. */
-class EntityManagerAttrappe
+/** Only provides the configuration — Plugin::initORM() asks for nothing more. */
+class EntityManagerStub
 {
-    public function __construct(private OrmKonfigurationsSpion $konfiguration) {}
+    public function __construct(private OrmConfigurationSpy $configuration) {}
 
-    public function getConfiguration(): OrmKonfigurationsSpion
+    public function getConfiguration(): OrmConfigurationSpy
     {
-        return $this->konfiguration;
+        return $this->configuration;
     }
 }

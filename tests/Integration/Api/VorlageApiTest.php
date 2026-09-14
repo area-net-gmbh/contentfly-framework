@@ -369,7 +369,7 @@ class VorlageApiTest extends IntegrationTestCase
         $this->assertStringContainsString("\$app['request.startedAt'] = microtime(true);", $vorlage,
             'und setzt einen Wert, den nichts liest');
         // Die Formulierung hat sich mit 009-004-0001 geaendert: Sie nennt jetzt auch das
-        // Prioritaetsargument und verweist auf HookReihenfolgeTest, der die Reihenfolge
+        // Prioritaetsargument und verweist auf HookOrderTest, der die Reihenfolge
         // nachweist, statt sie zu behaupten. Die Aussage ist dieselbe geblieben.
         // Mit 000-000-0034 sind die Kommentare der Vorlage englisch; geprueft wird seitdem der
         // englische Satz. Die Zusicherung ist unveraendert.

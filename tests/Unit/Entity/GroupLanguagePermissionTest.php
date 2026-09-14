@@ -6,110 +6,110 @@ use Areanet\PIM\Entity\Group;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Charakterisierungstests für die Sprachrechte einer Gruppe.
+ * Characterisation tests for the language permissions of a group.
  *
- * Bewusst als **Unit-Test**: `langIsWritable()`, `langIsTranslatable()` und
- * `langisOnlyReadable()` hängen an nichts als der Gruppe selbst — weder Datenbank noch HTTP.
- * Ein Integrationstest liefe hier ohnehin ins Leere, weil die Vorlage keine Sprachen
- * konfiguriert (`APP_LANGUAGES` ist leer) und keine konkrete `BaseI18n`-Entity mitbringt;
- * das hat `008-001-0005` festgestellt. Ein Unit-Test deckt die Logik trotzdem ab.
+ * Deliberately a **unit test**: `langIsWritable()`, `langIsTranslatable()` and
+ * `langisOnlyReadable()` depend on nothing but the group itself — neither database nor HTTP.
+ * An integration test would run into nothing here anyway, because the template configures no
+ * languages (`APP_LANGUAGES` is empty) and ships no concrete `BaseI18n` entity; `008-001-0005`
+ * established that. A unit test still covers the logic.
  *
- * **Die Vorgabe ist „erlaubt", nicht „verboten".** Ohne Sprachrechte und ohne Eintrag für
- * eine Sprache liefern alle drei Methoden das großzügige Ergebnis. Ob das beabsichtigt ist,
- * steht hier nicht zur Debatte — es ist der Ist-Zustand.
+ * **The default is "allowed", not "forbidden".** Without language permissions and without an
+ * entry for a language, all three methods return the permissive result. Whether that is
+ * intended is not up for debate here — it is the current state.
  */
 class GroupLanguagePermissionTest extends TestCase
 {
-    private function gruppeMit(?array $sprachrechte): Group
+    private function groupWith(?array $languagePermissions): Group
     {
-        $gruppe = new Group();
+        $group = new Group();
 
-        if ($sprachrechte !== null) {
-            $gruppe->setLanguages($sprachrechte);
+        if ($languagePermissions !== null) {
+            $group->setLanguages($languagePermissions);
         }
 
-        return $gruppe;
+        return $group;
     }
 
-    // ── Ohne gesetzte Sprachrechte ist alles erlaubt ───────────────────────────────────
+    // ── Without language permissions set, everything is allowed ────────────────────────
 
-    public function testOhneSprachrechteIstJedeSpracheSchreibbar(): void
+    public function testWithoutLanguagePermissionsEveryLanguageIsWritable(): void
     {
-        $this->assertTrue($this->gruppeMit(null)->langIsWritable('de'));
-        $this->assertTrue($this->gruppeMit(null)->langIsWritable('irgendwas'));
+        $this->assertTrue($this->groupWith(null)->langIsWritable('de'));
+        $this->assertTrue($this->groupWith(null)->langIsWritable('anything'));
     }
 
-    public function testOhneSprachrechteIstJedeSpracheUebersetzbar(): void
+    public function testWithoutLanguagePermissionsEveryLanguageIsTranslatable(): void
     {
-        $this->assertTrue($this->gruppeMit(null)->langIsTranslatable('de'));
+        $this->assertTrue($this->groupWith(null)->langIsTranslatable('de'));
     }
 
-    public function testOhneSprachrechteIstKeineSpracheNurLesbar(): void
+    public function testWithoutLanguagePermissionsNoLanguageIsOnlyReadable(): void
     {
-        $this->assertFalse($this->gruppeMit(null)->langisOnlyReadable('de'),
-            'langisOnlyReadable ist die Verneinung der beiden anderen');
+        $this->assertFalse($this->groupWith(null)->langisOnlyReadable('de'),
+            'langisOnlyReadable is the negation of the other two');
     }
 
-    // ── Eine Sprache ohne eigenen Eintrag bleibt erlaubt ───────────────────────────────
+    // ── A language without its own entry stays allowed ─────────────────────────────────
 
-    public function testEineNichtAufgefuehrteSpracheIstSchreibbar(): void
+    public function testALanguageThatIsNotListedIsWritable(): void
     {
-        // Der Punkt, der ueberrascht: Sind Sprachrechte gesetzt, eine Sprache aber nicht
-        // darunter, gilt sie als schreibbar. Die Vorgabe ist "erlaubt", nicht "verboten" —
-        // wer eine Sprache sperren will, muss sie ausdruecklich auffuehren.
-        $gruppe = $this->gruppeMit(array('de' => I18nPermission::IS_READABLE));
+        // The surprising point: if language permissions are set but a language is not among
+        // them, it counts as writable. The default is "allowed", not "forbidden" — whoever
+        // wants to lock a language must list it explicitly.
+        $group = $this->groupWith(array('de' => I18nPermission::IS_READABLE));
 
-        $this->assertTrue($gruppe->langIsWritable('en'),
-            'en steht nicht in den Sprachrechten und ist deshalb schreibbar');
+        $this->assertTrue($group->langIsWritable('en'),
+            'en is not in the language permissions and is therefore writable');
     }
 
-    // ── Ein aufgeführter Eintrag sperrt ────────────────────────────────────────────────
+    // ── A listed entry locks ───────────────────────────────────────────────────────────
 
-    public function testEineAufgefuehrteSpracheIstNichtSchreibbar(): void
+    public function testAListedLanguageIsNotWritable(): void
     {
-        $gruppe = $this->gruppeMit(array('de' => I18nPermission::IS_READABLE));
+        $group = $this->groupWith(array('de' => I18nPermission::IS_READABLE));
 
-        $this->assertFalse($gruppe->langIsWritable('de'));
+        $this->assertFalse($group->langIsWritable('de'));
     }
 
-    public function testNurLesbarBedeutetWederSchreibbarNochUebersetzbar(): void
+    public function testReadOnlyMeansNeitherWritableNorTranslatable(): void
     {
-        $gruppe = $this->gruppeMit(array('de' => I18nPermission::IS_READABLE));
+        $group = $this->groupWith(array('de' => I18nPermission::IS_READABLE));
 
-        $this->assertFalse($gruppe->langIsWritable('de'));
-        $this->assertFalse($gruppe->langIsTranslatable('de'));
-        $this->assertTrue($gruppe->langisOnlyReadable('de'));
+        $this->assertFalse($group->langIsWritable('de'));
+        $this->assertFalse($group->langIsTranslatable('de'));
+        $this->assertTrue($group->langisOnlyReadable('de'));
     }
 
-    public function testUebersetzbarIstNichtSchreibbarAberUebersetzbar(): void
+    public function testTranslatableIsNotWritableButTranslatable(): void
     {
-        // Die dritte Stufe: uebersetzen ja, frei schreiben nein.
-        $gruppe = $this->gruppeMit(array('de' => I18nPermission::IS_TRANSLATABALE));
+        // The third level: translating yes, free writing no.
+        $group = $this->groupWith(array('de' => I18nPermission::IS_TRANSLATABALE));
 
-        $this->assertFalse($gruppe->langIsWritable('de'));
-        $this->assertTrue($gruppe->langIsTranslatable('de'));
-        $this->assertFalse($gruppe->langisOnlyReadable('de'));
+        $this->assertFalse($group->langIsWritable('de'));
+        $this->assertTrue($group->langIsTranslatable('de'));
+        $this->assertFalse($group->langisOnlyReadable('de'));
     }
 
-    // ── Speicherung ────────────────────────────────────────────────────────────────────
+    // ── Storage ────────────────────────────────────────────────────────────────────────
 
-    public function testSprachrechteWerdenAlsJsonGehaltenUndWiederGelesen(): void
+    public function testLanguagePermissionsAreStoredAsJsonAndReadBack(): void
     {
-        $gruppe = $this->gruppeMit(array('de' => I18nPermission::IS_READABLE));
+        $group = $this->groupWith(array('de' => I18nPermission::IS_READABLE));
 
-        $this->assertSame(array('de' => I18nPermission::IS_READABLE), $gruppe->getLanguages(),
-            'setLanguages() kodiert nach JSON, getLanguages() dekodiert zurueck');
+        $this->assertSame(array('de' => I18nPermission::IS_READABLE), $group->getLanguages(),
+            'setLanguages() encodes to JSON, getLanguages() decodes back');
     }
 
-    public function testEinLeererWertLaesstDieSprachrechteUngesetzt(): void
+    public function testAnEmptyValueLeavesTheLanguagePermissionsUnset(): void
     {
-        // setLanguages() ignoriert falsy Werte — ein leeres Array loescht die Rechte also
-        // NICHT, es laesst sie unberuehrt. Festgehalten, nicht bewertet.
-        $gruppe = new Group();
-        $gruppe->setLanguages(array('de' => I18nPermission::IS_READABLE));
-        $gruppe->setLanguages(array());
+        // setLanguages() ignores falsy values — so an empty array does NOT clear the
+        // permissions, it leaves them untouched. Recorded, not judged.
+        $group = new Group();
+        $group->setLanguages(array('de' => I18nPermission::IS_READABLE));
+        $group->setLanguages(array());
 
-        $this->assertSame(array('de' => I18nPermission::IS_READABLE), $gruppe->getLanguages(),
-            'Ein leeres Array setzt die Sprachrechte nicht zurueck');
+        $this->assertSame(array('de' => I18nPermission::IS_READABLE), $group->getLanguages(),
+            'An empty array does not reset the language permissions');
     }
 }

@@ -50,7 +50,7 @@ Symfony-`EventDispatcher`. Wo eine Priorität gesetzt war, war es Absicht, und s
 unverändert: Höhere Priorität läuft zuerst, bei gleicher Priorität die frühere Registrierung.
 Die Vorgabe ist −8 wie in Silex, damit ein Projekt-Hook Vorrang vor dem Router hat.
 
-**Nachgewiesen, nicht behauptet:** `tests/Unit/Kernel/HookReihenfolgeTest.php` hält die
+**Nachgewiesen, nicht behauptet:** `tests/Unit/Kernel/HookOrderTest.php` hält die
 effektive Reihenfolge fest, für `before` wie für `after`, und dazu die Regel, dass ein Hook
 **keine** spätere Command-Registrierung verhindern darf (`009-004-0004`). Genau daran ist der
 Nachbau zuerst gescheitert.

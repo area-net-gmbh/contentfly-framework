@@ -89,10 +89,6 @@ class EnglishOnlyTest extends TestCase
     private const EXCEPTIONS = array(
         array('lib/contentfly/Classes/Api.php', 'Gelöscht', 'legacy value stored by Contentfly 1.x in pim_log.mode; kept for existing data by decision of 2026-09-14'),
         array('lib/contentfly/Classes/Security/FieldEncryption.php', 'testEineManipulationFaelltAuf', 'renamed in 014-005'),
-        array('lib/contentfly/bootstrap.php', 'AutoloaderUeberschneidungTest', 'renamed in 014-005'),
-        array('lib/contentfly/composer.json', 'PaketmanifestTest', 'renamed in 014-005'),
-        array('custom/app.php', 'HookReihenfolgeTest', 'renamed in 014-005'),
-        array('lib/contentfly/bootstrap.php', 'KeineSilexTypenTest', 'renamed in 014-005'),
         array('lib/contentfly/bootstrap-web.php', 'FehlerantwortApiTest', 'renamed in 014-005'),
         array('lib/contentfly/Classes/Kernel/Application.php', 'FehlerantwortApiTest', 'renamed in 014-005'),
     );
