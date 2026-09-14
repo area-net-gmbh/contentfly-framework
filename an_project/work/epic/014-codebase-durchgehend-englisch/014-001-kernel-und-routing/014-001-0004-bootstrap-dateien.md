@@ -1,7 +1,7 @@
 ---
 id: 014-001-0004
 title: bootstrap.php, bootstrap-web.php und phpunit.xml.dist auf Englisch
-status: review
+status: done
 depends_on: [014-001-0003]
 ---
 

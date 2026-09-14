@@ -1,7 +1,7 @@
 ---
 id: 014-001-0005
 title: Sprachwächter als Test
-status: review
+status: done
 depends_on: [014-001-0004]
 ---
 

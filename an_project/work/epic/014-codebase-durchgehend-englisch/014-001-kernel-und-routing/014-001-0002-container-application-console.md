@@ -1,7 +1,7 @@
 ---
 id: 014-001-0002
 title: Container, Application, Console und Command auf Englisch
-status: review
+status: done
 depends_on: [014-001-0001]
 ---
 

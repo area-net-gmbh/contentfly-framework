@@ -1,7 +1,7 @@
 ---
 id: 014-001-0001
 title: Paths und Start samt Einstiegspunkten auf Englisch
-status: review
+status: done
 depends_on: []
 ---
 
