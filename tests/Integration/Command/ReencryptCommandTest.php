@@ -10,21 +10,21 @@ use Tests\Integration\IntegrationTestCase;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Prueft `appcms:security:reencrypt` gegen eine ECHTE Datenbank (010-004-0003).
+ * Checks `appcms:security:reencrypt` against a REAL database (010-004-0003).
  *
- * WARUM MIT EIGENER TABELLE. Im Baum gibt es kein Feld mit `encoded: true` — ein Test, der den
- * Befehl von aussen aufriefe, koennte nur bestaetigen, dass er nichts tut. Deshalb legt dieser
- * Test seine eigene Tabelle an, fuellt sie mit Werten im ALTEN Format und laesst die
- * Umschluesselung darueber laufen. Was gemessen wird, ist damit der echte Codepfad auf echten
- * Zeilen, nicht eine Attrappe.
+ * WHY WITH ITS OWN TABLE. There is no field with `encoded: true` in the tree — a test that
+ * called the command from outside could only confirm that it does nothing. That is why this
+ * test creates its own table, fills it with values in the OLD format and runs the
+ * re-encryption over it. What is measured is therefore the real code path on real
+ * rows, not a dummy.
  *
- * Die Tabelle heisst `probe_reencrypt` und wird am Ende wieder entfernt. Sie beruehrt kein
- * Schema des Frameworks.
+ * The table is called `probe_reencrypt` and is removed again at the end. It touches no
+ * schema of the framework.
  */
 class ReencryptCommandTest extends TestCase
 {
-    private const SCHLUESSEL = 'ein-schluessel-fuer-den-test-32b';
-    private const TABELLE    = 'probe_reencrypt';
+    private const KEY   = 'a-32-byte-key-for-the-test-suite';
+    private const TABLE = 'probe_reencrypt';
 
     /** @var \Doctrine\DBAL\Connection */
     private $db;
@@ -32,33 +32,33 @@ class ReencryptCommandTest extends TestCase
     protected function setUp(): void
     {
         $config = new Config();
-        $config->SECURITY_CIPHER_KEY = self::SCHLUESSEL;
+        $config->SECURITY_CIPHER_KEY = self::KEY;
         Factory::getInstance()->setConfig($config);
 
-        // Dieselben Zugangsdaten wie die uebrigen Integrationstests. Ein zweiter Weg dorthin
-        // liefe irgendwann auseinander — genau die Begruendung, die an `dbZugangsdaten()`
-        // selbst steht.
-        $zugang = IntegrationTestCase::dbZugangsdaten();
+        // The same credentials as the other integration tests. A second path there
+        // would drift apart at some point — exactly the reasoning stated at `dbCredentials()`
+        // itself.
+        $credentials = IntegrationTestCase::dbCredentials();
 
         $this->db = DriverManager::getConnection(array(
             'driver'   => 'pdo_mysql',
-            'host'     => $zugang['host'],
-            'port'     => (int) $zugang['port'],
-            'dbname'   => $zugang['name'],
-            'user'     => $zugang['user'],
-            'password' => $zugang['pass'],
+            'host'     => $credentials['host'],
+            'port'     => (int) $credentials['port'],
+            'dbname'   => $credentials['name'],
+            'user'     => $credentials['user'],
+            'password' => $credentials['pass'],
         ));
 
-        $this->db->executeStatement('DROP TABLE IF EXISTS '.self::TABELLE);
+        $this->db->executeStatement('DROP TABLE IF EXISTS '.self::TABLE);
         $this->db->executeStatement(
-            'CREATE TABLE '.self::TABELLE.' (id INT AUTO_INCREMENT PRIMARY KEY, geheim TEXT NULL)'
+            'CREATE TABLE '.self::TABLE.' (id INT AUTO_INCREMENT PRIMARY KEY, secret TEXT NULL)'
         );
     }
 
     protected function tearDown(): void
     {
         if ($this->db) {
-            $this->db->executeStatement('DROP TABLE IF EXISTS '.self::TABELLE);
+            $this->db->executeStatement('DROP TABLE IF EXISTS '.self::TABLE);
         }
 
         $config = new Config();
@@ -66,128 +66,128 @@ class ReencryptCommandTest extends TestCase
         Factory::getInstance()->setConfig($config);
     }
 
-    /** Verschluesselt im ALTEN Format — der Wortlaut des Codes vor 010-004-0002. */
-    private function altVerschluesseln(string $klartext): string
+    /** Encrypts in the OLD format — the wording of the code before 010-004-0002. */
+    private function encryptLegacy(string $plaintext): string
     {
         $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length('AES-256-CBC'));
 
-        return base64_encode($iv.openssl_encrypt($klartext, 'AES-256-CBC', self::SCHLUESSEL, 0, $iv));
+        return base64_encode($iv.openssl_encrypt($plaintext, 'AES-256-CBC', self::KEY, 0, $iv));
     }
 
     /** @return array<int,string> */
-    private function werteLesen(): array
+    private function readValues(): array
     {
-        return $this->db->fetchAllKeyValue('SELECT id, geheim FROM '.self::TABELLE.' ORDER BY id');
+        return $this->db->fetchAllKeyValue('SELECT id, secret FROM '.self::TABLE.' ORDER BY id');
     }
 
-    public function testDerTrockenlaufAendertNichts(): void
+    public function testTheDryRunChangesNothing(): void
     {
-        $klartexte = array('erster Wert', 'zweiter Wert', 'dritter Wert');
+        $plaintexts = array('first value', 'second value', 'third value');
 
-        foreach ($klartexte as $wert) {
-            $this->db->insert(self::TABELLE, array('geheim' => $this->altVerschluesseln($wert)));
+        foreach ($plaintexts as $value) {
+            $this->db->insert(self::TABLE, array('secret' => $this->encryptLegacy($value)));
         }
 
-        $vorher = $this->werteLesen();
+        $before = $this->readValues();
 
-        $ergebnis = (new ReencryptCommand())
-            ->reencryptColumn($this->db, self::TABELLE, 'geheim', 'id', true, 500);
+        $result = (new ReencryptCommand())
+            ->reencryptColumn($this->db, self::TABLE, 'secret', 'id', true, 500);
 
-        $this->assertSame(3, $ergebnis['checked']);
-        $this->assertSame(3, $ergebnis['reencrypted'], 'Er haette drei umgeschluesselt');
-        $this->assertSame($vorher, $this->werteLesen(), 'aber die Zeilen sind unveraendert');
+        $this->assertSame(3, $result['checked']);
+        $this->assertSame(3, $result['reencrypted'], 'It would have re-encrypted three');
+        $this->assertSame($before, $this->readValues(), 'but the rows are unchanged');
     }
 
-    public function testDerEchteLaufSchluesseltUmUndDerZweiteFindetNichtsMehr(): void
+    public function testTheRealRunReencryptsAndTheSecondFindsNothingMore(): void
     {
-        $klartexte = array('erster Wert', 'zweiter Wert', 'dritter Wert');
+        $plaintexts = array('first value', 'second value', 'third value');
 
-        foreach ($klartexte as $wert) {
-            $this->db->insert(self::TABELLE, array('geheim' => $this->altVerschluesseln($wert)));
+        foreach ($plaintexts as $value) {
+            $this->db->insert(self::TABLE, array('secret' => $this->encryptLegacy($value)));
         }
 
-        $befehl = new ReencryptCommand();
-        $krypto = new FieldEncryption();
+        $command    = new ReencryptCommand();
+        $encryption = new FieldEncryption();
 
-        $erster = $befehl->reencryptColumn($this->db, self::TABELLE, 'geheim', 'id', false, 500);
-        $this->assertSame(3, $erster['reencrypted']);
+        $first = $command->reencryptColumn($this->db, self::TABLE, 'secret', 'id', false, 500);
+        $this->assertSame(3, $first['reencrypted']);
 
-        // Der Klartext ist derselbe — das ist der eigentliche Punkt der Umschluesselung.
-        $this->assertSame($klartexte, array_values(array_map(
-            static fn (string $wert): string => (string) (new FieldEncryption())->decrypt($wert),
-            $this->werteLesen()
+        // The plaintext is the same — that is the actual point of the re-encryption.
+        $this->assertSame($plaintexts, array_values(array_map(
+            static fn (string $value): string => (string) (new FieldEncryption())->decrypt($value),
+            $this->readValues()
         )));
 
-        foreach ($this->werteLesen() as $wert) {
-            $this->assertTrue($krypto->isNewFormat($wert), 'und jeder Wert traegt jetzt das AEAD-Format');
+        foreach ($this->readValues() as $value) {
+            $this->assertTrue($encryption->isNewFormat($value), 'and every value now carries the AEAD format');
         }
 
-        $zweiter = $befehl->reencryptColumn($this->db, self::TABELLE, 'geheim', 'id', false, 500);
-        $this->assertSame(0, $zweiter['reencrypted'], 'Ein zweiter Lauf hat nichts mehr zu tun');
-        $this->assertSame(3, $zweiter['skipped']);
+        $second = $command->reencryptColumn($this->db, self::TABLE, 'secret', 'id', false, 500);
+        $this->assertSame(0, $second['reencrypted'], 'A second run has nothing left to do');
+        $this->assertSame(3, $second['skipped']);
     }
 
-    public function testErArbeitetInStapelnUndErwischtAlleZeilen(): void
+    public function testItWorksInBatchesAndCatchesAllRows(): void
     {
-        // Die Stapelgroesse ist kleiner als die Zeilenzahl — wenn die Seitenweise-Abfrage
-        // falsch waere, blieben Zeilen liegen oder der Lauf drehte sich im Kreis.
+        // The batch size is smaller than the row count — if the paginated query
+        // were wrong, rows would be left behind or the run would go in circles.
         for ($i = 0; $i < 25; $i++) {
-            $this->db->insert(self::TABELLE, array('geheim' => $this->altVerschluesseln('Wert '.$i)));
+            $this->db->insert(self::TABLE, array('secret' => $this->encryptLegacy('Value '.$i)));
         }
 
-        $ergebnis = (new ReencryptCommand())
-            ->reencryptColumn($this->db, self::TABELLE, 'geheim', 'id', false, 4);
+        $result = (new ReencryptCommand())
+            ->reencryptColumn($this->db, self::TABLE, 'secret', 'id', false, 4);
 
-        $this->assertSame(25, $ergebnis['reencrypted']);
+        $this->assertSame(25, $result['reencrypted']);
 
-        $krypto = new FieldEncryption();
+        $encryption = new FieldEncryption();
 
-        foreach ($this->werteLesen() as $wert) {
-            $this->assertTrue($krypto->isNewFormat($wert));
+        foreach ($this->readValues() as $value) {
+            $this->assertTrue($encryption->isNewFormat($value));
         }
     }
 
-    public function testEinUnlesbarerWertBrichtDenStapelAbUndLaesstIhnUnveraendert(): void
+    public function testAnUnreadableValueAbortsTheBatchAndLeavesItUnchanged(): void
     {
-        $this->db->insert(self::TABELLE, array('geheim' => $this->altVerschluesseln('lesbar')));
-        $this->db->insert(self::TABELLE, array('geheim' => base64_encode('kein gueltiger Chiffretext')));
-        $this->db->insert(self::TABELLE, array('geheim' => $this->altVerschluesseln('auch lesbar')));
+        $this->db->insert(self::TABLE, array('secret' => $this->encryptLegacy('readable')));
+        $this->db->insert(self::TABLE, array('secret' => base64_encode('not a valid ciphertext')));
+        $this->db->insert(self::TABLE, array('secret' => $this->encryptLegacy('also readable')));
 
-        $vorher = $this->werteLesen();
+        $before = $this->readValues();
 
         try {
-            (new ReencryptCommand())->reencryptColumn($this->db, self::TABELLE, 'geheim', 'id', false, 500);
-            $this->fail('Ein unlesbarer Wert muss den Lauf anhalten');
-        } catch (\RuntimeException $fehler) {
-            $this->assertStringContainsString('SECURITY_CIPHER_KEY', $fehler->getMessage(),
-                'und die Meldung muss auf die wahrscheinlichste Ursache zeigen');
+            (new ReencryptCommand())->reencryptColumn($this->db, self::TABLE, 'secret', 'id', false, 500);
+            $this->fail('An unreadable value must stop the run');
+        } catch (\RuntimeException $error) {
+            $this->assertStringContainsString('SECURITY_CIPHER_KEY', $error->getMessage(),
+                'and the message must point to the most likely cause');
         }
 
-        $this->assertSame($vorher, $this->werteLesen(),
-            'Der Stapel ist eine Transaktion — es bleibt kein halb umgeschluesselter Stand zurueck');
+        $this->assertSame($before, $this->readValues(),
+            'The batch is a transaction — no half re-encrypted state is left behind');
     }
 
-    public function testHeuteGibtEsKeinFeldMitEncoded(): void
+    public function testTodayThereIsNoFieldWithEncoded(): void
     {
-        // Der Befehl findet seine Felder ueber das Schema. Im Framework gibt es keines — und
-        // dieser Test haelt das fest, damit die leere Ausgabe des Befehls nicht mit einem
-        // Defekt verwechselt wird. Setzt jemand `encoded: true`, schlaegt er an.
+        // The command finds its fields via the schema. The framework has none — and
+        // this test records that, so the command's empty output is not mistaken for a
+        // defect. If someone sets `encoded: true`, it fires.
         $schema = array('_hash' => 'x', 'PIM\\User' => array('properties' => array(
             'alias' => array('encoded' => false),
             'pass'  => array('encoded' => false),
         )));
 
-        $gefunden = (new ReencryptCommand())->affectedFields($schema, $this->emAttrappe(), $this->helferAttrappe());
+        $found = (new ReencryptCommand())->affectedFields($schema, $this->entityManagerMock(), $this->helperStub());
 
-        $this->assertSame(array(), $gefunden);
+        $this->assertSame(array(), $found);
     }
 
-    private function emAttrappe(): \Doctrine\ORM\EntityManagerInterface
+    private function entityManagerMock(): \Doctrine\ORM\EntityManagerInterface
     {
         return $this->createMock(\Doctrine\ORM\EntityManagerInterface::class);
     }
 
-    private function helferAttrappe(): object
+    private function helperStub(): object
     {
         return new class {
             public function getFullEntityName(string $entity): string

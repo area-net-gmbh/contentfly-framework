@@ -5,16 +5,16 @@ use PDO;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * Charakterisierungstests für `/api/update` und `/api/replace`.
+ * Characterisation tests for `/api/update` and `/api/replace`.
  *
- * **Der Unterschied in einem Satz: `replace` ist ein Upsert, kein Vollersetzen.** Auf einem
- * vorhandenen Objekt verhält es sich Feld für Feld wie `update` — es delegiert intern per
- * Sub-Request an `/api/update`. Nur wenn es die Id nicht gibt, trennen sich die Wege:
- * `replace` legt das Objekt mit genau dieser Id an (Sub-Request an `/api/insert`), `update`
- * scheitert.
+ * **The difference in one sentence: `replace` is an upsert, not a full replacement.** On an
+ * existing object it behaves field by field like `update` — internally it delegates via
+ * sub-request to `/api/update`. Only when the id does not exist do the paths part:
+ * `replace` creates the object with exactly this id (sub-request to `/api/insert`), `update`
+ * fails.
  *
- * Der Name führt also in die Irre: Wer „replace" liest und erwartet, dass nicht gesendete
- * Felder zurückgesetzt werden, irrt — sie bleiben stehen.
+ * So the name is misleading: whoever reads "replace" and expects fields that were not sent to
+ * be reset is wrong — they stay as they are.
  */
 class UpdateReplaceApiTest extends IntegrationTestCase
 {
@@ -24,15 +24,15 @@ class UpdateReplaceApiTest extends IntegrationTestCase
     {
         parent::setUp();
 
-        // Direkt ueber pdo(), damit dieser Test nicht am Erfolg von /api/insert haengt:
-        // views = 5 ist das Feld, an dem sich zeigt, was mit nicht gesendeten Werten passiert.
+        // Directly via pdo(), so that this test does not depend on /api/insert succeeding:
+        // views = 5 is the field that shows what happens to values that were not sent.
         $this->tag = 'ur-'.bin2hex(random_bytes(6));
         $this->pdo()->prepare(
             'INSERT INTO pim_tag (id, title, created, modified, views, isIntern)
-             VALUES (:id, :titel, NOW(), NOW(), 5, 0)'
-        )->execute(array('id' => $this->tag, 'titel' => 'Original'));
+             VALUES (:id, :title, NOW(), NOW(), 5, 0)'
+        )->execute(array('id' => $this->tag, 'title' => 'Original'));
 
-        $this->nachTestLoeschen('pim_tag', $this->tag);
+        $this->deleteAfterTest('pim_tag', $this->tag);
     }
 
     protected function tearDown(): void
@@ -44,104 +44,104 @@ class UpdateReplaceApiTest extends IntegrationTestCase
         parent::tearDown();
     }
 
-    /** @return array{0:string,1:int} Titel und views direkt aus der Datenbank */
-    private function ausDerDatenbank(string $id): array
+    /** @return array{0:string,1:int} Title and views directly from the database */
+    private function fromDatabase(string $id): array
     {
-        $zeile = $this->pdo()
+        $row = $this->pdo()
             ->query('SELECT title, views FROM pim_tag WHERE id = '.$this->pdo()->quote($id))
             ->fetch(PDO::FETCH_ASSOC);
 
-        $this->assertNotFalse($zeile, "Objekt $id existiert");
+        $this->assertNotFalse($row, "Object $id exists");
 
-        return array($zeile['title'], (int) $zeile['views']);
+        return array($row['title'], (int) $row['views']);
     }
 
-    // ── Der Kern: worin sie sich gleichen ───────────────────────────────────────────────
+    // ── The core: where they are alike ─────────────────────────────────────────────────
 
-    public function testUpdateLaesstNichtGesendeteFelderUnberuehrt(): void
+    public function testUpdateLeavesFieldsNotSentUntouched(): void
     {
         [$status] = $this->postJson(
             '/api/update',
-            array('entity' => 'PIM\\Tag', 'id' => $this->tag, 'data' => array('title' => 'Per-Update')),
+            array('entity' => 'PIM\\Tag', 'id' => $this->tag, 'data' => array('title' => 'Via-Update')),
             $this->token()
         );
 
         $this->assertSame(200, $status);
 
-        [$titel, $views] = $this->ausDerDatenbank($this->tag);
-        $this->assertSame('Per-Update', $titel);
-        $this->assertSame(5, $views, 'views wurde nicht mitgesendet und bleibt stehen');
+        [$title, $views] = $this->fromDatabase($this->tag);
+        $this->assertSame('Via-Update', $title);
+        $this->assertSame(5, $views, 'views was not sent and stays as it is');
     }
 
-    public function testReplaceLaesstNichtGesendeteFelderEbenfallsUnberuehrt(): void
+    public function testReplaceAlsoLeavesFieldsNotSentUntouched(): void
     {
-        // Der entscheidende Test: "replace" setzt NICHTS zurueck. Auf einem vorhandenen
-        // Objekt ist es Feld fuer Feld dasselbe wie update.
+        // The decisive test: "replace" resets NOTHING. On an existing object it is field by
+        // field the same as update.
         [$status] = $this->postJson(
             '/api/replace',
-            array('entity' => 'PIM\\Tag', 'id' => $this->tag, 'data' => array('title' => 'Per-Replace')),
+            array('entity' => 'PIM\\Tag', 'id' => $this->tag, 'data' => array('title' => 'Via-Replace')),
             $this->token()
         );
 
         $this->assertSame(200, $status);
 
-        [$titel, $views] = $this->ausDerDatenbank($this->tag);
-        $this->assertSame('Per-Replace', $titel);
+        [$title, $views] = $this->fromDatabase($this->tag);
+        $this->assertSame('Via-Replace', $title);
         $this->assertSame(5, $views,
-            'Trotz des Namens setzt replace nicht gesendete Felder NICHT zurueck — '
-            .'es delegiert bei vorhandener Id per Sub-Request an /api/update');
+            'Despite its name, replace does NOT reset fields that were not sent — '
+            .'for an existing id it delegates via sub-request to /api/update');
     }
 
-    // ── Der Kern: worin sie sich unterscheiden ─────────────────────────────────────────
+    // ── The core: where they differ ────────────────────────────────────────────────────
 
-    public function testReplaceLegtEinNichtVorhandenesObjektMitDerVorgegebenenIdAn(): void
+    public function testReplaceCreatesANonExistingObjectWithTheGivenId(): void
     {
-        $neueId = 'ur-neu-'.bin2hex(random_bytes(6));
-        $this->nachTestLoeschen('pim_tag', $neueId);
+        $newId = 'ur-new-'.bin2hex(random_bytes(6));
+        $this->deleteAfterTest('pim_tag', $newId);
 
         [$status, $body] = $this->postJson(
             '/api/replace',
-            array('entity' => 'PIM\\Tag', 'id' => $neueId, 'data' => array('title' => 'Per-Replace-Angelegt')),
+            array('entity' => 'PIM\\Tag', 'id' => $newId, 'data' => array('title' => 'Via-Replace-Created')),
             $this->token()
         );
 
         $this->assertSame(200, $status);
-        $this->assertSame($neueId, $body['id'],
-            'replace uebernimmt die vorgegebene Id, statt eine GUID zu erzeugen');
+        $this->assertSame($newId, $body['id'],
+            'replace takes the given id instead of generating a GUID');
 
-        [$titel] = $this->ausDerDatenbank($neueId);
-        $this->assertSame('Per-Replace-Angelegt', $titel);
+        [$title] = $this->fromDatabase($newId);
+        $this->assertSame('Via-Replace-Created', $title);
     }
 
-    public function testUpdateAufEineUnbekannteIdScheitert(): void
+    public function testUpdateOnAnUnknownIdFails(): void
     {
-        // Genau hier trennen sich die beiden: update legt nichts an.
-        $unbekannt = 'ur-fehlt-'.bin2hex(random_bytes(6));
+        // Exactly here the two part ways: update creates nothing.
+        $unknown = 'ur-missing-'.bin2hex(random_bytes(6));
 
         [$status] = $this->postJson(
             '/api/update',
-            array('entity' => 'PIM\\Tag', 'id' => $unbekannt, 'data' => array('title' => 'Egal')),
+            array('entity' => 'PIM\\Tag', 'id' => $unknown, 'data' => array('title' => 'Whatever')),
             $this->token()
         );
 
-        // Seit 000-000-0006 der gemeinte Code, vorher 500.
+        // Since 000-000-0006 the intended code, before 500.
         $this->assertSame(404, $status);
 
-        $anzahl = (int) $this->pdo()
-            ->query('SELECT COUNT(*) FROM pim_tag WHERE id = '.$this->pdo()->quote($unbekannt))
+        $count = (int) $this->pdo()
+            ->query('SELECT COUNT(*) FROM pim_tag WHERE id = '.$this->pdo()->quote($unknown))
             ->fetchColumn();
-        $this->assertSame(0, $anzahl, 'update legt nichts an — anders als replace');
+        $this->assertSame(0, $count, 'update creates nothing — unlike replace');
     }
 
     // ── modified ───────────────────────────────────────────────────────────────────────
 
-    public function testBeideAktualisierenModified(): void
+    public function testBothUpdateModified(): void
     {
-        $vorher = (string) $this->pdo()
+        $before = (string) $this->pdo()
             ->query('SELECT modified FROM pim_tag WHERE id = '.$this->pdo()->quote($this->tag))
             ->fetchColumn();
 
-        // Eine Sekunde Abstand, damit sich der DATETIME-Wert ueberhaupt unterscheiden kann.
+        // One second apart, so that the DATETIME value can differ at all.
         $this->pdo()->prepare('UPDATE pim_tag SET modified = :m WHERE id = :id')
              ->execute(array('m' => '2000-01-01 00:00:00', 'id' => $this->tag));
 
@@ -151,44 +151,44 @@ class UpdateReplaceApiTest extends IntegrationTestCase
             $this->token()
         );
 
-        $nachher = (string) $this->pdo()
+        $after = (string) $this->pdo()
             ->query('SELECT modified FROM pim_tag WHERE id = '.$this->pdo()->quote($this->tag))
             ->fetchColumn();
 
-        $this->assertNotSame('2000-01-01 00:00:00', $nachher, 'update setzt modified neu');
-        $this->assertNotEmpty($vorher);
+        $this->assertNotSame('2000-01-01 00:00:00', $after, 'update sets modified anew');
+        $this->assertNotEmpty($before);
     }
 
-    // ── Absicherung ────────────────────────────────────────────────────────────────────
+    // ── Protection ─────────────────────────────────────────────────────────────────────
 
-    public function testUpdateOhneTokenAendertNichts(): void
+    public function testUpdateWithoutTokenChangesNothing(): void
     {
         [$status] = $this->postJson(
             '/api/update',
-            array('entity' => 'PIM\\Tag', 'id' => $this->tag, 'data' => array('title' => 'Ohne-Token'))
+            array('entity' => 'PIM\\Tag', 'id' => $this->tag, 'data' => array('title' => 'Without-Token'))
         );
 
-        $this->assertSame(401, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
+        $this->assertSame(401, $status, 'Since the stack switch (006-002-0003) the intended code — Symfony 4.4 fixes 000-000-0006 here');
 
-        [$titel] = $this->ausDerDatenbank($this->tag);
-        $this->assertSame('Original', $titel, 'Ohne Token bleibt der Wert unveraendert');
+        [$title] = $this->fromDatabase($this->tag);
+        $this->assertSame('Original', $title, 'Without a token the value stays unchanged');
     }
 
-    public function testReplaceOhneTokenLegtNichtsAn(): void
+    public function testReplaceWithoutTokenCreatesNothing(): void
     {
-        $neueId = 'ur-ohne-'.bin2hex(random_bytes(6));
+        $newId = 'ur-notoken-'.bin2hex(random_bytes(6));
 
         [$status] = $this->postJson(
             '/api/replace',
-            array('entity' => 'PIM\\Tag', 'id' => $neueId, 'data' => array('title' => 'Ohne-Token'))
+            array('entity' => 'PIM\\Tag', 'id' => $newId, 'data' => array('title' => 'Without-Token'))
         );
 
         $this->assertSame(401, $status,
-            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
+            'Since 006-002-0003 the intended code — Symfony 4.4 fixes 000-000-0006 here');
 
-        $anzahl = (int) $this->pdo()
-            ->query('SELECT COUNT(*) FROM pim_tag WHERE id = '.$this->pdo()->quote($neueId))
+        $count = (int) $this->pdo()
+            ->query('SELECT COUNT(*) FROM pim_tag WHERE id = '.$this->pdo()->quote($newId))
             ->fetchColumn();
-        $this->assertSame(0, $anzahl, 'Ohne Token entsteht auch ueber replace nichts');
+        $this->assertSame(0, $count, 'Without a token nothing is created via replace either');
     }
 }

@@ -85,7 +85,7 @@ php bin/console.php appcms:install -n \
 #
 # Kein Testlauf darf eine Mail verschicken — und das gehört nachgewiesen, nicht
 # angenommen. Der Testserver bekommt deshalb ein Fangskript als sendmail_path;
-# VersandfalleTest prüft beide Hälften: dass das Skript fängt, und dass der Server genau
+# MailTrapTest prüft beide Hälften: dass das Skript fängt, und dass der Server genau
 # dieses benutzt.
 #
 # /api/mail war der Anlass und ist mit 000-000-0016 entfernt — er verschickte seit dem
@@ -98,12 +98,12 @@ mkdir -p "$CONTENTFLY_TEST_MAIL_TRAP"
 cat > "$CONTENTFLY_TEST_MAIL_TRAP/sendmail" <<'FANGSKRIPT'
 #!/bin/sh
 # Fängt alles ab, was mail() zustellen wollte. Stellt NICHTS zu.
-cat >> "$(dirname "$0")/postausgang.log"
-echo "--- ENDE MAIL ---" >> "$(dirname "$0")/postausgang.log"
+cat >> "$(dirname "$0")/outbox.log"
+echo "--- END MAIL ---" >> "$(dirname "$0")/outbox.log"
 exit 0
 FANGSKRIPT
 chmod +x "$CONTENTFLY_TEST_MAIL_TRAP/sendmail"
-: > "$CONTENTFLY_TEST_MAIL_TRAP/postausgang.log"
+: > "$CONTENTFLY_TEST_MAIL_TRAP/outbox.log"
 
 # ── 4. Testserver ──────────────────────────────────────────────────────────────────
 #

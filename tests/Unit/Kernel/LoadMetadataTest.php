@@ -9,71 +9,71 @@ use Doctrine\ORM\Mapping\ClassMetadataFactory;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Der Index auf `modified` — und wann er ausbleibt (`000-000-0028`).
+ * The index on `modified` — and when it is left out (`000-000-0028`).
  *
- * Der Listener hängte ihn bis dahin **bedingungslos** an jede Entity, die kein Tree ist. Fehlte
- * die Spalte, scheiterte schon die Installation, mit einer Meldung, die den Grund nicht nannte:
+ * Until then the listener attached it **unconditionally** to every entity that is not a tree. If
+ * the column was missing, even the installation failed, with a message that did not name the reason:
  *
  * > There is no column with name "modified" on table "pim_revoked_token".
  *
- * Gefunden bei `013-003-0003`. Jetzt wird übersprungen statt abgebrochen, und dieser Test hält
- * fest, welches von beidem gilt.
+ * Found in `013-003-0003`. Now it is skipped instead of aborted, and this test records
+ * which of the two applies.
  */
 class LoadMetadataTest extends TestCase
 {
-    /** @param list<string> $felder */
-    private function anwenden(array $felder, array $eltern = array()): ClassMetadata
+    /** @param list<string> $fields */
+    private function apply(array $fields, array $parents = array()): ClassMetadata
     {
-        $metadata = new ClassMetadata('Tests\\Beispiel');
-        $metadata->parentClasses = $eltern;
+        $metadata = new ClassMetadata('Tests\\Example');
+        $metadata->parentClasses = $parents;
 
-        foreach ($felder as $feld) {
-            $metadata->mapField(array('fieldName' => $feld, 'type' => 'datetime'));
+        foreach ($fields as $field) {
+            $metadata->mapField(array('fieldName' => $field, 'type' => 'datetime'));
         }
 
-        $fabrik = $this->createMock(ClassMetadataFactory::class);
+        $factory = $this->createMock(ClassMetadataFactory::class);
 
         $em = $this->createMock(EntityManagerInterface::class);
-        $em->method('getMetadataFactory')->willReturn($fabrik);
+        $em->method('getMetadataFactory')->willReturn($factory);
 
         (new LoadMetadata())->loadClassMetadata(new LoadClassMetadataEventArgs($metadata, $em));
 
         return $metadata;
     }
 
-    private function hatIndex(ClassMetadata $metadata): bool
+    private function hasIndex(ClassMetadata $metadata): bool
     {
         return isset($metadata->table['indexes']['modified_index']);
     }
 
-    public function testEineEntityMitModifiedBekommtDenIndex(): void
+    public function testAnEntityWithModifiedGetsTheIndex(): void
     {
-        $metadata = $this->anwenden(array('modified'));
+        $metadata = $this->apply(array('modified'));
 
-        $this->assertTrue($this->hatIndex($metadata));
+        $this->assertTrue($this->hasIndex($metadata));
         $this->assertSame(array('modified'), $metadata->table['indexes']['modified_index']['columns']);
     }
 
     /**
-     * **Der Kern des Tasks.** Kein Feld, kein Index — und vor allem kein Abbruch.
+     * **The core of the task.** No field, no index — and above all no abort.
      */
-    public function testEineEntityOhneModifiedWirdUebersprungen(): void
+    public function testAnEntityWithoutModifiedIsSkipped(): void
     {
-        $metadata = $this->anwenden(array('created'));
+        $metadata = $this->apply(array('created'));
 
-        $this->assertFalse($this->hatIndex($metadata));
+        $this->assertFalse($this->hasIndex($metadata));
     }
 
     /**
-     * Bäume sind ausgenommen, seit es den Listener gibt: `BaseTree` und `BaseI18nTree` bringen
-     * eigene Indizes mit, und ein zusätzlicher wäre dort doppelt.
+     * Trees have been excluded for as long as the listener has existed: `BaseTree` and `BaseI18nTree`
+     * bring their own indexes, and an additional one would be a duplicate there.
      */
-    public function testBaeumeBleibenAusgenommen(): void
+    public function testTreesRemainExcluded(): void
     {
-        $baum = $this->anwenden(array('modified'), array('Areanet\\PIM\\Entity\\BaseTree'));
-        $this->assertFalse($this->hatIndex($baum));
+        $tree = $this->apply(array('modified'), array('Areanet\\PIM\\Entity\\BaseTree'));
+        $this->assertFalse($this->hasIndex($tree));
 
-        $i18nBaum = $this->anwenden(array('modified'), array('Areanet\\PIM\\Entity\\BaseI18nTree'));
-        $this->assertFalse($this->hatIndex($i18nBaum));
+        $i18nTree = $this->apply(array('modified'), array('Areanet\\PIM\\Entity\\BaseI18nTree'));
+        $this->assertFalse($this->hasIndex($i18nTree));
     }
 }

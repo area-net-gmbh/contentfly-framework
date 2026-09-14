@@ -12,79 +12,78 @@ use Symfony\Component\Ldap\Exception\ConnectionException;
 use Symfony\Component\Ldap\LdapInterface;
 
 /**
- * Der LDAP-Provider (013-005-0001).
+ * The LDAP provider (013-005-0001).
  *
- * **Einschränkung, ausdrücklich:** Geprüft wird gegen einen `LdapInterface`-Doppelgänger, nicht
- * gegen ein laufendes Verzeichnis. Das misst die eigene Logik — Bind-Reihenfolge, Maskierung des
- * Filters, was in die `ExternalIdentity` geht — und **nicht**, dass ein echter Bind gegen ein Active
- * Directory funktioniert. So entschieden am 2026-09-11: Ein OpenLDAP-Dienst in der Testumgebung
- * stünde in keinem Verhältnis zu dem, was er zusätzlich belegte.
+ * **Limitation, explicitly:** tested against an `LdapInterface` test double, not against a
+ * running directory. That measures the own logic — bind order, escaping of the filter, what goes
+ * into the `ExternalIdentity` — and **not** that a real bind against an Active Directory works.
+ * Decided on 2026-09-11: an OpenLDAP service in the test environment would be out of proportion
+ * to what it would additionally prove.
  */
 class LdapProviderTest extends TestCase
 {
-    /** Alle Aufrufe, die der Provider am Verzeichnis gemacht hat — in ihrer Reihenfolge. */
-    private array $aufrufe = array();
+    /** All calls the provider made to the directory — in their order. */
+    private array $calls = array();
 
-    private function einstellungen(array $abweichend = array()): array
+    private function settings(array $overrides = array()): array
     {
-        return $abweichend + array(
-            'base_dn'          => 'OU=Benutzer,DC=example,DC=invalid',
+        return $overrides + array(
+            'base_dn'          => 'OU=Users,DC=example,DC=invalid',
             'filter'           => '(sAMAccountName={identifier})',
             'group_attribute' => 'memberOf',
-            'search_dn'        => 'CN=dienst,DC=example,DC=invalid',
-            'search_password'  => 'dienst-geheim',
+            'search_dn'        => 'CN=service,DC=example,DC=invalid',
+            'search_password'  => 'service-secret',
         );
     }
 
     /**
-     * Ein Verzeichnis-Doppelgänger.
+     * A directory test double.
      *
-     * @param list<Entry>|null $treffer  null = die Suche wirft
-     * @param list<string>     $bindFehlerFuer DNs, deren Bind scheitert
+     * @param list<Entry>|null $results       null = the search throws
+     * @param list<string>     $bindFailsFor  DNs whose bind fails
      */
-    private function ldap(?array $treffer, array $bindFehlerFuer = array()): LdapInterface
+    private function ldap(?array $results, array $bindFailsFor = array()): LdapInterface
     {
-        $this->aufrufe = array();
-        $aufrufe = &$this->aufrufe;
+        $this->calls = array();
+        $calls = &$this->calls;
 
-        $sammlung = $this->createMock(CollectionInterface::class);
-        $sammlung->method('count')->willReturn($treffer === null ? 0 : count($treffer));
-        $sammlung->method('offsetGet')->willReturnCallback(
-            static fn ($i) => $treffer[$i] ?? null
+        $collection = $this->createMock(CollectionInterface::class);
+        $collection->method('count')->willReturn($results === null ? 0 : count($results));
+        $collection->method('offsetGet')->willReturnCallback(
+            static fn ($i) => $results[$i] ?? null
         );
 
         $query = $this->createMock(QueryInterface::class);
-        if ($treffer === null) {
-            $query->method('execute')->willThrowException(new ConnectionException('Verzeichnis nicht erreichbar'));
+        if ($results === null) {
+            $query->method('execute')->willThrowException(new ConnectionException('Directory unreachable'));
         } else {
-            $query->method('execute')->willReturn($sammlung);
+            $query->method('execute')->willReturn($collection);
         }
 
         $ldap = $this->createMock(LdapInterface::class);
         $ldap->method('bind')->willReturnCallback(
-            static function (?string $dn = null, ?string $pass = null) use (&$aufrufe, $bindFehlerFuer) {
-                $aufrufe[] = array('bind', $dn, $pass);
+            static function (?string $dn = null, ?string $pass = null) use (&$calls, $bindFailsFor) {
+                $calls[] = array('bind', $dn, $pass);
 
-                if (in_array((string) $dn, $bindFehlerFuer, true)) {
-                    throw new ConnectionException('Bind abgelehnt');
+                if (in_array((string) $dn, $bindFailsFor, true)) {
+                    throw new ConnectionException('Bind rejected');
                 }
             }
         );
         /*
-         * `strtr()` und nicht `str_replace()` mit Arrays.
+         * `strtr()` and not `str_replace()` with arrays.
          *
-         * Der erste Entwurf nahm `str_replace`, und der arbeitet die Paare NACHEINANDER ab: Die
-         * letzte Regel (`\\` -> `\\5c`) maskierte noch einmal die Backslashes, die die
-         * vorherigen gerade eingefuegt hatten — aus `\\28` wurde `\\5c28`. Ein Fehler im
-         * Doppelgaenger, nicht im Provider, aber er haette den Maskierungstest unbrauchbar
-         * gemacht. `strtr()` ersetzt in einem Durchgang.
+         * The first draft used `str_replace`, and that processes the pairs ONE AFTER ANOTHER: the
+         * last rule (`\\` -> `\\5c`) escaped once more the backslashes the previous ones had just
+         * inserted — `\\28` became `\\5c28`. A bug in the test double, not in the provider, but it
+         * would have made the escaping test useless. `strtr()` replaces in a single pass.
          */
         $ldap->method('escape')->willReturnCallback(
-            static fn (string $wert) => strtr($wert, array('\\' => '\\5c', '*' => '\\2a', '(' => '\\28', ')' => '\\29'))
+            static fn (string $value) => strtr($value, array('\\' => '\\5c', '*' => '\\2a', '(' => '\\28', ')' => '\\29'))
         );
         $ldap->method('query')->willReturnCallback(
-            static function (string $dn, string $filter) use (&$aufrufe, $query) {
-                $aufrufe[] = array('query', $dn, $filter);
+            static function (string $dn, string $filter) use (&$calls, $query) {
+                $calls[] = array('query', $dn, $filter);
 
                 return $query;
             }
@@ -93,181 +92,179 @@ class LdapProviderTest extends TestCase
         return $ldap;
     }
 
-    private function eintrag(array $attribute = array('memberOf' => array('CN=Redaktion,DC=example,DC=invalid'))): Entry
+    private function entry(array $attributes = array('memberOf' => array('CN=Editorial,DC=example,DC=invalid'))): Entry
     {
-        return new Entry('CN=Max Mustermann,OU=Benutzer,DC=example,DC=invalid', $attribute);
+        return new Entry('CN=John Doe,OU=Users,DC=example,DC=invalid', $attributes);
     }
 
-    private function request(?string $alias = 'mmustermann', ?string $pass = 'geheim'): Request
+    private function request(?string $alias = 'jdoe', ?string $pass = 'secret'): Request
     {
-        $daten = array();
-        if ($alias !== null) { $daten['alias'] = $alias; }
-        if ($pass !== null)  { $daten['pass']  = $pass; }
+        $data = array();
+        if ($alias !== null) { $data['alias'] = $alias; }
+        if ($pass !== null)  { $data['pass']  = $pass; }
 
-        return new Request(array(), $daten);
+        return new Request(array(), $data);
     }
 
-    // ── Der gelungene Weg ──────────────────────────────────────────────────────────────
+    // ── The successful path ────────────────────────────────────────────────────────────
 
-    public function testEineGelungeneAnmeldungLiefertKennungUndGruppen(): void
+    public function testASuccessfulLoginReturnsIdentifierAndGroups(): void
     {
-        $provider = new LdapProvider($this->ldap(array($this->eintrag())), $this->einstellungen());
+        $provider = new LdapProvider($this->ldap(array($this->entry())), $this->settings());
 
-        $fremd = $provider->authenticate($this->request());
+        $external = $provider->authenticate($this->request());
 
-        $this->assertInstanceOf(ExternalIdentity::class, $fremd);
-        $this->assertSame('mmustermann', $fremd->identifier);
-        $this->assertSame(array('CN=Redaktion,DC=example,DC=invalid'), $fremd->groups);
+        $this->assertInstanceOf(ExternalIdentity::class, $external);
+        $this->assertSame('jdoe', $external->identifier);
+        $this->assertSame(array('CN=Editorial,DC=example,DC=invalid'), $external->groups);
     }
 
     /**
-     * **Suchen, dann binden** — und zwar mit dem DN aus dem Verzeichnis, nicht mit einem
-     * zusammengesetzten.
+     * **Search, then bind** — and with the DN from the directory, not with an assembled one.
      *
-     * Der direkte Bind käme ohne Dienstkonto aus, funktioniert aber nur, solange alle Benutzer
-     * flach in einer OU liegen. Im Active Directory tun sie das nicht, und angemeldet wird mit
-     * `sAMAccountName`, der im DN gar nicht vorkommt.
+     * The direct bind would do without a service account, but only works as long as all users
+     * sit flat in one OU. In Active Directory they do not, and login uses `sAMAccountName`, which
+     * does not even appear in the DN.
      */
-    public function testDerProviderBindetZweimalUndSuchtDazwischen(): void
+    public function testTheProviderBindsTwiceAndSearchesInBetween(): void
     {
-        $provider = new LdapProvider($this->ldap(array($this->eintrag())), $this->einstellungen());
+        $provider = new LdapProvider($this->ldap(array($this->entry())), $this->settings());
         $provider->authenticate($this->request());
 
-        $this->assertSame('bind', $this->aufrufe[0][0]);
-        $this->assertSame('CN=dienst,DC=example,DC=invalid', $this->aufrufe[0][1], 'Erst das Dienstkonto');
+        $this->assertSame('bind', $this->calls[0][0]);
+        $this->assertSame('CN=service,DC=example,DC=invalid', $this->calls[0][1], 'First the service account');
 
-        $this->assertSame('query', $this->aufrufe[1][0]);
-        $this->assertSame('OU=Benutzer,DC=example,DC=invalid', $this->aufrufe[1][1]);
+        $this->assertSame('query', $this->calls[1][0]);
+        $this->assertSame('OU=Users,DC=example,DC=invalid', $this->calls[1][1]);
 
-        $this->assertSame('bind', $this->aufrufe[2][0]);
-        $this->assertSame('CN=Max Mustermann,OU=Benutzer,DC=example,DC=invalid', $this->aufrufe[2][1],
-            'Dann der DN aus dem Verzeichnis');
-        $this->assertSame('geheim', $this->aufrufe[2][2]);
+        $this->assertSame('bind', $this->calls[2][0]);
+        $this->assertSame('CN=John Doe,OU=Users,DC=example,DC=invalid', $this->calls[2][1],
+            'Then the DN from the directory');
+        $this->assertSame('secret', $this->calls[2][2]);
     }
 
-    public function testOhneDienstkontoWirdAnonymGesucht(): void
+    public function testWithoutAServiceAccountTheSearchIsAnonymous(): void
     {
         $provider = new LdapProvider(
-            $this->ldap(array($this->eintrag())),
-            $this->einstellungen(array('search_dn' => null, 'search_password' => null))
+            $this->ldap(array($this->entry())),
+            $this->settings(array('search_dn' => null, 'search_password' => null))
         );
         $provider->authenticate($this->request());
 
-        $this->assertSame(array('bind', null, null), $this->aufrufe[0]);
+        $this->assertSame(array('bind', null, null), $this->calls[0]);
     }
 
-    // ── Das leere Passwort ─────────────────────────────────────────────────────────────
+    // ── The empty password ─────────────────────────────────────────────────────────────
 
     /**
-     * **Die wichtigste Zusicherung dieser Klasse.**
+     * **The most important guarantee of this class.**
      *
-     * LDAP kennt den „unauthenticated bind": Ein Bind mit gültigem DN und leerem Passwort gilt
-     * als erfolgreich — er bedeutet „ich will mich nicht anmelden", nicht „das Passwort stimmt".
-     * Wer das als Anmeldung liest, lässt jeden herein, dessen Kennung er kennt.
+     * LDAP knows the "unauthenticated bind": a bind with a valid DN and an empty password counts
+     * as successful — it means "I do not want to log in", not "the password is correct".
+     * Whoever reads that as a login lets in anyone whose identifier they know.
      *
-     * Der Test prüft deshalb beides: dass abgelehnt wird, **und** dass das Verzeichnis gar nicht
-     * erst gefragt wurde.
+     * The test therefore checks both: that it is rejected, **and** that the directory was not
+     * even asked.
      */
-    public function testEinLeeresPasswortWirdAbgewiesenOhneDasVerzeichnisZuFragen(): void
+    public function testAnEmptyPasswordIsRejectedWithoutAskingTheDirectory(): void
     {
-        $provider = new LdapProvider($this->ldap(array($this->eintrag())), $this->einstellungen());
+        $provider = new LdapProvider($this->ldap(array($this->entry())), $this->settings());
 
-        $this->assertNull($provider->authenticate($this->request('mmustermann', '')));
-        $this->assertSame(array(), $this->aufrufe, 'Kein einziger Aufruf am Verzeichnis');
+        $this->assertNull($provider->authenticate($this->request('jdoe', '')));
+        $this->assertSame(array(), $this->calls, 'Not a single call to the directory');
     }
 
-    public function testOhneKennungWirdAbgewiesen(): void
+    public function testWithoutAnIdentifierTheLoginIsRejected(): void
     {
-        $provider = new LdapProvider($this->ldap(array($this->eintrag())), $this->einstellungen());
+        $provider = new LdapProvider($this->ldap(array($this->entry())), $this->settings());
 
-        $this->assertNull($provider->authenticate($this->request(null, 'geheim')));
-        $this->assertNull($provider->authenticate($this->request('   ', 'geheim')));
-        $this->assertSame(array(), $this->aufrufe);
+        $this->assertNull($provider->authenticate($this->request(null, 'secret')));
+        $this->assertNull($provider->authenticate($this->request('   ', 'secret')));
+        $this->assertSame(array(), $this->calls);
     }
 
-    // ── Die Maskierung ─────────────────────────────────────────────────────────────────
+    // ── The escaping ───────────────────────────────────────────────────────────────────
 
     /**
-     * Ohne Maskierung trägt eine Kennung wie `admin)(|(objectClass=*` den Filter um —
-     * LDAP-Injection, dasselbe Muster wie SQL-Injection und genauso alt.
+     * Without escaping, an identifier like `admin)(|(objectClass=*` rewrites the filter — LDAP
+     * injection, the same pattern as SQL injection and just as old.
      */
-    public function testDieKennungWirdInDenFilterMaskiert(): void
+    public function testTheIdentifierIsEscapedIntoTheFilter(): void
     {
-        $provider = new LdapProvider($this->ldap(array($this->eintrag())), $this->einstellungen());
-        $provider->authenticate($this->request('admin)(|(objectClass=*', 'geheim'));
+        $provider = new LdapProvider($this->ldap(array($this->entry())), $this->settings());
+        $provider->authenticate($this->request('admin)(|(objectClass=*', 'secret'));
 
-        $filter = $this->aufrufe[1][2];
+        $filter = $this->calls[1][2];
 
-        $this->assertStringNotContainsString('(|(objectClass=', $filter, 'Der Filter ist nicht umgebogen');
-        $this->assertStringContainsString('\\28', $filter, 'Die Klammer ist maskiert');
+        $this->assertStringNotContainsString('(|(objectClass=', $filter, 'The filter is not bent');
+        $this->assertStringContainsString('\\28', $filter, 'The parenthesis is escaped');
     }
 
-    // ── Abweisungen, alle gleich ───────────────────────────────────────────────────────
+    // ── Rejections, all alike ──────────────────────────────────────────────────────────
 
-    public function testEineUnbekannteKennungWirdAbgewiesen(): void
+    public function testAnUnknownIdentifierIsRejected(): void
     {
-        $provider = new LdapProvider($this->ldap(array()), $this->einstellungen());
+        $provider = new LdapProvider($this->ldap(array()), $this->settings());
 
         $this->assertNull($provider->authenticate($this->request()));
     }
 
     /**
-     * Zwei Treffer heissen, dass der Filter nicht eindeutig ist. Dann zu raten, welcher gemeint
-     * war, wäre die schlechteste aller Antworten.
+     * Two results mean the filter is not unique. Guessing which one was meant would be the worst
+     * of all answers.
      */
-    public function testZweiTrefferWerdenAbgewiesen(): void
+    public function testTwoResultsAreRejected(): void
     {
-        $provider = new LdapProvider($this->ldap(array($this->eintrag(), $this->eintrag())), $this->einstellungen());
+        $provider = new LdapProvider($this->ldap(array($this->entry(), $this->entry())), $this->settings());
 
         $this->assertNull($provider->authenticate($this->request()));
     }
 
-    public function testEinFalschesPasswortWirdAbgewiesen(): void
+    public function testAWrongPasswordIsRejected(): void
     {
         $ldap = $this->ldap(
-            array($this->eintrag()),
-            array('CN=Max Mustermann,OU=Benutzer,DC=example,DC=invalid')
+            array($this->entry()),
+            array('CN=John Doe,OU=Users,DC=example,DC=invalid')
         );
 
-        $this->assertNull((new LdapProvider($ldap, $this->einstellungen()))->authenticate($this->request()));
+        $this->assertNull((new LdapProvider($ldap, $this->settings()))->authenticate($this->request()));
     }
 
-    public function testEinNichtErreichbaresVerzeichnisWirdAbgewiesen(): void
+    public function testAnUnreachableDirectoryIsRejected(): void
     {
-        $provider = new LdapProvider($this->ldap(null), $this->einstellungen());
+        $provider = new LdapProvider($this->ldap(null), $this->settings());
 
         $this->assertNull($provider->authenticate($this->request()));
     }
 
-    public function testEinAbgelehntesDienstkontoWirdAbgewiesen(): void
+    public function testARejectedServiceAccountIsRejected(): void
     {
-        $ldap = $this->ldap(array($this->eintrag()), array('CN=dienst,DC=example,DC=invalid'));
+        $ldap = $this->ldap(array($this->entry()), array('CN=service,DC=example,DC=invalid'));
 
-        $this->assertNull((new LdapProvider($ldap, $this->einstellungen()))->authenticate($this->request()));
+        $this->assertNull((new LdapProvider($ldap, $this->settings()))->authenticate($this->request()));
     }
 
-    // ── Gruppen ────────────────────────────────────────────────────────────────────────
+    // ── Groups ─────────────────────────────────────────────────────────────────────────
 
-    public function testOhneGruppenattributKommenKeineGruppen(): void
+    public function testWithoutAGroupAttributeNoGroupsArrive(): void
     {
-        $provider = new LdapProvider($this->ldap(array($this->eintrag(array()))), $this->einstellungen());
+        $provider = new LdapProvider($this->ldap(array($this->entry(array()))), $this->settings());
 
-        $fremd = $provider->authenticate($this->request());
+        $external = $provider->authenticate($this->request());
 
-        $this->assertInstanceOf(ExternalIdentity::class, $fremd);
-        $this->assertSame(array(), $fremd->groups);
+        $this->assertInstanceOf(ExternalIdentity::class, $external);
+        $this->assertSame(array(), $external->groups);
     }
 
     /**
-     * Was das Verzeichnis liefert, geht **unverändert** weiter. Abgebildet wird es von
-     * `GroupMapping` (`013-004-0003`) — hier etwas umzuschreiben hiesse, die Abbildung an
-     * zwei Stellen zu haben.
+     * What the directory delivers is passed on **unchanged**. It is mapped by `GroupMapping`
+     * (`013-004-0003`) — rewriting anything here would mean having the mapping in two places.
      */
-    public function testDieGruppenGehenUnveraendertWeiter(): void
+    public function testTheGroupsArePassedOnUnchanged(): void
     {
-        $roh = array('CN=Redaktion,OU=Gruppen,DC=example,DC=invalid', 'CN=Alle,DC=example,DC=invalid');
-        $provider = new LdapProvider($this->ldap(array($this->eintrag(array('memberOf' => $roh)))), $this->einstellungen());
+        $raw = array('CN=Editorial,OU=Groups,DC=example,DC=invalid', 'CN=Everyone,DC=example,DC=invalid');
+        $provider = new LdapProvider($this->ldap(array($this->entry(array('memberOf' => $raw)))), $this->settings());
 
-        $this->assertSame($roh, $provider->authenticate($this->request())->groups);
+        $this->assertSame($raw, $provider->authenticate($this->request())->groups);
     }
 }

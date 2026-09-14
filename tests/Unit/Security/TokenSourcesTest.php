@@ -6,127 +6,127 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
- * Woher ein Token kommen darf (013-002-0002).
+ * Where a token may come from (013-002-0002).
  *
- * Fünf Quellen, vier davon geerbt. RFC 6750 kennt nur die erste; die anderen vier sind das, was
- * `BaseControllerProvider::checkToken()` seit jeher liest. Ohne sie bricht jeder bestehende
- * Ionic-Client beim Update.
+ * Five sources, four of them inherited. RFC 6750 only knows the first; the other four are what
+ * `BaseControllerProvider::checkToken()` has always read. Without them every existing Ionic client
+ * breaks on update.
  *
- * Je Quelle ein Test — und einer für die Reihenfolge, denn die ist nicht die, die man vermutet.
+ * One test per source — and one for the order, because it is not the one you would expect.
  */
 class TokenSourcesTest extends TestCase
 {
-    /** @param array<string,string> $kopfzeilen */
-    private function request(array $kopfzeilen = array(), array $query = array(), array $rumpf = array()): Request
+    /** @param array<string,string> $headers */
+    private function request(array $headers = array(), array $query = array(), array $body = array()): Request
     {
         $server = array();
-        foreach ($kopfzeilen as $name => $wert) {
-            $server['HTTP_'.strtoupper(str_replace('-', '_', $name))] = $wert;
+        foreach ($headers as $name => $value) {
+            $server['HTTP_'.strtoupper(str_replace('-', '_', $name))] = $value;
         }
 
-        return new Request($query, $rumpf, array(), array(), array(), $server);
+        return new Request($query, $body, array(), array(), array(), $server);
     }
 
-    private function lesen(Request $request): ?string
+    private function read(Request $request): ?string
     {
         return TokenSources::chain()->extractAccessToken($request);
     }
 
-    // ── Die fünf Quellen ───────────────────────────────────────────────────────────────
+    // ── The five sources ───────────────────────────────────────────────────────────────
 
     public function testAuthorizationBearer(): void
     {
-        $this->assertSame('abc123', $this->lesen($this->request(array('Authorization' => 'Bearer abc123'))));
+        $this->assertSame('abc123', $this->read($this->request(array('Authorization' => 'Bearer abc123'))));
     }
 
     public function testAppcmsTokenHeader(): void
     {
-        $this->assertSame('abc123', $this->lesen($this->request(array('appcms-token' => 'abc123'))));
+        $this->assertSame('abc123', $this->read($this->request(array('appcms-token' => 'abc123'))));
     }
 
     public function testXsrfTokenHeader(): void
     {
-        $this->assertSame('abc123', $this->lesen($this->request(array('X-XSRF-TOKEN' => 'abc123'))));
+        $this->assertSame('abc123', $this->read($this->request(array('X-XSRF-TOKEN' => 'abc123'))));
     }
 
-    public function testTokenImQueryString(): void
+    public function testTokenInQueryString(): void
     {
-        $this->assertSame('abc123', $this->lesen($this->request(array(), array('_token' => 'abc123'))));
+        $this->assertSame('abc123', $this->read($this->request(array(), array('_token' => 'abc123'))));
     }
 
-    public function testTokenImRumpf(): void
+    public function testTokenInBody(): void
     {
-        $this->assertSame('abc123', $this->lesen($this->request(array(), array(), array('_token' => 'abc123'))));
+        $this->assertSame('abc123', $this->read($this->request(array(), array(), array('_token' => 'abc123'))));
     }
 
-    public function testOhneTokenLiefertDieKetteNull(): void
+    public function testWithoutTokenTheChainReturnsNull(): void
     {
-        $this->assertNull($this->lesen($this->request()));
+        $this->assertNull($this->read($this->request()));
     }
 
-    // ── Die Reihenfolge ────────────────────────────────────────────────────────────────
+    // ── The order ──────────────────────────────────────────────────────────────────────
 
     /**
-     * **Nicht die, die man vermutet.**
+     * **Not the one you would expect.**
      *
-     * In `checkToken()` steht `$request->headers->get(TOKEN_HEADER_KEY_ALT, $tokenParameter)`:
-     * `X-XSRF-TOKEN` ist der Wert, `_token` nur dessen Vorgabe. Der Header schlägt den Parameter
-     * also, statt nach ihm zu kommen. Wer das beim Nachbauen umdreht, ändert für jeden Client,
-     * der beides mitschickt, still das Ergebnis.
+     * `checkToken()` contains `$request->headers->get(TOKEN_HEADER_KEY_ALT, $tokenParameter)`:
+     * `X-XSRF-TOKEN` is the value, `_token` only its default. So the header beats the parameter
+     * instead of coming after it. Whoever reverses this when rebuilding it silently changes the
+     * result for every client that sends both.
      */
-    public function testDieReihenfolgeIstDieAusCheckToken(): void
+    public function testOrderIsTheOneFromCheckToken(): void
     {
-        $alleFuenf = $this->request(
+        $allFive = $this->request(
             array('Authorization' => 'Bearer bearer', 'appcms-token' => 'appcms', 'X-XSRF-TOKEN' => 'xsrf'),
             array('_token' => 'query'),
-            array('_token' => 'rumpf')
+            array('_token' => 'body')
         );
-        $this->assertSame('bearer', $this->lesen($alleFuenf), 'RFC 6750 zuerst');
+        $this->assertSame('bearer', $this->read($allFive), 'RFC 6750 first');
 
-        $ohneBearer = $this->request(
+        $withoutBearer = $this->request(
             array('appcms-token' => 'appcms', 'X-XSRF-TOKEN' => 'xsrf'),
             array('_token' => 'query'),
-            array('_token' => 'rumpf')
+            array('_token' => 'body')
         );
-        $this->assertSame('appcms', $this->lesen($ohneBearer));
+        $this->assertSame('appcms', $this->read($withoutBearer));
 
-        $nurXsrfUndParameter = $this->request(
+        $onlyXsrfAndParameter = $this->request(
             array('X-XSRF-TOKEN' => 'xsrf'),
             array('_token' => 'query'),
-            array('_token' => 'rumpf')
+            array('_token' => 'body')
         );
-        $this->assertSame('xsrf', $this->lesen($nurXsrfUndParameter), 'Der Header schlaegt den Parameter');
+        $this->assertSame('xsrf', $this->read($onlyXsrfAndParameter), 'The header beats the parameter');
 
-        $nurParameter = $this->request(array(), array('_token' => 'query'), array('_token' => 'rumpf'));
-        $this->assertSame('query', $this->lesen($nurParameter), 'Query vor Rumpf');
+        $onlyParameter = $this->request(array(), array('_token' => 'query'), array('_token' => 'body'));
+        $this->assertSame('query', $this->read($onlyParameter), 'Query before body');
     }
 
-    // ── Keine stille Verengung ─────────────────────────────────────────────────────────
+    // ── No silent narrowing ────────────────────────────────────────────────────────────
 
     /**
-     * Ein Altquellen-Header wird gelesen, wie er kommt.
+     * A legacy-source header is read as it comes.
      *
-     * Symfonys `HeaderAccessTokenExtractor` prüft den Wert gegen `[a-zA-Z0-9\-_+~\/.]+=*`. Für
-     * ein Bearer-Token nach RFC 6750 ist das richtig; für die Altquellen wäre es eine stille
-     * Verengung. `checkToken()` nimmt den Header, wie er kommt, und ein Projekt darf sich seinen
-     * API-Token über `addToken` frei wählen — ein Token mit einem Zeichen ausserhalb dieser
-     * Menge würde ab sofort nicht mehr erkannt, und niemand bekäme zu sehen, warum.
+     * Symfony's `HeaderAccessTokenExtractor` checks the value against `[a-zA-Z0-9\-_+~\/.]+=*`. For
+     * a bearer token per RFC 6750 that is correct; for the legacy sources it would be a silent
+     * narrowing. `checkToken()` takes the header as it comes, and a project may freely choose its
+     * API token via `addToken` — a token with a character outside that set would suddenly no
+     * longer be recognised, and nobody would get to see why.
      */
-    public function testEinAltquellenTokenDarfZeichenAusserhalbVonRfc6750Tragen(): void
+    public function testLegacySourceTokenMayCarryCharactersOutsideRfc6750(): void
     {
-        $wert = 'projekt:token mit leerzeichen!';
+        $value = 'project:token with spaces!';
 
-        $this->assertSame($wert, $this->lesen($this->request(array('appcms-token' => $wert))));
-        $this->assertSame($wert, $this->lesen($this->request(array('X-XSRF-TOKEN' => $wert))));
+        $this->assertSame($value, $this->read($this->request(array('appcms-token' => $value))));
+        $this->assertSame($value, $this->read($this->request(array('X-XSRF-TOKEN' => $value))));
     }
 
     /**
-     * Ein leerer Header zählt als „nicht da" — wie `empty()` in `checkToken()`.
+     * An empty header counts as "not present" — like `empty()` in `checkToken()`.
      */
-    public function testEinLeererWertZaehltAlsAbwesend(): void
+    public function testEmptyValueCountsAsAbsent(): void
     {
-        $request = $this->request(array('appcms-token' => ''), array(), array('_token' => 'rumpf'));
+        $request = $this->request(array('appcms-token' => ''), array(), array('_token' => 'body'));
 
-        $this->assertSame('rumpf', $this->lesen($request));
+        $this->assertSame('body', $this->read($request));
     }
 }

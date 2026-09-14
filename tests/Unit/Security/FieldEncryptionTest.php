@@ -7,41 +7,42 @@ use Areanet\PIM\Classes\Security\FieldEncryption;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Die ersten Tests, die die FieldEncryption ueberhaupt ausfuehren (010-004-0001).
+ * The first tests that run FieldEncryption at all (010-004-0001).
  *
- * WARUM ES SIE VORHER NICHT GAB: Der Code hatte keinen Pruefgegenstand. Keine Entity setzt
- * `encoded: true`, und `SECURITY_CIPHER_KEY` steht in der Vorgabe auf `null` — die
- * Verschluesselung war ueber die API nicht ausloesbar.
- * `ConstraintApiTest::testKeineEntityNutztDieEncodedVerschluesselung` haelt genau das fest und
- * fordert den Nachweis ein, sobald jemand das Flag setzt. Bis dahin ist DIESE Datei der
- * einzige Ort, an dem das Verfahren laeuft.
+ * WHY THEY DID NOT EXIST BEFORE: the code had nothing to be tested against. No entity sets
+ * `encoded: true`, and `SECURITY_CIPHER_KEY` defaults to `null` — encryption could not be
+ * triggered through the API.
+ * `ConstraintApiTest::testNoEntityUsesEncodedEncryption` records exactly that and
+ * demands proof as soon as someone sets the flag. Until then THIS file is the only place where
+ * the algorithm runs.
  *
- * WAS SIE ZUSICHERN: den Ist-Stand vor dem Verfahrenswechsel. `010-004-0001` zieht den
- * doppelten Code zusammen, ohne das Verfahren zu aendern — diese Tests sagen, ob das gelungen
- * ist. Mit `010-004-0002` aendern sich zwei von ihnen, und das wird dort begruendet.
+ * WHAT THEY GUARANTEE: the state before the algorithm change. `010-004-0001` merges the
+ * duplicated code without changing the algorithm — these tests tell whether that worked. With
+ * `010-004-0002` two of them change, and the reason is given there.
  */
 class FieldEncryptionTest extends TestCase
 {
     /**
-     * Ein Chiffretext, den der Code VOR 010-004-0001 erzeugt hat.
+     * A ciphertext produced by the code BEFORE 010-004-0001.
      *
-     * Fest hinterlegt und nicht neu berechnet: Ein Wert, den der Test selbst verschluesselt,
-     * beweist nur, dass er mit sich selbst uebereinstimmt. Dieser hier stammt aus dem
-     * Wortlaut des alten `StringType` und ist damit der Nachweis, dass Bestandsdaten lesbar
-     * bleiben — auch ueber `010-004-0002` hinaus.
+     * Stored as a fixed value, not recomputed: a value the test encrypts itself only proves that
+     * it agrees with itself. This one comes from the exact wording of the old `StringType` and is
+     * therefore the proof that existing data stays readable — beyond `010-004-0002` as well.
      *
-     * Klartext: `Bestandswert aus dem alten Format`, Schluessel: die Konstante unten.
+     * Plaintext: `Bestandswert aus dem alten Format`, key: the constant below.
      */
-    private const ALTER_CHIFFRETEXT = '6AKaJ5rHsB62yZ1yqNB41WMvNkdtcGpMVFhodVBUODBUVG5hbWkzREtCNUcrcUMxS1F1bG04VVIycWVhaVpHYUJZY29TSXBuTlZPOUYwNFE=';
+    private const LEGACY_CIPHERTEXT = '6AKaJ5rHsB62yZ1yqNB41WMvNkdtcGpMVFhodVBUODBUVG5hbWkzREtCNUcrcUMxS1F1bG04VVIycWVhaVpHYUJZY29TSXBuTlZPOUYwNFE=';
 
-    private const ALTER_KLARTEXT = 'Bestandswert aus dem alten Format';
+    /** What LEGACY_CIPHERTEXT decrypts to — must stay verbatim. */
+    private const LEGACY_PLAINTEXT = 'Bestandswert aus dem alten Format';
 
-    private const SCHLUESSEL = 'ein-schluessel-fuer-den-test-32b';
+    /** The key LEGACY_CIPHERTEXT was encrypted with — must stay verbatim. */
+    private const KEY = 'ein-schluessel-fuer-den-test-32b';
 
     protected function setUp(): void
     {
         $config = new Config();
-        $config->SECURITY_CIPHER_KEY = self::SCHLUESSEL;
+        $config->SECURITY_CIPHER_KEY = self::KEY;
         Factory::getInstance()->setConfig($config);
     }
 
@@ -52,35 +53,35 @@ class FieldEncryptionTest extends TestCase
         Factory::getInstance()->setConfig($config);
     }
 
-    public function testEinWertKommtDurchDenRundlaufUnveraendertZurueck(): void
+    public function testAValueSurvivesTheRoundTripUnchanged(): void
     {
-        $krypto = new FieldEncryption();
-        $wert   = 'Ein Wert mit Umlauten: äöü, und einem Zeilenumbruch:'."\n".'zweite Zeile.';
+        $crypto = new FieldEncryption();
+        $value  = 'A value with umlauts: äöü, and a line break:'."\n".'second line.';
 
-        $this->assertSame($wert, $krypto->decrypt($krypto->encrypt($wert)));
+        $this->assertSame($value, $crypto->decrypt($crypto->encrypt($value)));
     }
 
-    public function testEinChiffretextAusDemAltenCodeBleibtLesbar(): void
+    public function testACiphertextFromTheLegacyCodeStaysReadable(): void
     {
-        // Der Formatnachweis. Ohne ihn koennte 010-004-0001 das Format still veraendert haben,
-        // und ein Bestandsprojekt haette es erst beim naechsten Lesen gemerkt.
+        // The format proof. Without it 010-004-0001 could have changed the format silently, and
+        // an existing project would only have noticed on the next read.
         $this->assertSame(
-            self::ALTER_KLARTEXT,
-            (new FieldEncryption())->decrypt(self::ALTER_CHIFFRETEXT)
+            self::LEGACY_PLAINTEXT,
+            (new FieldEncryption())->decrypt(self::LEGACY_CIPHERTEXT)
         );
     }
 
-    public function testZweiVerschluesselungenDesselbenWertsUnterscheidenSich(): void
+    public function testTwoEncryptionsOfTheSameValueDiffer(): void
     {
-        // Der IV ist zufaellig. Waeren zwei Chiffretexte gleich, liesse sich aus der Datenbank
-        // ablesen, welche Zeilen denselben Wert tragen — bei einem verschluesselten Feld ist
-        // das genau die Auskunft, die niemand geben will.
-        $krypto = new FieldEncryption();
+        // The IV is random. If two ciphertexts were equal, the database would reveal which rows
+        // carry the same value — for an encrypted field that is exactly the information nobody
+        // wants to give away.
+        $crypto = new FieldEncryption();
 
-        $this->assertNotSame($krypto->encrypt('derselbe Wert'), $krypto->encrypt('derselbe Wert'));
+        $this->assertNotSame($crypto->encrypt('the same value'), $crypto->encrypt('the same value'));
     }
 
-    public function testOhneSchluesselWirdNichtVerschluesselt(): void
+    public function testWithoutAKeyNothingIsEncrypted(): void
     {
         $config = new Config();
         $config->SECURITY_CIPHER_KEY = null;
@@ -89,13 +90,13 @@ class FieldEncryptionTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('A value for SECURITY_CIPHER_KEY must be set for encryption.');
 
-        (new FieldEncryption())->encrypt('irgendwas');
+        (new FieldEncryption())->encrypt('anything');
     }
 
-    public function testOhneSchluesselWirdNichtEntschluesselt(): void
+    public function testWithoutAKeyNothingIsDecrypted(): void
     {
-        $krypto     = new FieldEncryption();
-        $chiffretext = $krypto->encrypt('irgendwas');
+        $crypto     = new FieldEncryption();
+        $ciphertext = $crypto->encrypt('anything');
 
         $config = new Config();
         $config->SECURITY_CIPHER_KEY = null;
@@ -103,74 +104,73 @@ class FieldEncryptionTest extends TestCase
 
         $this->expectException(\Exception::class);
 
-        (new FieldEncryption())->decrypt($chiffretext);
+        (new FieldEncryption())->decrypt($ciphertext);
     }
 
     /**
-     * DER NACHWEIS, UM DEN ES DER GANZEN STORY GEHT.
+     * THE PROOF THE WHOLE STORY IS ABOUT.
      *
-     * UMGEDREHT MIT 010-004-0002, und das ist ein Verhaltenswechsel mit Ansage. Vorher hiess
-     * dieser Test `testEinManipulierterChiffretextFaelltHeuteNichtAuf` und sicherte den
-     * Gegenteil-Zustand zu: AES-256-CBC hat keinen MAC, ein gekipptes Byte ging durch und
-     * lieferte einen anderen Klartext — ein Block Muell, der Rest stand. Gemessen an
-     * `Ueberweisung an Konto A, Betrag 100 Euro, dringend bitte`: Byte 20 und 40 gingen durch,
-     * Byte 30 und 101 scheiterten nur am Padding.
+     * INVERTED WITH 010-004-0002, and that is an announced change of behaviour. Before, this test
+     * guaranteed the opposite state (its former name is recorded in 010-004-0002): AES-256-CBC has no MAC, a flipped byte went through and yielded a different
+     * plaintext — one block of garbage, the rest intact. Measured with the plaintext this test
+     * uses (then still in its German wording): bytes 20 and 40 went through, bytes 30 and 101
+     * failed only on the padding.
      *
-     * XChaCha20-Poly1305 authentifiziert. Jede Aenderung am Chiffretext faellt auf, und
-     * entschluesselt wird nichts.
+     * XChaCha20-Poly1305 authenticates. Every change to the ciphertext is detected, and nothing
+     * is decrypted.
      *
-     * DER TEST PROBIERT JEDE POSITION DURCH, nicht eine ausgewaehlte: Beim alten Verfahren
-     * genuegte EINE durchgehende Manipulation, um die Zusicherung wertlos zu machen. Also muss
-     * hier JEDE abgewiesen werden.
+     * THE TEST TRIES EVERY POSITION, not a selected one: with the old algorithm ONE tampering
+     * that went through was enough to make the guarantee worthless. So EVERY one has to be
+     * rejected here.
      */
-    public function testJedeManipulationFaelltAuf(): void
+    public function testEveryTamperingIsDetected(): void
     {
-        $krypto      = new FieldEncryption();
-        $klartext    = 'Ueberweisung an Konto A, Betrag 100 Euro, dringend bitte';
-        $chiffretext = $krypto->encrypt($klartext);
+        $crypto     = new FieldEncryption();
+        $plaintext  = 'Transfer to account A, amount 100 euros, urgent please';
+        $ciphertext = $crypto->encrypt($plaintext);
 
-        $roh          = base64_decode(substr($chiffretext, strlen('PIM1:')));
-        $durchgekommen = array();
+        $raw         = base64_decode(substr($ciphertext, strlen('PIM1:')));
+        $gotThrough  = array();
 
-        for ($pos = 0; $pos < strlen($roh); $pos++) {
-            $manipuliert       = $roh;
-            $manipuliert[$pos] = chr(ord($manipuliert[$pos]) ^ 0x01);
+        for ($pos = 0; $pos < strlen($raw); $pos++) {
+            $tampered       = $raw;
+            $tampered[$pos] = chr(ord($tampered[$pos]) ^ 0x01);
 
-            $ergebnis = $krypto->decrypt('PIM1:'.base64_encode($manipuliert));
+            $result = $crypto->decrypt('PIM1:'.base64_encode($tampered));
 
-            if ($ergebnis !== false) {
-                $durchgekommen[] = $pos;
+            if ($result !== false) {
+                $gotThrough[] = $pos;
             }
         }
 
-        $this->assertSame(array(), $durchgekommen,
-            'Keine einzige Byte-Aenderung darf entschluesselt werden — auch nicht im Nonce');
+        $this->assertSame(array(), $gotThrough,
+            'Not a single changed byte may be decrypted — not even in the nonce');
     }
 
-    public function testEinFremderChiffretextMitDemRichtigenPraefixWirdAbgewiesen(): void
+    public function testAForeignCiphertextWithTheCorrectPrefixIsRejected(): void
     {
-        // Das Praefix ist eine Formatangabe, keine Zusicherung. Wer es davorschreibt, bekommt
-        // trotzdem nichts entschluesselt.
+        // The prefix states a format, it guarantees nothing. Whoever prepends it still gets
+        // nothing decrypted.
         $this->assertFalse((new FieldEncryption())->decrypt('PIM1:'.base64_encode(random_bytes(60))));
     }
 
-    public function testDieAbleitungIstDeterministisch(): void
+    public function testTheDerivationIsDeterministic(): void
     {
-        // Waere sie es nicht, waeren Bestandsdaten nach jedem Neustart verloren. Belegt ueber
-        // zwei Instanzen: Was die eine verschluesselt, liest die andere.
-        $eine    = new FieldEncryption();
-        $andere  = new FieldEncryption();
+        // If it were not, existing data would be lost after every restart. Proven with two
+        // instances: what one encrypts, the other reads.
+        $one   = new FieldEncryption();
+        $other = new FieldEncryption();
 
-        $this->assertSame('ein Wert', $andere->decrypt($eine->encrypt('ein Wert')));
+        $this->assertSame('a value', $other->decrypt($one->encrypt('a value')));
     }
 
-    public function testNeueWerteTragenDasPraefixUndAlteNicht(): void
+    public function testNewValuesCarryThePrefixAndLegacyValuesDoNot(): void
     {
-        $krypto = new FieldEncryption();
+        $crypto = new FieldEncryption();
 
-        $this->assertTrue($krypto->isNewFormat($krypto->encrypt('frisch')),
-            'Was jetzt geschrieben wird, ist AEAD');
-        $this->assertFalse($krypto->isNewFormat(self::ALTER_CHIFFRETEXT),
-            'und ein Bestandswert ist daran zu erkennen, dass ihm das Praefix fehlt');
+        $this->assertTrue($crypto->isNewFormat($crypto->encrypt('fresh')),
+            'What is written now is AEAD');
+        $this->assertFalse($crypto->isNewFormat(self::LEGACY_CIPHERTEXT),
+            'and an existing value is recognisable by the missing prefix');
     }
 }

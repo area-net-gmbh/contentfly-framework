@@ -9,141 +9,141 @@ use Doctrine\ORM\EntityRepository;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Provisionierung ohne setzbares Passwort (013-004-0002).
+ * Provisioning without a settable password (013-004-0002).
  *
- * **Befund A-6 ist das, wogegen es geht.** `createManagedUser()` setzte `setPass($alias)` — das
- * Passwort war der Benutzername. Entschärft war das allein durch den Riegel „nur über
- * LoginManager authorisierbar"; jeder Pfad, der ihn umging, war eine triviale Kontoübernahme.
+ * **Finding A-6 is what this is directed against.** `createManagedUser()` called
+ * `setPass($alias)` — the password was the user name. The only mitigation was the lock "only
+ * authorisable via LoginManager"; every path that bypassed it was a trivial account takeover.
  */
 class UserProvisioningTest extends TestCase
 {
     /** @var list<object> */
-    private array $persistiert = array();
+    private array $persisted = array();
 
-    private function bereitstellung(?User $vorhanden): UserProvisioning
+    private function provisioning(?User $existing): UserProvisioning
     {
-        $this->persistiert = array();
+        $this->persisted = array();
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($vorhanden);
+        $repository->method('findOneBy')->willReturn($existing);
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($repository);
-        $em->method('persist')->willReturnCallback(function ($objekt) {
-            $this->persistiert[] = $objekt;
+        $em->method('persist')->willReturnCallback(function ($object) {
+            $this->persisted[] = $object;
         });
 
         return new UserProvisioning($em);
     }
 
-    // ── Anlegen ────────────────────────────────────────────────────────────────────────
+    // ── Creating ───────────────────────────────────────────────────────────────────────
 
     /**
-     * **Der Kern des Tasks.** Ein neu angelegter Benutzer hat kein Passwort — nicht ein
-     * zufälliges, sondern gar keines.
+     * **The core of the task.** A newly created user has no password — not a random one, but none
+     * at all.
      */
-    public function testEinNeuerBenutzerHatEinGesperrtesPasswort(): void
+    public function testNewUserHasALockedPassword(): void
     {
-        $benutzer = $this->bereitstellung(null)->findOrCreate('ldap', new ExternalIdentity('mmustermann'));
+        $user = $this->provisioning(null)->findOrCreate('ldap', new ExternalIdentity('jdoe'));
 
-        $this->assertTrue($benutzer->isPasswordLocked());
-        $this->assertSame(User::PASSWORD_LOCKED, $benutzer->getPass());
+        $this->assertTrue($user->isPasswordLocked());
+        $this->assertSame(User::PASSWORD_LOCKED, $user->getPass());
     }
 
     /**
-     * Und die Probe, die Befund A-6 beschreibt: Der Benutzername als Passwort passt nicht.
+     * And the probe that finding A-6 describes: the user name as password does not match.
      */
-    public function testDerBenutzernameTaugtNichtAlsPasswort(): void
+    public function testUserNameDoesNotWorkAsPassword(): void
     {
-        $benutzer = $this->bereitstellung(null)->findOrCreate('ldap', new ExternalIdentity('mmustermann'));
+        $user = $this->provisioning(null)->findOrCreate('ldap', new ExternalIdentity('jdoe'));
 
-        $this->assertFalse($benutzer->isPass('mmustermann'));
-        $this->assertFalse($benutzer->isPass($benutzer->getAlias()));
-        $this->assertFalse($benutzer->isPass(User::PASSWORD_LOCKED));
-        $this->assertFalse($benutzer->isPass(''));
+        $this->assertFalse($user->isPass('jdoe'));
+        $this->assertFalse($user->isPass($user->getAlias()));
+        $this->assertFalse($user->isPass(User::PASSWORD_LOCKED));
+        $this->assertFalse($user->isPass(''));
     }
 
     /**
-     * Die Kennung des Fremdsystems steht lesbar da — nicht in einem MD5-Präfix.
+     * The identifier of the external system is stored readably — not in an MD5 prefix.
      */
-    public function testKennungUndHerkunftStehenLesbarInEigenenFeldern(): void
+    public function testIdentifierAndOriginAreStoredReadablyInSeparateFields(): void
     {
-        $benutzer = $this->bereitstellung(null)->findOrCreate('ldap', new ExternalIdentity('mmustermann'));
+        $user = $this->provisioning(null)->findOrCreate('ldap', new ExternalIdentity('jdoe'));
 
-        $this->assertSame('mmustermann', $benutzer->getExternalId());
-        $this->assertSame('ldap', $benutzer->getLoginManager());
-        $this->assertSame('ldap:mmustermann', $benutzer->getAlias());
-        $this->assertStringNotContainsString(md5('ldap'), (string) $benutzer->getAlias());
+        $this->assertSame('jdoe', $user->getExternalId());
+        $this->assertSame('ldap', $user->getLoginManager());
+        $this->assertSame('ldap:jdoe', $user->getAlias());
+        $this->assertStringNotContainsString(md5('ldap'), (string) $user->getAlias());
     }
 
     /**
-     * Zwei Provider, dieselbe Kennung, zwei Konten.
+     * Two providers, the same identifier, two accounts.
      *
-     * Genau das leistete früher der MD5-Präfix — nur unleserlich.
+     * That is exactly what the MD5 prefix used to do — only unreadably.
      */
-    public function testZweiProviderMitDerselbenKennungErgebenZweiKonten(): void
+    public function testTwoProvidersWithTheSameIdentifierYieldTwoAccounts(): void
     {
-        $einer  = $this->bereitstellung(null)->findOrCreate('ldap', new ExternalIdentity('mueller'));
-        $andere = $this->bereitstellung(null)->findOrCreate('saml', new ExternalIdentity('mueller'));
+        $one   = $this->provisioning(null)->findOrCreate('ldap', new ExternalIdentity('smith'));
+        $other = $this->provisioning(null)->findOrCreate('saml', new ExternalIdentity('smith'));
 
-        $this->assertNotSame($einer->getAlias(), $andere->getAlias());
-        $this->assertSame('ldap:mueller', $einer->getAlias());
-        $this->assertSame('saml:mueller', $andere->getAlias());
+        $this->assertNotSame($one->getAlias(), $other->getAlias());
+        $this->assertSame('ldap:smith', $one->getAlias());
+        $this->assertSame('saml:smith', $other->getAlias());
     }
 
-    public function testEinNeuerBenutzerBekommtKeineAdminrechte(): void
+    public function testNewUserGetsNoAdminRights(): void
     {
-        $benutzer = $this->bereitstellung(null)->findOrCreate('ldap', new ExternalIdentity('mmustermann'));
+        $user = $this->provisioning(null)->findOrCreate('ldap', new ExternalIdentity('jdoe'));
 
-        $this->assertFalse((bool) $benutzer->getIsAdmin());
-        $this->assertTrue((bool) $benutzer->getIsActive());
+        $this->assertFalse((bool) $user->getIsAdmin());
+        $this->assertTrue((bool) $user->getIsActive());
     }
 
-    // ── Wiederfinden ───────────────────────────────────────────────────────────────────
+    // ── Finding again ──────────────────────────────────────────────────────────────────
 
-    public function testEinVorhandenerBenutzerWirdWiedergefunden(): void
+    public function testExistingUserIsFoundAgain(): void
     {
-        $vorhanden = new User();
-        $vorhanden->setAlias('ldap:mmustermann');
-        $vorhanden->setExternalId('mmustermann');
-        $vorhanden->setLoginManager('ldap');
+        $existing = new User();
+        $existing->setAlias('ldap:jdoe');
+        $existing->setExternalId('jdoe');
+        $existing->setLoginManager('ldap');
 
-        $gefunden = $this->bereitstellung($vorhanden)->findOrCreate('ldap', new ExternalIdentity('mmustermann'));
+        $found = $this->provisioning($existing)->findOrCreate('ldap', new ExternalIdentity('jdoe'));
 
-        $this->assertSame($vorhanden, $gefunden);
-        $this->assertSame(array(), $this->persistiert, 'Nichts angelegt');
+        $this->assertSame($existing, $found);
+        $this->assertSame(array(), $this->persisted, 'Nothing created');
     }
 
     /**
-     * Ein vorhandener Benutzer, dessen Passwort ein Mensch gesetzt hat, wird nicht gesperrt.
+     * An existing user whose password was set by a human is not locked.
      *
-     * Der Fall ist kein Hirngespinst: Ein Administrator kann einem Konto einen Provider
-     * zuordnen, das schon existierte. Die Sperre gehört zum **Anlegen**, nicht zum Anmelden.
+     * The case is not far-fetched: an administrator can assign a provider to an account that
+     * already existed. The lock belongs to **creating**, not to logging in.
      */
-    public function testEinVorhandenerBenutzerWirdNichtNachtraeglichGesperrt(): void
+    public function testExistingUserIsNotLockedRetroactively(): void
     {
-        $vorhanden = new User();
-        $vorhanden->setAlias('ldap:chef');
-        $vorhanden->setPass('ein-echtes-passwort');
+        $existing = new User();
+        $existing->setAlias('ldap:boss');
+        $existing->setPass('a-real-password');
 
-        $gefunden = $this->bereitstellung($vorhanden)->findOrCreate('ldap', new ExternalIdentity('chef'));
+        $found = $this->provisioning($existing)->findOrCreate('ldap', new ExternalIdentity('boss'));
 
-        $this->assertFalse($gefunden->isPasswordLocked());
-        $this->assertTrue($gefunden->isPass('ein-echtes-passwort'));
+        $this->assertFalse($found->isPasswordLocked());
+        $this->assertTrue($found->isPass('a-real-password'));
     }
 
-    // ── Der Umgang mit dem gesperrten Hash ─────────────────────────────────────────────
+    // ── Handling the locked hash ───────────────────────────────────────────────────────
 
     /**
-     * Ein gesperrtes Passwort wird nicht umgeschlüsselt — es soll ja keines werden.
+     * A locked password is not rehashed — it is not supposed to become one.
      *
-     * Ohne diese Prüfung hielte `needsRehash()` den Stern für einen Altformat-Hash und der
-     * Login versuchte, ihn durch das vorgezeigte Passwort zu ersetzen.
+     * Without this check `needsRehash()` would take the asterisk for a legacy-format hash and the
+     * login would try to replace it with the presented password.
      */
-    public function testEinGesperrtesPasswortWirdNichtUmgeschluesselt(): void
+    public function testLockedPasswordIsNotRehashed(): void
     {
-        $benutzer = $this->bereitstellung(null)->findOrCreate('ldap', new ExternalIdentity('mmustermann'));
+        $user = $this->provisioning(null)->findOrCreate('ldap', new ExternalIdentity('jdoe'));
 
-        $this->assertFalse($benutzer->needsRehash());
+        $this->assertFalse($user->needsRehash());
     }
 }

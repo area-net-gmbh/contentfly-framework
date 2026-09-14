@@ -5,97 +5,97 @@ use Areanet\PIM\Classes\Kernel\Container;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Der Container aus `009-002-0002`, gegen genau die Zusagen geprüft, wegen derer er
- * geschrieben wurde.
+ * The container from `009-002-0002`, checked against exactly the promises it was
+ * written for.
  *
- * Er bildet Pimples Vertrag nach, weil `custom/app.php` daran hängt — und weil ein
- * Bestandsprojekt seine Dienste genau so registriert. Was hier steht, ist damit kein
- * Implementierungsdetail, sondern die Schnittstelle zum Projekt.
+ * It reproduces Pimple's contract because `custom/app.php` depends on it — and because an
+ * existing project registers its services exactly this way. What is stated here is therefore
+ * not an implementation detail but the interface to the project.
  */
 class ContainerTest extends TestCase
 {
-    public function testEinWertKommtZurueckWieErAbgelegtWurde(): void
+    public function testAValueComesBackAsItWasStored(): void
     {
         $c = new Container();
-        $c['zahl'] = 42;
+        $c['number'] = 42;
 
-        $this->assertSame(42, $c['zahl']);
+        $this->assertSame(42, $c['number']);
     }
 
-    public function testEineClosureIstEineFactoryUndLaeuftErstBeimZugriff(): void
+    public function testAClosureIsAFactoryAndOnlyRunsOnAccess(): void
     {
-        // Der Kern des Vertrags: Registrieren fuehrt nichts aus. custom/app.php wird beim
-        // Bootstrap gelesen, lange bevor eine Datenbank steht — eine Factory, die sofort
-        // liefe, wuerde dort auf einen EntityManager zugreifen, den es noch nicht gibt.
-        $gelaufen = false;
+        // The core of the contract: registering executes nothing. custom/app.php is read during
+        // bootstrap, long before a database is available — a factory that ran immediately
+        // would access an EntityManager there that does not exist yet.
+        $ran = false;
 
         $c = new Container();
-        $c['dienst'] = function () use (&$gelaufen) {
-            $gelaufen = true;
+        $c['service'] = function () use (&$ran) {
+            $ran = true;
 
             return new \stdClass();
         };
 
-        $this->assertFalse($gelaufen, 'Registrieren allein fuehrt die Factory nicht aus');
+        $this->assertFalse($ran, 'Registering alone does not execute the factory');
 
-        $c['dienst'];
+        $c['service'];
 
-        $this->assertTrue($gelaufen, 'Der erste Zugriff tut es');
+        $this->assertTrue($ran, 'The first access does');
     }
 
-    public function testDieFactoryBekommtDenContainerAlsArgument(): void
+    public function testTheFactoryReceivesTheContainerAsArgument(): void
     {
-        // So loest custom/app.php Abhaengigkeiten auf:
-        //     $app['meine.service'] = function ($app) { return new X($app['orm.em']); };
+        // This is how custom/app.php resolves dependencies:
+        //     $app['my.service'] = function ($app) { return new X($app['orm.em']); };
         $c = new Container();
-        $c['abhaengigkeit'] = 'da';
-        $c['dienst'] = function ($app) {
-            return 'gebaut mit: '.$app['abhaengigkeit'];
+        $c['dependency'] = 'present';
+        $c['service'] = function ($app) {
+            return 'built with: '.$app['dependency'];
         };
 
-        $this->assertSame('gebaut mit: da', $c['dienst']);
+        $this->assertSame('built with: present', $c['service']);
     }
 
-    public function testEineFactoryLaeuftGenauEinmal(): void
+    public function testAFactoryRunsExactlyOnce(): void
     {
-        // Darauf beruht, dass $app['orm.em'] ueberall derselbe EntityManager ist.
+        // This is what makes $app['orm.em'] the same EntityManager everywhere.
         $c = new Container();
-        $c['objekt'] = function () {
+        $c['object'] = function () {
             return new \stdClass();
         };
 
-        $this->assertSame($c['objekt'], $c['objekt']);
+        $this->assertSame($c['object'], $c['object']);
     }
 
-    public function testEinUnbekannterSchluesselWirftStattNullZuLiefern(): void
+    public function testAnUnknownKeyThrowsInsteadOfReturningNull(): void
     {
-        // Null zurueckzugeben hiesse, einen Tippfehler in einen stillen Fehler weit spaeter
-        // zu verwandeln.
+        // Returning null would turn a typo into a silent error much later
+        // on.
         $c = new Container();
 
         $this->expectException(\InvalidArgumentException::class);
 
-        $c['gibtsnicht'];
+        $c['doesnotexist'];
     }
 
-    public function testIssetUndUnsetWirkenWieErwartet(): void
+    public function testIssetAndUnsetWorkAsExpected(): void
     {
         $c = new Container();
-        $c['da'] = 1;
+        $c['present'] = 1;
 
-        $this->assertTrue(isset($c['da']));
-        $this->assertFalse(isset($c['nichtda']));
+        $this->assertTrue(isset($c['present']));
+        $this->assertFalse(isset($c['notpresent']));
 
-        unset($c['da']);
+        unset($c['present']);
 
-        $this->assertFalse(isset($c['da']));
+        $this->assertFalse(isset($c['present']));
     }
 
-    public function testEinEintragMitNullGiltAlsVorhanden(): void
+    public function testAnEntryWithNullCountsAsPresent(): void
     {
-        // bootstrap.php legt $app['auth.user'] = null ab und setzt ihn spaeter. Wuerde isset()
-        // darauf false liefern, waere die Unterscheidung "nicht registriert" gegen "noch
-        // niemand angemeldet" verloren.
+        // bootstrap.php stores $app['auth.user'] = null and sets it later. If isset() returned
+        // false for it, the distinction "not registered" versus "nobody logged in
+        // yet" would be lost.
         $c = new Container();
         $c['auth.user'] = null;
 
@@ -103,30 +103,30 @@ class ContainerTest extends TestCase
         $this->assertNull($c['auth.user']);
     }
 
-    // ── extend() und das Einfrieren ────────────────────────────────────────────────────
+    // ── extend() and freezing ──────────────────────────────────────────────────────────
 
-    public function testExtendUmschliesstDieAlteFactory(): void
+    public function testExtendWrapsTheOldFactory(): void
     {
         $c = new Container();
-        $c['liste'] = function () {
-            return array('eins');
+        $c['list'] = function () {
+            return array('one');
         };
 
-        $c->extend('liste', function (array $alt) {
-            $alt[] = 'zwei';
+        $c->extend('list', function (array $old) {
+            $old[] = 'two';
 
-            return $alt;
+            return $old;
         });
 
-        $this->assertSame(array('eins', 'zwei'), $c['liste']);
+        $this->assertSame(array('one', 'two'), $c['list']);
     }
 
-    public function testExtendNachDemErstenZugriffWirft(): void
+    public function testExtendAfterTheFirstAccessThrows(): void
     {
-        // Die Zusage, wegen derer das Einfrieren ueberhaupt nachgebaut ist. Der
-        // ConsoleManager ergaenzt den Dispatcher ueber extend() und muss das tun, bevor
-        // jemand ihn ausliest; 000-000-0006 ist genau darueber gestolpert. Ein Container,
-        // der das stillschweigend erlaubte, wuerde den Fehler verstecken.
+        // The promise for which freezing was rebuilt in the first place. The
+        // ConsoleManager extends the dispatcher via extend() and has to do so before
+        // anyone reads it; 000-000-0006 stumbled over exactly that. A container
+        // that silently allowed it would hide the error.
         $c = new Container();
         $c['dispatcher'] = function () {
             return new \stdClass();
@@ -136,51 +136,51 @@ class ContainerTest extends TestCase
 
         $this->expectException(\RuntimeException::class);
 
-        $c->extend('dispatcher', function ($alt) {
-            return $alt;
+        $c->extend('dispatcher', function ($old) {
+            return $old;
         });
     }
 
-    public function testExtendAufEinemWertWirft(): void
+    public function testExtendOnAValueThrows(): void
     {
         $c = new Container();
-        $c['zahl'] = 42;
+        $c['number'] = 42;
 
         $this->expectException(\InvalidArgumentException::class);
 
-        $c->extend('zahl', function ($alt) {
-            return $alt;
+        $c->extend('number', function ($old) {
+            return $old;
         });
     }
 
-    public function testNeuSetzenHebtDasEinfrierenAuf(): void
+    public function testSettingAgainLiftsTheFreeze(): void
     {
-        // Wer eine Definition ersetzt, faengt von vorn an — sonst waere ein Dienst nach dem
-        // ersten Zugriff fuer immer festgelegt, auch fuer den, der ihn bewusst austauscht.
+        // Whoever replaces a definition starts over — otherwise a service would be fixed
+        // forever after the first access, even for someone who deliberately swaps it.
         $c = new Container();
-        $c['dienst'] = function () {
-            return 'alt';
+        $c['service'] = function () {
+            return 'old';
         };
 
-        $c['dienst'];
+        $c['service'];
 
-        $c['dienst'] = function () {
-            return 'neu';
+        $c['service'] = function () {
+            return 'new';
         };
 
-        $c->extend('dienst', function ($alt) {
-            return $alt.'+erweitert';
+        $c->extend('service', function ($old) {
+            return $old.'+extended';
         });
 
-        $this->assertSame('neu+erweitert', $c['dienst']);
+        $this->assertSame('new+extended', $c['service']);
     }
 
-    public function testKeysLiefertDieSchluesselInRegistrierungsreihenfolge(): void
+    public function testKeysReturnsTheKeysInRegistrationOrder(): void
     {
         $c = new Container();
-        $c['erster'] = 1;
-        $c['zweiter'] = 2;
+        $c['first'] = 1;
+        $c['second'] = 2;
 
-        $this->assertSame(array('erster', 'zweiter'), $c->keys());
+        $this->assertSame(array('first', 'second'), $c->keys());
     }
 }

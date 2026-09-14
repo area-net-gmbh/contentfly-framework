@@ -8,132 +8,131 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
- * Die Allowlist der LoginProvider (013-004-0001).
+ * The allowlist of LoginProviders (013-004-0001).
  *
- * Sie ersetzt die Auflösung eines Klassennamens aus dem Request. Der Unterschied ist nicht
- * kosmetisch: Aus „der Aufrufer sagt, was geladen wird" wird „der Aufrufer wählt aus dem, was
- * der Betreiber freigegeben hat".
+ * It replaces resolving a class name from the request. The difference is not cosmetic: "the
+ * caller says what gets loaded" becomes "the caller chooses from what the operator has
+ * approved".
  */
 class LoginProviderRegistryTest extends TestCase
 {
-    private function provider(?string $kennung = 'extern-1'): LoginProvider
+    private function provider(?string $identifier = 'external-1'): LoginProvider
     {
-        return new class($kennung) implements LoginProvider {
-            public function __construct(private ?string $kennung) {}
+        return new class($identifier) implements LoginProvider {
+            public function __construct(private ?string $identifier) {}
 
             public function authenticate(Request $request): ?ExternalIdentity
             {
-                return $this->kennung === null ? null : new ExternalIdentity($this->kennung);
+                return $this->identifier === null ? null : new ExternalIdentity($this->identifier);
             }
         };
     }
 
-    public function testEinEingetragenerNameLiefertSeinenProvider(): void
+    public function testARegisteredNameReturnsItsProvider(): void
     {
-        $verzeichnis = new LoginProviderRegistry();
-        $verzeichnis->register('ldap', $this->provider());
+        $registry = new LoginProviderRegistry();
+        $registry->register('ldap', $this->provider());
 
-        $this->assertTrue($verzeichnis->has('ldap'));
-        $this->assertInstanceOf(LoginProvider::class, $verzeichnis->get('ldap'));
+        $this->assertTrue($registry->has('ldap'));
+        $this->assertInstanceOf(LoginProvider::class, $registry->get('ldap'));
     }
 
     /**
-     * **Der Kern:** Ein Name, den niemand eingetragen hat, existiert nicht — und ein
-     * Klassenname ist so ein Name.
+     * **The core:** a name nobody registered does not exist — and a class name is such a name.
      */
-    public function testEinNichtEingetragenerNameLiefertNichts(): void
+    public function testAnUnregisteredNameReturnsNothing(): void
     {
-        $verzeichnis = new LoginProviderRegistry();
-        $verzeichnis->register('ldap', $this->provider());
+        $registry = new LoginProviderRegistry();
+        $registry->register('ldap', $this->provider());
 
-        $this->assertNull($verzeichnis->get('saml'));
-        $this->assertNull($verzeichnis->get('Custom\\Classes\\LoginManager\\Beispiel'));
-        $this->assertNull($verzeichnis->get('Plugins\\Auth\\Ldap'));
-        $this->assertNull($verzeichnis->get(null));
+        $this->assertNull($registry->get('saml'));
+        $this->assertNull($registry->get('Custom\\Classes\\LoginManager\\Example'));
+        $this->assertNull($registry->get('Plugins\\Auth\\Ldap'));
+        $this->assertNull($registry->get(null));
     }
 
     /**
-     * Ein leeres Verzeichnis ist der Vorgabezustand: Solange nichts eingetragen ist, gibt es
-     * keinen Weg an der Passwortprüfung vorbei.
+     * An empty registry is the default state: as long as nothing is registered, there is no way
+     * around the password check.
      */
-    public function testEinLeeresVerzeichnisLaesstNiemandenDurch(): void
+    public function testAnEmptyRegistryLetsNobodyThrough(): void
     {
         $this->assertSame(array(), (new LoginProviderRegistry())->names());
         $this->assertNull((new LoginProviderRegistry())->get('ldap'));
     }
 
-    public function testGrossUndKleinschreibungEntscheidetNicht(): void
+    public function testUpperAndLowerCaseDoNotMatter(): void
     {
-        $verzeichnis = new LoginProviderRegistry();
-        $verzeichnis->register('LDAP', $this->provider());
+        $registry = new LoginProviderRegistry();
+        $registry->register('LDAP', $this->provider());
 
-        $this->assertNotNull($verzeichnis->get('ldap'));
-        $this->assertNotNull($verzeichnis->get(' Ldap '));
+        $this->assertNotNull($registry->get('ldap'));
+        $this->assertNotNull($registry->get(' Ldap '));
     }
 
     /**
-     * Ein zweiter Eintrag unter demselben Namen wird abgewiesen.
+     * A second entry under the same name is rejected.
      *
-     * Stillschweigend zu überschreiben hiesse, dass die Reihenfolge zweier Zeilen in
-     * `custom/app.php` darüber entscheidet, gegen welches Fremdsystem geprüft wird. Das fällt
-     * niemandem auf, bis es das Falsche tut.
+     * Overwriting silently would mean that the order of two lines in `custom/app.php` decides
+     * which external system is checked against. Nobody notices that until it does the wrong
+     * thing.
      */
-    public function testEinZweiterEintragUnterDemselbenNamenWirdAbgewiesen(): void
+    public function testASecondEntryUnderTheSameNameIsRejected(): void
     {
-        $verzeichnis = new LoginProviderRegistry();
-        $verzeichnis->register('ldap', $this->provider());
+        $registry = new LoginProviderRegistry();
+        $registry->register('ldap', $this->provider());
 
         $this->expectException(\LogicException::class);
-        $verzeichnis->register('ldap', $this->provider());
+        $registry->register('ldap', $this->provider());
     }
 
     /**
-     * Der Eintrag ist faul: Ein Provider baut womöglich eine Verbindung zu einem Fremdsystem
-     * auf, und das darf nicht bei jedem Request passieren.
+     * The entry is lazy: a provider may open a connection to an external system, and that must
+     * not happen on every request.
      */
-    public function testEinEintragWirdErstBeimAbrufenGebaut(): void
+    public function testAnEntryIsOnlyBuiltWhenRetrieved(): void
     {
-        $gebaut = 0;
+        $built = 0;
 
-        $verzeichnis = new LoginProviderRegistry();
-        $verzeichnis->register('ldap', function () use (&$gebaut) {
-            $gebaut++;
+        $registry = new LoginProviderRegistry();
+        $registry->register('ldap', function () use (&$built) {
+            $built++;
 
             return $this->provider();
         });
 
-        $this->assertSame(0, $gebaut, 'Noch nicht gebaut');
+        $this->assertSame(0, $built, 'Not built yet');
 
-        $verzeichnis->get('ldap');
-        $verzeichnis->get('ldap');
+        $registry->get('ldap');
+        $registry->get('ldap');
 
-        $this->assertSame(1, $gebaut, 'Einmal gebaut, danach derselbe');
+        $this->assertSame(1, $built, 'Built once, the same one afterwards');
     }
 
-    public function testEineClosureDieKeinenProviderLiefertWirdAbgewiesen(): void
+    public function testAClosureThatReturnsNoProviderIsRejected(): void
     {
-        $verzeichnis = new LoginProviderRegistry();
-        $verzeichnis->register('kaputt', fn () => new \stdClass());
+        $registry = new LoginProviderRegistry();
+        $registry->register('broken', fn () => new \stdClass());
 
         $this->expectException(\LogicException::class);
-        $verzeichnis->get('kaputt');
+        $registry->get('broken');
     }
 
-    // ── Die ExternalIdentity ───────────────────────────────────────────────────────────────
+    // ── The ExternalIdentity ───────────────────────────────────────────────────────────────
 
-    public function testEineFremdkennungOhneKennungGibtEsNicht(): void
+    public function testAnExternalIdentityWithoutAnIdentifierDoesNotExist(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
         new ExternalIdentity('   ');
     }
 
-    public function testEineFremdkennungTraegtWasDasFremdsystemSagt(): void
+    public function testAnExternalIdentityCarriesWhatTheExternalSystemSays(): void
     {
-        $kennung = new ExternalIdentity('mmustermann', array('Redaktion'), array('mail' => 'm@example.invalid'));
+        $identity = new ExternalIdentity('jdoe', array('Editorial'), array('mail' => 'm@example.invalid'));
 
-        $this->assertSame('mmustermann', $kennung->identifier);
-        $this->assertSame(array('Redaktion'), $kennung->groups);
-        $this->assertSame('m@example.invalid', $kennung->attributes['mail']);
+        $this->assertSame('jdoe', $identity->identifier);
+        $this->assertSame(array('Editorial'), $identity->groups);
+        $this->assertSame('m@example.invalid', $identity->attributes['mail']);
     }
 }

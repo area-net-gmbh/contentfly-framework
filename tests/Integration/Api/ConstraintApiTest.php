@@ -5,35 +5,34 @@ use PDO;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * Charakterisierungstests für die verbliebenen Nebenwirkungen der Schreibseite —
- * `unique`-Verletzungen und die Sortierung von `BaseSortable`-Entities.
+ * Characterisation tests for the remaining side effects of the write side —
+ * `unique` violations and the sorting of `BaseSortable` entities.
  *
- * Dazu die ehrliche Buchführung über zwei Nebenwirkungen, die **heute keinen
- * Prüfgegenstand haben**: die `encoded`-Verschlüsselung und die OneJoin-Kaskade beim
- * Löschen. Für beide gibt es einen Test auf die *Vorbedingung* statt auf die Wirkung — er
- * schlägt an, sobald jemand eine passende Entity anlegt, und fordert damit den fehlenden
- * Nachweis ein, statt ihn stillschweigend ausfallen zu lassen.
+ * Plus honest bookkeeping for two side effects that **have nothing to check today**: the
+ * `encoded` encryption and the OneJoin cascade on delete. For both there is a test on the
+ * *precondition* instead of on the effect — it fires as soon as someone creates a matching
+ * entity, and thereby demands the missing proof instead of silently dropping it.
  *
- * Dasselbe Muster wie bei `excludeFromSync` und `i18n_universal` in Story `008-001`. Dass es
- * sich häuft, ist selbst ein Befund: Das Framework trägt Funktionen, deren einzige Nutzer die
- * gelöschte Oberfläche oder Kundenprojekte waren.
+ * The same pattern as with `excludeFromSync` and `i18n_universal` in story `008-001`. That it
+ * keeps recurring is a finding in itself: the framework carries features whose only users were
+ * the deleted UI or customer projects.
  */
 class ConstraintApiTest extends IntegrationTestCase
 {
     /** @var array<int,string> */
-    private array $beobachtet = array();
+    private array $observed = array();
 
-    private function tagAnlegen(string $titel): array
+    private function createTag(string $title): array
     {
         [$status, $body] = $this->postJson(
             '/api/insert',
-            array('entity' => 'PIM\\Tag', 'data' => array('title' => $titel)),
+            array('entity' => 'PIM\\Tag', 'data' => array('title' => $title)),
             $this->token()
         );
 
         if ($status === 200) {
-            $this->nachTestLoeschen('pim_tag', $body['id']);
-            $this->beobachtet[] = $body['id'];
+            $this->deleteAfterTest('pim_tag', $body['id']);
+            $this->observed[] = $body['id'];
         }
 
         return array($status, $body);
@@ -41,139 +40,139 @@ class ConstraintApiTest extends IntegrationTestCase
 
     protected function tearDown(): void
     {
-        foreach ($this->beobachtet as $modelId) {
+        foreach ($this->observed as $modelId) {
             $this->pdo()->prepare('DELETE FROM pim_log WHERE model_id = :id')->execute(array('id' => $modelId));
         }
 
-        $this->beobachtet = array();
+        $this->observed = array();
 
         parent::tearDown();
     }
 
     private function schema(): array
     {
-        [$status, $roh] = $this->get('/api/schema', $this->token());
+        [$status, $raw] = $this->get('/api/schema', $this->token());
         $this->assertSame(200, $status);
 
-        return json_decode($roh, true)['data'];
+        return json_decode($raw, true)['data'];
     }
 
     // ── unique ─────────────────────────────────────────────────────────────────────────
 
-    public function testEineUniqueVerletzungWirdAbgewiesen(): void
+    public function testUniqueViolationIsRejected(): void
     {
-        // PIM\Tag.title traegt beides: @ORM\Column(unique=true) auf Datenbankebene und
-        // @PIM\Config(unique=true) im Schema. Api prueft letzteres.
-        $titel = 'Einzigartig-'.bin2hex(random_bytes(6));
+        // PIM\Tag.title carries both: @ORM\Column(unique=true) at database level and
+        // @PIM\Config(unique=true) in the schema. Api checks the latter.
+        $title = 'Unique-'.bin2hex(random_bytes(6));
 
-        [$ersterStatus] = $this->tagAnlegen($titel);
-        $this->assertSame(200, $ersterStatus, 'Der erste geht durch');
+        [$firstStatus] = $this->createTag($title);
+        $this->assertSame(200, $firstStatus, 'The first one goes through');
 
-        // Umgedreht mit 009-003-0002, und die alte Zusicherung hatte die falsche Ursache
-        // benannt: Sie schrieb den 500 dem Befund aus 000-000-0006 zu, also der Fehlerkette.
-        // Tatsaechlich stand in dieser Zeile eine Konstante, die es nicht gibt —
-        // Messages::contentfly_general_record_already_exists statt …_ressource_… —, und der
-        // Aufruf starb an "Undefined constant", nicht an der Antwortverarbeitung. PHPStan hat
-        // es gefunden.
-        [$zweiterStatus] = $this->tagAnlegen($titel);
-        $this->assertSame(409, $zweiterStatus,
-            'Eine unique-Verletzung ist ein Konflikt, kein Serverfehler');
+        // Flipped with 009-003-0002, and the old assertion had named the wrong cause:
+        // it attributed the 500 to the finding from 000-000-0006, i.e. the error chain.
+        // In fact this line contained a constant that does not exist —
+        // Messages::contentfly_general_record_already_exists instead of …_ressource_… —, and the
+        // call died of "Undefined constant", not of the response handling. PHPStan
+        // found it.
+        [$secondStatus] = $this->createTag($title);
+        $this->assertSame(409, $secondStatus,
+            'A unique violation is a conflict, not a server error');
     }
 
-    public function testEineUniqueVerletzungLaesstKeineHalbeZeileZurueck(): void
+    public function testUniqueViolationLeavesNoHalfWrittenRow(): void
     {
-        // Die API-Antwort allein sagt darueber nichts — deshalb gegen die Datenbank geprueft.
-        $titel = 'Einzigartig-'.bin2hex(random_bytes(6));
+        // The API response alone says nothing about this — hence checked against the database.
+        $title = 'Unique-'.bin2hex(random_bytes(6));
 
-        $this->tagAnlegen($titel);
-        $this->tagAnlegen($titel);
+        $this->createTag($title);
+        $this->createTag($title);
 
-        $anzahl = (int) $this->pdo()
-            ->query('SELECT COUNT(*) FROM pim_tag WHERE title = '.$this->pdo()->quote($titel))
+        $count = (int) $this->pdo()
+            ->query('SELECT COUNT(*) FROM pim_tag WHERE title = '.$this->pdo()->quote($title))
             ->fetchColumn();
 
-        $this->assertSame(1, $anzahl,
-            'Nach dem fehlgeschlagenen zweiten Versuch steht genau eine Zeile da');
+        $this->assertSame(1, $count,
+            'After the failed second attempt exactly one row exists');
     }
 
-    public function testDasSchemaWeistDieUniqueEigenschaftAus(): void
+    public function testSchemaExposesTheUniqueProperty(): void
     {
         $this->assertTrue($this->schema()['PIM\\Tag']['properties']['title']['unique'],
-            'unique ist eines der zehn Felder, die 012-005-0002 behalten hat');
+            'unique is one of the ten fields that 012-005-0002 kept');
     }
 
-    // ── Sortierung ─────────────────────────────────────────────────────────────────────
+    // ── Sorting ────────────────────────────────────────────────────────────────────────
 
-    public function testBaseSortableEntitiesWerdenAlsSortierbarGefuehrt(): void
+    public function testBaseSortableEntitiesAreMarkedAsSortable(): void
     {
-        $einstellungen = $this->schema()['PIM\\Option']['settings'];
+        $settings = $this->schema()['PIM\\Option']['settings'];
 
-        $this->assertTrue($einstellungen['isSortable']);
-        $this->assertSame('sorting', $einstellungen['sortBy'],
-            'Api::getSchema() setzt das fuer BaseSortable, unabhaengig von der Annotation');
-        $this->assertSame('ASC', $einstellungen['sortOrder']);
+        $this->assertTrue($settings['isSortable']);
+        $this->assertSame('sorting', $settings['sortBy'],
+            'Api::getSchema() sets this for BaseSortable, regardless of the annotation');
+        $this->assertSame('ASC', $settings['sortOrder']);
     }
 
-    public function testSortRestrictToWirdAusDerAnnotationUebernommen(): void
+    public function testSortRestrictToIsTakenFromTheAnnotation(): void
     {
-        // sortRestrictTo ist laut dem Befund aus 008-001-0002 das EINZIGE der drei
-        // Sortier-Felder mit einem echten Leser im Framework (JoinBidirectionalType).
-        // sortBy und sortOrder stehen nur im Schema und werden von keinem Leser angewandt —
-        // mit 000-000-0013 entschieden, dass es dabei bleibt, und in
-        // an_project/docs/pim-annotationen-migration.md entsprechend richtiggestellt.
+        // According to the finding from 008-001-0002, sortRestrictTo is the ONLY one of the three
+        // sorting fields with a real reader in the framework (JoinBidirectionalType).
+        // sortBy and sortOrder only appear in the schema and are applied by no reader —
+        // decided with 000-000-0013 that it stays that way, and corrected accordingly in
+        // an_project/docs/pim-annotationen-migration.md.
         $this->assertSame('group', $this->schema()['PIM\\Option']['settings']['sortRestrictTo'],
-            'PIM\\Option traegt @PIM\\Config(sortRestrictTo="group") — die Sortierung laeuft '
-            .'je Optionsgruppe, nicht global');
+            'PIM\\Option carries @PIM\\Config(sortRestrictTo="group") — sorting runs '
+            .'per option group, not globally');
 
         $this->assertNull($this->schema()['PIM\\Nav']['settings']['sortRestrictTo'],
-            'PIM\\Nav erbt zwar von BaseSortable, schraenkt aber nicht ein');
+            'PIM\\Nav does inherit from BaseSortable, but does not restrict');
     }
 
-    // ── Die beiden Lücken ──────────────────────────────────────────────────────────────
+    // ── The two gaps ───────────────────────────────────────────────────────────────────
 
-    public function testKeineEntityNutztDieEncodedVerschluesselung(): void
+    public function testNoEntityUsesEncodedEncryption(): void
     {
-        // encoded ist eines der zehn Felder, die 012-005-0002 behalten hat, und es hat mit
-        // StringType/TextareaType echte Leser. Nur: **keine Entity setzt es**, und
-        // SECURITY_CIPHER_KEY steht standardmaessig auf null — StringType wuerde selbst dann
-        // werfen. Die Verschluesselung ist heute nicht ausloesbar.
+        // encoded is one of the ten fields that 012-005-0002 kept, and it has real readers in
+        // StringType/TextareaType. Only: **no entity sets it**, and
+        // SECURITY_CIPHER_KEY defaults to null — StringType would throw even then.
+        // Encryption cannot be triggered today.
         //
-        // Setzt jemand das Flag, schlaegt dieser Test an. Dann gehoert hierher der Nachweis,
-        // dass der Wert in der Datenbank verschluesselt liegt und ueber die API im Klartext
-        // zurueckkommt — geprueft an der Datenbank, nicht an der Antwort.
-        $mitFlag = array();
+        // If someone sets the flag, this test fires. Then this is where the proof belongs
+        // that the value is stored encrypted in the database and comes back as plain text via
+        // the API — checked against the database, not against the response.
+        $withFlag = array();
 
-        foreach ($this->schema() as $entity => $eintrag) {
-            if ($entity === '_hash' || !isset($eintrag['properties'])) {
+        foreach ($this->schema() as $entity => $entry) {
+            if ($entity === '_hash' || !isset($entry['properties'])) {
                 continue;
             }
-            foreach ($eintrag['properties'] as $name => $config) {
+            foreach ($entry['properties'] as $name => $config) {
                 if (!empty($config['encoded'])) {
-                    $mitFlag[] = $entity.'.'.$name;
+                    $withFlag[] = $entity.'.'.$name;
                 }
             }
         }
 
-        $this->assertSame(array(), $mitFlag,
-            'Heute nutzt keine Entity encoded=true. Aendert sich das, gehoert der Nachweis '
-            .'der Verschluesselung in diesen Test.');
+        $this->assertSame(array(), $withFlag,
+            'Today no entity uses encoded=true. If that changes, the proof of '
+            .'encryption belongs in this test.');
     }
 
-    public function testEsGibtKeineOnejoinEigenschaftFuerDieLoeschKaskade(): void
+    public function testThereIsNoOnejoinPropertyForTheDeleteCascade(): void
     {
-        // Api::delete() entfernt verjointe Objekte vom Typ onejoin mit. Es gibt keine
-        // einzige @ORM\OneToOne-Beziehung im Framework oder in der Vorlage — der Code-Pfad
-        // hat keinen Ausloeser.
+        // Api::delete() also removes joined objects of type onejoin. There is not a
+        // single @ORM\OneToOne relation in the framework or in the template — the code path
+        // has no trigger.
         //
-        // Entsteht eine solche Beziehung, schlaegt dieser Test an. Dann gehoert hierher der
-        // Nachweis, dass das verjointe Objekt beim Loeschen des Elternobjekts mit verschwindet.
+        // If such a relation appears, this test fires. Then this is where the proof belongs
+        // that the joined object disappears along with the parent object when it is deleted.
         $onejoins = array();
 
-        foreach ($this->schema() as $entity => $eintrag) {
-            if ($entity === '_hash' || !isset($eintrag['properties'])) {
+        foreach ($this->schema() as $entity => $entry) {
+            if ($entity === '_hash' || !isset($entry['properties'])) {
                 continue;
             }
-            foreach ($eintrag['properties'] as $name => $config) {
+            foreach ($entry['properties'] as $name => $config) {
                 if (($config['type'] ?? null) === 'onejoin') {
                     $onejoins[] = $entity.'.'.$name;
                 }
@@ -181,7 +180,7 @@ class ConstraintApiTest extends IntegrationTestCase
         }
 
         $this->assertSame(array(), $onejoins,
-            'Heute gibt es keine onejoin-Eigenschaft. Aendert sich das, gehoert der Nachweis '
-            .'der Loesch-Kaskade in diesen Test.');
+            'Today there is no onejoin property. If that changes, the proof of '
+            .'the delete cascade belongs in this test.');
     }
 }

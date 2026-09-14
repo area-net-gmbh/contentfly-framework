@@ -10,28 +10,28 @@ use PHPUnit\Framework\TestCase;
 use Areanet\PIM\Classes\Kernel\Application;
 
 /**
- * Charakterisierungstests für den `TypeManager` — die Registrierung der Feldtypen.
+ * Characterisation tests for the `TypeManager` — the registration of the field types.
  *
- * Bewusst als **Unit-Test**: Der Manager hängt allein an einem `Kernel\Application`-Objekt und
- * greift auf `$app['orm.em']` nur durch, wenn ein Typ es benutzt. Für Registrierung und
- * Abfrage braucht es weder Datenbank noch HTTP.
+ * Deliberately a **unit test**: the manager depends on nothing but a `Kernel\Application`
+ * object and only reaches through to `$app['orm.em']` when a type uses it. Registration and
+ * lookup need neither database nor HTTP.
  *
- * Epic `009` baut den Kernel darunter aus. Was hier zugesichert ist, muss danach identisch
- * gelten — über den `TypeManager` registriert ein Projekt seine eigenen Feldtypen.
+ * Epic `009` rebuilds the kernel underneath. What is asserted here must hold identically
+ * afterwards — a project registers its own field types through the `TypeManager`.
  */
 class TypeManagerTest extends TestCase
 {
     private function app(): Application
     {
         $app = new Application();
-        // Die Typen erwarten den EntityManager im Konstruktor; fuer Registrierung und
-        // Abfrage wird er nicht angefasst.
+        // The types expect the EntityManager in the constructor; registration and lookup
+        // do not touch it.
         $app['orm.em'] = null;
 
         return $app;
     }
 
-    public function testEinTypWirdUnterSeinemAliasAbgelegt(): void
+    public function testATypeIsStoredUnderItsAlias(): void
     {
         $app  = $this->app();
         $manager = new TypeManager($app);
@@ -41,17 +41,17 @@ class TypeManagerTest extends TestCase
         $this->assertInstanceOf(StringType::class, $manager->getType('string'));
     }
 
-    public function testEinUnbekannterAliasLiefertNullStattZuWerfen(): void
+    public function testAnUnknownAliasReturnsNullInsteadOfThrowing(): void
     {
-        // Festgehalten, weil es von der sonstigen Fehlerbehandlung des Frameworks abweicht:
-        // Api und die Controller werfen bei Unbekanntem eine ContentflyException. getType()
-        // gibt null zurueck — der Aufrufer muss selbst prüfen.
+        // Recorded because it deviates from the framework's usual error handling: Api and the
+        // controllers throw a ContentflyException for anything unknown. getType() returns
+        // null — the caller has to check for itself.
         $manager = new TypeManager($this->app());
 
-        $this->assertNull($manager->getType('gibtesnicht'));
+        $this->assertNull($manager->getType('doesnotexist'));
     }
 
-    public function testGetTypesLiefertAlleRegistriertenTypenNachAliasGeschluesselt(): void
+    public function testGetTypesReturnsAllRegisteredTypesKeyedByAlias(): void
     {
         $app     = $this->app();
         $manager = new TypeManager($app);
@@ -59,36 +59,35 @@ class TypeManagerTest extends TestCase
         $manager->registerType(new StringType($app));
         $manager->registerType(new BooleanType($app));
 
-        $typen = $manager->getTypes();
+        $types = $manager->getTypes();
 
-        $this->assertSame(array('string', 'boolean'), array_keys($typen));
-        $this->assertInstanceOf(BooleanType::class, $typen['boolean']);
+        $this->assertSame(array('string', 'boolean'), array_keys($types));
+        $this->assertInstanceOf(BooleanType::class, $types['boolean']);
     }
 
-    public function testEinZweiterTypMitDemselbenAliasErsetztDenErsten(): void
+    public function testASecondTypeWithTheSameAliasReplacesTheFirst(): void
     {
-        // Der Alias ist der Schluessel — es gibt keine Kollisionspruefung. Ein Projekt, das
-        // einen eigenen Typ unter einem vorhandenen Alias registriert, ueberschreibt den
-        // Framework-Typ stillschweigend. Das ist der Weg, wie man einen Typ ersetzt; es ist
-        // zugleich der Weg, wie man ihn versehentlich verliert.
+        // The alias is the key — there is no collision check. A project that registers its
+        // own type under an existing alias silently overwrites the framework type. That is
+        // the way to replace a type; it is at the same time the way to lose one by accident.
         $app     = $this->app();
         $manager = new TypeManager($app);
 
-        $ersterTyp = new StringType($app);
-        $manager->registerType($ersterTyp);
+        $firstType = new StringType($app);
+        $manager->registerType($firstType);
 
-        $zweiterTyp = new StringType($app);
-        $manager->registerType($zweiterTyp);
+        $secondType = new StringType($app);
+        $manager->registerType($secondType);
 
-        $this->assertSame($zweiterTyp, $manager->getType('string'));
-        $this->assertNotSame($ersterTyp, $manager->getType('string'));
+        $this->assertSame($secondType, $manager->getType('string'));
+        $this->assertNotSame($firstType, $manager->getType('string'));
     }
 
-    public function testEinPluginTypeWirdMitEinerAusnahmeAbgewiesen(): void
+    public function testAPluginTypeIsRejectedWithAnException(): void
     {
-        // PluginType gehoert ueber registerPluginType() angemeldet, weil dabei der
-        // Plugin-Key gesetzt und die Annotationsdatei aus dem Plugin-Verzeichnis geladen
-        // wird. registerType() weist ihn deshalb ab.
+        // A PluginType belongs registered via registerPluginType(), because that sets the
+        // plugin key and loads the annotation file from the plugin directory. registerType()
+        // therefore rejects it.
         $app     = $this->app();
         $manager = new TypeManager($app);
 
@@ -96,33 +95,33 @@ class TypeManagerTest extends TestCase
 
         $manager->registerType(new class($app) extends Type\PluginType {
             public function doMatch($propertyAnnotations) { return false; }
-            public function getAlias() { return 'pluginprobe'; }
+            public function getAlias() { return 'pluginsample'; }
         });
     }
 
-    public function testEinTypBrauchtKeineAnnotationsdateiMehr(): void
+    public function testATypeNoLongerNeedsAnAnnotationFile(): void
     {
-        // UMGEDREHT MIT 010-001-0005, und das ist ein Verhaltenswechsel.
+        // INVERTED WITH 010-001-0005, and that is a change in behaviour.
         //
-        // Vorher hiess der Test „…OhneAnnotationsdateiWirdOhneRegistrierungAbgelegt" und
-        // sicherte zu, dass `getAnnotationFile() === null` KEIN
-        // `AnnotationRegistry::registerFile()` ausloest — sonst waere die Registrierung eines
-        // Typs ohne eigene Annotation gescheitert.
+        // Previously the test was called "…OhneAnnotationsdateiWirdOhneRegistrierungAbgelegt"
+        // and asserted that `getAnnotationFile() === null` triggers NO
+        // `AnnotationRegistry::registerFile()` — otherwise registering a type without its own
+        // annotation would have failed.
         //
-        // Die Methode gibt es nicht mehr. Sie nannte dem DocParser den Dateipfad einer
-        // Annotationsklasse, weil der eine Annotation nur aufloest, wenn ihre Klasse bereits
-        // bekannt ist. Ein Attribut nennt eine echte Klasse; der Autoloader holt sie. Damit
-        // hat die Registrierung keinen Gegenstand mehr, und der Test sichert nur noch, dass
-        // das Ablegen ohne sie funktioniert.
+        // The method no longer exists. It told the DocParser the file path of an annotation
+        // class, because the parser only resolves an annotation when its class is already
+        // known. An attribute names a real class; the autoloader fetches it. With that, the
+        // registration has nothing left to do, and the test only asserts that storing a type
+        // works without it.
         $app     = $this->app();
         $manager = new TypeManager($app);
 
-        $typ = new StringType($app);
-        $this->assertFalse(method_exists($typ, 'getAnnotationFile'),
-            'getAnnotationFile() ist mit 010-001-0005 entfallen');
+        $type = new StringType($app);
+        $this->assertFalse(method_exists($type, 'getAnnotationFile'),
+            'getAnnotationFile() was dropped with 010-001-0005');
 
-        $manager->registerType($typ);
+        $manager->registerType($type);
 
-        $this->assertSame($typ, $manager->getType('string'));
+        $this->assertSame($type, $manager->getType('string'));
     }
 }

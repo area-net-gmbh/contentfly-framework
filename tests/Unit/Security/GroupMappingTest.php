@@ -12,11 +12,11 @@ use Doctrine\ORM\EntityRepository;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Was das Fremdsystem sagt, auf Contentfly-Gruppen abgebildet (013-004-0003).
+ * What the external system says, mapped onto Contentfly groups (013-004-0003).
  *
- * Vorher nahm `createManagedUser($alias, $group, $isAdmin)` beides als Argumente entgegen — jedes
- * Projekt entschied für sich, wie es von „der Benutzer ist in CN=Redaktion" zu einer
- * Contentfly-Gruppe kommt, und das Ergebnis stand in Projektcode, den niemand mehr liest.
+ * Before, `createManagedUser($alias, $group, $isAdmin)` took both as arguments — every project
+ * decided on its own how to get from "the user is in CN=Editorial" to a Contentfly group, and
+ * the result lived in project code nobody reads any more.
  */
 class GroupMappingTest extends TestCase
 {
@@ -25,21 +25,21 @@ class GroupMappingTest extends TestCase
         Factory::getInstance()->setConfig(new Config());
     }
 
-    /** @param array<string, mixed> $abbildung */
-    private function konfigurieren(array $abbildung): void
+    /** @param array<string, mixed> $mapping */
+    private function configure(array $mapping): void
     {
         $config = new Config();
-        $config->SECURITY_PROVIDER_GROUPS = $abbildung;
+        $config->SECURITY_PROVIDER_GROUPS = $mapping;
 
         Factory::getInstance()->setConfig($config);
     }
 
-    /** @param array<string, Group> $gruppen */
-    private function abbildung(array $gruppen = array()): GroupMapping
+    /** @param array<string, Group> $groups */
+    private function mapping(array $groups = array()): GroupMapping
     {
         $repository = $this->createMock(EntityRepository::class);
         $repository->method('findOneBy')->willReturnCallback(
-            static fn (array $kriterien) => $gruppen[$kriterien['name'] ?? ''] ?? null
+            static fn (array $criteria) => $groups[$criteria['name'] ?? ''] ?? null
         );
 
         $em = $this->createMock(EntityManagerInterface::class);
@@ -48,186 +48,185 @@ class GroupMappingTest extends TestCase
         return new GroupMapping($em);
     }
 
-    private function gruppe(string $name): Group
+    private function group(string $name): Group
     {
-        $gruppe = new Group();
-        $gruppe->setName($name);
+        $group = new Group();
+        $group->setName($name);
 
-        return $gruppe;
+        return $group;
     }
 
-    private function benutzer(): User
+    private function user(): User
     {
-        $benutzer = new User();
-        $benutzer->setAlias('ldap:mmustermann');
+        $user = new User();
+        $user->setAlias('ldap:jdoe');
 
-        return $benutzer;
+        return $user;
     }
 
-    // ── Treffer ────────────────────────────────────────────────────────────────────────
+    // ── Matches ────────────────────────────────────────────────────────────────────────
 
-    public function testEineZugeordneteFremdgruppeSetztDieContentflyGruppe(): void
+    public function testAMappedExternalGroupSetsTheContentflyGroup(): void
     {
-        $redakteure = $this->gruppe('Redakteure');
-        $this->konfigurieren(array('ldap' => array('groups' => array('CN=Redaktion' => 'Redakteure'))));
+        $editors = $this->group('Editors');
+        $this->configure(array('ldap' => array('groups' => array('CN=Editorial' => 'Editors'))));
 
-        $benutzer = $this->benutzer();
-        $this->abbildung(array('Redakteure' => $redakteure))
-            ->apply('ldap', new ExternalIdentity('mmustermann', array('CN=Redaktion')), $benutzer);
+        $user = $this->user();
+        $this->mapping(array('Editors' => $editors))
+            ->apply('ldap', new ExternalIdentity('jdoe', array('CN=Editorial')), $user);
 
-        $this->assertSame($redakteure, $benutzer->getGroup());
+        $this->assertSame($editors, $user->getGroup());
     }
 
-    public function testEineAdmingruppeSetztDasAdminflag(): void
+    public function testAnAdminGroupSetsTheAdminFlag(): void
     {
-        $this->konfigurieren(array('ldap' => array('admin' => array('CN=Admins'))));
+        $this->configure(array('ldap' => array('admin' => array('CN=Admins'))));
 
-        $benutzer = $this->benutzer();
-        $this->abbildung()->apply('ldap', new ExternalIdentity('chef', array('CN=Admins')), $benutzer);
+        $user = $this->user();
+        $this->mapping()->apply('ldap', new ExternalIdentity('boss', array('CN=Admins')), $user);
 
-        $this->assertTrue($benutzer->getIsAdmin());
+        $this->assertTrue($user->getIsAdmin());
     }
 
     /**
-     * **Die Reihenfolge ist eine Entscheidung.**
+     * **The order is a decision.**
      *
-     * Ein Benutzer kann in mehreren Fremdgruppen sein; Contentfly kennt genau eine Gruppe je
-     * Benutzer. Welche gewinnt, steht in der Konfiguration und nicht in der Laune einer
-     * Hashtabelle.
+     * A user can be in several external groups; Contentfly knows exactly one group per user.
+     * Which one wins is stated in the configuration and not left to the whims of a hash table.
      */
-    public function testBeiMehrerenTreffernGewinntDerErsteEintrag(): void
+    public function testWithSeveralMatchesTheFirstEntryWins(): void
     {
-        $erste  = $this->gruppe('Erste');
-        $zweite = $this->gruppe('Zweite');
+        $first  = $this->group('First');
+        $second = $this->group('Second');
 
-        $this->konfigurieren(array('ldap' => array('groups' => array(
-            'CN=A' => 'Erste',
-            'CN=B' => 'Zweite',
+        $this->configure(array('ldap' => array('groups' => array(
+            'CN=A' => 'First',
+            'CN=B' => 'Second',
         ))));
 
-        $benutzer = $this->benutzer();
-        $this->abbildung(array('Erste' => $erste, 'Zweite' => $zweite))
-            ->apply('ldap', new ExternalIdentity('m', array('CN=B', 'CN=A')), $benutzer);
+        $user = $this->user();
+        $this->mapping(array('First' => $first, 'Second' => $second))
+            ->apply('ldap', new ExternalIdentity('m', array('CN=B', 'CN=A')), $user);
 
-        $this->assertSame($erste, $benutzer->getGroup(), 'Die Reihenfolge der Konfiguration entscheidet');
+        $this->assertSame($first, $user->getGroup(), 'The order of the configuration decides');
     }
 
-    // ── Nichttreffer ───────────────────────────────────────────────────────────────────
+    // ── No match ───────────────────────────────────────────────────────────────────────
 
     /**
-     * **Im Zweifel keine Rechte.** Eine Abbildung, die im Zweifel Rechte vergibt, ist die
-     * falsche Richtung: Das Fremdsystem soll Rechte begründen, nicht ihr Fehlen.
+     * **When in doubt, no rights.** A mapping that grants rights when in doubt points the wrong
+     * way: the external system is supposed to justify rights, not their absence.
      */
-    public function testOhneTrefferGibtEsKeineAdminrechte(): void
+    public function testWithoutAMatchThereAreNoAdminRights(): void
     {
-        $this->konfigurieren(array('ldap' => array('admin' => array('CN=Admins'))));
+        $this->configure(array('ldap' => array('admin' => array('CN=Admins'))));
 
-        $benutzer = $this->benutzer();
-        $benutzer->setIsAdmin(true);
+        $user = $this->user();
+        $user->setIsAdmin(true);
 
-        $this->abbildung()->apply('ldap', new ExternalIdentity('m', array('CN=Praktikanten')), $benutzer);
+        $this->mapping()->apply('ldap', new ExternalIdentity('m', array('CN=Interns')), $user);
 
-        $this->assertFalse($benutzer->getIsAdmin(), 'Einmal Administrator ist nicht immer Administrator');
+        $this->assertFalse($user->getIsAdmin(), 'Once an administrator is not always an administrator');
     }
 
-    public function testOhneTrefferGreiftDieVorgabe(): void
+    public function testWithoutAMatchTheDefaultApplies(): void
     {
-        $gaeste = $this->gruppe('Gaeste');
-        $this->konfigurieren(array('ldap' => array(
-            'groups' => array('CN=Redaktion' => 'Redakteure'),
-            'default' => 'Gaeste',
+        $guests = $this->group('Guests');
+        $this->configure(array('ldap' => array(
+            'groups' => array('CN=Editorial' => 'Editors'),
+            'default' => 'Guests',
         )));
 
-        $benutzer = $this->benutzer();
-        $this->abbildung(array('Gaeste' => $gaeste))
-            ->apply('ldap', new ExternalIdentity('m', array('CN=Sonstige')), $benutzer);
+        $user = $this->user();
+        $this->mapping(array('Guests' => $guests))
+            ->apply('ldap', new ExternalIdentity('m', array('CN=Others')), $user);
 
-        $this->assertSame($gaeste, $benutzer->getGroup());
+        $this->assertSame($guests, $user->getGroup());
     }
 
     /**
-     * Ohne Treffer und ohne Vorgabe wird die Gruppe abgeräumt, nicht stehengelassen.
+     * Without a match and without a default the group is cleared, not left in place.
      *
-     * Sonst behielte jemand die Rechte einer Gruppe, aus der ihn das Fremdsystem entfernt hat.
+     * Otherwise someone would keep the rights of a group the external system removed them from.
      */
-    public function testOhneTrefferUndOhneVorgabeWirdDieGruppeAbgeraeumt(): void
+    public function testWithoutAMatchAndWithoutADefaultTheGroupIsCleared(): void
     {
-        $this->konfigurieren(array('ldap' => array('groups' => array('CN=Redaktion' => 'Redakteure'))));
+        $this->configure(array('ldap' => array('groups' => array('CN=Editorial' => 'Editors'))));
 
-        $benutzer = $this->benutzer();
-        $benutzer->setGroup($this->gruppe('Redakteure'));
+        $user = $this->user();
+        $user->setGroup($this->group('Editors'));
 
-        $this->abbildung()->apply('ldap', new ExternalIdentity('m', array()), $benutzer);
+        $this->mapping()->apply('ldap', new ExternalIdentity('m', array()), $user);
 
-        $this->assertNull($benutzer->getGroup());
+        $this->assertNull($user->getGroup());
     }
 
     /**
-     * Ohne Eintrag für diesen Anbieter passiert gar nichts — auch kein Abräumen.
+     * Without an entry for this provider nothing happens at all — no clearing either.
      *
-     * Wer keine Abbildung konfiguriert, verwaltet die Gruppen von Hand, und dann darf eine
-     * Anmeldung sie nicht wegnehmen.
+     * Whoever configures no mapping manages the groups by hand, and then a login must not take
+     * them away.
      */
-    public function testOhneEintragFuerDenAnbieterPassiertNichts(): void
+    public function testWithoutAnEntryForTheProviderNothingHappens(): void
     {
-        $redakteure = $this->gruppe('Redakteure');
-        $this->konfigurieren(array('saml' => array('groups' => array('X' => 'Y'))));
+        $editors = $this->group('Editors');
+        $this->configure(array('saml' => array('groups' => array('X' => 'Y'))));
 
-        $benutzer = $this->benutzer();
-        $benutzer->setGroup($redakteure);
-        $benutzer->setIsAdmin(true);
+        $user = $this->user();
+        $user->setGroup($editors);
+        $user->setIsAdmin(true);
 
-        $this->abbildung()->apply('ldap', new ExternalIdentity('m', array('X')), $benutzer);
+        $this->mapping()->apply('ldap', new ExternalIdentity('m', array('X')), $user);
 
-        $this->assertSame($redakteure, $benutzer->getGroup());
-        $this->assertTrue($benutzer->getIsAdmin());
+        $this->assertSame($editors, $user->getGroup());
+        $this->assertTrue($user->getIsAdmin());
     }
 
-    // ── Fehlkonfiguration ──────────────────────────────────────────────────────────────
+    // ── Misconfiguration ───────────────────────────────────────────────────────────────
 
     /**
-     * Eine Abbildung auf eine Gruppe, die es nicht gibt, bricht die Anmeldung ab.
+     * A mapping onto a group that does not exist aborts the login.
      *
-     * Sie stillschweigend zu ignorieren hiesse: Der Benutzer kommt herein und hat andere Rechte
-     * als gedacht — und niemand erfährt, warum.
+     * Ignoring it silently would mean: the user gets in and has different rights than intended
+     * — and nobody finds out why.
      */
-    public function testEineUnbekannteZielgruppeSchlaegtLautDurch(): void
+    public function testAnUnknownTargetGroupFailsLoudly(): void
     {
-        $this->konfigurieren(array('ldap' => array('groups' => array('CN=Redaktion' => 'GibtsNicht'))));
+        $this->configure(array('ldap' => array('groups' => array('CN=Editorial' => 'DoesNotExist'))));
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessageMatches('/GibtsNicht/');
+        $this->expectExceptionMessageMatches('/DoesNotExist/');
 
-        $this->abbildung()->apply('ldap', new ExternalIdentity('m', array('CN=Redaktion')), $this->benutzer());
+        $this->mapping()->apply('ldap', new ExternalIdentity('m', array('CN=Editorial')), $this->user());
     }
 
-    // ── Änderungen wirken bei der nächsten Anmeldung ───────────────────────────────────
+    // ── Changes take effect on the next login ──────────────────────────────────────────
 
     /**
-     * Derselbe Benutzer, zweimal angemeldet, mit verschiedener Zuordnung.
+     * The same user, logged in twice, with a different mapping.
      *
-     * Genau deshalb stehen Rollen und Gruppen **nicht** im JWT (`013-003-0001`) — dort wären sie
-     * bis zum Ablauf eingefroren.
+     * This is exactly why roles and groups are **not** in the JWT (`013-003-0001`) — there they
+     * would be frozen until expiry.
      */
-    public function testEineGeaenderteZuordnungWirktBeiDerNaechstenAnmeldung(): void
+    public function testAChangedMappingTakesEffectOnTheNextLogin(): void
     {
-        $redakteure = $this->gruppe('Redakteure');
-        $gaeste     = $this->gruppe('Gaeste');
+        $editors = $this->group('Editors');
+        $guests  = $this->group('Guests');
 
-        $this->konfigurieren(array('ldap' => array(
-            'groups' => array('CN=Redaktion' => 'Redakteure', 'CN=Extern' => 'Gaeste'),
+        $this->configure(array('ldap' => array(
+            'groups' => array('CN=Editorial' => 'Editors', 'CN=External' => 'Guests'),
             'admin'   => array('CN=Admins'),
         )));
 
-        $abbildung = $this->abbildung(array('Redakteure' => $redakteure, 'Gaeste' => $gaeste));
-        $benutzer  = $this->benutzer();
+        $mapping = $this->mapping(array('Editors' => $editors, 'Guests' => $guests));
+        $user    = $this->user();
 
-        $abbildung->apply('ldap', new ExternalIdentity('m', array('CN=Redaktion', 'CN=Admins')), $benutzer);
-        $this->assertSame($redakteure, $benutzer->getGroup());
-        $this->assertTrue($benutzer->getIsAdmin());
+        $mapping->apply('ldap', new ExternalIdentity('m', array('CN=Editorial', 'CN=Admins')), $user);
+        $this->assertSame($editors, $user->getGroup());
+        $this->assertTrue($user->getIsAdmin());
 
-        $abbildung->apply('ldap', new ExternalIdentity('m', array('CN=Extern')), $benutzer);
-        $this->assertSame($gaeste, $benutzer->getGroup());
-        $this->assertFalse($benutzer->getIsAdmin());
+        $mapping->apply('ldap', new ExternalIdentity('m', array('CN=External')), $user);
+        $this->assertSame($guests, $user->getGroup());
+        $this->assertFalse($user->getIsAdmin());
     }
 }

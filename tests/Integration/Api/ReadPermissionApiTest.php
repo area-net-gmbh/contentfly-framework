@@ -5,15 +5,15 @@ use Areanet\PIM\Entity\Permission;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * Charakterisierungstests für `Permission::isReadable()` in allen vier Stufen.
+ * Characterization tests for `Permission::isReadable()` at all four levels.
  *
- * Das ist die Stelle, an der ein Fehler beim Kernel-Tausch **nicht sichtbar bricht, sondern
- * still zu viel herausgibt**. Jeder Test hier prüft deshalb beide Richtungen: was sichtbar
- * sein muss *und* was es nicht sein darf. Ein Test, der nur die Sichtbarkeit belegt, würde
- * einen zu weit geöffneten Filter nicht bemerken.
+ * This is the place where a mistake during the kernel swap **does not break visibly, but
+ * silently hands out too much**. Every test here therefore checks both directions: what must
+ * be visible *and* what must not be. A test that only proves visibility would not notice a
+ * filter that is opened too wide.
  *
- * Die Stufen sind als Konstanten geschrieben, weil ihre Werte **nicht aufsteigend geordnet**
- * sind: `NONE` 0, `OWN` 1, `ALL` 2, `GROUP` 3.
+ * The levels are written as constants because their values are **not in ascending order**:
+ * `NONE` 0, `OWN` 1, `ALL` 2, `GROUP` 3.
  */
 class ReadPermissionApiTest extends IntegrationTestCase
 {
@@ -28,25 +28,25 @@ class ReadPermissionApiTest extends IntegrationTestCase
             ->fetchColumn();
     }
 
-    /** Legt einen Tag an; $userCreated und $groups bestimmen, wer ihn sehen darf. */
-    private function tag(string $titel, ?string $userCreated = null, ?string $groups = null, ?string $users = null): string
+    /** Creates a tag; $userCreated and $groups determine who may see it. */
+    private function tag(string $title, ?string $userCreated = null, ?string $groups = null, ?string $users = null): string
     {
         $id = 'rp-'.bin2hex(random_bytes(6));
 
         $this->pdo()->prepare(
-            // `groups` ist in MySQL 8 ein reserviertes Wort — dieselbe Falle, die
-            // 012-005-0003 in Api::getTree2() behoben hat.
+            // `groups` is a reserved word in MySQL 8 — the same trap that
+            // 012-005-0003 fixed in Api::getTree2().
             'INSERT INTO pim_tag (id, title, created, modified, views, isIntern, usercreated_id, `groups`, users)
-             VALUES (:id, :titel, NOW(), NOW(), 0, 0, :uc, :grp, :usr)'
-        )->execute(array('id' => $id, 'titel' => $titel, 'uc' => $userCreated, 'grp' => $groups, 'usr' => $users));
+             VALUES (:id, :title, NOW(), NOW(), 0, 0, :uc, :grp, :usr)'
+        )->execute(array('id' => $id, 'title' => $title, 'uc' => $userCreated, 'grp' => $groups, 'usr' => $users));
 
-        $this->nachTestLoeschen('pim_tag', $id);
+        $this->deleteAfterTest('pim_tag', $id);
 
         return $id;
     }
 
-    /** @return array<int,string> Die Ids, die /api/list fuer diesen Token liefert. */
-    private function sichtbareIds(string $token): array
+    /** @return array<int,string> The ids that /api/list returns for this token. */
+    private function visibleIds(string $token): array
     {
         [$status, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'), $token);
 
@@ -55,88 +55,88 @@ class ReadPermissionApiTest extends IntegrationTestCase
         return array_column($body['data'], 'id');
     }
 
-    // ── Stufe ALL ──────────────────────────────────────────────────────────────────────
+    // ── Level ALL ──────────────────────────────────────────────────────────────────────
 
-    public function testMitStufeAllSindAlleObjekteSichtbar(): void
+    public function testWithLevelAllAllObjectsAreVisible(): void
     {
-        [$token, $userId] = $this->testbenutzer(array('PIM\\Tag' => array('readable' => Permission::ALL)));
+        [$token, $userId] = $this->createTestUser(array('PIM\\Tag' => array('readable' => Permission::ALL)));
 
-        $eigener = $this->tag('Eigener', $userId);
-        $fremder = $this->tag('Fremder', $this->adminId);
+        $own     = $this->tag('Own', $userId);
+        $foreign = $this->tag('Foreign', $this->adminId);
 
-        $sichtbar = $this->sichtbareIds($token);
+        $visible = $this->visibleIds($token);
 
-        $this->assertContains($eigener, $sichtbar);
-        $this->assertContains($fremder, $sichtbar, 'ALL heisst alles, auch Fremdes');
+        $this->assertContains($own, $visible);
+        $this->assertContains($foreign, $visible, 'ALL means everything, including other users\' objects');
     }
 
-    // ── Stufe OWN ──────────────────────────────────────────────────────────────────────
+    // ── Level OWN ──────────────────────────────────────────────────────────────────────
 
-    public function testMitStufeOwnIstNurEigenesSichtbar(): void
+    public function testWithLevelOwnOnlyOwnObjectsAreVisible(): void
     {
-        [$token, $userId] = $this->testbenutzer(array('PIM\\Tag' => array('readable' => Permission::OWN)));
+        [$token, $userId] = $this->createTestUser(array('PIM\\Tag' => array('readable' => Permission::OWN)));
 
-        $eigener = $this->tag('Eigener', $userId);
-        $fremder = $this->tag('Fremder', $this->adminId);
+        $own     = $this->tag('Own', $userId);
+        $foreign = $this->tag('Foreign', $this->adminId);
 
-        $sichtbar = $this->sichtbareIds($token);
+        $visible = $this->visibleIds($token);
 
-        $this->assertContains($eigener, $sichtbar);
-        $this->assertNotContains($fremder, $sichtbar,
-            'Die andere Richtung — ohne sie wuerde ein zu weit geoeffneter Filter nicht auffallen');
+        $this->assertContains($own, $visible);
+        $this->assertNotContains($foreign, $visible,
+            'The other direction — without it a filter opened too wide would go unnoticed');
     }
 
-    public function testMitStufeOwnMachtDieUsersListeEinObjektSichtbar(): void
+    public function testWithLevelOwnTheUsersListMakesAnObjectVisible(): void
     {
-        // Api::getList() filtert auf "userCreated = ich ODER ich stehe in users" — dem
-        // Virtualjoin aus Base, den 012-005-0001 als datenrelevant behalten hat.
-        [$token, $userId] = $this->testbenutzer(array('PIM\\Tag' => array('readable' => Permission::OWN)));
+        // Api::getList() filters on "userCreated = me OR I am in users" — the
+        // virtual join from Base that 012-005-0001 kept as data-relevant.
+        [$token, $userId] = $this->createTestUser(array('PIM\\Tag' => array('readable' => Permission::OWN)));
 
-        $geteilt = $this->tag('Geteilt', $this->adminId, null, $userId);
+        $shared = $this->tag('Shared', $this->adminId, null, $userId);
 
-        $this->assertContains($geteilt, $this->sichtbareIds($token),
-            'Ein fremdes Objekt wird sichtbar, wenn es mich in users fuehrt');
+        $this->assertContains($shared, $this->visibleIds($token),
+            'Another user\'s object becomes visible when it lists me in users');
     }
 
-    // ── Stufe GROUP ────────────────────────────────────────────────────────────────────
+    // ── Level GROUP ────────────────────────────────────────────────────────────────────
 
-    public function testMitStufeGroupIstEigenesUndGruppenGeteiltesSichtbar(): void
+    public function testWithLevelGroupOwnAndGroupSharedObjectsAreVisible(): void
     {
-        [$token, $userId, $gruppeId] = $this->testbenutzer(array('PIM\\Tag' => array('readable' => Permission::GROUP)));
+        [$token, $userId, $groupId] = $this->createTestUser(array('PIM\\Tag' => array('readable' => Permission::GROUP)));
 
-        $eigener      = $this->tag('Eigener', $userId);
-        $gruppenTag   = $this->tag('Fuer die Gruppe', $this->adminId, $gruppeId);
-        $unbeteiligt  = $this->tag('Unbeteiligt', $this->adminId);
+        $own       = $this->tag('Own', $userId);
+        $groupTag  = $this->tag('For the group', $this->adminId, $groupId);
+        $unrelated = $this->tag('Unrelated', $this->adminId);
 
-        $sichtbar = $this->sichtbareIds($token);
+        $visible = $this->visibleIds($token);
 
-        $this->assertContains($eigener, $sichtbar);
-        $this->assertContains($gruppenTag, $sichtbar, 'Die eigene Gruppe steht in groups');
-        $this->assertNotContains($unbeteiligt, $sichtbar, 'Ohne Bezug bleibt es unsichtbar');
+        $this->assertContains($own, $visible);
+        $this->assertContains($groupTag, $visible, 'The own group is listed in groups');
+        $this->assertNotContains($unrelated, $visible, 'Without a relation it stays invisible');
     }
 
-    // ── Kein Recht ─────────────────────────────────────────────────────────────────────
+    // ── No permission ──────────────────────────────────────────────────────────────────
 
-    public function testOhneLeserechtWirftDieListeStattEineLeereMengeZuLiefern(): void
+    public function testWithoutReadPermissionListThrowsInsteadOfReturningAnEmptySet(): void
     {
-        // Die Frage, die der Task messen sollte: gefilterte Liste oder Fehler? Es ist ein
-        // Fehler — Api::getList() wirft contentfly_general_permission_denied, statt eine
-        // leere Liste zu liefern.
-        [$token] = $this->testbenutzer(array('PIM\\User' => array('readable' => Permission::ALL)));
+        // The question the task was supposed to measure: filtered list or error? It is an
+        // error — Api::getList() throws contentfly_general_permission_denied instead of
+        // returning an empty list.
+        [$token] = $this->createTestUser(array('PIM\\User' => array('readable' => Permission::ALL)));
 
-        $this->tag('Unerreichbar', $this->adminId);
+        $this->tag('Unreachable', $this->adminId);
 
         [$status, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'), $token);
 
-        $this->assertSame(403, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
-        $this->assertArrayNotHasKey('data', $body, 'Es fliessen keine Daten');
+        $this->assertSame(403, $status, 'Since the stack switch (006-002-0003) the intended code — Symfony 4.4 fixes 000-000-0006 here');
+        $this->assertArrayNotHasKey('data', $body, 'No data flows');
     }
 
-    public function testOhneLeserechtWirftAuchSingle(): void
+    public function testWithoutReadPermissionSingleAlsoThrows(): void
     {
-        [$token] = $this->testbenutzer(array('PIM\\User' => array('readable' => Permission::ALL)));
+        [$token] = $this->createTestUser(array('PIM\\User' => array('readable' => Permission::ALL)));
 
-        $tag = $this->tag('Unerreichbar', $this->adminId);
+        $tag = $this->tag('Unreachable', $this->adminId);
 
         [$status, $body] = $this->postJson(
             '/api/single',
@@ -145,14 +145,14 @@ class ReadPermissionApiTest extends IntegrationTestCase
         );
 
         $this->assertSame(403, $status,
-            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
+            'Since 006-002-0003 the intended code — Symfony 4.4 fixes 000-000-0006 here');
         $this->assertArrayNotHasKey('data', $body);
     }
 
-    public function testEinBenutzerOhneGruppeSiehtNichts(): void
+    public function testUserWithoutGroupSeesNothing(): void
     {
-        // Permission::is() liefert 0, sobald der Benutzer keiner Gruppe angehoert — noch
-        // vor jeder Pruefung der Berechtigungszeilen.
+        // Permission::is() returns 0 as soon as the user belongs to no group — even
+        // before any check of the permission rows.
         $id    = 'rp-nogrp-'.bin2hex(random_bytes(6));
         $salt  = bin2hex(random_bytes(16));
 
@@ -161,41 +161,41 @@ class ReadPermissionApiTest extends IntegrationTestCase
              VALUES (:id, 0, :alias, :pass, 1, :salt, NOW(), NOW(), 0, 0)'
         )->execute(array(
             'id' => $id, 'alias' => $id,
-            'pass' => hash('sha256', self::TEST_PASSWORT.$salt), 'salt' => $salt,
+            'pass' => hash('sha256', self::TEST_PASSWORD.$salt), 'salt' => $salt,
         ));
-        $this->nachTestLoeschen('pim_user', $id);
+        $this->deleteAfterTest('pim_user', $id);
 
-        [, $anmeldung] = $this->postJson('/auth/login', array('alias' => $id, 'pass' => self::TEST_PASSWORT));
-        $this->assertArrayHasKey('token', $anmeldung);
+        [, $login] = $this->postJson('/auth/login', array('alias' => $id, 'pass' => self::TEST_PASSWORD));
+        $this->assertArrayHasKey('token', $login);
 
-        [$status] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'), $anmeldung['token']);
+        [$status] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'), $login['token']);
 
         $this->assertSame(403, $status,
-            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
+            'Since 006-002-0003 the intended code — Symfony 4.4 fixes 000-000-0006 here');
     }
 
     // ── Admin ──────────────────────────────────────────────────────────────────────────
 
-    public function testEinAdminUebergehtAlleStufen(): void
+    public function testAdminBypassesAllLevels(): void
     {
-        // Permission::is() gibt fuer Admins 2 zurueck, bevor ueberhaupt eine Gruppe oder
-        // eine Berechtigungszeile betrachtet wird.
-        $fremder = $this->tag('Fremder', $this->adminId);
+        // Permission::is() returns 2 for admins before any group or permission row is even
+        // looked at.
+        $foreign = $this->tag('Foreign', $this->adminId);
 
-        $this->assertContains($fremder, $this->sichtbareIds($this->token()));
+        $this->assertContains($foreign, $this->visibleIds($this->token()));
     }
 
-    // ── pim_blocked bei verjointen Objekten ────────────────────────────────────────────
+    // ── pim_blocked for joined objects ─────────────────────────────────────────────────
 
-    public function testEinNichtLesbaresVerjointesObjektKommtAlsPimBlocked(): void
+    public function testUnreadableJoinedObjectComesAsPimBlocked(): void
     {
-        // PIM\Tag.userCreated ist ein join auf PIM\User. Wer Tags lesen darf, Benutzer aber
-        // nicht, bekommt statt des Objekts nur dessen Id plus die Markierung — der Client
-        // erfaehrt, DASS da etwas ist, aber nicht was. Das Verhalten steckt in JoinType und
-        // ist ueber vier weitere Typ-Klassen dupliziert.
-        [$token, $userId] = $this->testbenutzer(array('PIM\\Tag' => array('readable' => Permission::ALL)));
+        // PIM\Tag.userCreated is a join to PIM\User. Whoever may read tags but not users
+        // gets only the object's id plus the marker instead of the object — the client
+        // learns THAT something is there, but not what. The behaviour lives in JoinType and
+        // is duplicated across four more type classes.
+        [$token, $userId] = $this->createTestUser(array('PIM\\Tag' => array('readable' => Permission::ALL)));
 
-        $tag = $this->tag('Mit Ersteller', $userId);
+        $tag = $this->tag('With creator', $userId);
 
         [$status, $body] = $this->postJson(
             '/api/single',
@@ -207,19 +207,19 @@ class ReadPermissionApiTest extends IntegrationTestCase
         $this->assertSame(
             array('id' => $userId, 'pim_blocked' => true),
             $body['data']['userCreated'],
-            'Die Id wird durchgereicht, das Objekt nicht'
+            'The id is passed through, the object is not'
         );
     }
 
-    public function testMitLeserechtAufDerZielentityKommtDasVerjointeObjektGanz(): void
+    public function testWithReadPermissionOnTargetEntityJoinedObjectComesInFull(): void
     {
-        // Die Gegenrichtung: mit Leserecht auf PIM\User faellt die Markierung weg.
-        [$token, $userId] = $this->testbenutzer(array(
+        // The opposite direction: with read permission on PIM\User the marker is dropped.
+        [$token, $userId] = $this->createTestUser(array(
             'PIM\\Tag'  => array('readable' => Permission::ALL),
             'PIM\\User' => array('readable' => Permission::ALL),
         ));
 
-        $tag = $this->tag('Mit Ersteller', $userId);
+        $tag = $this->tag('With creator', $userId);
 
         [, $body] = $this->postJson(
             '/api/single',

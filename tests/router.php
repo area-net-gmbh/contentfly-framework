@@ -1,41 +1,41 @@
 <?php
 /**
- * Router für den eingebauten PHP-Server (`php -S`).
+ * Router for the built-in PHP server (`php -S`).
  *
- * Ohne ihn geht **jede** Anfrage durch index.php — auch die für eine Datei, die auf der Platte
- * liegt. Apache tut das nicht: Die `.htaccess` leitet nur um, wenn die angeforderte Datei
- * *nicht* existiert (`RewriteCond %{REQUEST_FILENAME} !-f`).
+ * Without it **every** request goes through index.php — even the one for a file that exists on
+ * disk. Apache does not do that: the `.htaccess` only rewrites when the requested file does
+ * *not* exist (`RewriteCond %{REQUEST_FILENAME} !-f`).
  *
- * Das ist kein Schönheitsfehler: `FileController::getAction()` beantwortet eine Auslieferung mit
- * einem Redirect auf den direkten Pfad unter `data/files/`. Ohne diesen Router landet dieser
- * Redirect wieder in der Anwendung, statt die Datei zu liefern — und Tests messen etwas anderes
- * als die Produktion.
+ * This is not a cosmetic flaw: `FileController::getAction()` answers a delivery with a redirect
+ * to the direct path under `data/files/`. Without this router that redirect ends up back in the
+ * application instead of delivering the file — and the tests measure something other than
+ * production.
  */
-$pfad = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
 /*
- * Diagnosepfad — nur dieser Router kennt ihn, die Anwendung nicht.
+ * Diagnostic path — only this router knows it, the application does not.
  *
- * `VersandfalleTest` muss belegen können, dass der Testserver **nicht** an einen echten MTA
- * zustellt. Von aussen ist das sonst nicht feststellbar: Ein leerer Postausgang beweist
- * nichts, solange offen ist, ob der Server das Fangskript überhaupt benutzt.
+ * `MailTrapTest` has to be able to prove that the test server does **not** deliver to a real MTA.
+ * From the outside that cannot otherwise be determined: an empty outbox proves nothing as long as
+ * it is open whether the server uses the catch script at all.
  *
- * Der Endpunkt, der die Falle nötig machte, ist mit `000-000-0016` entfernt. Sie bleibt
- * trotzdem: `$app['mailer']` steht Projekten weiter zur Verfügung, und eine Sicherung, die man
- * mit ihrem ersten Anlass abbaut, fehlt beim zweiten.
+ * The endpoint that made the trap necessary was removed with `000-000-0016`. The trap stays
+ * anyway: `$app['mailer']` remains available to projects, and a safeguard that is dismantled with
+ * its first occasion is missing at the second.
  *
- * Bewusst hier und nicht in der Anwendung: Der Router gehört zur Testinfrastruktur und läuft
- * in keiner Installation mit.
+ * Deliberately here and not in the application: the router belongs to the test infrastructure and
+ * does not run in any installation.
  */
-if ($pfad === '/__test/sendmail-path') {
+if ($path === '/__test/sendmail-path') {
     header('Content-Type: application/json');
     echo json_encode(array('sendmail_path' => ini_get('sendmail_path')));
 
     return true;
 }
 
-if ($pfad !== '/' && is_file(__DIR__.'/..'.$pfad)) {
-    return false; // vom eingebauten Server direkt ausliefern
+if ($path !== '/' && is_file(__DIR__.'/..'.$path)) {
+    return false; // served directly by the built-in server
 }
 
 require __DIR__.'/../index.php';
