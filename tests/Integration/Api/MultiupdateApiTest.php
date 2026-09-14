@@ -42,7 +42,7 @@ class MultiupdateApiTest extends IntegrationTestCase
              VALUES (:id, :titel, NOW(), NOW(), 0, 0)'
         )->execute(array('id' => $id, 'titel' => $titel));
 
-        $this->nachTestLoeschen('pim_tag', $id);
+        $this->deleteAfterTest('pim_tag', $id);
 
         return $id;
     }

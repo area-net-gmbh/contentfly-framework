@@ -34,7 +34,7 @@ class AnmeldebremseApiTest extends IntegrationTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->bremsspeicherLeeren();
+        $this->clearThrottleStorage();
     }
 
     protected function tearDown(): void
@@ -56,7 +56,7 @@ class AnmeldebremseApiTest extends IntegrationTestCase
         $this->assertSame(429, $status);
         $this->assertSame(self::MELDUNG, $body['message'] ?? null);
         $this->assertArrayNotHasKey('token', $body);
-        $this->assertNotNull($this->kopfzeile($kopf, 'Retry-After'), 'Wie lange zu warten ist, steht in der Antwort');
+        $this->assertNotNull($this->header($kopf, 'Retry-After'), 'Wie lange zu warten ist, steht in der Antwort');
     }
 
     /**
@@ -162,11 +162,11 @@ class AnmeldebremseApiTest extends IntegrationTestCase
      * die Voraussetzung der Messung: Laege der Speicher woanders, pruefte diese Klasse gegen
      * einen Zaehler, den sie nicht kennt, und waere gruen, ohne etwas zu belegen.
      */
-    protected function bremsspeicherLeeren(): void
+    protected function clearThrottleStorage(): void
     {
         // Das Datenverzeichnis DER ANWENDUNG, nicht das der Suite (007-001-0005) — siehe
-        // IntegrationTestCase::datenverzeichnis().
-        $daten = self::datenverzeichnis();
+        // IntegrationTestCase::dataDir().
+        $daten = self::dataDir();
 
         if (!is_dir($daten.'/cache')) {
             $this->markTestSkipped(
@@ -175,6 +175,6 @@ class AnmeldebremseApiTest extends IntegrationTestCase
             );
         }
 
-        $this->verzeichnisEntfernen($daten.'/cache/login-throttle');
+        $this->removeDirectory($daten.'/cache/login-throttle');
     }
 }

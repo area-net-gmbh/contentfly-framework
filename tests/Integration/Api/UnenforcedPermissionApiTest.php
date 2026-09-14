@@ -30,7 +30,7 @@ class UnenforcedPermissionApiTest extends IntegrationTestCase
              VALUES (:id, :titel, NOW(), NOW(), 0, 0)'
         )->execute(array('id' => $id, 'titel' => $titel));
 
-        $this->nachTestLoeschen('pim_tag', $id);
+        $this->deleteAfterTest('pim_tag', $id);
 
         return $id;
     }
@@ -95,7 +95,7 @@ class UnenforcedPermissionApiTest extends IntegrationTestCase
         // Der Benutzer bekommt beide Spalten ausdruecklich gesetzt. Trotzdem taucht nichts
         // davon im Schema auf: Der Wert steht in der Datenbank, die API behauptet nichts
         // mehr darueber.
-        [$token] = $this->testbenutzer(array('PIM\\Tag' => array(
+        [$token] = $this->createTestUser(array('PIM\\Tag' => array(
             'readable' => Permission::ALL,
             'export'   => 0,
             'extended' => '{"felder":["title"]}',
@@ -114,7 +114,7 @@ class UnenforcedPermissionApiTest extends IntegrationTestCase
         // Der Gegenbeweis zum Entfernen: Es sind nur die Schluessel im Schema gefallen, nicht
         // die Daten. Ein Bestandsprojekt hat in pim_permission.export und .extended
         // moeglicherweise Werte stehen; die wegzuwerfen waere die nicht umkehrbare Richtung.
-        [, , $gruppeId] = $this->testbenutzer(array('PIM\\Tag' => array(
+        [, , $gruppeId] = $this->createTestUser(array('PIM\\Tag' => array(
             'readable' => Permission::ALL,
             'export'   => Permission::ALL,
             'extended' => '{"felder":["title"]}',
@@ -139,7 +139,7 @@ class UnenforcedPermissionApiTest extends IntegrationTestCase
         // Der Test bleibt nach 000-000-0012 unveraendert stehen, und das ist Absicht: Er hielt
         // vorher einen Widerspruch fest (die API veroeffentlicht ein Recht und ignoriert es)
         // und haelt jetzt eine Aussage fest (die Spalte ist Daten des Projekts, sonst nichts).
-        [$token] = $this->testbenutzer(array('PIM\\Tag' => array(
+        [$token] = $this->createTestUser(array('PIM\\Tag' => array(
             'readable'  => Permission::ALL,
             'writable'  => Permission::ALL,
             'deletable' => Permission::ALL,
@@ -157,7 +157,7 @@ class UnenforcedPermissionApiTest extends IntegrationTestCase
             $token
         );
         $this->assertSame(200, $statusInsert, 'Schreiben geht');
-        $this->nachTestLoeschen('pim_tag', $angelegt['id']);
+        $this->deleteAfterTest('pim_tag', $angelegt['id']);
 
         [$statusDelete] = $this->postJson(
             '/api/delete',
@@ -174,7 +174,7 @@ class UnenforcedPermissionApiTest extends IntegrationTestCase
         // extended traegt eine JSON-Struktur, die einmal die Maske einschraenken sollte.
         // Ein Client kann sie aus dem Schema lesen; die API selbst wertet sie nicht aus —
         // die Antwort enthaelt alle Felder, unabhaengig davon, was dort steht.
-        [$token] = $this->testbenutzer(array('PIM\\Tag' => array(
+        [$token] = $this->createTestUser(array('PIM\\Tag' => array(
             'readable' => Permission::ALL,
             'extended' => '{"nurDieseFelder":["id"]}',
         )));

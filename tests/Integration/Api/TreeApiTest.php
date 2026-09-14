@@ -43,8 +43,8 @@ class TreeApiTest extends IntegrationTestCase
              ->execute(array('id' => $id, 'titel' => $titel));
 
         // pim_folder zuerst — pim_tree traegt den Primaerschluessel, auf den es zeigt.
-        $this->nachTestLoeschen('pim_tree', $id);
-        $this->nachTestLoeschen('pim_folder', $id);
+        $this->deleteAfterTest('pim_tree', $id);
+        $this->deleteAfterTest('pim_folder', $id);
     }
 
     /** Sucht einen Knoten in einem Baum, unabhaengig vom Namen des Kind-Schluessels. */

@@ -150,14 +150,14 @@ class RouteSecurityApiTest extends IntegrationTestCase
         [$status, , $kopf] = $this->get('/api/config');
 
         $this->assertSame(200, $status);
-        $this->assertSame('strict-origin-when-cross-origin', $this->kopfzeile($kopf, 'Referrer-Policy'));
+        $this->assertSame('strict-origin-when-cross-origin', $this->header($kopf, 'Referrer-Policy'));
     }
 
     public function testDerAfterHookGreiftAuchAufEinerGesichertenRoute(): void
     {
         [, , $kopf] = $this->get('/api/schema', $this->token());
 
-        $this->assertSame('strict-origin-when-cross-origin', $this->kopfzeile($kopf, 'Referrer-Policy'),
+        $this->assertSame('strict-origin-when-cross-origin', $this->header($kopf, 'Referrer-Policy'),
             'Die Middleware laeuft unabhaengig davon, ob die Route gesichert ist');
     }
 

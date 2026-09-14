@@ -31,13 +31,13 @@ class LoginManagerApiTest extends IntegrationTestCase
         )->execute(array(
             'id'    => $id,
             'alias' => $alias,
-            'pass'  => hash('sha256', self::TEST_PASSWORT.$salt),
+            'pass'  => hash('sha256', self::TEST_PASSWORD.$salt),
             'salt'  => $salt,
             'lm'    => $loginManager,
             'ext'   => $externalId,
         ));
 
-        $this->nachTestLoeschen('pim_user', $id);
+        $this->deleteAfterTest('pim_user', $id);
 
         return $id;
     }
@@ -47,7 +47,7 @@ class LoginManagerApiTest extends IntegrationTestCase
         $alias = 'lm-frei-'.bin2hex(random_bytes(4));
         $this->benutzerAnlegen($alias, null);
 
-        [$status, $body] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORT));
+        [$status, $body] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORD));
 
         $this->assertSame(200, $status);
         $this->assertArrayHasKey('token', $body);
@@ -61,7 +61,7 @@ class LoginManagerApiTest extends IntegrationTestCase
         $alias = 'lm-verwaltet-'.bin2hex(random_bytes(4));
         $this->benutzerAnlegen($alias, 'Custom\\Classes\\LoginManager\\Beispiel');
 
-        [$status, $body] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORT));
+        [$status, $body] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORD));
 
         $this->assertSame(401, $status);
         $this->assertArrayNotHasKey('token', $body);
@@ -133,7 +133,7 @@ class LoginManagerApiTest extends IntegrationTestCase
         $alias = 'lm-riegel-'.bin2hex(random_bytes(4));
         $this->benutzerAnlegen($alias, 'ldap');
 
-        [$status, $body] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORT));
+        [$status, $body] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORD));
 
         $this->assertSame(401, $status);
         $this->assertSame('The user can only be authenticated through their login provider.', $body['message']);
@@ -157,7 +157,7 @@ class LoginManagerApiTest extends IntegrationTestCase
             'ext'   => substr($alias, strlen($anbieter) + 1),
         ));
 
-        $this->nachTestLoeschen('pim_user', $id);
+        $this->deleteAfterTest('pim_user', $id);
 
         return $id;
     }

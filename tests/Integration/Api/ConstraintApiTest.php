@@ -32,7 +32,7 @@ class ConstraintApiTest extends IntegrationTestCase
         );
 
         if ($status === 200) {
-            $this->nachTestLoeschen('pim_tag', $body['id']);
+            $this->deleteAfterTest('pim_tag', $body['id']);
             $this->beobachtet[] = $body['id'];
         }
 

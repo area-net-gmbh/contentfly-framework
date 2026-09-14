@@ -26,7 +26,7 @@ class SyncApiTest extends IntegrationTestCase
              VALUES (:id, :titel, NOW(), NOW(), 0, 0)'
         )->execute(array('id' => $this->tag, 'titel' => 'Sync-Probe'));
 
-        $this->nachTestLoeschen('pim_tag', $this->tag);
+        $this->deleteAfterTest('pim_tag', $this->tag);
     }
 
     // ── /api/all ───────────────────────────────────────────────────────────────────────
@@ -155,7 +155,7 @@ class SyncApiTest extends IntegrationTestCase
             'id' => $logId, 'modelId' => $modelId, 'modelName' => $entityName, 'mode' => 'DEL',
         ));
 
-        $this->nachTestLoeschen('pim_log', $logId);
+        $this->deleteAfterTest('pim_log', $logId);
     }
 
     public function testDeletedOhneTokenLiefertKeineDaten(): void

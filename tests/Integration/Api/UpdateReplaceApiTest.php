@@ -32,7 +32,7 @@ class UpdateReplaceApiTest extends IntegrationTestCase
              VALUES (:id, :titel, NOW(), NOW(), 5, 0)'
         )->execute(array('id' => $this->tag, 'titel' => 'Original'));
 
-        $this->nachTestLoeschen('pim_tag', $this->tag);
+        $this->deleteAfterTest('pim_tag', $this->tag);
     }
 
     protected function tearDown(): void
@@ -97,7 +97,7 @@ class UpdateReplaceApiTest extends IntegrationTestCase
     public function testReplaceLegtEinNichtVorhandenesObjektMitDerVorgegebenenIdAn(): void
     {
         $neueId = 'ur-neu-'.bin2hex(random_bytes(6));
-        $this->nachTestLoeschen('pim_tag', $neueId);
+        $this->deleteAfterTest('pim_tag', $neueId);
 
         [$status, $body] = $this->postJson(
             '/api/replace',

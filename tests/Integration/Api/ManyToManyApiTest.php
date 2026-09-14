@@ -50,7 +50,7 @@ class ManyToManyApiTest extends IntegrationTestCase
     private array $aufzuraeumendeIds = array();
 
     /**
-     * Entfernt, was `nachTestLoeschen()` nicht erreicht, und übergibt dann an die Basis.
+     * Entfernt, was `deleteAfterTest()` nicht erreicht, und übergibt dann an die Basis.
      *
      * Zwei Dinge fallen durch: die Zeilen in `pim_file_tags` (sie haben keine eigene `id`,
      * die Basis löscht aber über `id`) und die Protokollzeilen (sie stehen unter `model_id`,
@@ -87,7 +87,7 @@ class ManyToManyApiTest extends IntegrationTestCase
              VALUES (:id, :titel, NOW(), NOW(), 0, 0)'
         )->execute(array('id' => $id, 'titel' => $titel));
 
-        $this->nachTestLoeschen('pim_tag', $id);
+        $this->deleteAfterTest('pim_tag', $id);
         $this->aufzuraeumendeIds[] = $id;
 
         return $id;
@@ -115,7 +115,7 @@ class ManyToManyApiTest extends IntegrationTestCase
             'hash' => bin2hex(random_bytes(8)),
         ));
 
-        $this->nachTestLoeschen('pim_file', $id);
+        $this->deleteAfterTest('pim_file', $id);
         $this->aufzuraeumendeIds[] = $id;
 
         return $id;

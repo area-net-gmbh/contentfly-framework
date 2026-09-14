@@ -52,7 +52,7 @@ variables:
   CONTENTFLY_TEST_DB_USER: contentfly
   CONTENTFLY_TEST_DB_PASSWORD: contentfly
   CONTENTFLY_TEST_BASE_URL: "http://127.0.0.1:8145"
-  CONTENTFLY_TEST_MAIL_TRAP: "$CI_PROJECT_DIR/.ci-mailfalle"
+  CONTENTFLY_TEST_MAIL_TRAP: "$CI_PROJECT_DIR/.ci-mailtrap"
 
   # Signaturgeheimnis fuer die JWT-Tests (013-003-0001). Ein fester Wert ist hier richtig: Die
   # Pipeline faehrt gegen eine Wegwerf-Datenbank und einen Testserver, die mit dem Job
@@ -176,7 +176,7 @@ check:phpstan:
     # Der Postausgang der Versandfalle gehört ins Log, auch wenn der Lauf grün war: Eine
     # nicht leere Datei hiesse, dass ein Testlauf zuzustellen versucht hat.
     - echo "--- Postausgang der Versandfalle ---"
-    - cat "$CONTENTFLY_TEST_MAIL_TRAP/postausgang.log" || true
+    - cat "$CONTENTFLY_TEST_MAIL_TRAP/outbox.log" || true
 
 test:php8.3:
   extends: .testlauf

@@ -76,13 +76,13 @@ PHP
     protected function tearDown(): void
     {
         foreach ($this->angelegteVerzeichnisse as $dir) {
-            $this->verzeichnisEntfernen($dir);
+            $this->removeDirectory($dir);
         }
 
         $this->angelegteVerzeichnisse = array();
     }
 
-    private function verzeichnisEntfernen(string $pfad): void
+    private function removeDirectory(string $pfad): void
     {
         if (!is_dir($pfad)) {
             return;
@@ -93,7 +93,7 @@ PHP
                 continue;
             }
             $voll = $pfad.'/'.$eintrag;
-            is_dir($voll) ? $this->verzeichnisEntfernen($voll) : @unlink($voll);
+            is_dir($voll) ? $this->removeDirectory($voll) : @unlink($voll);
         }
 
         @rmdir($pfad);

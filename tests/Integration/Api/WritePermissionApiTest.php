@@ -37,7 +37,7 @@ class WritePermissionApiTest extends IntegrationTestCase
              VALUES (:id, :titel, NOW(), NOW(), 0, 0, :uc, :grp)'
         )->execute(array('id' => $id, 'titel' => $titel, 'uc' => $userCreated, 'grp' => $groups));
 
-        $this->nachTestLoeschen('pim_tag', $id);
+        $this->deleteAfterTest('pim_tag', $id);
 
         return $id;
     }
@@ -65,7 +65,7 @@ class WritePermissionApiTest extends IntegrationTestCase
         // Folgerichtig: Ein neues Objekt hat noch keinen Besitzer, an dem sich OWN oder
         // GROUP messen liessen. Api::insert() prueft deshalb bei Zeile 248 nur, ob
         // ueberhaupt Schreibrecht besteht.
-        [$token] = $this->testbenutzer(array('PIM\\Tag' => array(
+        [$token] = $this->createTestUser(array('PIM\\Tag' => array(
             'readable' => Permission::ALL, 'writable' => Permission::OWN,
         )));
 
@@ -76,13 +76,13 @@ class WritePermissionApiTest extends IntegrationTestCase
         );
 
         $this->assertSame(200, $status, 'OWN reicht zum Anlegen — es gibt noch nichts Fremdes');
-        $this->nachTestLoeschen('pim_tag', $body['id']);
+        $this->deleteAfterTest('pim_tag', $body['id']);
         $this->pdo()->prepare('DELETE FROM pim_log WHERE model_id = :id')->execute(array('id' => $body['id']));
     }
 
     public function testOhneSchreibrechtEntstehtNichts(): void
     {
-        [$token] = $this->testbenutzer(array('PIM\\Tag' => array('readable' => Permission::ALL)));
+        [$token] = $this->createTestUser(array('PIM\\Tag' => array('readable' => Permission::ALL)));
 
         $titel = 'Darf-nicht-entstehen-'.bin2hex(random_bytes(4));
 
@@ -104,7 +104,7 @@ class WritePermissionApiTest extends IntegrationTestCase
 
     public function testMitStufeOwnLaesstSichDasEigeneObjektAendern(): void
     {
-        [$token, $userId] = $this->testbenutzer(array('PIM\\Tag' => array(
+        [$token, $userId] = $this->createTestUser(array('PIM\\Tag' => array(
             'readable' => Permission::ALL, 'writable' => Permission::OWN,
         )));
 
@@ -126,7 +126,7 @@ class WritePermissionApiTest extends IntegrationTestCase
         // Die Frage, die dieser Task klaeren sollte: Prueft Api::update() auch die
         // Zugehoerigkeit des Objekts, oder kennt es nur das Recht auf die Entity?
         // Antwort: Es prueft (Api.php:452). Hier ist keine Luecke.
-        [$token] = $this->testbenutzer(array('PIM\\Tag' => array(
+        [$token] = $this->createTestUser(array('PIM\\Tag' => array(
             'readable' => Permission::ALL, 'writable' => Permission::OWN,
         )));
 
@@ -146,7 +146,7 @@ class WritePermissionApiTest extends IntegrationTestCase
 
     public function testMitStufeGroupZaehltDieGruppeDesObjekts(): void
     {
-        [$token, , $gruppeId] = $this->testbenutzer(array('PIM\\Tag' => array(
+        [$token, , $gruppeId] = $this->createTestUser(array('PIM\\Tag' => array(
             'readable' => Permission::ALL, 'writable' => Permission::GROUP,
         )));
 
@@ -179,7 +179,7 @@ class WritePermissionApiTest extends IntegrationTestCase
 
     public function testOhneLoeschrechtBleibtDasObjektBestehen(): void
     {
-        [$token] = $this->testbenutzer(array('PIM\\Tag' => array(
+        [$token] = $this->createTestUser(array('PIM\\Tag' => array(
             'readable' => Permission::ALL, 'writable' => Permission::ALL,
         )));
 
@@ -195,7 +195,7 @@ class WritePermissionApiTest extends IntegrationTestCase
 
     public function testMitLoeschrechtOwnBleibtEinFremdesObjektBestehen(): void
     {
-        [$token, $userId] = $this->testbenutzer(array('PIM\\Tag' => array(
+        [$token, $userId] = $this->createTestUser(array('PIM\\Tag' => array(
             'readable' => Permission::ALL, 'deletable' => Permission::OWN,
         )));
 
@@ -223,7 +223,7 @@ class WritePermissionApiTest extends IntegrationTestCase
         // hinzugefuegt ist: `&& $object != $this->app['auth.user']`. Ein Benutzer faellt
         // damit nie unter die OWN-Sperre fuer sich selbst — auch dann nicht, wenn er sich
         // nicht selbst angelegt hat.
-        [$token, $userId] = $this->testbenutzer(array('PIM\\User' => array(
+        [$token, $userId] = $this->createTestUser(array('PIM\\User' => array(
             'readable' => Permission::ALL, 'writable' => Permission::OWN,
         )));
 

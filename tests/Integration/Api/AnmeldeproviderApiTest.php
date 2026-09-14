@@ -48,7 +48,7 @@ class AnmeldeproviderApiTest extends IntegrationTestCase
         $zeile->execute(array('lm' => 'example', 'ext' => $kennung ?? $eintrag['kennung']));
 
         if ($id = $zeile->fetchColumn()) {
-            $this->nachTestLoeschen('pim_user', (string) $id);
+            $this->deleteAfterTest('pim_user', (string) $id);
         }
 
         return array($status, $body);

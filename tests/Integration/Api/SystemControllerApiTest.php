@@ -58,13 +58,13 @@ class SystemControllerApiTest extends IntegrationTestCase
         $zeile->execute(array('t' => hash('sha256', $tokenString)));
 
         if ($id = $zeile->fetchColumn()) {
-            $this->nachTestLoeschen('pim_token', (string) $id);
+            $this->deleteAfterTest('pim_token', (string) $id);
 
             $log = $this->pdo()->prepare('SELECT id FROM pim_log WHERE model_name = :n AND model_id = :i');
             $log->execute(array('n' => 'PIM\\Token', 'i' => (string) $id));
 
             foreach ($log->fetchAll(\PDO::FETCH_COLUMN) as $logId) {
-                $this->nachTestLoeschen('pim_log', (string) $logId);
+                $this->deleteAfterTest('pim_log', (string) $logId);
             }
         }
 
@@ -91,7 +91,7 @@ class SystemControllerApiTest extends IntegrationTestCase
     {
         // Der before-Hook verlangt beides: gueltiger Token UND isAdmin. Der Testbenutzer hat
         // einen frischen Token — er scheitert allein an der zweiten Bedingung.
-        [$token] = $this->testbenutzer();
+        [$token] = $this->createTestUser();
 
         [$statusAndernorts] = $this->get('/api/schema', $token);
         $this->assertSame(200, $statusAndernorts, 'Vorbedingung: der Token selbst ist gueltig');
@@ -521,12 +521,12 @@ class SystemControllerApiTest extends IntegrationTestCase
         $einfuegen->execute(array('u' => $benutzerId, 't' => $apiToken, 'r' => 'https://example.invalid', 'c' => $alt, 'm' => $alt));
         $idApi = $this->pdo()->lastInsertId();
 
-        $this->nachTestLoeschen('pim_token', $idAbgelaufen);
-        $this->nachTestLoeschen('pim_token', $idApi);
+        $this->deleteAfterTest('pim_token', $idAbgelaufen);
+        $this->deleteAfterTest('pim_token', $idApi);
 
         $ausgabe = array();
         exec(
-            sprintf('%s %s appcms:token:cleanup 2>&1', escapeshellarg(PHP_BINARY), escapeshellarg(self::konsole())),
+            sprintf('%s %s appcms:token:cleanup 2>&1', escapeshellarg(PHP_BINARY), escapeshellarg(self::console())),
             $ausgabe
         );
 
@@ -575,7 +575,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         $gefunden = $zeile->fetch(\PDO::FETCH_ASSOC);
 
         $this->assertIsArray($gefunden, 'Die Zeile der Anmeldung ist auffindbar');
-        $this->nachTestLoeschen('pim_token', (string) $gefunden['id']);
+        $this->deleteAfterTest('pim_token', (string) $gefunden['id']);
 
         $this->assertNull($gefunden['referrer'],
             'Ohne Referrer — deshalb unterliegt er dem Timeout und taucht nicht in listTokens auf');
@@ -616,7 +616,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         // Dateien, aber andere. Der Request laeuft nach der Action weiter und stellt dabei
         // erneut Abfragen; ein leeres Verzeichnis zu verlangen hiesse, dem Endpunkt etwas
         // zuzuschreiben, was er gar nicht zusagt.
-        $verzeichnis = self::datenverzeichnis().'/cache/query';
+        $verzeichnis = self::dataDir().'/cache/query';
 
         // Etwas in den Cache bringen: /api/list stellt eine DQL-Abfrage.
         $this->postJson('/api/list', array('entity' => 'PIM\\User'), $this->token());
@@ -666,7 +666,7 @@ class SystemControllerApiTest extends IntegrationTestCase
             'Vorbedingung: die Vorlage schaltet den Schema-Cache aus'
         );
 
-        $this->assertFileDoesNotExist(self::datenverzeichnis().'/cache/schema.cache');
+        $this->assertFileDoesNotExist(self::dataDir().'/cache/schema.cache');
 
         [, $body] = $this->systemDo('flushSchemaCache');
 

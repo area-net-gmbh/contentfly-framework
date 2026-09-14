@@ -403,7 +403,7 @@ class ContainerSchluesselTest extends IntegrationTestCase
      */
     private function ausDemContainer(string $schluessel): string
     {
-        $projekt = self::anwendungsverzeichnis();
+        $projekt = self::applicationDir();
 
         $skript = <<<'PHP'
 $app = \Areanet\PIM\Classes\Kernel\Start::console($argv[1]);
@@ -436,7 +436,7 @@ PHP;
      */
     private function schluesselDesContainers(bool $alle = false): array
     {
-        $projekt = self::anwendungsverzeichnis();
+        $projekt = self::applicationDir();
 
         $skript = <<<'PHP'
 $app = \Areanet\PIM\Classes\Kernel\Start::console($argv[1]);

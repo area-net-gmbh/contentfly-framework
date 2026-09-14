@@ -29,7 +29,7 @@ class QueryApiTest extends IntegrationTestCase
             'INSERT INTO pim_tag (id, title, created, modified, views, isIntern)
              VALUES (:id, :titel, NOW(), NOW(), 0, 0)'
         )->execute(array('id' => $this->tag, 'titel' => 'Query-Probe'));
-        $this->nachTestLoeschen('pim_tag', $this->tag);
+        $this->deleteAfterTest('pim_tag', $this->tag);
     }
 
     /**
@@ -41,7 +41,7 @@ class QueryApiTest extends IntegrationTestCase
      */
     private function anmeldungAlsNichtAdmin(string $apiQueryEnabled): string
     {
-        [$token] = $this->testbenutzer(
+        [$token] = $this->createTestUser(
             array('PIM\\Tag' => array('readable' => Permission::ALL)),
             array('apiQueryEnabled' => $apiQueryEnabled)
         );

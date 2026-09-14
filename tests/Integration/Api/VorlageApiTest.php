@@ -35,7 +35,7 @@ class VorlageApiTest extends IntegrationTestCase
     /**
      * Entfernt die Protokollzeilen der angelegten Datensätze und übergibt dann an die Basis.
      *
-     * Eigene Aufräumung, weil `nachTestLoeschen()` eine Zeile über ihre **eigene** Id
+     * Eigene Aufräumung, weil `deleteAfterTest()` eine Zeile über ihre **eigene** Id
      * anmeldet — der Logeintrag steht aber unter `model_id`, und die entscheidende Zeile
      * entsteht erst **nach** der Anmeldung: `/api/delete` protokolliert seinerseits. Ohne
      * das wüchse `pim_log` mit jedem Lauf um eine Zeile; genau die Sorte Rest, gegen die
@@ -67,7 +67,7 @@ class VorlageApiTest extends IntegrationTestCase
         );
 
         if (isset($body['id'])) {
-            $this->nachTestLoeschen('example_entity', $body['id']);
+            $this->deleteAfterTest('example_entity', $body['id']);
             $this->protokollierteIds[] = $body['id'];
         }
 
@@ -341,7 +341,7 @@ class VorlageApiTest extends IntegrationTestCase
         [$status, , $kopf] = $this->get('/api/config');
 
         $this->assertSame(200, $status);
-        $this->assertSame('strict-origin-when-cross-origin', $this->kopfzeile($kopf, 'Referrer-Policy'),
+        $this->assertSame('strict-origin-when-cross-origin', $this->header($kopf, 'Referrer-Policy'),
             'Der after-Hook der Vorlage greift');
     }
 
@@ -404,7 +404,7 @@ class VorlageApiTest extends IntegrationTestCase
 
         // Die Gegenprobe an der Konsole selbst — samt Praefix, den CustomCommand voranstellt.
         $ausgabe = array();
-        exec(sprintf('%s %s list 2>&1', escapeshellarg(PHP_BINARY), escapeshellarg(self::konsole())), $ausgabe);
+        exec(sprintf('%s %s list 2>&1', escapeshellarg(PHP_BINARY), escapeshellarg(self::console())), $ausgabe);
         $alles = implode("\n", $ausgabe);
 
         $this->assertStringContainsString('appcms:install', $alles, 'Vorbedingung: die Liste ist gekommen');

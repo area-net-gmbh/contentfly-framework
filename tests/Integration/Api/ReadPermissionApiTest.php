@@ -40,7 +40,7 @@ class ReadPermissionApiTest extends IntegrationTestCase
              VALUES (:id, :titel, NOW(), NOW(), 0, 0, :uc, :grp, :usr)'
         )->execute(array('id' => $id, 'titel' => $titel, 'uc' => $userCreated, 'grp' => $groups, 'usr' => $users));
 
-        $this->nachTestLoeschen('pim_tag', $id);
+        $this->deleteAfterTest('pim_tag', $id);
 
         return $id;
     }
@@ -59,7 +59,7 @@ class ReadPermissionApiTest extends IntegrationTestCase
 
     public function testMitStufeAllSindAlleObjekteSichtbar(): void
     {
-        [$token, $userId] = $this->testbenutzer(array('PIM\\Tag' => array('readable' => Permission::ALL)));
+        [$token, $userId] = $this->createTestUser(array('PIM\\Tag' => array('readable' => Permission::ALL)));
 
         $eigener = $this->tag('Eigener', $userId);
         $fremder = $this->tag('Fremder', $this->adminId);
@@ -74,7 +74,7 @@ class ReadPermissionApiTest extends IntegrationTestCase
 
     public function testMitStufeOwnIstNurEigenesSichtbar(): void
     {
-        [$token, $userId] = $this->testbenutzer(array('PIM\\Tag' => array('readable' => Permission::OWN)));
+        [$token, $userId] = $this->createTestUser(array('PIM\\Tag' => array('readable' => Permission::OWN)));
 
         $eigener = $this->tag('Eigener', $userId);
         $fremder = $this->tag('Fremder', $this->adminId);
@@ -90,7 +90,7 @@ class ReadPermissionApiTest extends IntegrationTestCase
     {
         // Api::getList() filtert auf "userCreated = ich ODER ich stehe in users" — dem
         // Virtualjoin aus Base, den 012-005-0001 als datenrelevant behalten hat.
-        [$token, $userId] = $this->testbenutzer(array('PIM\\Tag' => array('readable' => Permission::OWN)));
+        [$token, $userId] = $this->createTestUser(array('PIM\\Tag' => array('readable' => Permission::OWN)));
 
         $geteilt = $this->tag('Geteilt', $this->adminId, null, $userId);
 
@@ -102,7 +102,7 @@ class ReadPermissionApiTest extends IntegrationTestCase
 
     public function testMitStufeGroupIstEigenesUndGruppenGeteiltesSichtbar(): void
     {
-        [$token, $userId, $gruppeId] = $this->testbenutzer(array('PIM\\Tag' => array('readable' => Permission::GROUP)));
+        [$token, $userId, $gruppeId] = $this->createTestUser(array('PIM\\Tag' => array('readable' => Permission::GROUP)));
 
         $eigener      = $this->tag('Eigener', $userId);
         $gruppenTag   = $this->tag('Fuer die Gruppe', $this->adminId, $gruppeId);
@@ -122,7 +122,7 @@ class ReadPermissionApiTest extends IntegrationTestCase
         // Die Frage, die der Task messen sollte: gefilterte Liste oder Fehler? Es ist ein
         // Fehler — Api::getList() wirft contentfly_general_permission_denied, statt eine
         // leere Liste zu liefern.
-        [$token] = $this->testbenutzer(array('PIM\\User' => array('readable' => Permission::ALL)));
+        [$token] = $this->createTestUser(array('PIM\\User' => array('readable' => Permission::ALL)));
 
         $this->tag('Unerreichbar', $this->adminId);
 
@@ -134,7 +134,7 @@ class ReadPermissionApiTest extends IntegrationTestCase
 
     public function testOhneLeserechtWirftAuchSingle(): void
     {
-        [$token] = $this->testbenutzer(array('PIM\\User' => array('readable' => Permission::ALL)));
+        [$token] = $this->createTestUser(array('PIM\\User' => array('readable' => Permission::ALL)));
 
         $tag = $this->tag('Unerreichbar', $this->adminId);
 
@@ -161,11 +161,11 @@ class ReadPermissionApiTest extends IntegrationTestCase
              VALUES (:id, 0, :alias, :pass, 1, :salt, NOW(), NOW(), 0, 0)'
         )->execute(array(
             'id' => $id, 'alias' => $id,
-            'pass' => hash('sha256', self::TEST_PASSWORT.$salt), 'salt' => $salt,
+            'pass' => hash('sha256', self::TEST_PASSWORD.$salt), 'salt' => $salt,
         ));
-        $this->nachTestLoeschen('pim_user', $id);
+        $this->deleteAfterTest('pim_user', $id);
 
-        [, $anmeldung] = $this->postJson('/auth/login', array('alias' => $id, 'pass' => self::TEST_PASSWORT));
+        [, $anmeldung] = $this->postJson('/auth/login', array('alias' => $id, 'pass' => self::TEST_PASSWORD));
         $this->assertArrayHasKey('token', $anmeldung);
 
         [$status] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'), $anmeldung['token']);
@@ -193,7 +193,7 @@ class ReadPermissionApiTest extends IntegrationTestCase
         // nicht, bekommt statt des Objekts nur dessen Id plus die Markierung — der Client
         // erfaehrt, DASS da etwas ist, aber nicht was. Das Verhalten steckt in JoinType und
         // ist ueber vier weitere Typ-Klassen dupliziert.
-        [$token, $userId] = $this->testbenutzer(array('PIM\\Tag' => array('readable' => Permission::ALL)));
+        [$token, $userId] = $this->createTestUser(array('PIM\\Tag' => array('readable' => Permission::ALL)));
 
         $tag = $this->tag('Mit Ersteller', $userId);
 
@@ -214,7 +214,7 @@ class ReadPermissionApiTest extends IntegrationTestCase
     public function testMitLeserechtAufDerZielentityKommtDasVerjointeObjektGanz(): void
     {
         // Die Gegenrichtung: mit Leserecht auf PIM\User faellt die Markierung weg.
-        [$token, $userId] = $this->testbenutzer(array(
+        [$token, $userId] = $this->createTestUser(array(
             'PIM\\Tag'  => array('readable' => Permission::ALL),
             'PIM\\User' => array('readable' => Permission::ALL),
         ));

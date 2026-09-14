@@ -47,7 +47,7 @@ class ReadApiTest extends IntegrationTestCase
              VALUES (:id, :titel, NOW(), NOW(), 0, 0, :uc)'
         )->execute(array('id' => $id, 'titel' => $titel, 'uc' => $userCreated));
 
-        $this->nachTestLoeschen('pim_tag', $id);
+        $this->deleteAfterTest('pim_tag', $id);
 
         return $id;
     }

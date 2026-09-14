@@ -46,7 +46,7 @@ class ProviderSyncApiTest extends IntegrationTestCase
         $zeile->execute(array('lm' => 'example', 'ext' => $eintrag['kennung']));
 
         if ($id = $zeile->fetchColumn()) {
-            $this->nachTestLoeschen('pim_user', (string) $id);
+            $this->deleteAfterTest('pim_user', (string) $id);
         }
 
         if ($status !== 200) {
@@ -71,7 +71,7 @@ class ProviderSyncApiTest extends IntegrationTestCase
             'CONTENTFLY_EXAMPLE_PROVIDER=%s %s %s appcms:provider:sync %s 2>&1',
             escapeshellarg($liste),
             escapeshellarg(PHP_BINARY),
-            escapeshellarg(self::konsole()),
+            escapeshellarg(self::console()),
             $trocken ? '--dry-run' : ''
         ), $ausgabe);
 

@@ -36,9 +36,9 @@ class ReencryptCommandTest extends TestCase
         Factory::getInstance()->setConfig($config);
 
         // Dieselben Zugangsdaten wie die uebrigen Integrationstests. Ein zweiter Weg dorthin
-        // liefe irgendwann auseinander — genau die Begruendung, die an `dbZugangsdaten()`
+        // liefe irgendwann auseinander — genau die Begruendung, die an `dbCredentials()`
         // selbst steht.
-        $zugang = IntegrationTestCase::dbZugangsdaten();
+        $zugang = IntegrationTestCase::dbCredentials();
 
         $this->db = DriverManager::getConnection(array(
             'driver'   => 'pdo_mysql',

@@ -117,7 +117,7 @@ class AuthApiTest extends IntegrationTestCase
         // laeuft ueber den Altformat-Zweig. Er ist also breit abgedeckt, nur nicht zugesichert.)
         //
         // Fuer die Zusicherung wird der alte Hash deshalb ausdruecklich wiederhergestellt.
-        [, $userId] = $this->testbenutzer();
+        [, $userId] = $this->createTestUser();
         $this->altenHashSetzen($userId);
 
         $vorher = $this->passHashLesen($userId);
@@ -126,7 +126,7 @@ class AuthApiTest extends IntegrationTestCase
 
         [$status] = $this->postJson('/auth/login', array(
             'alias' => $this->aliasZu($userId),
-            'pass'  => self::TEST_PASSWORT,
+            'pass'  => self::TEST_PASSWORD,
         ));
         $this->assertSame(200, $status, 'Ein Bestandspasswort meldet sich weiterhin an');
 
@@ -141,15 +141,15 @@ class AuthApiTest extends IntegrationTestCase
         // Ein umgeschluesselter Hash muss beim naechsten Mal ueber den NEUEN Zweig geprueft
         // werden. Faende `isPass()` dort nicht zurecht, waere der Benutzer nach genau einem
         // erfolgreichen Login ausgesperrt — und der Test darueber waere trotzdem gruen.
-        [, $userId] = $this->testbenutzer();
+        [, $userId] = $this->createTestUser();
         $this->altenHashSetzen($userId);
         $alias = $this->aliasZu($userId);
 
-        $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORT));
+        $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORD));
 
         [$status, $body] = $this->postJson('/auth/login', array(
             'alias' => $alias,
-            'pass'  => self::TEST_PASSWORT,
+            'pass'  => self::TEST_PASSWORD,
         ));
 
         $this->assertSame(200, $status);
@@ -158,11 +158,11 @@ class AuthApiTest extends IntegrationTestCase
 
     public function testEinFalschesPasswortScheitertAuchNachDemUmschluesseln(): void
     {
-        [, $userId] = $this->testbenutzer();
+        [, $userId] = $this->createTestUser();
         $this->altenHashSetzen($userId);
         $alias = $this->aliasZu($userId);
 
-        $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORT));
+        $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORD));
 
         [$status] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => 'falsch'));
 
@@ -177,7 +177,7 @@ class AuthApiTest extends IntegrationTestCase
         $salt = (string) $s->fetchColumn();
 
         $this->pdo()->prepare('UPDATE pim_user SET pass = :pass WHERE id = :id')->execute(array(
-            'pass' => hash('sha256', self::TEST_PASSWORT.$salt),
+            'pass' => hash('sha256', self::TEST_PASSWORD.$salt),
             'id'   => $userId,
         ));
     }
@@ -584,11 +584,11 @@ class AuthApiTest extends IntegrationTestCase
      */
     public function testEinGesperrterBenutzerBekommtKeinNeuesAccessJwt(): void
     {
-        [, $userId] = $this->testbenutzer();
+        [, $userId] = $this->createTestUser();
 
         [$status, $anmeldung] = $this->postJson('/auth/login', array(
             'alias'     => $this->aliasZu($userId),
-            'pass'      => self::TEST_PASSWORT,
+            'pass'      => self::TEST_PASSWORD,
             'tokenType' => 'jwt',
         ));
         $this->assertSame(200, $status);
@@ -671,11 +671,11 @@ class AuthApiTest extends IntegrationTestCase
      */
     public function testEinFremdesRefreshTokenLaesstSichNichtAbmelden(): void
     {
-        [, $userId] = $this->testbenutzer();
+        [, $userId] = $this->createTestUser();
 
         [, $fremd] = $this->postJson('/auth/login', array(
             'alias'     => $this->aliasZu($userId),
-            'pass'      => self::TEST_PASSWORT,
+            'pass'      => self::TEST_PASSWORD,
             'tokenType' => 'jwt',
         ));
 
@@ -702,11 +702,11 @@ class AuthApiTest extends IntegrationTestCase
      */
     public function testEineBenutzersperrungWirktSofortUndOhneSperrliste(): void
     {
-        [, $userId] = $this->testbenutzer();
+        [, $userId] = $this->createTestUser();
 
         [, $anmeldung] = $this->postJson('/auth/login', array(
             'alias'     => $this->aliasZu($userId),
-            'pass'      => self::TEST_PASSWORT,
+            'pass'      => self::TEST_PASSWORD,
             'tokenType' => 'jwt',
         ));
 
@@ -758,7 +758,7 @@ class AuthApiTest extends IntegrationTestCase
         exec(sprintf(
             '%s %s appcms:token:cleanup 2>&1',
             escapeshellarg(PHP_BINARY),
-            escapeshellarg(self::konsole())
+            escapeshellarg(self::console())
         ));
 
         $this->pdo()->exec('DELETE FROM pim_revoked_token');

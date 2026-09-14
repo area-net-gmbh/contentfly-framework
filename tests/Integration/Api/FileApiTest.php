@@ -39,7 +39,7 @@ class FileApiTest extends IntegrationTestCase
         $inhalt  = "Zeile eins\nZeile zwei\n";
         $antwort = $this->upload('rueckgabe.txt', $inhalt, $this->token());
 
-        $pfad = self::datenverzeichnis().'/files/'.$antwort['data']['id'].'/rueckgabe.txt';
+        $pfad = self::dataDir().'/files/'.$antwort['data']['id'].'/rueckgabe.txt';
 
         $this->assertFileExists($pfad, 'Der Upload legt die Datei unter data/files/<id>/<name> ab');
         $this->assertSame($inhalt, file_get_contents($pfad), 'Der Inhalt muss byte-gleich gespeichert werden');
@@ -62,7 +62,7 @@ class FileApiTest extends IntegrationTestCase
         $antwort = $this->upload('ausgeliefert.txt', "sichtbar\n", $this->token());
 
         [$status, , $kopf] = $this->get('/file/get/'.$antwort['data']['id']);
-        $location = $this->kopfzeile($kopf, 'Location');
+        $location = $this->header($kopf, 'Location');
 
         // 301, nicht 302: getAction() ruft `$this->app->redirect($redirectUri, 301)` — so seit
         // dem initialen Import, und so in der README dokumentiert. Die Zusicherung stand bis
@@ -164,7 +164,7 @@ class FileApiTest extends IntegrationTestCase
 
         $this->assertSame('File overwritten', $antwort['message'] ?? null);
 
-        $zielPfad = self::datenverzeichnis().'/files/'.$ziel.'/gleich.txt';
+        $zielPfad = self::dataDir().'/files/'.$ziel.'/gleich.txt';
         $this->assertFileExists($zielPfad);
         $this->assertSame(
             "neuer inhalt\n",
@@ -173,7 +173,7 @@ class FileApiTest extends IntegrationTestCase
         );
 
         $this->assertDirectoryDoesNotExist(
-            self::datenverzeichnis().'/files/'.$quelle,
+            self::dataDir().'/files/'.$quelle,
             'Die Quelle wird verschoben, nicht kopiert - ihr Verzeichnis verschwindet'
         );
     }
@@ -193,7 +193,7 @@ class FileApiTest extends IntegrationTestCase
 
         $this->assertSame(
             "alter inhalt\n",
-            file_get_contents(self::datenverzeichnis().'/files/'.$ziel.'/zwei.txt'),
+            file_get_contents(self::dataDir().'/files/'.$ziel.'/zwei.txt'),
             'Bei verschiedenen Namen bleibt das Ziel unangetastet'
         );
     }
@@ -265,10 +265,10 @@ class FileApiTest extends IntegrationTestCase
         }
 
         foreach ($this->pdo()->query('SELECT id FROM pim_log WHERE model_id = '.$this->pdo()->quote($id))->fetchAll(\PDO::FETCH_COLUMN) as $logId) {
-            $this->nachTestLoeschen('pim_log', $logId);
+            $this->deleteAfterTest('pim_log', $logId);
         }
 
-        $this->nachTestLoeschen('pim_file', $id);
-        $this->nachTestVerzeichnisLoeschen(self::datenverzeichnis().'/files/'.$id);
+        $this->deleteAfterTest('pim_file', $id);
+        $this->deleteDirectoryAfterTest(self::dataDir().'/files/'.$id);
     }
 }

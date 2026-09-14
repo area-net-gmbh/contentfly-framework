@@ -5,272 +5,269 @@ use PDO;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Basis für alle Integrationstests: HTTP gegen eine laufende, installierte Instanz.
+ * Base for all integration tests: HTTP against a running, installed instance.
  *
- * Bündelt, was `AuthApiTest` und `FileApiTest` bis Story `008-001` je für sich mitbrachten —
- * Übersprung-Logik, Anmeldung, HTTP-Helfer. Epic `008` fügt weitere Testdateien hinzu; ohne
- * diese Basis wäre jede davon die nächste Kopie derselben vier Methoden.
+ * Bundles what `AuthApiTest` and `FileApiTest` each brought along on their own until story
+ * `008-001` — skip logic, login, HTTP helpers. Epic `008` adds more test files; without this base
+ * each of them would be the next copy of the same four methods.
  *
- * Voraussetzungen (sonst wird übersprungen):
- * - `CONTENTFLY_TEST_BASE_URL` zeigt auf eine laufende, installierte Instanz
- * - `CONTENTFLY_TEST_ADMIN_PASS` ist das Passwort des Benutzers `admin`
+ * Preconditions (otherwise the test is skipped):
+ * - `CONTENTFLY_TEST_BASE_URL` points to a running, installed instance
+ * - `CONTENTFLY_TEST_ADMIN_PASS` is the password of the user `admin`
  *
- * Siehe `tests/README.md`.
+ * See `tests/README.md`.
  *
- * **Diese Datei kommt über den Autoloader** — `composer.json` mappt `Tests\` auf `tests/`, in
- * `autoload-dev`. Bis `006-004-0004` war das anders: `tests/bootstrap.php` lud sie per
- * `require_once`, weil das Mapping im **Projekt**-Manifest lag und auf `Custom\Tests\` zeigte,
- * einen Namensraum, den keine Testdatei je trug. PHPUnit selbst lädt nur Dateien, die auf
- * `Test.php` enden — diese also nicht.
+ * **This file comes through the autoloader** — `composer.json` maps `Tests\` to `tests/` in
+ * `autoload-dev`. Until `006-004-0004` that was different: `tests/bootstrap.php` loaded it via
+ * `require_once`, because the mapping lived in the **project** manifest and pointed to
+ * `Custom\Tests\`, a namespace no test file ever used. PHPUnit itself only loads files ending in
+ * `Test.php` — so not this one.
  */
 abstract class IntegrationTestCase extends TestCase
 {
     protected static ?string $baseUrl = null;
 
-    /** Angemeldeter Token, einmal je Testklasse. */
-    private static ?string $zwischengespeicherterToken = null;
+    /** Logged-in token, once per test class. */
+    private static ?string $cachedToken = null;
 
     private static ?PDO $pdo = null;
 
-    /** @var array<int, array{0:string,1:string}> Tabelle und Id, die tearDown() entfernt. */
-    private array $aufzuraeumen = array();
+    /** @var array<int, array{0:string,1:string}> Table and id that tearDown() removes. */
+    private array $cleanup = array();
 
-    /** @var array<int, string> Verzeichnisse, die tearDown() samt Inhalt entfernt. */
-    private array $verzeichnisse = array();
+    /** @var array<int, string> Directories that tearDown() removes including their contents. */
+    private array $directories = array();
 
     public static function setUpBeforeClass(): void
     {
-        self::$baseUrl                     = getenv('CONTENTFLY_TEST_BASE_URL') ?: null;
-        self::$zwischengespeicherterToken  = null;
+        self::$baseUrl     = getenv('CONTENTFLY_TEST_BASE_URL') ?: null;
+        self::$cachedToken = null;
     }
 
     protected function setUp(): void
     {
         if (self::$baseUrl === null) {
-            $this->markTestSkipped('CONTENTFLY_TEST_BASE_URL nicht gesetzt — Integrationstests übersprungen.');
+            $this->markTestSkipped('CONTENTFLY_TEST_BASE_URL not set — integration tests skipped.');
         }
     }
 
     /**
-     * Entfernt, was der Test über nachTestLoeschen() angemeldet hat — in umgekehrter
-     * Reihenfolge, damit abhängige Zeilen vor ihren Zielen verschwinden.
+     * Removes what the test registered through deleteAfterTest() — in reverse order, so that
+     * dependent rows disappear before their targets.
      */
     protected function tearDown(): void
     {
-        $this->bremsspeicherLeeren();
+        $this->clearThrottleStorage();
 
-        foreach (array_reverse($this->aufzuraeumen) as [$tabelle, $id]) {
-            $stmt = $this->pdo()->prepare("DELETE FROM `$tabelle` WHERE id = :id");
+        foreach (array_reverse($this->cleanup) as [$table, $id]) {
+            $stmt = $this->pdo()->prepare("DELETE FROM `$table` WHERE id = :id");
             $stmt->execute(array('id' => $id));
         }
 
-        foreach ($this->verzeichnisse as $pfad) {
-            $this->verzeichnisEntfernen($pfad);
+        foreach ($this->directories as $path) {
+            $this->removeDirectory($path);
         }
 
-        $this->aufzuraeumen  = array();
-        $this->verzeichnisse = array();
+        $this->cleanup     = array();
+        $this->directories = array();
     }
 
     /**
-     * Leert den Speicher der LoginThrottle (013-003-0003).
+     * Clears the storage of the LoginThrottle (013-003-0003).
      *
-     * DIE SUITE IST KEIN REALISTISCHER CLIENT. Sie erzeugt in wenigen Sekunden mehr
-     * Fehlversuche, als eine Adresse pro Minute machen darf — falsche Passwoerter, unbekannte
-     * Kennungen, ungueltige Refresh-Token, und all das von 127.0.0.1. Ohne Aufraeumen
-     * entscheidet die Reihenfolge der Testklassen darueber, welche noch durchkommt: Beim ersten
-     * Lauf mit den Refresh-Tests waren 87 Tests rot, alle mit „Zu viele Anmeldeversuche".
+     * THE SUITE IS NOT A REALISTIC CLIENT. Within a few seconds it produces more failed attempts than
+     * an address may make per minute — wrong passwords, unknown identifiers, invalid refresh tokens,
+     * and all of it from 127.0.0.1. Without cleaning up, the order of the test classes decides which
+     * one still gets through: on the first run with the refresh tests 87 tests were red, all with
+     * "Too many login attempts".
      *
-     * DAS SCHWAECHT NICHTS AB. `AnmeldebremseApiTest` misst die Bremse innerhalb EINES
-     * Testverfahrens; was hier zwischen zwei Verfahren weggeraeumt wird, hat dort nie eine
-     * Aussage getragen.
+     * THIS WEAKENS NOTHING. `AnmeldebremseApiTest` measures the throttle within ONE test method; what
+     * is cleared here between two methods never carried a statement there.
      *
-     * Stillschweigend, wenn das Verzeichnis nicht erreichbar ist: Dann laeuft der Testserver
-     * woanders, und das ist der Fall, den `AnmeldebremseApiTest` mit einer eigenen, strengeren
-     * Pruefung abfaengt.
+     * Silently, if the directory is not reachable: then the test server runs elsewhere, and that is
+     * the case `AnmeldebremseApiTest` catches with a stricter check of its own.
      */
-    protected function bremsspeicherLeeren(): void
+    protected function clearThrottleStorage(): void
     {
-        $daten = self::datenverzeichnis();
+        $data = self::dataDir();
 
-        if (is_dir($daten.'/cache')) {
-            $this->verzeichnisEntfernen($daten.'/cache/login-throttle');
+        if (is_dir($data.'/cache')) {
+            $this->removeDirectory($data.'/cache/login-throttle');
         }
     }
 
     /**
-     * Das Verzeichnis **der Anwendung**, gegen die dieser Lauf prüft (007-001-0005).
+     * The directory of **the application** this run checks against (007-001-0005).
      *
-     * **Bisher war das immer der Baum der Suite selbst** — `dirname(__DIR__, 2)`. Das stimmt
-     * genau so lange, wie Testlauf und Anwendung im selben Baum liegen.
+     * **So far this was always the suite's own tree** — `dirname(__DIR__, 2)`. That is correct exactly
+     * as long as test run and application live in the same tree.
      *
-     * Seit `007-001` muss es das nicht mehr: Ein Projekt bezieht das Framework als Paket, und
-     * die Suite kann gegen eine Installation laufen, die woanders steht. Beim ersten solchen
-     * Lauf waren **127 Tests rot** mit „Zu viele Anmeldeversuche" — die Suite leerte den
-     * Bremsspeicher ihres eigenen Baums, die Anwendung schrieb ihn in den ihren. **Und es ging
-     * leise schief:** Das eigene `data/cache` existiert ja, also griff die Bedingung, das
-     * Aufräumen lief, und es räumte das Falsche. Die Meldung handelte danach von einer
-     * Anmeldung, nicht von einem Verzeichnis.
+     * Since `007-001` they no longer have to: a project pulls in the framework as a package, and the
+     * suite can run against an installation that lives elsewhere. On the first such run **127 tests
+     * were red** with "Too many login attempts" — the suite cleared the throttle storage of its own
+     * tree, the application wrote into its own. **And it went wrong silently:** the own `data/cache`
+     * does exist, so the condition applied, the cleanup ran, and it cleaned up the wrong thing. The
+     * message was about a login afterwards, not about a directory.
      *
-     * Nach dem Beheben blieben **vier** rot, mit derselben Annahme an anderer Stelle: Tests, die
-     * `bin/console.php` aufrufen, riefen das des Entwicklungs-Repos — dessen `custom/config.php`
-     * ist die Vorlage ohne Zugangsdaten, also war `$app['orm.em']` null.
+     * After the fix **four** stayed red, with the same assumption elsewhere: tests that call
+     * `bin/console.php` called the one of the development repository — whose `custom/config.php` is the
+     * template without credentials, so `$app['orm.em']` was null.
      *
-     * **Deshalb EINE Angabe und nicht zwei.** `CONTENTFLY_TEST_PROJEKT` sagt, wo die Anwendung
-     * liegt; Datenverzeichnis und Konsole hängen daran. Zwei Variablen könnten auseinanderlaufen,
-     * und dann prüfte ein Lauf zwei verschiedene Installationen, ohne es zu merken.
+     * **That is why there is ONE setting and not two.** `CONTENTFLY_TEST_PROJECT_DIR` says where the
+     * application lives; data directory and console depend on it. Two variables could drift apart,
+     * and then a run would check two different installations without noticing.
      *
-     * Ohne die Variable bleibt es beim Baum der Suite — der Normalfall, in dem beide dasselbe
-     * sind, und der einzige, den die Pipeline kennt.
+     * Without the variable it stays the suite's own tree — the normal case in which both are the same,
+     * and the only one the pipeline knows.
      */
-    public static function anwendungsverzeichnis(): string
+    public static function applicationDir(): string
     {
-        $angabe = getenv('CONTENTFLY_TEST_PROJEKT');
+        $setting = getenv('CONTENTFLY_TEST_PROJECT_DIR');
 
-        if (!is_string($angabe) || $angabe === '') {
+        if (!is_string($setting) || $setting === '') {
             return dirname(__DIR__, 2);
         }
 
-        $aufgeloest = realpath($angabe);
+        $resolved = realpath($setting);
 
-        if ($aufgeloest === false || !is_dir($aufgeloest)) {
+        if ($resolved === false || !is_dir($resolved)) {
             throw new \RuntimeException(sprintf(
-                'CONTENTFLY_TEST_PROJEKT zeigt auf "%s" — das ist kein Verzeichnis. Ein '
-                .'falscher Wert waere schlimmer als keiner: Der Lauf raeumte dann das Falsche '
-                .'auf und riefe die falsche Konsole, ohne es zu melden (007-001-0005).',
-                $angabe
+                'CONTENTFLY_TEST_PROJECT_DIR points to "%s" — that is not a directory. A wrong value '
+                .'would be worse than none: the run would then clean up the wrong thing and call the '
+                .'wrong console without reporting it (007-001-0005).',
+                $setting
             ));
         }
 
-        return $aufgeloest;
+        return $resolved;
     }
 
-    /** Das `data/`-Verzeichnis der Anwendung. */
-    public static function datenverzeichnis(): string
+    /** The application's `data/` directory. */
+    public static function dataDir(): string
     {
-        return self::anwendungsverzeichnis() . '/data';
+        return self::applicationDir() . '/data';
     }
 
-    /** Die Konsole der Anwendung — nicht die des Entwicklungs-Repos. */
-    public static function konsole(): string
+    /** The application's console — not the one of the development repository. */
+    public static function console(): string
     {
-        return self::anwendungsverzeichnis() . '/bin/console.php';
+        return self::applicationDir() . '/bin/console.php';
     }
 
-    // ── Anmeldung ──────────────────────────────────────────────────────────────────────
+    // ── Login ──────────────────────────────────────────────────────────────────────────
 
     protected function pass(): string
     {
         return getenv('CONTENTFLY_TEST_ADMIN_PASS') ?: 'admin';
     }
 
-    /** Meldet neu an und liefert einen frischen Token. */
+    /** Logs in anew and returns a fresh token. */
     protected function login(): string
     {
         [, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => $this->pass()));
 
         if (!isset($body['token'])) {
-            $this->fail('Anmeldung fehlgeschlagen: '.json_encode($body));
+            $this->fail('Login failed: '.json_encode($body));
         }
 
         return $body['token'];
     }
 
     /**
-     * Liefert einen Token und behält ihn für die Testklasse.
+     * Returns a token and keeps it for the test class.
      *
-     * Für Tests, die nur *irgendeinen* gültigen Token brauchen. Wer das Anmelden selbst
-     * prüft — oder einen Token entwertet — nimmt login().
+     * For tests that only need *some* valid token. Whoever checks the login itself — or invalidates
+     * a token — uses login().
      */
     protected function token(): string
     {
-        if (self::$zwischengespeicherterToken === null) {
-            self::$zwischengespeicherterToken = $this->login();
+        if (self::$cachedToken === null) {
+            self::$cachedToken = $this->login();
         }
 
-        return self::$zwischengespeicherterToken;
+        return self::$cachedToken;
     }
 
     // ── HTTP ───────────────────────────────────────────────────────────────────────────
 
-    /** @return array{0:int,1:array,2:string} Status, Rumpf als Array, Kopfzeilen */
-    protected function postJson(string $pfad, array $daten, ?string $token = null): array
+    /** @return array{0:int,1:array,2:string} status, body as array, headers */
+    protected function postJson(string $path, array $data, ?string $token = null): array
     {
-        $kopf = array('Content-Type: application/json');
+        $headers = array('Content-Type: application/json');
         if ($token !== null) {
-            $kopf[] = 'appcms-token: '.$token;
+            $headers[] = 'appcms-token: '.$token;
         }
 
-        $ch = curl_init(self::$baseUrl.$pfad);
+        $ch = curl_init(self::$baseUrl.$path);
         curl_setopt_array($ch, array(
             CURLOPT_POST           => true,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HEADER         => true,
-            CURLOPT_POSTFIELDS     => json_encode($daten),
-            CURLOPT_HTTPHEADER     => $kopf,
+            CURLOPT_POSTFIELDS     => json_encode($data),
+            CURLOPT_HTTPHEADER     => $headers,
         ));
 
-        return $this->auswerten($ch, true);
+        return $this->evaluate($ch, true);
     }
 
-    /** @return array{0:int,1:string,2:string} Status, Rumpf, Kopfzeilen */
-    protected function get(string $pfad, ?string $token = null): array
+    /** @return array{0:int,1:string,2:string} status, body, headers */
+    protected function get(string $path, ?string $token = null): array
     {
-        $ch = curl_init(self::$baseUrl.$pfad);
+        $ch = curl_init(self::$baseUrl.$path);
         curl_setopt_array($ch, array(
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HEADER         => true,
             CURLOPT_HTTPHEADER     => $token !== null ? array('appcms-token: '.$token) : array(),
         ));
 
-        return $this->auswerten($ch, false);
+        return $this->evaluate($ch, false);
     }
 
-    /** Liest eine Kopfzeile aus dem Rohkopf einer Antwort. */
-    protected function kopfzeile(string $kopf, string $name): ?string
+    /** Reads one header from the raw headers of a response. */
+    protected function header(string $headers, string $name): ?string
     {
-        if (preg_match('/^'.preg_quote($name, '/').':\s*(.+)$/mi', $kopf, $treffer)) {
-            return trim($treffer[1]);
+        if (preg_match('/^'.preg_quote($name, '/').':\s*(.+)$/mi', $headers, $match)) {
+            return trim($match[1]);
         }
 
         return null;
     }
 
     /** @return array{0:int,1:array|string,2:string} */
-    private function auswerten($ch, bool $alsJson): array
+    private function evaluate($ch, bool $asJson): array
     {
-        $antwort = (string) curl_exec($ch);
-        $status  = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $kopfLen = (int) curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $response   = (string) curl_exec($ch);
+        $status     = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $headerSize = (int) curl_getinfo($ch, CURLINFO_HEADER_SIZE);
         curl_close($ch);
 
-        $kopf = substr($antwort, 0, $kopfLen);
-        $body = substr($antwort, $kopfLen);
+        $headers = substr($response, 0, $headerSize);
+        $body    = substr($response, $headerSize);
 
-        return array($status, $alsJson ? (json_decode($body, true) ?: array()) : $body, $kopf);
+        return array($status, $asJson ? (json_decode($body, true) ?: array()) : $body, $headers);
     }
 
-    // ── Testdaten ──────────────────────────────────────────────────────────────────────
+    // ── Test data ──────────────────────────────────────────────────────────────────────
 
     /**
-     * Verbindung zur Testdatenbank.
+     * Connection to the test database.
      *
-     * Testdaten entstehen bewusst **an der API vorbei**: Ein Lesetest, dessen Vorbedingung
-     * über den Schreibpfad läuft, den er selbst nicht prüft, verliert seine Aussagekraft —
-     * und Story `008-001` soll ausdrücklich nicht von `008-002` abhängen.
+     * Test data is created deliberately **bypassing the API**: a read test whose precondition runs
+     * through the write path it does not check itself loses its meaning — and story `008-001` is
+     * explicitly not supposed to depend on `008-002`.
      *
-     * Die Zugangsdaten kommen aus der Umgebung; die Standardwerte entsprechen der
-     * `docker-compose.yml` aus dem Runbook.
+     * The credentials come from the environment; the defaults match the `docker-compose.yml` from
+     * the runbook.
      */
     protected function pdo(): PDO
     {
         if (self::$pdo === null) {
-            $zugang = self::dbZugangsdaten();
+            $credentials = self::dbCredentials();
 
             self::$pdo = new PDO(
-                $zugang['dsn'],
-                $zugang['user'],
-                $zugang['pass'],
+                $credentials['dsn'],
+                $credentials['user'],
+                $credentials['pass'],
                 array(PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION)
             );
         }
@@ -279,18 +276,18 @@ abstract class IntegrationTestCase extends TestCase
     }
 
     /**
-     * Die Verbindungsdaten der Testdatenbank — an genau **einer** Stelle.
+     * The connection data of the test database — in exactly **one** place.
      *
-     * Öffentlich und statisch, weil `UmgebungsWaechterTest` sie ebenfalls braucht: Er prüft
-     * vor dem eigentlichen Lauf, ob die Datenbank überhaupt antwortet, erbt aber bewusst
-     * nicht von dieser Klasse. Stünden die Vorgaben dort ein zweites Mal, liefen sie
-     * auseinander — und der Wächter prüfte irgendwann eine andere Datenbank als die Tests.
+     * Public and static because `EnvironmentGuardTest` needs it as well: it checks before the actual
+     * run whether the database answers at all, but deliberately does not extend this class. If the
+     * defaults were written there a second time, they would drift apart — and the guard would
+     * eventually check a different database than the tests.
      *
-     * Die Standardwerte entsprechen der `docker-compose.yml` aus dem Runbook.
+     * The defaults match the `docker-compose.yml` from the runbook.
      *
      * @return array{dsn:string,user:string,pass:string,host:string,port:string,name:string}
      */
-    public static function dbZugangsdaten(): array
+    public static function dbCredentials(): array
     {
         $host = getenv('CONTENTFLY_TEST_DB_HOST') ?: '127.0.0.1';
         $port = getenv('CONTENTFLY_TEST_DB_PORT') ?: '3307';
@@ -309,136 +306,139 @@ abstract class IntegrationTestCase extends TestCase
     }
 
     /**
-     * Meldet eine Zeile zum Aufräumen an. tearDown() entfernt sie, auch wenn der Test
-     * scheitert — sonst faerbt ein roter Test die folgenden mit ein.
+     * Registers a row for cleanup. tearDown() removes it even if the test fails — otherwise a red
+     * test taints the following ones.
      */
-    protected function nachTestLoeschen(string $tabelle, string $id): void
+    protected function deleteAfterTest(string $table, string $id): void
     {
-        $this->aufzuraeumen[] = array($tabelle, $id);
+        $this->cleanup[] = array($table, $id);
     }
 
     /**
-     * Meldet ein Verzeichnis zum Aufräumen an — samt Inhalt.
+     * Registers a directory for cleanup — including its contents.
      *
-     * Für Tests, die Dateien auf der Platte hinterlassen. Ohne das wächst `data/files` mit
-     * jedem Lauf, und ein frischer Checkout verhält sich anders als eine gewachsene
-     * Umgebung — genau der Unterschied, den ein Testnetz nicht haben soll (`000-000-0008`).
+     * For tests that leave files on disk. Without this `data/files` grows with every run, and a fresh
+     * checkout behaves differently from a grown environment — exactly the difference a test net must
+     * not have (`000-000-0008`).
      */
-    protected function nachTestVerzeichnisLoeschen(string $pfad): void
+    protected function deleteDirectoryAfterTest(string $path): void
     {
-        $this->verzeichnisse[] = $pfad;
+        $this->directories[] = $path;
     }
 
-    /** Entfernt ein Verzeichnis samt Inhalt; ein fehlendes ist kein Fehler. */
-    /** Protected seit 013-001-0003: AnmeldebremseApiTest raeumt damit den Speicher der Bremse. */
-    protected function verzeichnisEntfernen(string $pfad): void
+    /**
+     * Removes a directory including its contents; a missing one is not an error.
+     *
+     * Protected since 013-001-0003: AnmeldebremseApiTest uses it to clear the throttle's storage.
+     */
+    protected function removeDirectory(string $path): void
     {
-        if (!is_dir($pfad)) {
+        if (!is_dir($path)) {
             return;
         }
 
-        foreach (scandir($pfad) ?: array() as $eintrag) {
-            if ($eintrag === '.' || $eintrag === '..') {
+        foreach (scandir($path) ?: array() as $entry) {
+            if ($entry === '.' || $entry === '..') {
                 continue;
             }
 
-            $voll = $pfad.'/'.$eintrag;
-            is_dir($voll) ? $this->verzeichnisEntfernen($voll) : @unlink($voll);
+            $full = $path.'/'.$entry;
+            is_dir($full) ? $this->removeDirectory($full) : @unlink($full);
         }
 
-        @rmdir($pfad);
+        @rmdir($path);
     }
 
-    // ── Testbenutzer mit Berechtigungen ────────────────────────────────────────────────
+    // ── Test users with permissions ────────────────────────────────────────────────────
 
-    /** Passwort aller ueber testbenutzer() angelegten Konten. */
-    protected const TEST_PASSWORT = 'test-nur-fuer-diesen-lauf';
+    /** Password of all accounts created through createTestUser(). */
+    protected const TEST_PASSWORD = 'test-only-for-this-run';
 
     /**
-     * Legt eine Gruppe, einen Nicht-Admin darin und dessen Entity-Berechtigungen an und
-     * meldet sich als dieser Benutzer an.
+     * Creates a group, a non-admin user in it and that user's entity permissions, and logs in as
+     * this user.
      *
-     * `$rechte` ist eine Zuordnung Entity-Kurzname → Rechte, etwa:
+     * `$permissions` maps an entity short name to permissions, for instance:
      *
-     *     $this->testbenutzer(array(
+     *     $this->createTestUser(array(
      *         'PIM\Tag' => array('readable' => Permission::ALL, 'writable' => Permission::OWN),
      *     ));
      *
-     * Fehlende Schluessel sind `Permission::NONE`. **Die Stufen gehoeren als Konstanten
-     * uebergeben, nicht als Zahlen:** Sie sind nicht aufsteigend geordnet — `OWN` ist 1,
-     * `ALL` ist 2 und `GROUP` ist 3. Wer sie als Rangfolge liest, irrt.
+     * Missing keys are `Permission::NONE`. **Pass the levels as constants, not as numbers:** they are
+     * not in ascending order — `OWN` is 1, `ALL` is 2 and `GROUP` is 3. Whoever reads them as a
+     * ranking is mistaken.
      *
-     * Das Passwort wird gehasht, wie `User::setPass()` es tut: sha256 aus Passwort und Salt.
-     * Alles Angelegte meldet sich zum Aufraeumen an, in einer Reihenfolge, die die
-     * Fremdschluessel auf `pim_group` respektiert.
+     * The password is hashed the way `User::setPass()` used to: sha256 of password and salt.
+     * Everything created registers for cleanup, in an order that respects the foreign keys on
+     * `pim_group`.
      *
-     * @param array<string, array<string,int>> $rechte
-     * @param array<string,mixed>              $gruppe  Zusaetzliche Gruppenfelder,
-     *                                                  etwa apiQueryEnabled oder languages
-     * @return array{0:string,1:string,2:string} Token, Benutzer-Id, Gruppen-Id
+     * @param array<string, array<string,int>> $permissions
+     * @param array<string,mixed>              $group        Additional group fields,
+     *                                                       for instance apiQueryEnabled or languages
+     * @return array{0:string,1:string,2:string} token, user id, group id
      */
-    protected function testbenutzer(array $rechte = array(), array $gruppe = array()): array
+    protected function createTestUser(array $permissions = array(), array $group = array()): array
     {
-        $lauf     = bin2hex(random_bytes(6));
-        $gruppeId = 'tgrp-'.$lauf;
-        $userId   = 'tusr-'.$lauf;
-        $alias    = 'testuser-'.$lauf;
-        $salt     = bin2hex(random_bytes(16));
+        $run     = bin2hex(random_bytes(6));
+        $groupId = 'tgrp-'.$run;
+        $userId  = 'tusr-'.$run;
+        $alias   = 'testuser-'.$run;
+        $salt    = bin2hex(random_bytes(16));
 
         $this->pdo()->prepare(
             'INSERT INTO pim_group (id, name, tokenTimeout, apiQueryEnabled, languages,
                                     created, modified, views, isIntern)
              VALUES (:id, :name, 60, :ape, :languages, NOW(), NOW(), 0, 0)'
         )->execute(array(
-            'id'        => $gruppeId,
-            'name'      => 'Testgruppe '.$lauf,
-            'ape'       => $gruppe['apiQueryEnabled'] ?? 'disabled',
-            'languages' => $gruppe['languages'] ?? null,
+            'id'        => $groupId,
+            'name'      => 'Test group '.$run,
+            'ape'       => $group['apiQueryEnabled'] ?? 'disabled',
+            'languages' => $group['languages'] ?? null,
         ));
-        $this->nachTestLoeschen('pim_group', $gruppeId);
+        $this->deleteAfterTest('pim_group', $groupId);
 
         $this->pdo()->prepare(
             'INSERT INTO pim_user (id, isAdmin, alias, pass, isActive, salt,
                                    created, modified, views, isIntern, group_id)
-             VALUES (:id, 0, :alias, :pass, 1, :salt, NOW(), NOW(), 0, 0, :gruppe)'
+             VALUES (:id, 0, :alias, :pass, 1, :salt, NOW(), NOW(), 0, 0, :grp)'
         )->execute(array(
-            'id'     => $userId,
-            'alias'  => $alias,
-            'pass'   => hash('sha256', self::TEST_PASSWORT.$salt),
-            'salt'   => $salt,
-            'gruppe' => $gruppeId,
+            'id'    => $userId,
+            'alias' => $alias,
+            'pass'  => hash('sha256', self::TEST_PASSWORD.$salt),
+            'salt'  => $salt,
+            'grp'   => $groupId,
         ));
-        $this->nachTestLoeschen('pim_user', $userId);
+        $this->deleteAfterTest('pim_user', $userId);
 
-        $nummer = 0;
-        foreach ($rechte as $entity => $stufen) {
-            $rechtId = 'tperm-'.$lauf.'-'.($nummer++);
+        $number = 0;
+        foreach ($permissions as $entity => $levels) {
+            $permissionId = 'tperm-'.$run.'-'.($number++);
 
             $this->pdo()->prepare(
                 'INSERT INTO pim_permission (id, entityName, readable, writable, deletable,
                                              export, extended, created, modified, views,
                                              isIntern, group_id)
                  VALUES (:id, :entity, :readable, :writable, :deletable, :export, :extended,
-                         NOW(), NOW(), 0, 0, :gruppe)'
+                         NOW(), NOW(), 0, 0, :grp)'
             )->execute(array(
-                'id'        => $rechtId,
+                'id'        => $permissionId,
                 'entity'    => $entity,
-                'readable'  => $stufen['readable']  ?? 0,
-                'writable'  => $stufen['writable']  ?? 0,
-                'deletable' => $stufen['deletable'] ?? 0,
-                'export'    => $stufen['export']    ?? 0,
-                'extended'  => $stufen['extended']  ?? null,
-                'gruppe'    => $gruppeId,
+                'readable'  => $levels['readable']  ?? 0,
+                'writable'  => $levels['writable']  ?? 0,
+                'deletable' => $levels['deletable'] ?? 0,
+                'export'    => $levels['export']    ?? 0,
+                'extended'  => $levels['extended']  ?? null,
+                'grp'       => $groupId,
             ));
-            $this->nachTestLoeschen('pim_permission', $rechtId);
+            $this->deleteAfterTest('pim_permission', $permissionId);
         }
 
-        [, $body] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORT));
+        [, $body] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORD));
 
         if (!isset($body['token'])) {
-            $this->fail('Anmeldung des Testbenutzers fehlgeschlagen: '.json_encode($body));
+            $this->fail('Login of the test user failed: '.json_encode($body));
         }
 
-        return array($body['token'], $userId, $gruppeId);
+        return array($body['token'], $userId, $groupId);
     }
 }

@@ -24,7 +24,7 @@ class WriteApiTest extends IntegrationTestCase
 
         $this->assertSame(200, $status, 'Vorbedingung: das Anlegen gelingt');
 
-        $this->nachTestLoeschen('pim_tag', $body['id']);
+        $this->deleteAfterTest('pim_tag', $body['id']);
         $this->logZeilenAufraeumen($body['id']);
 
         return $body;
@@ -38,7 +38,7 @@ class WriteApiTest extends IntegrationTestCase
             ->fetchAll(\PDO::FETCH_COLUMN);
 
         foreach ($ids as $id) {
-            $this->nachTestLoeschen('pim_log', $id);
+            $this->deleteAfterTest('pim_log', $id);
         }
     }
 
