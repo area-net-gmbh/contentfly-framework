@@ -21,3 +21,8 @@ Suche nach jedem alten Namen aus der Tabelle im Epic in keinem Dokument mehr ein
 ausgenommen `CHANGELOG.md` und abgeschlossene Work-Items, die Geschichte sind.
 
 ## Tasks
+- [ ] 014-006-0001 — STRUCTURE.md auf die englischen Namen
+- [ ] 014-006-0002 — Entwickler-Docs auf die englischen Namen
+- [ ] 014-006-0003 — Migrations-Docs auf die englischen Namen
+- [ ] 014-006-0004 — Übergabenotiz für die Sicherheitsprüfung auf den neuen Stand
+- [ ] 014-006-0005 — Schlusssuche nach alten Namen über alle Docs
