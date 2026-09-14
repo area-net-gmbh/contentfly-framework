@@ -18,7 +18,7 @@ use Symfony\Component\HttpFoundation\Request;
  * oneself. The userinfo path needs a counterpart.
  *
  * What does **not** remain untested as a result: that the login ends in the same token issuing
- * as the local login. That is the path behind `LoginProvider`, and `AnmeldeproviderApiTest`
+ * as the local login. That is the path behind `LoginProvider`, and `LoginProviderApiTest`
  * measures it end-to-end — a provider is interchangeable there, because the contract has exactly
  * one method.
  */

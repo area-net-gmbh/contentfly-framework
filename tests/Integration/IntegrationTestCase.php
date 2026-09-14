@@ -81,11 +81,11 @@ abstract class IntegrationTestCase extends TestCase
      * one still gets through: on the first run with the refresh tests 87 tests were red, all with
      * "Too many login attempts".
      *
-     * THIS WEAKENS NOTHING. `AnmeldebremseApiTest` measures the throttle within ONE test method; what
+     * THIS WEAKENS NOTHING. `LoginThrottleApiTest` measures the throttle within ONE test method; what
      * is cleared here between two methods never carried a statement there.
      *
      * Silently, if the directory is not reachable: then the test server runs elsewhere, and that is
-     * the case `AnmeldebremseApiTest` catches with a stricter check of its own.
+     * the case `LoginThrottleApiTest` catches with a stricter check of its own.
      */
     protected function clearThrottleStorage(): void
     {
@@ -329,7 +329,7 @@ abstract class IntegrationTestCase extends TestCase
     /**
      * Removes a directory including its contents; a missing one is not an error.
      *
-     * Protected since 013-001-0003: AnmeldebremseApiTest uses it to clear the throttle's storage.
+     * Protected since 013-001-0003: LoginThrottleApiTest uses it to clear the throttle's storage.
      */
     protected function removeDirectory(string $path): void
     {

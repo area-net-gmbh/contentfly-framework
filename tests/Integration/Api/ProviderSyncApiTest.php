@@ -4,170 +4,170 @@ namespace Tests\Integration\Api;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * Was mit einem verschwundenen Benutzer passiert (`013-005-0002`).
+ * What happens to a user who has disappeared (`013-005-0002`).
  *
- * Wer aus dem Verzeichnis verschwindet, kommt nicht mehr herein — das ergibt sich von selbst.
- * Sein Konto bleibt aber, und mit ihm ein Refresh-Token, das bis zu seinem Zeitlimit weiter
- * frische Access-JWT holt. Ein Benutzer, den die Personalabteilung entfernt hat, arbeitet also
- * weiter, bis ein Zeitlimit abläuft, das niemand dafür gewählt hat.
+ * Whoever disappears from the directory can no longer get in — that follows by itself.
+ * Their account remains, however, and with it a refresh token that keeps fetching fresh
+ * access JWTs until its time limit. A user removed by the HR department therefore keeps
+ * working until a time limit expires that nobody chose for this.
  *
- * Gemessen wird über den `ExampleProvider`: Er liest seine Liste aus der Umgebung, und der
- * Console-Aufruf bekommt eine andere Liste als der Testserver — damit verschwindet ein Benutzer
- * aus Sicht des Abgleichs, ohne dass irgendwo ein Verzeichnis laufen müsste.
+ * Measured via the `ExampleProvider`: It reads its list from the environment, and the
+ * console call receives a different list than the test server — so a user disappears
+ * from the sync's point of view without a directory having to run anywhere.
  */
 class ProviderSyncApiTest extends IntegrationTestCase
 {
-    private function eintrag(): array
+    private function entry(): array
     {
-        $roh = getenv('CONTENTFLY_TEST_PROVIDER') ?: '';
+        $raw = getenv('CONTENTFLY_TEST_PROVIDER') ?: '';
 
-        if ($roh === '') {
-            $this->markTestSkipped('CONTENTFLY_TEST_PROVIDER nicht gesetzt — siehe tests/README.md.');
+        if ($raw === '') {
+            $this->markTestSkipped('CONTENTFLY_TEST_PROVIDER not set — see tests/README.md.');
         }
 
-        $teile = explode(':', explode(',', $roh)[0]);
+        $parts = explode(':', explode(',', $raw)[0]);
 
-        return array('kennung' => $teile[0], 'geheimnis' => $teile[1] ?? '');
+        return array('identifier' => $parts[0], 'secret' => $parts[1] ?? '');
     }
 
-    /** Meldet sich über den Provider an und räumt die angelegte Zeile nach dem Test weg. */
-    private function anmelden(): array
+    /** Logs in through the provider and cleans up the created row after the test. */
+    private function loginThroughProvider(): array
     {
-        $eintrag = $this->eintrag();
+        $entry = $this->entry();
 
         [$status, $body] = $this->postJson('/auth/login', array(
-            'alias'        => $eintrag['kennung'],
-            'pass'         => $eintrag['geheimnis'],
+            'alias'        => $entry['identifier'],
+            'pass'         => $entry['secret'],
             'loginManager' => 'example',
             'tokenType'    => 'jwt',
         ));
 
-        $zeile = $this->pdo()->prepare('SELECT id FROM pim_user WHERE loginManager = :lm AND externalId = :ext');
-        $zeile->execute(array('lm' => 'example', 'ext' => $eintrag['kennung']));
+        $row = $this->pdo()->prepare('SELECT id FROM pim_user WHERE loginManager = :lm AND externalId = :ext');
+        $row->execute(array('lm' => 'example', 'ext' => $entry['identifier']));
 
-        if ($id = $zeile->fetchColumn()) {
+        if ($id = $row->fetchColumn()) {
             $this->deleteAfterTest('pim_user', (string) $id);
         }
 
         if ($status !== 200) {
-            $this->fail('Anmeldung ueber den Provider fehlgeschlagen: '.json_encode($body));
+            $this->fail('Login through the provider failed: '.json_encode($body));
         }
 
         return $body;
     }
 
     /**
-     * Ruft den Abgleich mit einer selbst gewählten Provider-Liste auf.
+     * Runs the sync with a self-chosen provider list.
      *
-     * **Der Unterschied, auf den es ankommt:** Eine Liste, die den Benutzer nicht enthält,
-     * heisst „aus dem Verzeichnis entfernt". Eine **leere** Liste heisst „keine Auskunft" — der
-     * Provider kann nichts sagen, und dann wird niemand angefasst.
+     * **The difference that matters:** A list that does not contain the user
+     * means "removed from the directory". An **empty** list means "no answer" — the
+     * provider cannot say anything, and then nobody is touched.
      */
-    private function abgleich(string $liste, bool $trocken = false): string
+    private function sync(string $list, bool $dryRun = false): string
     {
-        $ausgabe = array();
+        $output = array();
 
         exec(sprintf(
             'CONTENTFLY_EXAMPLE_PROVIDER=%s %s %s appcms:provider:sync %s 2>&1',
-            escapeshellarg($liste),
+            escapeshellarg($list),
             escapeshellarg(PHP_BINARY),
             escapeshellarg(self::console()),
-            $trocken ? '--dry-run' : ''
-        ), $ausgabe);
+            $dryRun ? '--dry-run' : ''
+        ), $output);
 
-        return implode("\n", $ausgabe);
+        return implode("\n", $output);
     }
 
-    private function istAktiv(string $kennung): bool
+    private function isActive(string $identifier): bool
     {
-        $zeile = $this->pdo()->prepare('SELECT isActive FROM pim_user WHERE loginManager = :lm AND externalId = :ext');
-        $zeile->execute(array('lm' => 'example', 'ext' => $kennung));
+        $row = $this->pdo()->prepare('SELECT isActive FROM pim_user WHERE loginManager = :lm AND externalId = :ext');
+        $row->execute(array('lm' => 'example', 'ext' => $identifier));
 
-        return (string) $zeile->fetchColumn() === '1';
+        return (string) $row->fetchColumn() === '1';
     }
 
-    // ── Der Kern ───────────────────────────────────────────────────────────────────────
+    // ── The core ───────────────────────────────────────────────────────────────────────
 
     /**
-     * **Der Nachweis, um den es geht.** Ein noch gültiges Refresh-Token nützt nichts mehr,
-     * sobald das Fremdsystem den Benutzer nicht mehr kennt.
+     * **The proof this is all about.** A refresh token that is still valid is of no use anymore
+     * as soon as the external system no longer knows the user.
      */
-    public function testWerAusDemFremdsystemVerschwindetVerliertSeinenZugang(): void
+    public function testWhoeverDisappearsFromTheExternalSystemLosesAccess(): void
     {
-        $eintrag   = $this->eintrag();
-        $anmeldung = $this->anmelden();
+        $entry = $this->entry();
+        $login = $this->loginThroughProvider();
 
-        // Vorher: Das Refresh-Token loest ein.
-        [$vorher] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['refreshToken']));
-        $this->assertSame(200, $vorher);
+        // Before: The refresh token redeems.
+        [$before] = $this->postJson('/auth/refresh', array('refreshToken' => $login['refreshToken']));
+        $this->assertSame(200, $before);
 
-        [, $zweites] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['refreshToken']));
+        [, $second] = $this->postJson('/auth/refresh', array('refreshToken' => $login['refreshToken']));
 
-        // Eine Liste OHNE diesen Benutzer — er ist aus dem Verzeichnis entfernt.
-        $ausgabe = $this->abgleich('jemand-anderes:egal');
+        // A list WITHOUT this user — they have been removed from the directory.
+        $output = $this->sync('someone-else:whatever');
 
-        $this->assertFalse($this->istAktiv($eintrag['kennung']), 'Gesperrt — '.$ausgabe);
+        $this->assertFalse($this->isActive($entry['identifier']), 'Locked — '.$output);
 
-        [$nachher] = $this->postJson('/auth/refresh', array('refreshToken' => $zweites['refreshToken'] ?? 'x'));
-        $this->assertSame(401, $nachher, 'Das Refresh-Token loest nicht mehr ein');
+        [$after] = $this->postJson('/auth/refresh', array('refreshToken' => $second['refreshToken'] ?? 'x'));
+        $this->assertSame(401, $after, 'The refresh token no longer redeems');
     }
 
     /**
-     * **Ein Ausfall darf nicht wie ein gelöschter Benutzer aussehen.**
+     * **An outage must not look like a deleted user.**
      *
-     * Das ist der Fehler, der eine ganze Belegschaft aussperrt: Wenn „Fremdsystem antwortet
-     * nicht" als „Benutzer gibt es nicht mehr" gelesen wird, sperrt ein Netzwerkfehler alle.
-     * Deshalb hat `knowsIdentifier()` drei Antworten statt zwei, und `null` fasst niemanden an.
+     * This is the error that locks out an entire workforce: If "external system does not
+     * respond" is read as "user no longer exists", a network error locks everyone out.
+     * That is why `knowsIdentifier()` has three answers instead of two, and `null` touches nobody.
      *
-     * Beim `ExampleProvider` ist eine **leere** Liste genau dieser Fall — sie heisst „keine
-     * Auskunft" und nicht „kennt niemanden". Würde eine fehlende Konfiguration als `false`
-     * gelesen, sperrte der erste Abgleich nach einem vergessenen Umgebungseintrag jeden aus.
+     * For the `ExampleProvider`, an **empty** list is exactly this case — it means "no
+     * answer" and not "knows nobody". If a missing configuration were read as `false`,
+     * the first sync after a forgotten environment entry would lock everyone out.
      */
-    public function testOhneAuskunftWirdNiemandGesperrt(): void
+    public function testWithoutAnAnswerNobodyIsLocked(): void
     {
-        $eintrag = $this->eintrag();
-        $this->anmelden();
+        $entry = $this->entry();
+        $this->loginThroughProvider();
 
-        $ausgabe = $this->abgleich('');
+        $output = $this->sync('');
 
-        $this->assertTrue($this->istAktiv($eintrag['kennung']), 'Unangetastet — '.$ausgabe);
-        $this->assertStringContainsString('could not give an answer', $ausgabe);
+        $this->assertTrue($this->isActive($entry['identifier']), 'Untouched — '.$output);
+        $this->assertStringContainsString('could not give an answer', $output);
     }
 
-    public function testWerNochImFremdsystemStehtBleibtAktiv(): void
+    public function testWhoeverIsStillInTheExternalSystemStaysActive(): void
     {
-        $eintrag = $this->eintrag();
-        $this->anmelden();
+        $entry = $this->entry();
+        $this->loginThroughProvider();
 
-        $ausgabe = $this->abgleich(getenv('CONTENTFLY_TEST_PROVIDER'));
+        $output = $this->sync(getenv('CONTENTFLY_TEST_PROVIDER'));
 
-        $this->assertTrue($this->istAktiv($eintrag['kennung']), 'Unangetastet — '.$ausgabe);
-    }
-
-    /**
-     * `--dry-run` zählt und sperrt nicht. Ein Abgleich, den man nicht vorher ansehen kann, wird
-     * nicht ausgeführt.
-     */
-    public function testDryRunZaehltUndSperrtNicht(): void
-    {
-        $eintrag = $this->eintrag();
-        $this->anmelden();
-
-        $ausgabe = $this->abgleich('jemand-anderes:egal', true);
-
-        $this->assertStringContainsString('--dry-run', $ausgabe);
-        $this->assertTrue($this->istAktiv($eintrag['kennung']), 'Noch aktiv — '.$ausgabe);
+        $this->assertTrue($this->isActive($entry['identifier']), 'Untouched — '.$output);
     }
 
     /**
-     * Ein Benutzer mit lokalem Passwort geht kein Fremdsystem etwas an.
+     * `--dry-run` counts and does not lock. A sync that cannot be previewed beforehand is
+     * not run.
      */
-    public function testEinBenutzerOhneProviderWirdNichtAngefasst(): void
+    public function testDryRunCountsAndDoesNotLock(): void
     {
-        $this->abgleich('jemand-anderes:egal');
+        $entry = $this->entry();
+        $this->loginThroughProvider();
 
-        $zeile = $this->pdo()->query("SELECT isActive FROM pim_user WHERE alias = 'admin'");
+        $output = $this->sync('someone-else:whatever', true);
 
-        $this->assertSame('1', (string) $zeile->fetchColumn(), 'admin hat keinen loginManager');
+        $this->assertStringContainsString('--dry-run', $output);
+        $this->assertTrue($this->isActive($entry['identifier']), 'Still active — '.$output);
+    }
+
+    /**
+     * A user with a local password is none of any external system's business.
+     */
+    public function testAUserWithoutAProviderIsNotTouched(): void
+    {
+        $this->sync('someone-else:whatever');
+
+        $row = $this->pdo()->query("SELECT isActive FROM pim_user WHERE alias = 'admin'");
+
+        $this->assertSame('1', (string) $row->fetchColumn(), 'admin has no loginManager');
     }
 }

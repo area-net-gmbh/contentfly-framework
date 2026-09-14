@@ -4,66 +4,66 @@ namespace Tests\Integration\Api;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * Charakterisierungstests für die Token-Authentifizierung.
+ * Characterization tests for token authentication.
  *
- * Nach dem Entfernen der sessionbasierten Anmeldung (Story `012-004`) ist der Token der
- * **einzige** Weg. Ein Fehler darin wäre eine Sicherheitslücke, kein Komfortproblem — deshalb
- * hält diese Suite fest, was heute gilt, und schlägt an, sobald sich daran etwas ändert.
+ * After the removal of session-based login (story `012-004`) the token is the **only**
+ * way in. A bug there would be a security hole, not a convenience problem — which is why
+ * this suite pins down what holds today and fails as soon as any of it changes.
  *
- * Voraussetzungen wie in `FileApiTest`: `CONTENTFLY_TEST_BASE_URL` und
- * `CONTENTFLY_TEST_ADMIN_PASS`, sonst wird übersprungen. Siehe `tests/README.md`.
+ * Prerequisites as in `FileApiTest`: `CONTENTFLY_TEST_BASE_URL` and
+ * `CONTENTFLY_TEST_ADMIN_PASS`, otherwise the tests are skipped. See `tests/README.md`.
  */
 class AuthApiTest extends IntegrationTestCase
 {
-    // ── Anmeldung ──────────────────────────────────────────────────────────────────────
+    // ── Login ──────────────────────────────────────────────────────────────────────────
 
-    public function testAnmeldungMitKorrektenDatenLiefertEinToken(): void
+    public function testLoginWithCorrectCredentialsReturnsToken(): void
     {
         [, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => $this->pass()));
 
         $this->assertSame('Login successful', $body['message'] ?? null);
-        $this->assertMatchesRegularExpression('/^[0-9a-f]{128}$/', $body['token'] ?? '', 'Token ist 64 Byte als Hex');
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{128}$/', $body['token'] ?? '', 'Token is 64 bytes as hex');
         $this->assertTrue($body['user']['isAdmin'] ?? false);
     }
 
-    public function testAnmeldungMitFalschemPasswortLiefertKeinToken(): void
+    public function testLoginWithWrongPasswordReturnsNoToken(): void
     {
-        [$status, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => 'falsch'));
+        [$status, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => 'wrong'));
 
         $this->assertSame(401, $status);
         $this->assertArrayNotHasKey('token', $body);
     }
 
-    public function testAnmeldungMitUnbekanntemBenutzerLiefertKeinToken(): void
+    public function testLoginWithUnknownUserReturnsNoToken(): void
     {
-        [$status, $body] = $this->postJson('/auth/login', array('alias' => 'gibtesnicht', 'pass' => 'egal'));
+        [$status, $body] = $this->postJson('/auth/login', array('alias' => 'doesnotexist', 'pass' => 'whatever'));
 
         $this->assertSame(401, $status);
         $this->assertArrayNotHasKey('token', $body);
     }
 
     /**
-     * Die Fehlermeldung unterscheidet heute zwischen „Benutzername unbekannt" und
-     * „Passwort falsch". Das verrät einem Angreifer, welche Kennungen existieren.
+     * The error message currently distinguishes between "user name unknown" and
+     * "password wrong". That tells an attacker which identifiers exist.
      *
-     * Festgehalten als heutiges Verhalten — behoben wird es in Story `013-001`
-     * (Auth-Härtung). Ändert sich die Meldung dort, ist dieser Test nachzuziehen.
+     * Pinned as current behaviour — it gets fixed in story `013-001`
+     * (auth hardening). If the message changes there, this test has to follow.
      */
-    public function testFehlermeldungVerraetObDerBenutzerExistiert(): void
+    public function testErrorMessageRevealsWhetherUserExists(): void
     {
-        [, $unbekannt] = $this->postJson('/auth/login', array('alias' => 'gibtesnicht', 'pass' => 'egal'));
-        [, $falsch]    = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => 'falsch'));
+        [, $unknown] = $this->postJson('/auth/login', array('alias' => 'doesnotexist', 'pass' => 'whatever'));
+        [, $wrong]   = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => 'wrong'));
 
         $this->assertNotSame(
-            $unbekannt['message'] ?? null,
-            $falsch['message'] ?? null,
-            'Heute unterschiedliche Meldungen - siehe 013-001'
+            $unknown['message'] ?? null,
+            $wrong['message'] ?? null,
+            'Different messages today - see 013-001'
         );
     }
 
-    // ── Zugriffsschutz ─────────────────────────────────────────────────────────────────
+    // ── Access protection ──────────────────────────────────────────────────────────────
 
-    public function testGeschuetzteRouteMitGueltigemTokenLiefert200(): void
+    public function testProtectedRouteWithValidTokenReturns200(): void
     {
         $token = $this->login();
 
@@ -72,78 +72,77 @@ class AuthApiTest extends IntegrationTestCase
         $this->assertSame(200, $status);
     }
 
-    public function testGeschuetzteRouteOhneTokenLiefertKeineDaten(): void
+    public function testProtectedRouteWithoutTokenReturnsNoData(): void
     {
         [$status, $body] = $this->get('/api/schema', null);
 
         $this->assertNotSame(200, $status);
-        // Zweimal umgedreht. Erst hielt der Test 500 fest — der Debug-Exception-Handler fing
-        // die Ausnahme vor dem Handler der Anwendung ab. Dann 302: Der Handler leitete ohne
-        // JSON-Content-Type auf `/` um, und dieser Aufruf schickt keinen mit. Seit
-        // 000-000-0006 gibt es diese Umleitung nicht mehr — es gibt kein Zuhause, in das man
-        // einen Browser schicken koennte, seit die Oberflaeche entfallen ist —, und der Code
-        // der Ausnahme kommt durch.
+        // Flipped twice. First the test pinned 500 — the debug exception handler caught the
+        // exception before the application's handler. Then 302: the handler redirected to `/`
+        // without a JSON content type, and this call does not send one. Since
+        // 000-000-0006 that redirect no longer exists — there is no home a browser could be
+        // sent to since the UI was dropped — and the exception's code comes through.
         $this->assertSame(401, $status);
         $this->assertStringNotContainsString('"data"', $body);
     }
 
-    public function testGeschuetzteRouteMitErfundenemTokenLiefertKeineDaten(): void
+    public function testProtectedRouteWithFabricatedTokenReturnsNoData(): void
     {
         [$status] = $this->get('/api/schema', str_repeat('a', 128));
 
         $this->assertNotSame(200, $status);
     }
 
-    public function testAbmeldenMachtDenTokenUnbrauchbar(): void
+    public function testLogoutMakesTokenUnusable(): void
     {
         $token = $this->login();
 
-        [$vorher] = $this->get('/api/schema', $token);
-        $this->assertSame(200, $vorher, 'Vor dem Abmelden gilt der Token');
+        [$before] = $this->get('/api/schema', $token);
+        $this->assertSame(200, $before, 'Before logout the token is valid');
 
         $this->get('/auth/logout', $token);
 
-        [$nachher] = $this->get('/api/schema', $token);
-        $this->assertNotSame(200, $nachher, 'Nach dem Abmelden darf derselbe Token nicht mehr gelten');
+        [$after] = $this->get('/api/schema', $token);
+        $this->assertNotSame(200, $after, 'After logout the same token must no longer be valid');
     }
 
-    // ── Passwort-Hashing (013-001-0001) ────────────────────────────────────────────────
+    // ── Password hashing (013-001-0001) ────────────────────────────────────────────────
 
-    public function testEinAltesPasswortWirdBeimLoginUmgeschluesselt(): void
+    public function testLegacyPasswordIsRehashedOnLogin(): void
     {
-        // `testbenutzer()` legt den Benutzer zwar mit einem SHA-256-Hash an, MELDET IHN ABER
-        // GLEICH AN, um den Token zu liefern — und damit ist er schon umgeschluesselt, bevor
-        // dieser Test etwas sieht. (Nebenbei heisst das: Jeder Test, der den Helfer benutzt,
-        // laeuft ueber den Altformat-Zweig. Er ist also breit abgedeckt, nur nicht zugesichert.)
+        // `createTestUser()` does create the user with a SHA-256 hash, BUT LOGS THEM IN
+        // RIGHT AWAY to return the token — so the hash is already rehashed before this test
+        // sees anything. (Incidentally that means: every test using the helper runs through
+        // the legacy-format branch. So it is broadly covered, just not asserted.)
         //
-        // Fuer die Zusicherung wird der alte Hash deshalb ausdruecklich wiederhergestellt.
+        // For the assertion the legacy hash is therefore restored explicitly.
         [, $userId] = $this->createTestUser();
-        $this->altenHashSetzen($userId);
+        $this->setLegacyHash($userId);
 
-        $vorher = $this->passHashLesen($userId);
-        $this->assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $vorher,
-            'Vorbedingung: der Hash liegt im alten SHA-256-Format');
+        $before = $this->readPassHash($userId);
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $before,
+            'Precondition: the hash is in the legacy SHA-256 format');
 
         [$status] = $this->postJson('/auth/login', array(
-            'alias' => $this->aliasZu($userId),
+            'alias' => $this->aliasFor($userId),
             'pass'  => self::TEST_PASSWORD,
         ));
-        $this->assertSame(200, $status, 'Ein Bestandspasswort meldet sich weiterhin an');
+        $this->assertSame(200, $status, 'An existing password still logs in');
 
-        $nachher = $this->passHashLesen($userId);
-        $this->assertStringStartsWith('$', $nachher,
-            'und der Hash ist danach ersetzt — password_hash() beginnt mit $');
-        $this->assertNotSame($vorher, $nachher);
+        $after = $this->readPassHash($userId);
+        $this->assertStringStartsWith('$', $after,
+            'and the hash is replaced afterwards — password_hash() starts with $');
+        $this->assertNotSame($before, $after);
     }
 
-    public function testNachDemUmschluesselnGehtDieAnmeldungWeiterhin(): void
+    public function testLoginStillWorksAfterRehashing(): void
     {
-        // Ein umgeschluesselter Hash muss beim naechsten Mal ueber den NEUEN Zweig geprueft
-        // werden. Faende `isPass()` dort nicht zurecht, waere der Benutzer nach genau einem
-        // erfolgreichen Login ausgesperrt — und der Test darueber waere trotzdem gruen.
+        // A rehashed hash must be verified through the NEW branch the next time. If `isPass()`
+        // got that wrong, the user would be locked out after exactly one successful login —
+        // and the test above would still be green.
         [, $userId] = $this->createTestUser();
-        $this->altenHashSetzen($userId);
-        $alias = $this->aliasZu($userId);
+        $this->setLegacyHash($userId);
+        $alias = $this->aliasFor($userId);
 
         $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORD));
 
@@ -156,21 +155,21 @@ class AuthApiTest extends IntegrationTestCase
         $this->assertNotEmpty($body['token'] ?? null);
     }
 
-    public function testEinFalschesPasswortScheitertAuchNachDemUmschluesseln(): void
+    public function testWrongPasswordStillFailsAfterRehashing(): void
     {
         [, $userId] = $this->createTestUser();
-        $this->altenHashSetzen($userId);
-        $alias = $this->aliasZu($userId);
+        $this->setLegacyHash($userId);
+        $alias = $this->aliasFor($userId);
 
         $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORD));
 
-        [$status] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => 'falsch'));
+        [$status] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => 'wrong'));
 
         $this->assertSame(401, $status);
     }
 
-    /** Schreibt den alten SHA-256-Hash zurueck, wie ihn ein Bestandsprojekt traegt. */
-    private function altenHashSetzen(string $userId): void
+    /** Writes back the legacy SHA-256 hash, as an existing project carries it. */
+    private function setLegacyHash(string $userId): void
     {
         $s = $this->pdo()->prepare('SELECT salt FROM pim_user WHERE id = :id');
         $s->execute(array('id' => $userId));
@@ -182,7 +181,7 @@ class AuthApiTest extends IntegrationTestCase
         ));
     }
 
-    private function passHashLesen(string $userId): string
+    private function readPassHash(string $userId): string
     {
         $s = $this->pdo()->prepare('SELECT pass FROM pim_user WHERE id = :id');
         $s->execute(array('id' => $userId));
@@ -190,7 +189,7 @@ class AuthApiTest extends IntegrationTestCase
         return (string) $s->fetchColumn();
     }
 
-    private function aliasZu(string $userId): string
+    private function aliasFor(string $userId): string
     {
         $s = $this->pdo()->prepare('SELECT alias FROM pim_user WHERE id = :id');
         $s->execute(array('id' => $userId));
@@ -198,91 +197,91 @@ class AuthApiTest extends IntegrationTestCase
         return (string) $s->fetchColumn();
     }
 
-    public function testJedeAnmeldungLiefertEinenNeuenToken(): void
+    public function testEveryLoginReturnsNewToken(): void
     {
-        $this->assertNotSame($this->login(), $this->login(), 'Tokens werden pro Anmeldung erzeugt, nicht wiederverwendet');
+        $this->assertNotSame($this->login(), $this->login(), 'Tokens are generated per login, not reused');
     }
 
-    // ── Regressionsschutz für 012-004 ──────────────────────────────────────────────────
+    // ── Regression protection for 012-004 ──────────────────────────────────────────────
 
     /**
-     * Der eigentliche Zweck dieser Suite: Nach dem Entfernen der sessionbasierten Anmeldung
-     * darf **kein** Request mehr eine PHP-Session starten.
+     * The actual purpose of this suite: after the removal of session-based login, **no**
+     * request may start a PHP session any more.
      *
-     * Solange eine Session lief, hielt PHP einen exklusiven Lock auf ihrer Datei bis zum
-     * Skriptende — und weil alle Tabs eines Nutzers dieselbe PHPSESSID teilen, liefen dessen
-     * gleichzeitige API-Aufrufe nacheinander statt parallel. Kehrt die Session zurück, kehrt
-     * das Verhalten zurück, und niemand würde es bemerken.
+     * As long as a session was running, PHP held an exclusive lock on its file until the end
+     * of the script — and because all tabs of a user share the same PHPSESSID, that user's
+     * concurrent API calls ran one after another instead of in parallel. If the session comes
+     * back, that behaviour comes back, and nobody would notice.
      */
-    public function testKeinRequestStartetEinePhpSession(): void
+    public function testNoRequestStartsPhpSession(): void
     {
-        $pfade = array(
+        $paths = array(
             array('POST', '/auth/login'),
             array('GET',  '/api/schema'),
             array('GET',  '/file/get/00000000-0000-0000-0000-000000000000'),
         );
 
-        foreach ($pfade as [$methode, $pfad]) {
-            $kopf = $methode === 'POST'
-                ? $this->postJson($pfad, array('alias' => 'admin', 'pass' => $this->pass()))[2]
-                : $this->get($pfad, null)[2];
+        foreach ($paths as [$method, $path]) {
+            $headers = $method === 'POST'
+                ? $this->postJson($path, array('alias' => 'admin', 'pass' => $this->pass()))[2]
+                : $this->get($path, null)[2];
 
             $this->assertStringNotContainsStringIgnoringCase(
                 'PHPSESSID',
-                $kopf,
-                $methode.' '.$pfad.' darf kein Session-Cookie setzen'
+                $headers,
+                $method.' '.$path.' must not set a session cookie'
             );
         }
     }
 
-    // ── Der Token steht nur noch gehasht in der Tabelle (013-001-0004) ─────────────────
+    // ── The token is only stored hashed in the table (013-001-0004) ────────────────────
 
     /**
-     * Der Nachweis, um den es in `013-001-0004` geht.
+     * The proof that `013-001-0004` is about.
      *
-     * Vorher lagen in `pim_token.token` 128 Hex im Klartext. Ein Lesezugriff auf die Datenbank
-     * — ein Backup, eine SQL-Injection, ein Dump im Ticketsystem — uebergab damit saemtliche
-     * laufenden Sitzungen, sofort verwendbar.
+     * Before, `pim_token.token` held 128 hex characters in plain text. A read access to the
+     * database — a backup, an SQL injection, a dump in the ticket system — thereby handed over
+     * all running sessions, usable immediately.
      */
-    public function testDerAusgelieferteTokenStehtNichtInDerTabelle(): void
+    public function testIssuedTokenIsNotStoredInTable(): void
     {
         $token = $this->login();
 
-        $zaehlen = $this->pdo()->prepare('SELECT COUNT(*) FROM pim_token WHERE token = :t');
+        $count = $this->pdo()->prepare('SELECT COUNT(*) FROM pim_token WHERE token = :t');
 
-        $zaehlen->execute(array('t' => $token));
-        $this->assertSame('0', (string) $zaehlen->fetchColumn(), 'Der Klartext steht nirgends');
+        $count->execute(array('t' => $token));
+        $this->assertSame('0', (string) $count->fetchColumn(), 'The plain text is stored nowhere');
 
-        $zaehlen->execute(array('t' => hash('sha256', $token)));
-        $this->assertSame('1', (string) $zaehlen->fetchColumn(), 'sein SHA-256 genau einmal');
+        $count->execute(array('t' => hash('sha256', $token)));
+        $this->assertSame('1', (string) $count->fetchColumn(), 'its SHA-256 exactly once');
     }
 
     /**
-     * Und die andere Haelfte: Die Anmeldung funktioniert unveraendert.
+     * And the other half: login works unchanged.
      *
-     * Ein gehashter Token, mit dem sich niemand mehr anmelden kann, waere kein Fortschritt.
+     * A hashed token that nobody can log in with any more would not be progress.
      */
-    public function testDerAusgelieferteTokenFunktioniertWeiterhin(): void
+    public function testIssuedTokenStillWorks(): void
     {
         $token = $this->login();
 
         [$status] = $this->get('/api/schema', $token);
         $this->assertSame(200, $status);
 
-        [$abmelden] = $this->get('/auth/logout', $token);
-        $this->assertSame(200, $abmelden);
+        [$logout] = $this->get('/auth/logout', $token);
+        $this->assertSame(200, $logout);
 
-        [$danach] = $this->get('/api/schema', $token);
-        $this->assertNotSame(200, $danach, 'Nach dem Abmelden ist er weg');
+        [$afterwards] = $this->get('/api/schema', $token);
+        $this->assertNotSame(200, $afterwards, 'After logout it is gone');
     }
 
     /**
-     * Der Hash selbst ist kein Token.
+     * The hash itself is not a token.
      *
-     * Wer ihn aus der Tabelle oder aus `listTokens` abschreibt und vorzeigt, kommt nicht durch:
-     * Er wuerde beim Pruefen ein zweites Mal gehasht.
+     * Whoever copies it from the table or from `listTokens` and presents it does not get in:
+     * it would be hashed a second time during verification.
      */
-    public function testDerHashLaesstSichNichtAlsTokenVorzeigen(): void
+    public function testHashCannotBePresentedAsToken(): void
     {
         $token = $this->login();
 
@@ -291,103 +290,102 @@ class AuthApiTest extends IntegrationTestCase
         $this->assertNotSame(200, $status);
     }
 
-    // ── Die entfallenen Routen unter /api (013-001-0005) ──────────────────────────────
+    // ── The dropped routes under /api (013-001-0005) ──────────────────────────────────
 
     /**
-     * `POST /api/login` und `POST /api/logout` gibt es nicht.
+     * `POST /api/login` and `POST /api/logout` do not exist.
      *
-     * Sie waren registriert und zeigten auf `api.controller:loginAction` und `:logoutAction` —
-     * Methoden, die es im `ApiController` nicht gibt und nie gab. Erreicht haben sie den Router
-     * trotzdem nie: `RouteCollector` zählt je Provider durch, `/api/login` hiess `login_0` und
-     * wurde beim Mounten von `/auth/login` gleichen Namens verdrängt.
+     * They were registered and pointed to `api.controller:loginAction` and `:logoutAction` —
+     * methods that do not exist in `ApiController` and never did. They never reached the router
+     * anyway: `RouteCollector` numbers per provider, `/api/login` was called `login_0` and
+     * was displaced when `/auth/login` with the same name was mounted.
      *
-     * Beides ist mit `013-001-0005` behoben — die Namen tragen jetzt den Mountpunkt, und die
-     * beiden toten Routen sind entfernt statt umgebogen. Geprüft wird, dass sie sich verhalten
-     * wie jeder andere unbekannte Pfad: dieselbe Antwort, kein Sonderfall.
+     * Both are fixed with `013-001-0005` — the names now carry the mount point, and the two
+     * dead routes are removed rather than redirected. The test checks that they behave like any
+     * other unknown path: the same response, no special case.
      */
-    public function testDieRoutenUnterApiGibtEsNicht(): void
+    public function testRoutesUnderApiDoNotExist(): void
     {
-        [$unbekannt] = $this->postJson('/api/gibtsnicht-'.bin2hex(random_bytes(4)), array());
+        [$unknown] = $this->postJson('/api/doesnotexist-'.bin2hex(random_bytes(4)), array());
 
-        foreach (array('/api/login', '/api/logout') as $pfad) {
-            [$status] = $this->postJson($pfad, array('alias' => 'admin', 'pass' => $this->pass()));
+        foreach (array('/api/login', '/api/logout') as $path) {
+            [$status] = $this->postJson($path, array('alias' => 'admin', 'pass' => $this->pass()));
 
-            $this->assertSame($unbekannt, $status, $pfad.' antwortet wie jeder unbekannte Pfad');
+            $this->assertSame($unknown, $status, $path.' responds like any unknown path');
         }
     }
 
     /**
-     * Und die Gegenprobe: Die Routen unter `/auth` funktionieren weiterhin.
+     * And the cross-check: the routes under `/auth` still work.
      *
-     * Sie sind es, die den Namensvetter verdrängt haben — an ihnen musste sich beim Aufräumen
-     * nichts ändern.
+     * They are the ones that displaced their namesake — nothing about them had to change during
+     * the cleanup.
      */
-    public function testDieRoutenUnterAuthFunktionierenWeiterhin(): void
+    public function testRoutesUnderAuthStillWork(): void
     {
         [$status, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => $this->pass()));
         $this->assertSame(200, $status);
 
-        [$abmelden] = $this->get('/auth/logout', $body['token']);
-        $this->assertSame(200, $abmelden);
+        [$logout] = $this->get('/auth/logout', $body['token']);
+        $this->assertSame(200, $logout);
     }
 
-    // ── Alle fünf TokenSources am laufenden System (013-002-0004) ─────────────────────
+    // ── All five TokenSources on the running system (013-002-0004) ────────────────────
 
     /**
-     * Der Nachweis für den Umstieg: Jede Quelle öffnet eine geschützte Route.
+     * The proof for the switch: every source opens a protected route.
      *
-     * Vier davon sind geerbt — `BaseControllerProvider::checkToken()` las sie, und Bestandsclients
-     * schicken sie. Ohne sie bräche jeder bestehende Ionic-Client beim Update. Die fünfte,
-     * `Authorization: Bearer`, ist neu und der Weg, auf den alles zuläuft.
+     * Four of them are inherited — `BaseControllerProvider::checkToken()` read them, and existing
+     * clients send them. Without them every existing Ionic client would break on update. The
+     * fifth, `Authorization: Bearer`, is new and the path everything is heading towards.
      *
-     * `TokenSourcesTest` misst dasselbe ohne HTTP; hier geht es darum, dass es **verdrahtet**
-     * ist.
+     * `TokenSourcesTest` measures the same without HTTP; here the point is that it is **wired**.
      */
-    public function testJedeTokenquelleOeffnetEineGeschuetzteRoute(): void
+    public function testEveryTokenSourceOpensProtectedRoute(): void
     {
         $token = $this->login();
 
-        $ueberKopfzeile = array(
+        $viaHeader = array(
             'Authorization: Bearer' => 'Authorization: Bearer '.$token,
             'appcms-token'          => 'appcms-token: '.$token,
             'X-XSRF-TOKEN'          => 'X-XSRF-TOKEN: '.$token,
         );
 
-        foreach ($ueberKopfzeile as $name => $kopfzeile) {
-            $this->assertSame(200, $this->getMitKopfzeile('/api/schema', $kopfzeile), $name);
+        foreach ($viaHeader as $name => $headerLine) {
+            $this->assertSame(200, $this->getWithHeader('/api/schema', $headerLine), $name);
         }
 
-        $this->assertSame(200, $this->getMitKopfzeile('/api/schema?_token='.$token, null),
-            '_token im Query-String');
+        $this->assertSame(200, $this->getWithHeader('/api/schema?_token='.$token, null),
+            '_token in the query string');
 
         [$status] = $this->postJson('/api/count', array('entity' => 'PIM\User', '_token' => $token));
-        $this->assertSame(200, $status, '_token im Rumpf');
+        $this->assertSame(200, $status, '_token in the body');
     }
 
-    public function testOhneTokenBleibtDieGeschuetzteRouteZu(): void
+    public function testProtectedRouteStaysClosedWithoutToken(): void
     {
-        $this->assertNotSame(200, $this->getMitKopfzeile('/api/schema', null));
+        $this->assertNotSame(200, $this->getWithHeader('/api/schema', null));
     }
 
     /**
-     * Ein Token, den es nicht gibt, öffnet nichts — über jede Quelle.
+     * A token that does not exist opens nothing — through any source.
      */
-    public function testEinErfundenerTokenOeffnetKeineQuelle(): void
+    public function testFabricatedTokenOpensNoSource(): void
     {
-        $erfunden = bin2hex(random_bytes(64));
+        $fabricated = bin2hex(random_bytes(64));
 
-        $this->assertNotSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$erfunden));
-        $this->assertNotSame(200, $this->getMitKopfzeile('/api/schema', 'appcms-token: '.$erfunden));
-        $this->assertNotSame(200, $this->getMitKopfzeile('/api/schema?_token='.$erfunden, null));
+        $this->assertNotSame(200, $this->getWithHeader('/api/schema', 'Authorization: Bearer '.$fabricated));
+        $this->assertNotSame(200, $this->getWithHeader('/api/schema', 'appcms-token: '.$fabricated));
+        $this->assertNotSame(200, $this->getWithHeader('/api/schema?_token='.$fabricated, null));
     }
 
-    /** Ein GET mit genau einer selbst gewählten Kopfzeile — die Basisklasse schickt immer `appcms-token`. */
-    private function getMitKopfzeile(string $pfad, ?string $kopfzeile): int
+    /** A GET with exactly one header of our choice — the base class always sends `appcms-token`. */
+    private function getWithHeader(string $path, ?string $headerLine): int
     {
-        $ch = curl_init(getenv('CONTENTFLY_TEST_BASE_URL').$pfad);
+        $ch = curl_init(getenv('CONTENTFLY_TEST_BASE_URL').$path);
         curl_setopt_array($ch, array(
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER     => $kopfzeile === null ? array() : array($kopfzeile),
+            CURLOPT_HTTPHEADER     => $headerLine === null ? array() : array($headerLine),
         ));
         curl_exec($ch);
         $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -396,16 +394,16 @@ class AuthApiTest extends IntegrationTestCase
         return $status;
     }
 
-    // ── Ausstellung von JWT (013-003-0001) ────────────────────────────────────────────
+    // ── Issuing JWT (013-003-0001) ─────────────────────────────────────────────────────
 
     /**
-     * **Ohne Anforderung ändert sich nichts.**
+     * **Without a request nothing changes.**
      *
-     * Die Zusage dieser Story: Ein Bestandsclient merkt nichts. Deshalb entscheidet der
-     * Aufrufer je Anfrage und nicht ein Konfigurationsschalter, der die Antwort für alle auf
-     * einmal kippen würde.
+     * The promise of this story: an existing client notices nothing. That is why the caller
+     * decides per request, and not a configuration switch that would flip the response for
+     * everyone at once.
      */
-    public function testOhneAnforderungBleibtEsBeimOpaquenToken(): void
+    public function testWithoutRequestTokenStaysOpaque(): void
     {
         [, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => $this->pass()));
 
@@ -414,62 +412,62 @@ class AuthApiTest extends IntegrationTestCase
         $this->assertArrayNotHasKey('expiresIn', $body);
     }
 
-    public function testAufAnforderungLiefertDerLoginEinJwtUndEinRefreshToken(): void
+    public function testOnRequestLoginReturnsJwtAndRefreshToken(): void
     {
-        $body = $this->jwtAnmeldung();
+        $body = $this->jwtLogin();
 
-        $this->assertCount(3, explode('.', $body['token']), 'Drei punktgetrennte Segmente');
+        $this->assertCount(3, explode('.', $body['token']), 'Three dot-separated segments');
         $this->assertMatchesRegularExpression('/^[0-9a-f]{128}$/', $body['refreshToken'] ?? '',
-            'Das Refresh-Token ist ein gewoehnlicher opaquer Token');
+            'The refresh token is an ordinary opaque token');
         $this->assertGreaterThan(0, $body['expiresIn'] ?? 0);
         $this->assertLessThanOrEqual(900, $body['expiresIn']);
     }
 
-    public function testDasAusgestellteJwtOeffnetEineGeschuetzteRoute(): void
+    public function testIssuedJwtOpensProtectedRoute(): void
     {
-        $body = $this->jwtAnmeldung();
+        $body = $this->jwtLogin();
 
-        $this->assertSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$body['token']));
-        $this->assertSame(200, $this->getMitKopfzeile('/api/schema', 'appcms-token: '.$body['token']),
-            'Auch ueber die Altquellen — die Verzweigung entscheidet nach der Form, nicht nach der Quelle');
+        $this->assertSame(200, $this->getWithHeader('/api/schema', 'Authorization: Bearer '.$body['token']));
+        $this->assertSame(200, $this->getWithHeader('/api/schema', 'appcms-token: '.$body['token']),
+            'Also through the legacy sources — the branching decides by shape, not by source');
     }
 
     /**
-     * **Ein Refresh-Token ist kein JwtAccessToken.**
+     * **A refresh token is not a JwtAccessToken.**
      *
-     * Es ist eine gewöhnliche Zeile in `pim_token`, und der opaque Zweig nahm bis `013-003-0001`
-     * jede Zeile an. Ein Refresh-Token gilt länger als ein Access-JWT — das ist sein Zweck —,
-     * und ohne diese Trennung wäre es ein langlebiger Generalschlüssel für die ganze API.
+     * It is an ordinary row in `pim_token`, and until `013-003-0001` the opaque branch accepted
+     * every row. A refresh token lives longer than an access JWT — that is its purpose —
+     * and without this separation it would be a long-lived master key for the whole API.
      */
-    public function testDasRefreshTokenOeffnetKeineGeschuetzteRoute(): void
+    public function testRefreshTokenOpensNoProtectedRoute(): void
     {
-        $body = $this->jwtAnmeldung();
+        $body = $this->jwtLogin();
 
-        $this->assertNotSame(200, $this->getMitKopfzeile('/api/schema', 'appcms-token: '.$body['refreshToken']));
-        $this->assertNotSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$body['refreshToken']));
+        $this->assertNotSame(200, $this->getWithHeader('/api/schema', 'appcms-token: '.$body['refreshToken']));
+        $this->assertNotSame(200, $this->getWithHeader('/api/schema', 'Authorization: Bearer '.$body['refreshToken']));
     }
 
     /**
-     * Der Claim-Satz am ausgelieferten Token — gelesen, nicht angenommen.
+     * The claim set on the issued token — read, not assumed.
      *
-     * Rollen, Gruppen und Berechtigungen können sich ändern, während der Token gilt. Stünden sie
-     * darin, wirkte eine Rechteänderung erst nach dessen Ablauf.
+     * Roles, groups and permissions can change while the token is valid. If they were in it,
+     * a permission change would only take effect after it expires.
      */
-    public function testDasAusgestellteJwtTraegtNurDenFestgelegtenClaimSatz(): void
+    public function testIssuedJwtCarriesOnlyTheDefinedClaimSet(): void
     {
-        $body   = $this->jwtAnmeldung();
+        $body   = $this->jwtLogin();
         $claims = json_decode(base64_decode(strtr(explode('.', $body['token'])[1], '-_', '+/')), true);
 
-        $namen = array_keys($claims);
-        sort($namen);
+        $names = array_keys($claims);
+        sort($names);
 
-        $this->assertSame(array('exp', 'iat', 'iss', 'jti', 'sub'), $namen);
+        $this->assertSame(array('exp', 'iat', 'iss', 'jti', 'sub'), $names);
         $this->assertSame('admin', $claims['sub']);
         $this->assertSame('contentfly', $claims['iss']);
     }
 
-    /** Meldet sich mit `tokenType: jwt` an und liefert den Antwortrumpf. */
-    private function jwtAnmeldung(): array
+    /** Logs in with `tokenType: jwt` and returns the response body. */
+    private function jwtLogin(): array
     {
         [$status, $body] = $this->postJson('/auth/login', array(
             'alias'     => 'admin',
@@ -478,64 +476,64 @@ class AuthApiTest extends IntegrationTestCase
         ));
 
         if ($status !== 200 || !isset($body['token'], $body['refreshToken'])) {
-            $this->fail('JWT-Anmeldung fehlgeschlagen: '.json_encode($body));
+            $this->fail('JWT login failed: '.json_encode($body));
         }
 
         return $body;
     }
 
-    // ── Der Refresh-Weg (013-003-0002) ────────────────────────────────────────────────
+    // ── The refresh path (013-003-0002) ────────────────────────────────────────────────
 
-    public function testEinRefreshTokenLiefertEinFrischesAccessJwt(): void
+    public function testRefreshTokenReturnsFreshAccessJwt(): void
     {
-        $anmeldung = $this->jwtAnmeldung();
+        $login = $this->jwtLogin();
 
-        [$status, $body] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['refreshToken']));
+        [$status, $body] = $this->postJson('/auth/refresh', array('refreshToken' => $login['refreshToken']));
 
         $this->assertSame(200, $status);
         $this->assertCount(3, explode('.', $body['token'] ?? ''));
-        $this->assertNotSame($anmeldung['token'], $body['token'], 'Ein frisches Token, nicht dasselbe');
-        $this->assertSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$body['token']));
+        $this->assertNotSame($login['token'], $body['token'], 'A fresh token, not the same one');
+        $this->assertSame(200, $this->getWithHeader('/api/schema', 'Authorization: Bearer '.$body['token']));
     }
 
     /**
-     * **Rotation: Das vorgezeigte Refresh-Token gilt danach nicht mehr.**
+     * **Rotation: the presented refresh token is no longer valid afterwards.**
      *
-     * Ein Refresh-Token, das mehrfach gilt, ist ein langlebiges Geheimnis — wer es abgreift,
-     * holt sich damit beliebig lange frische Zugangstokens, und niemand sieht es. Wird es bei
-     * jedem Gebrauch getauscht, fällt ein zweiter Gebrauch auf.
+     * A refresh token that is valid multiple times is a long-lived secret — whoever grabs it
+     * can fetch fresh access tokens for as long as they like, and nobody sees it. If it is
+     * swapped on every use, a second use stands out.
      */
-    public function testDasVorgezeigteRefreshTokenWirdErsetzt(): void
+    public function testPresentedRefreshTokenIsReplaced(): void
     {
-        $anmeldung = $this->jwtAnmeldung();
+        $login = $this->jwtLogin();
 
-        [, $erstes] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['refreshToken']));
-        $this->assertNotSame($anmeldung['refreshToken'], $erstes['refreshToken'] ?? null, 'Ein neues Refresh-Token');
+        [, $first] = $this->postJson('/auth/refresh', array('refreshToken' => $login['refreshToken']));
+        $this->assertNotSame($login['refreshToken'], $first['refreshToken'] ?? null, 'A new refresh token');
 
-        [$zweiter] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['refreshToken']));
-        $this->assertSame(401, $zweiter, 'Das alte gilt nicht mehr');
+        [$second] = $this->postJson('/auth/refresh', array('refreshToken' => $login['refreshToken']));
+        $this->assertSame(401, $second, 'The old one is no longer valid');
 
-        [$mitNeuem] = $this->postJson('/auth/refresh', array('refreshToken' => $erstes['refreshToken']));
-        $this->assertSame(200, $mitNeuem, 'Das neue schon');
+        [$withNew] = $this->postJson('/auth/refresh', array('refreshToken' => $first['refreshToken']));
+        $this->assertSame(200, $withNew, 'The new one is');
     }
 
     /**
-     * Ein Access-JWT taugt nicht als Refresh-Token — die Gegenrichtung zu
-     * `testDasRefreshTokenOeffnetKeineGeschuetzteRoute`.
+     * An access JWT is no good as a refresh token — the reverse direction of
+     * `testRefreshTokenOpensNoProtectedRoute`.
      */
-    public function testEinAccessJwtTaugtNichtAlsRefreshToken(): void
+    public function testAccessJwtIsNotUsableAsRefreshToken(): void
     {
-        $anmeldung = $this->jwtAnmeldung();
+        $login = $this->jwtLogin();
 
-        [$status] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['token']));
+        [$status] = $this->postJson('/auth/refresh', array('refreshToken' => $login['token']));
 
         $this->assertSame(401, $status);
     }
 
     /**
-     * Ein opaques Anmeldetoken auch nicht: Es ist eine `pim_token`-Zeile ohne `purpose`.
+     * Nor is an opaque login token: it is a `pim_token` row without `purpose`.
      */
-    public function testEinOpaquesAnmeldetokenTaugtNichtAlsRefreshToken(): void
+    public function testOpaqueLoginTokenIsNotUsableAsRefreshToken(): void
     {
         $opaque = $this->login();
 
@@ -544,7 +542,7 @@ class AuthApiTest extends IntegrationTestCase
         $this->assertSame(401, $status);
     }
 
-    public function testEinUnbekanntesRefreshTokenWirdAbgewiesen(): void
+    public function testUnknownRefreshTokenIsRejected(): void
     {
         [$status, $body] = $this->postJson('/auth/refresh', array('refreshToken' => bin2hex(random_bytes(64))));
 
@@ -552,7 +550,7 @@ class AuthApiTest extends IntegrationTestCase
         $this->assertArrayNotHasKey('token', $body);
     }
 
-    public function testOhneRefreshTokenWirdAbgewiesen(): void
+    public function testMissingRefreshTokenIsRejected(): void
     {
         [$status] = $this->postJson('/auth/refresh', array());
 
@@ -560,171 +558,171 @@ class AuthApiTest extends IntegrationTestCase
     }
 
     /**
-     * Alle Fehlschläge sehen gleich aus.
+     * All failures look the same.
      *
-     * Wer hier unterscheidet, sagt einem Angreifer, welcher seiner Versuche näher dran war.
+     * Whoever distinguishes here tells an attacker which of their attempts was closer.
      */
-    public function testJederFehlschlagAmRefreshSiehtGleichAus(): void
+    public function testEveryRefreshFailureLooksTheSame(): void
     {
-        $anmeldung = $this->jwtAnmeldung();
+        $login = $this->jwtLogin();
 
-        [, $unbekannt] = $this->postJson('/auth/refresh', array('refreshToken' => bin2hex(random_bytes(64))));
-        [, $falscheArt] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['token']));
-        [, $ohne]      = $this->postJson('/auth/refresh', array());
+        [, $unknown]   = $this->postJson('/auth/refresh', array('refreshToken' => bin2hex(random_bytes(64))));
+        [, $wrongKind] = $this->postJson('/auth/refresh', array('refreshToken' => $login['token']));
+        [, $without]   = $this->postJson('/auth/refresh', array());
 
-        $this->assertSame($unbekannt['message'], $falscheArt['message']);
-        $this->assertSame($unbekannt['message'], $ohne['message']);
+        $this->assertSame($unknown['message'], $wrongKind['message']);
+        $this->assertSame($unknown['message'], $without['message']);
     }
 
     /**
-     * Ein gesperrter Benutzer bekommt kein neues Access-JWT.
+     * A deactivated user gets no new access JWT.
      *
-     * Das ist der Fall, den das Refresh-Modell tragen muss: Der Zugang endet spätestens mit dem
-     * laufenden Access-Token, weil danach niemand mehr ein neues bekommt.
+     * This is the case the refresh model has to carry: access ends at the latest with the
+     * current access token, because afterwards nobody gets a new one.
      */
-    public function testEinGesperrterBenutzerBekommtKeinNeuesAccessJwt(): void
+    public function testDeactivatedUserGetsNoNewAccessJwt(): void
     {
         [, $userId] = $this->createTestUser();
 
-        [$status, $anmeldung] = $this->postJson('/auth/login', array(
-            'alias'     => $this->aliasZu($userId),
+        [$status, $login] = $this->postJson('/auth/login', array(
+            'alias'     => $this->aliasFor($userId),
             'pass'      => self::TEST_PASSWORD,
             'tokenType' => 'jwt',
         ));
         $this->assertSame(200, $status);
 
-        $sperren = $this->pdo()->prepare('UPDATE pim_user SET isActive = 0 WHERE id = :id');
-        $sperren->execute(array('id' => $userId));
+        $deactivate = $this->pdo()->prepare('UPDATE pim_user SET isActive = 0 WHERE id = :id');
+        $deactivate->execute(array('id' => $userId));
 
-        [$nachSperrung] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['refreshToken']));
+        [$afterDeactivation] = $this->postJson('/auth/refresh', array('refreshToken' => $login['refreshToken']));
 
-        $this->assertSame(401, $nachSperrung);
+        $this->assertSame(401, $afterDeactivation);
     }
 
-    // ── Widerruf (013-003-0003) ───────────────────────────────────────────────────────
+    // ── Revocation (013-003-0003) ──────────────────────────────────────────────────────
 
     /**
-     * **Der Kern der Story.** Nach dem Abmelden gilt das Access-JWT nicht mehr — obwohl sein
-     * `exp` noch in der Zukunft liegt.
+     * **The core of the story.** After logout the access JWT is no longer valid — even though
+     * its `exp` still lies in the future.
      *
-     * Ohne die Sperrliste wäre das nicht so: Ein zustandsloses Token lässt sich nicht
-     * zurückrufen, solange es gilt. Bei einem Token, das jemand abgegriffen hat, ist genau das
-     * der Schaden.
+     * Without the revocation list that would not be the case: a stateless token cannot be
+     * recalled while it is valid. For a token that someone has grabbed, that is exactly the
+     * damage.
      */
-    public function testNachDemAbmeldenGiltDasAccessJwtNichtMehr(): void
+    public function testAccessJwtIsInvalidAfterLogout(): void
     {
-        $anmeldung = $this->jwtAnmeldung();
-        $jwt       = $anmeldung['token'];
+        $login = $this->jwtLogin();
+        $jwt   = $login['token'];
 
-        $this->assertSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$jwt));
-        $this->assertGreaterThan(0, $anmeldung['expiresIn'], 'Das Token gilt noch');
+        $this->assertSame(200, $this->getWithHeader('/api/schema', 'Authorization: Bearer '.$jwt));
+        $this->assertGreaterThan(0, $login['expiresIn'], 'The token is still valid');
 
-        [$abmelden] = $this->get('/auth/logout', $jwt);
-        $this->assertSame(200, $abmelden);
+        [$logout] = $this->get('/auth/logout', $jwt);
+        $this->assertSame(200, $logout);
 
-        $this->assertNotSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$jwt),
-            'Dasselbe, noch nicht abgelaufene Token oeffnet nichts mehr');
+        $this->assertNotSame(200, $this->getWithHeader('/api/schema', 'Authorization: Bearer '.$jwt),
+            'The same, not yet expired token no longer opens anything');
 
-        $this->sperrlisteAufraeumenLassen();
+        $this->cleanUpRevocationList();
     }
 
     /**
-     * Das mitgeschickte Refresh-Token wird entzogen.
+     * The refresh token sent along is revoked.
      *
-     * Sonst holt sich der Inhaber gleich ein neues Access-JWT, und die Sperre war umsonst. Der
-     * Client muss es mitschicken, weil das Access-JWT nicht sagt, zu welcher Refresh-Zeile es
-     * gehört — die Verbindung stünde sonst als sechster Claim darin, und der Claim-Satz ist
-     * absichtlich klein.
+     * Otherwise the holder would just fetch a new access JWT, and the revocation would be in
+     * vain. The client has to send it along because the access JWT does not say which refresh
+     * row it belongs to — otherwise that link would be in it as a sixth claim, and the claim
+     * set is deliberately small.
      */
-    public function testDasAbmeldenEntziehtDasMitgeschickteRefreshToken(): void
+    public function testLogoutRevokesRefreshTokenSentAlong(): void
     {
-        $anmeldung = $this->jwtAnmeldung();
+        $login = $this->jwtLogin();
 
-        [$abmelden] = $this->get('/auth/logout?refreshToken='.$anmeldung['refreshToken'], $anmeldung['token']);
-        $this->assertSame(200, $abmelden);
+        [$logout] = $this->get('/auth/logout?refreshToken='.$login['refreshToken'], $login['token']);
+        $this->assertSame(200, $logout);
 
-        [$status] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['refreshToken']));
-        $this->assertSame(401, $status, 'Das Refresh-Token ist weg');
+        [$status] = $this->postJson('/auth/refresh', array('refreshToken' => $login['refreshToken']));
+        $this->assertSame(401, $status, 'The refresh token is gone');
 
-        $this->sperrlisteAufraeumenLassen();
+        $this->cleanUpRevocationList();
     }
 
     /**
-     * Ohne mitgeschicktes Refresh-Token bleibt es stehen — und das ist die dokumentierte Lage,
-     * kein Versehen.
+     * Without a refresh token sent along it remains — and that is the documented situation,
+     * not an oversight.
      */
-    public function testOhneMitgeschicktesRefreshTokenBleibtEsBestehen(): void
+    public function testRefreshTokenRemainsWhenNotSentAlong(): void
     {
-        $anmeldung = $this->jwtAnmeldung();
+        $login = $this->jwtLogin();
 
-        $this->get('/auth/logout', $anmeldung['token']);
+        $this->get('/auth/logout', $login['token']);
 
-        [$status] = $this->postJson('/auth/refresh', array('refreshToken' => $anmeldung['refreshToken']));
-        $this->assertSame(200, $status, 'Es verfaellt ueber sein eigenes Zeitlimit, nicht beim Abmelden');
+        [$status] = $this->postJson('/auth/refresh', array('refreshToken' => $login['refreshToken']));
+        $this->assertSame(200, $status, 'It expires through its own time limit, not on logout');
 
-        $this->sperrlisteAufraeumenLassen();
+        $this->cleanUpRevocationList();
     }
 
     /**
-     * **Nur das eigene.** Ohne diese Prüfung wäre `logout` ein Endpunkt, mit dem ein beliebiger
-     * angemeldeter Benutzer fremde Sitzungen beenden könnte.
+     * **Only your own.** Without this check `logout` would be an endpoint any logged-in user
+     * could use to end other users' sessions.
      */
-    public function testEinFremdesRefreshTokenLaesstSichNichtAbmelden(): void
+    public function testForeignRefreshTokenCannotBeLoggedOut(): void
     {
         [, $userId] = $this->createTestUser();
 
-        [, $fremd] = $this->postJson('/auth/login', array(
-            'alias'     => $this->aliasZu($userId),
+        [, $foreign] = $this->postJson('/auth/login', array(
+            'alias'     => $this->aliasFor($userId),
             'pass'      => self::TEST_PASSWORD,
             'tokenType' => 'jwt',
         ));
 
-        $eigene = $this->jwtAnmeldung();
+        $own = $this->jwtLogin();
 
-        $this->get('/auth/logout?refreshToken='.$fremd['refreshToken'], $eigene['token']);
+        $this->get('/auth/logout?refreshToken='.$foreign['refreshToken'], $own['token']);
 
-        [$status] = $this->postJson('/auth/refresh', array('refreshToken' => $fremd['refreshToken']));
-        $this->assertSame(200, $status, 'Das fremde Refresh-Token gilt weiterhin');
+        [$status] = $this->postJson('/auth/refresh', array('refreshToken' => $foreign['refreshToken']));
+        $this->assertSame(200, $status, 'The foreign refresh token is still valid');
 
-        $this->sperrlisteAufraeumenLassen();
+        $this->cleanUpRevocationList();
     }
 
     /**
-     * **Eine Benutzersperrung wirkt schon ohne Sperrliste sofort — gemessen.**
+     * **Deactivating a user takes effect immediately even without the revocation list — measured.**
      *
-     * Der Story-Text nannte die Sperrung als Anwendungsfall der Liste. Sie ist es seit
-     * `013-002-0001` nicht mehr: Der JWT-Zweig gibt sein `UserBadge` ohne eigenen Lader zurück,
-     * also lädt der `UserLoader` den Benutzer aus `pim_user` und weist einen gesperrten mit
-     * derselben Ausnahme ab wie einen unbekannten.
+     * The story text named deactivation as a use case of the list. It no longer is since
+     * `013-002-0001`: the JWT branch returns its `UserBadge` without its own loader, so the
+     * `UserLoader` loads the user from `pim_user` and rejects a deactivated one with the same
+     * exception as an unknown one.
      *
-     * Der Test steht hier, damit die Zusicherung nicht unbelegt dasteht — und damit auffällt,
-     * wenn jemand den Ladeweg umbaut und dabei die Sperrung mit abschaltet.
+     * The test is here so the assertion does not stand unproven — and so it is noticed when
+     * someone rebuilds the loading path and switches off deactivation along the way.
      */
-    public function testEineBenutzersperrungWirktSofortUndOhneSperrliste(): void
+    public function testUserDeactivationTakesEffectImmediatelyWithoutRevocationList(): void
     {
         [, $userId] = $this->createTestUser();
 
-        [, $anmeldung] = $this->postJson('/auth/login', array(
-            'alias'     => $this->aliasZu($userId),
+        [, $login] = $this->postJson('/auth/login', array(
+            'alias'     => $this->aliasFor($userId),
             'pass'      => self::TEST_PASSWORD,
             'tokenType' => 'jwt',
         ));
 
-        $this->assertSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$anmeldung['token']));
+        $this->assertSame(200, $this->getWithHeader('/api/schema', 'Authorization: Bearer '.$login['token']));
 
-        $sperren = $this->pdo()->prepare('UPDATE pim_user SET isActive = 0 WHERE id = :id');
-        $sperren->execute(array('id' => $userId));
+        $deactivate = $this->pdo()->prepare('UPDATE pim_user SET isActive = 0 WHERE id = :id');
+        $deactivate->execute(array('id' => $userId));
 
         $this->assertSame(0, (int) $this->pdo()->query('SELECT COUNT(*) FROM pim_revoked_token')->fetchColumn(),
-            'Kein Eintrag in der Sperrliste — die Sperrung wirkt ohne sie');
-        $this->assertNotSame(200, $this->getMitKopfzeile('/api/schema', 'Authorization: Bearer '.$anmeldung['token']));
+            'No entry in the revocation list — deactivation works without it');
+        $this->assertNotSame(200, $this->getWithHeader('/api/schema', 'Authorization: Bearer '.$login['token']));
     }
 
     /**
-     * Die Sperrliste bleibt klein: Ein Eintrag verfällt mit dem Token, das er sperrt, und
-     * `appcms:token:cleanup` räumt ihn weg — kein zweiter Aufräumweg.
+     * The revocation list stays small: an entry expires with the token it revokes, and
+     * `appcms:token:cleanup` clears it away — no second cleanup path.
      */
-    public function testGegenstandsloseSperrEintraegeWerdenAufgeraeumt(): void
+    public function testObsoleteRevocationEntriesAreCleanedUp(): void
     {
         $jti = 'test-'.bin2hex(random_bytes(8));
 
@@ -736,22 +734,22 @@ class AuthApiTest extends IntegrationTestCase
             'c' => (new \DateTime('-2 hours'))->format('Y-m-d H:i:s'),
         ));
 
-        $this->sperrlisteAufraeumenLassen();
+        $this->cleanUpRevocationList();
 
-        $zaehlen = $this->pdo()->prepare('SELECT COUNT(*) FROM pim_revoked_token WHERE jti = :j');
-        $zaehlen->execute(array('j' => $jti));
+        $count = $this->pdo()->prepare('SELECT COUNT(*) FROM pim_revoked_token WHERE jti = :j');
+        $count->execute(array('j' => $jti));
 
-        $this->assertSame('0', (string) $zaehlen->fetchColumn());
+        $this->assertSame('0', (string) $count->fetchColumn());
     }
 
     /**
-     * Räumt die Sperrliste nach einem Test wieder leer.
+     * Empties the revocation list again after a test.
      *
-     * Die Einträge sind Reste eines Abmeldens und stören nachfolgende Tests nicht — aber
-     * `testEineBenutzersperrungWirktSofortUndOhneSperrliste` zählt sie, und eine leere Liste ist
-     * die einzige Aussage, die dieser Test treffen kann.
+     * The entries are leftovers of a logout and do not disturb subsequent tests — but
+     * `testUserDeactivationTakesEffectImmediatelyWithoutRevocationList` counts them, and an empty
+     * list is the only statement that test can make.
      */
-    private function sperrlisteAufraeumenLassen(): void
+    private function cleanUpRevocationList(): void
     {
         $this->pdo()->exec('DELETE FROM pim_revoked_token WHERE expiresAt < NOW()');
 

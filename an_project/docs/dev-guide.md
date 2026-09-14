@@ -48,7 +48,7 @@
 *Key decisions*. Ein Projekt muss seine Controller dafür nicht anfassen.
 
 **Diese Liste ist der Gegenstand der Zusicherung.** Was hier steht, bleibt; was nicht hier
-steht, ist interne Verdrahtung und kann sich ändern. `tests/Integration/ContainerSchluesselTest.php`
+steht, ist interne Verdrahtung und kann sich ändern. `tests/Integration/ContainerKeysTest.php`
 hält beide Richtungen fest.
 
 ### Immer verfügbar

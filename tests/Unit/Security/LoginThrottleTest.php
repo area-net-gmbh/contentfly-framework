@@ -10,7 +10,7 @@ use Symfony\Component\Cache\Adapter\ArrayAdapter;
  * The LoginThrottle, without HTTP (013-001-0003).
  *
  * What is covered here is the mechanics: two axes, increasing delay, reset on only one of them.
- * That it is actually wired into the login is measured by `AnmeldebremseApiTest` against a
+ * That it is actually wired into the login is measured by `LoginThrottleApiTest` against a
  * running instance.
  *
  * The storage is an `ArrayAdapter` — every test gets a fresh one, there is nothing to clean up,

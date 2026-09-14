@@ -5,47 +5,47 @@ use Areanet\PIM\Controller\SystemController;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * Charakterisierungstests für `POST /system/do` — den Systemendpunkt und die Token-Verwaltung.
+ * Characterization tests for `POST /system/do` — the system endpoint and the token management.
  *
- * Der Controller hat **eine** Route und verteilt von dort dynamisch:
+ * The controller has **one** route and dispatches dynamically from there:
  *
  *     $method = $request->get('method');
  *     if(!method_exists($this, $method)){ throw new \Exception(…); }
  *     return new JsonResponse(array('method' => …, 'datetime' => …, 'message' => $this->$method($request)));
  *
- * Der Request bestimmt also, welche Methode läuft, und das Tor ist `method_exists` — keine
- * Erlaubnisliste. Was dahinter liegt, ist mit Epic `009` auszutauschen; vorher gehört es
- * festgehalten. Die vier Token-Methoden hängen zusätzlich an Story `013-003` (JWT und
- * Widerruf) — was dort ersetzt wird, ist hier zuerst beschrieben.
+ * So the request decides which method runs, and the gate is `method_exists` — not an
+ * allowlist. What lies behind it is to be replaced with epic `009`; before that it has to be
+ * recorded. The four token methods additionally depend on story `013-003` (JWT and
+ * revocation) — what gets replaced there is described here first.
  *
- * **Diese Tests halten fest, was ist — nicht, was sein sollte.** Fünf Befunde aus dieser
- * Datei sind als `000-000-0015` notiert und werden dort repariert; die Tests darauf sind
- * dann bewusst umzudrehen.
+ * **These tests record what is — not what should be.** Five findings from this file are
+ * noted as `000-000-0015` and get fixed there; the tests on them are then to be inverted
+ * deliberately.
  */
 class SystemControllerApiTest extends IntegrationTestCase
 {
-    /** Die Id des Administrators — `addToken` braucht einen gültigen Benutzer. */
+    /** The id of the administrator — `addToken` needs a valid user. */
     private function adminId(): string
     {
         $id = $this->pdo()->query('SELECT id FROM pim_user WHERE isAdmin = 1 ORDER BY created LIMIT 1')->fetchColumn();
 
-        $this->assertNotFalse($id, 'Vorbedingung: die Testdatenbank hat einen Administrator');
+        $this->assertNotFalse($id, 'Precondition: the test database has an administrator');
 
         return (string) $id;
     }
 
-    /** Ruft `/system/do` mit der übergebenen Methode auf. */
-    private function systemDo(string $methode, array $weitere = array(), ?string $token = null): array
+    /** Calls `/system/do` with the given method. */
+    private function systemDo(string $method, array $additional = array(), ?string $token = null): array
     {
-        return $this->postJson('/system/do', array_merge(array('method' => $methode), $weitere), $token ?? $this->token());
+        return $this->postJson('/system/do', array_merge(array('method' => $method), $additional), $token ?? $this->token());
     }
 
     /**
-     * Legt über `addToken` einen API-Token an und meldet Zeile und Logeintrag zum Aufräumen.
+     * Creates an API token via `addToken` and registers the row and the log entry for cleanup.
      *
-     * @return array{0:int,1:array} Status, Rumpf
+     * @return array{0:int,1:array} status, body
      */
-    private function tokenAnlegen(string $tokenString, string $referrer = 'https://test.example'): array
+    private function createToken(string $tokenString, string $referrer = 'https://test.example'): array
     {
         [$status, $body] = $this->systemDo('addToken', array(
             'referrer' => $referrer,
@@ -53,11 +53,11 @@ class SystemControllerApiTest extends IntegrationTestCase
             'user'     => $this->adminId(),
         ));
 
-        // Gesucht wird ueber den HASH: In der Spalte steht seit 013-001-0004 nichts anderes.
-        $zeile = $this->pdo()->prepare('SELECT id FROM pim_token WHERE token = :t');
-        $zeile->execute(array('t' => hash('sha256', $tokenString)));
+        // The lookup uses the HASH: since 013-001-0004 the column holds nothing else.
+        $row = $this->pdo()->prepare('SELECT id FROM pim_token WHERE token = :t');
+        $row->execute(array('t' => hash('sha256', $tokenString)));
 
-        if ($id = $zeile->fetchColumn()) {
+        if ($id = $row->fetchColumn()) {
             $this->deleteAfterTest('pim_token', (string) $id);
 
             $log = $this->pdo()->prepare('SELECT id FROM pim_log WHERE model_name = :n AND model_id = :i');
@@ -71,399 +71,397 @@ class SystemControllerApiTest extends IntegrationTestCase
         return array($status, $body);
     }
 
-    // ── A: Die Absicherung ─────────────────────────────────────────────────────────────
+    // ── A: The protection ──────────────────────────────────────────────────────────────
 
-    public function testOhneTokenWirdAbgewiesen(): void
+    public function testRequestWithoutTokenIsRejected(): void
     {
         [$status] = $this->postJson('/system/do', array('method' => 'listTokens'));
 
         $this->assertSame(401, $status);
     }
 
-    public function testEinUngueltigerTokenWirdAbgewiesen(): void
+    public function testInvalidTokenIsRejected(): void
     {
-        [$status] = $this->systemDo('listTokens', array(), 'diesen-token-gibt-es-nicht');
+        [$status] = $this->systemDo('listTokens', array(), 'this-token-does-not-exist');
 
         $this->assertSame(401, $status);
     }
 
-    public function testEinNichtAdminMitGueltigemTokenWirdAbgewiesen(): void
+    public function testNonAdminWithValidTokenIsRejected(): void
     {
-        // Der before-Hook verlangt beides: gueltiger Token UND isAdmin. Der Testbenutzer hat
-        // einen frischen Token — er scheitert allein an der zweiten Bedingung.
+        // The before hook requires both: a valid token AND isAdmin. The test user has a fresh
+        // token — it fails on the second condition alone.
         [$token] = $this->createTestUser();
 
-        [$statusAndernorts] = $this->get('/api/schema', $token);
-        $this->assertSame(200, $statusAndernorts, 'Vorbedingung: der Token selbst ist gueltig');
+        [$statusElsewhere] = $this->get('/api/schema', $token);
+        $this->assertSame(200, $statusElsewhere, 'Precondition: the token itself is valid');
 
         [$status] = $this->systemDo('listTokens', array(), $token);
 
-        $this->assertSame(401, $status, 'Nicht-Admin wird abgewiesen — seit Symfony 4.4 mit 401 statt 403');
+        $this->assertSame(401, $status, 'Non-admin is rejected — since Symfony 4.4 with 401 instead of 403');
     }
 
-    public function testDieAbsichtDesHooksKommtSeitDemStackWechselAnDenClientDurch(): void
+    public function testHookIntentReachesClientSinceStackSwitch(): void
     {
-        // **Umgedreht mit 006-002-0006.** Bis Symfony 3.4 hielt dieser Test fest, dass die
-        // Absicht des Hooks NICHT ankommt:
+        // **Inverted with 006-002-0006.** Up to Symfony 3.4 this test recorded that the
+        // hook's intent does NOT arrive:
         //
         //     new AccessDeniedHttpException('…', null, 401)
         //
-        // Das dritte Argument ist der Exception-Code, nicht der Statuscode, und
-        // AccessDeniedHttpException hat 403 fest verdrahtet — beim Client kam 403 an.
+        // The third argument is the exception code, not the status code, and
+        // AccessDeniedHttpException has 403 hard-wired — the client received 403.
         //
-        // Unter Symfony 4.4 kommt 401 durch. Die Absicht des Codes wird erfuellt; der
-        // Nebenbefund aus 008-004-0003 hat sich mit dem Stack-Wechsel erledigt.
-        $quelle = file_get_contents(CONTENTFLY_PROJECT_DIR.'/lib/contentfly/Classes/Controller/Provider/Base/SystemControllerProvider.php');
+        // Under Symfony 4.4, 401 gets through. The intent of the code is fulfilled; the
+        // side finding from 008-004-0003 resolved itself with the stack switch.
+        $source = file_get_contents(CONTENTFLY_PROJECT_DIR.'/lib/contentfly/Classes/Controller/Provider/Base/SystemControllerProvider.php');
 
-        $this->assertStringContainsString("AccessDeniedHttpException('Access denied', null, 401)", $quelle,
-            'Die Absicht im Code ist 401');
+        $this->assertStringContainsString("AccessDeniedHttpException('Access denied', null, 401)", $source,
+            'The intent in the code is 401');
 
         [$status] = $this->postJson('/system/do', array('method' => 'listTokens'));
-        $this->assertSame(401, $status, 'Und seit Symfony 4.4 kommt sie auch an');
+        $this->assertSame(401, $status, 'And since Symfony 4.4 it also arrives');
     }
 
-    public function testNurPostIstErlaubt(): void
+    public function testOnlyPostIsAllowed(): void
     {
         [$status] = $this->get('/system/do?method=listTokens', $this->token());
 
-        // 405 seit 000-000-0006. Vorher 302: Der Fehler-Handler leitete ohne
-        // JSON-Content-Type auf `/` um. Die MethodNotAllowedHttpException traegt ihren Code
-        // in getStatusCode(), nicht in getCode() — deshalb kam er vorher auch dann nicht
-        // durch, wenn die Umleitung nicht griff.
+        // 405 since 000-000-0006. Before that 302: without a JSON content type the error
+        // handler redirected to `/`. The MethodNotAllowedHttpException carries its code in
+        // getStatusCode(), not in getCode() — which is why it did not get through before
+        // even when the redirect did not apply.
         $this->assertSame(405, $status);
     }
 
-    // ── B: Der Dispatch und seine Antwortform ──────────────────────────────────────────
+    // ── B: The dispatch and its response shape ─────────────────────────────────────────
 
-    public function testDieAntwortTraegtMethodeZeitstempelUndErgebnis(): void
+    public function testResponseCarriesMethodTimestampAndResult(): void
     {
         [$status, $body] = $this->systemDo('flushSchemaCache');
 
         $this->assertSame(200, $status);
         $this->assertSame(array('method', 'datetime', 'message'), array_keys($body),
-            'Genau drei Schluessel, in dieser Reihenfolge');
-        $this->assertSame('flushSchemaCache', $body['method'], 'Die angeforderte Methode wird zurueckgespiegelt');
+            'Exactly three keys, in this order');
+        $this->assertSame('flushSchemaCache', $body['method'], 'The requested method is mirrored back');
         $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $body['datetime'],
-            'Format Y-m-d H:i:s, ohne Zeitzone');
+            'Format Y-m-d H:i:s, without time zone');
     }
 
-    public function testDerSystemEndpunktBenutztEineEigeneAntwortform(): void
+    public function testSystemEndpointUsesItsOwnResponseShape(): void
     {
-        // Die /api-Endpunkte antworten mit data/totalItems/version/hash, /system/do mit
-        // method/datetime/message. Zwei Formen im selben Framework — festgehalten unter
-        // 000-000-0014 (Vereinheitlichung der Envelopes).
+        // The /api endpoints respond with data/totalItems/version/hash, /system/do with
+        // method/datetime/message. Two shapes in the same framework — recorded under
+        // 000-000-0014 (unification of the envelopes).
         [$statusSystem, $system] = $this->systemDo('generateToken');
         [$statusApi, $api]       = $this->postJson('/api/list', array('entity' => 'PIM\\User'), $this->token());
 
         $this->assertSame(200, $statusSystem);
-        $this->assertSame(200, $statusApi, 'Vorbedingung: beide Aufrufe gelingen');
+        $this->assertSame(200, $statusApi, 'Precondition: both calls succeed');
 
         $this->assertSame(array('method', 'datetime', 'message'), array_keys($system));
         $this->assertSame(array('data', 'totalItems', 'version', 'hash'), array_keys($api));
     }
 
-    public function testEineUnbekannteMethodeEndetInEinerHtmlFehlerseite(): void
+    public function testUnknownMethodEndsInHtmlErrorPage(): void
     {
-        // doAction wirft eine nackte \Exception. Silex macht daraus 500 und liefert die
-        // HTML-Fehlerseite aus — kein JSON, obwohl der Aufrufer JSON angefordert hat.
-        // **Nachgezogen mit 006-002-0006.** Bis Symfony 3.4 lieferte Silex hier die
-        // HTML-Fehlerseite, obwohl der Aufrufer JSON angefordert hatte. Seit 4.4 greift der
-        // Fehler-Handler aus bootstrap-web.php und antwortet mit JSON — eine Verbesserung,
-        // und ein weiteres Stueck von 000-000-0006.
-        [$status, $body] = $this->systemDo('gibtEsNicht');
+        // doAction throws a bare \Exception. Silex turns it into 500 and delivers the
+        // HTML error page — no JSON, although the caller requested JSON.
+        // **Updated with 006-002-0006.** Up to Symfony 3.4 Silex delivered the HTML error
+        // page here, although the caller had requested JSON. Since 4.4 the error handler
+        // from bootstrap-web.php applies and responds with JSON — an improvement, and
+        // another piece of 000-000-0006.
+        [$status, $body] = $this->systemDo('noSuchMethod');
 
         $this->assertSame(500, $status);
-        $this->assertSame('Method gibtEsNicht is not available.', $body['message'] ?? null,
-            'Die Meldung der Exception kommt jetzt als JSON beim Client an');
+        $this->assertSame('Method noSuchMethod is not available.', $body['message'] ?? null,
+            'The exception message now reaches the client as JSON');
     }
 
-    public function testEineFehlendeMethodeEndetEbenfallsInEinemFehler(): void
+    public function testMissingMethodAlsoEndsInError(): void
     {
-        // Ohne 'method' bekommt method_exists() null als zweites Argument — unter PHP 8.3
-        // eine Deprecation, ab PHP 9 ein TypeError. Das Ergebnis ist heute wie dort 500,
-        // aber aus unterschiedlichem Grund. Fuer die Zielplattform PHP 8.5 relevant.
+        // Without 'method', method_exists() receives null as its second argument — under
+        // PHP 8.3 a deprecation, from PHP 9 on a TypeError. The result is 500 today as it
+        // will be then, but for a different reason. Relevant for the target platform PHP 8.5.
         [$status] = $this->postJson('/system/do', array(), $this->token());
 
         $this->assertSame(500, $status);
     }
 
     /**
-     * **Umgedreht mit `000-000-0015`, nicht geloescht.**
+     * **Inverted with `000-000-0015`, not deleted.**
      *
-     * Der Test hiess `testDasTorIstMethodExistsUndNichtEineErlaubnisliste()`: Erreichbar war
-     * alles, was `method_exists()` bejahte — auch `setEM` und `__construct` aus
-     * `BaseController`. Sie wurden aufgerufen und scheiterten erst an ihrer Typpruefung; die
-     * Grenze zog die Signatur, nicht der Endpunkt.
+     * The test was called `testDasTorIstMethodExistsUndNichtEineErlaubnisliste()`: everything
+     * that `method_exists()` affirmed was reachable — including `setEM` and `__construct` from
+     * `BaseController`. They were called and only failed on their type check; the boundary
+     * was drawn by the signature, not by the endpoint.
      *
-     * Jetzt zieht sie eine ausgeschriebene Liste.
+     * Now it is drawn by an explicit list.
      */
-    public function testDasTorIstEineErlaubnislisteUndNichtMethodExists(): void
+    public function testGateIsAllowlistNotMethodExists(): void
     {
         $this->assertTrue(method_exists(SystemController::class, 'setEM'),
-            'Vorbedingung: die Methode gibt es weiterhin');
+            'Precondition: the method still exists');
 
         [$statusSetEm]     = $this->systemDo('setEM');
         [$statusConstruct] = $this->systemDo('__construct');
 
-        $this->assertSame(500, $statusSetEm, 'Abgewiesen am Tor, nicht am Typ');
+        $this->assertSame(500, $statusSetEm, 'Rejected at the gate, not by the type');
         $this->assertSame(500, $statusConstruct);
 
-        // Der Unterschied zu vorher steht in der Meldung: Sie kommt jetzt aus doAction,
-        // nicht aus einer Typpruefung tief in der Basisklasse.
+        // The difference to before is in the message: it now comes from doAction, not from
+        // a type check deep in the base class.
         [, $body] = $this->postJson('/system/do', array('method' => 'setEM'), $this->token());
         $this->assertSame('Method setEM is not available.', $body['message'] ?? null);
     }
 
     /**
-     * **Umgedreht mit `000-000-0015`, nicht geloescht.**
+     * **Inverted with `000-000-0015`, not deleted.**
      *
-     * Der Test hiess `testDoActionRuftSichSelbstAufUndWirdDeshalbNichtScharfGeprueft()` und
-     * pruefte die **Ursache** statt der Wirkung: `doAction` ist public, bestand
-     * `method_exists()` und schickte den Controller in eine Endlosrekursion. Mit dem
-     * Standard-Limit endete sie nach ~0,2 s in einem Fatal Error, **ohne** Limit gar nicht —
-     * der Ausgang haengt an einer Einstellung ausserhalb der Suite, deshalb wurde sie nie
-     * ausgeloest.
+     * The test was called `testDoActionRuftSichSelbstAufUndWirdDeshalbNichtScharfGeprueft()`
+     * and checked the **cause** instead of the effect: `doAction` is public, passed
+     * `method_exists()` and sent the controller into endless recursion. With the default
+     * limit it ended after ~0.2 s in a fatal error, **without** a limit not at all — the
+     * outcome depends on a setting outside the suite, which is why it was never triggered.
      *
-     * Jetzt laesst sie sich gefahrlos ausloesen: Die Erlaubnisliste kennt `doAction` nicht.
-     * `doAction` ist weiterhin public — das muss es sein, der Router ruft es als Route auf.
+     * Now it can be triggered safely: the allowlist does not know `doAction`.
+     * `doAction` is still public — it has to be, the router calls it as a route.
      */
-    public function testDoActionRuftSichNichtMehrSelbstAuf(): void
+    public function testDoActionNoLongerCallsItself(): void
     {
         $doAction = new \ReflectionMethod(SystemController::class, 'doAction');
         $this->assertTrue($doAction->isPublic(),
-            'weiterhin oeffentlich — der Router ruft es als Route auf');
+            'still public — the router calls it as a route');
 
         [$status, $body] = $this->postJson('/system/do', array('method' => 'doAction'), $this->token());
 
         $this->assertSame(500, $status);
         $this->assertSame('Method doAction is not available.', $body['message'] ?? null,
-            'Abgewiesen, statt sich selbst aufzurufen');
+            'Rejected instead of calling itself');
     }
 
-    // ── C: Die Token-Verwaltung ────────────────────────────────────────────────────────
+    // ── C: The token management ────────────────────────────────────────────────────────
 
-    public function testGenerateTokenLiefertHexZeichenUndSchreibtNichts(): void
+    public function testGenerateTokenReturnsHexCharactersAndWritesNothing(): void
     {
-        // Erst anmelden, dann zaehlen: /auth/login legt selbst eine Zeile in pim_token an.
+        // Log in first, then count: /auth/login itself creates a row in pim_token.
         $this->token();
 
-        $vorher = $this->pdo()->query('SELECT COUNT(*) FROM pim_token')->fetchColumn();
+        $before = $this->pdo()->query('SELECT COUNT(*) FROM pim_token')->fetchColumn();
 
         [$status, $body] = $this->systemDo('generateToken');
 
         $this->assertSame(200, $status);
         $this->assertMatchesRegularExpression('/^[0-9a-f]{128}$/', $body['message'],
-            '64 Zufallsbytes als Hex — der Wert wird nur erzeugt, nicht hinterlegt');
-        $this->assertSame($vorher, $this->pdo()->query('SELECT COUNT(*) FROM pim_token')->fetchColumn(),
-            'generateToken legt keine Zeile an; das tut erst addToken');
+            '64 random bytes as hex — the value is only generated, not stored');
+        $this->assertSame($before, $this->pdo()->query('SELECT COUNT(*) FROM pim_token')->fetchColumn(),
+            'generateToken creates no row; only addToken does');
     }
 
-    public function testAddTokenLegtEineZeileAnUndProtokolliertSie(): void
+    public function testAddTokenCreatesRowAndLogsIt(): void
     {
-        $wert = 'test-'.bin2hex(random_bytes(16));
+        $value = 'test-'.bin2hex(random_bytes(16));
 
-        [$status, $body] = $this->tokenAnlegen($wert, 'https://addtoken.example');
+        [$status, $body] = $this->createToken($value, 'https://addtoken.example');
 
         $this->assertSame(200, $status);
         $this->assertSame(
             array('id', 'token', 'referrer', 'user'),
             array_keys($body['message']),
-            'Die Antwort traegt die Zeile samt eingebettetem Benutzer'
+            'The response carries the row including the embedded user'
         );
-        $this->assertSame($wert, $body['message']['token']);
+        $this->assertSame($value, $body['message']['token']);
         $this->assertSame('https://addtoken.example', $body['message']['referrer']);
         $this->assertSame(array('id', 'alias', 'active'), array_keys($body['message']['user']),
-            'Vom Benutzer werden drei Felder gespiegelt — kein Passwort, kein Salt');
+            'Three fields of the user are mirrored — no password, no salt');
 
-        $zeile = $this->pdo()->prepare('SELECT token, referrer, user_id FROM pim_token WHERE id = :id');
-        $zeile->execute(array('id' => $body['message']['id']));
-        $gefunden = $zeile->fetch(\PDO::FETCH_ASSOC);
+        $row = $this->pdo()->prepare('SELECT token, referrer, user_id FROM pim_token WHERE id = :id');
+        $row->execute(array('id' => $body['message']['id']));
+        $found = $row->fetch(\PDO::FETCH_ASSOC);
 
         /*
-         * UMGEDREHT MIT 013-001-0004.
+         * INVERTED WITH 013-001-0004.
          *
-         * Hier stand `assertSame($wert, $gefunden['token'], 'Der Token steht im Klartext in
-         * der Tabelle')` — festgehalten als das, was galt, mit dem Vermerk, dass es zu
-         * Story 013-001 gehoert. Jetzt steht dort ein SHA-256, und der Klartext steht
-         * nirgends.
+         * This used to say `assertSame($value, $found['token'], 'The token is stored in plain
+         * text in the table')` — recorded as what was true, with the note that it belongs to
+         * story 013-001. Now a SHA-256 is stored there, and the plain text is stored nowhere.
          */
-        $this->assertNotSame($wert, $gefunden['token'], 'Der Klartext steht NICHT in der Tabelle');
-        $this->assertSame(hash('sha256', $wert), $gefunden['token'], 'sondern sein SHA-256');
-        $this->assertSame($this->adminId(), $gefunden['user_id']);
+        $this->assertNotSame($value, $found['token'], 'The plain text is NOT stored in the table');
+        $this->assertSame(hash('sha256', $value), $found['token'], 'but its SHA-256');
+        $this->assertSame($this->adminId(), $found['user_id']);
     }
 
     /**
-     * **Umgedreht mit `000-000-0015`, nicht geloescht.**
+     * **Inverted with `000-000-0015`, not deleted.**
      *
-     * Der Test hiess `testAddTokenSchreibtDenLogeintragMitEinemDeutschenModusStattDerKonstanten()`:
-     * `addToken` setzte `'Erstellt'`, `deleteToken` `'Gelöscht'`. In `pim_log.mode` standen
-     * damit zwei Vokabulare nebeneinander, und wer nach `Log::INSERTED` filterte, fand die
-     * Token-Vorgaenge nicht.
+     * The test was called `testAddTokenSchreibtDenLogeintragMitEinemDeutschenModusStattDerKonstanten()`:
+     * `addToken` set `'Erstellt'`, `deleteToken` `'Gelöscht'`. `pim_log.mode` thus held two
+     * vocabularies side by side, and whoever filtered by `Log::INSERTED` did not find the
+     * token operations.
      *
-     * **Der Altbestand bleibt, wie er ist** — bewusst. `pim_log` ist ein Protokoll; alte
-     * Zeilen nachtraeglich umzuschreiben hiesse, die Aufzeichnung zu aendern. Wer historisch
-     * auswertet, sucht fuer Token-Vorgaenge vor diesem Stand nach den deutschen Werten. Der
-     * Vermerk steht in `an_project/docs/breaking-changes.md`.
+     * **The existing data stays as it is** — deliberately. `pim_log` is a log; rewriting old
+     * rows afterwards would mean altering the record. Whoever evaluates history searches for
+     * the German values for token operations before this state. The note is in
+     * `an_project/docs/breaking-changes.md`.
      */
-    public function testAddTokenSchreibtDenLogeintragMitDerKonstanten(): void
+    public function testAddTokenWritesLogEntryWithConstant(): void
     {
-        $wert = 'test-'.bin2hex(random_bytes(16));
+        $value = 'test-'.bin2hex(random_bytes(16));
 
-        [, $body] = $this->tokenAnlegen($wert);
+        [, $body] = $this->createToken($value);
 
         $log = $this->pdo()->prepare('SELECT mode, model_name, model_label FROM pim_log WHERE model_name = :n AND model_id = :i');
         $log->execute(array('n' => 'PIM\\Token', 'i' => (string) $body['message']['id']));
-        $eintrag = $log->fetch(\PDO::FETCH_ASSOC);
+        $entry = $log->fetch(\PDO::FETCH_ASSOC);
 
-        $this->assertSame('INS', $eintrag['mode'], "Log::INSERTED, nicht 'Erstellt'");
-        $this->assertSame('PIM\\Token', $eintrag['model_name']);
+        $this->assertSame('INS', $entry['mode'], "Log::INSERTED, not 'Erstellt'");
+        $this->assertSame('PIM\\Token', $entry['model_name']);
         /*
-         * AUCH DAS UMGEDREHT MIT 013-001-0004.
+         * ALSO INVERTED WITH 013-001-0004.
          *
-         * Der Test hielt fest: „Der Token steht im Klartext im Protokoll — das gehoert zu
-         * 013-003." Es gehoerte in Wahrheit hierher: `pim_log` lebt laenger als die Sitzung,
-         * die es beschreibt, und ein Dump des Protokolls uebergab dieselben Sitzungen wie ein
-         * Dump der Tokentabelle. Als Kennzeichen taugt der Hash genauso.
+         * The test recorded: "The token is stored in plain text in the log — that belongs to
+         * 013-003." In truth it belonged here: `pim_log` lives longer than the session it
+         * describes, and a dump of the log handed over the same sessions as a dump of the
+         * token table. The hash serves just as well as an identifier.
          */
-        $this->assertNotSame($wert, $eintrag['model_label'], 'Kein Klartext-Token im Protokoll');
-        $this->assertSame(hash('sha256', $wert), $eintrag['model_label']);
+        $this->assertNotSame($value, $entry['model_label'], 'No plain-text token in the log');
+        $this->assertSame(hash('sha256', $value), $entry['model_label']);
     }
 
-    public function testAddTokenBrauchtReferrerTokenUndBenutzer(): void
+    public function testAddTokenRequiresReferrerTokenAndUser(): void
     {
         $this->token();
 
-        $vorher = $this->pdo()->query('SELECT COUNT(*) FROM pim_token')->fetchColumn();
+        $before = $this->pdo()->query('SELECT COUNT(*) FROM pim_token')->fetchColumn();
 
-        [$ohneAlles]    = $this->systemDo('addToken');
-        [$ohneBenutzer] = $this->systemDo('addToken', array('referrer' => 'https://x.example', 'token' => 'unvollstaendig'));
+        [$withoutAnything] = $this->systemDo('addToken');
+        [$withoutUser]     = $this->systemDo('addToken', array('referrer' => 'https://x.example', 'token' => 'incomplete'));
 
-        $this->assertSame(500, $ohneAlles);
-        $this->assertSame(500, $ohneBenutzer);
-        $this->assertSame($vorher, $this->pdo()->query('SELECT COUNT(*) FROM pim_token')->fetchColumn(),
-            'Ein unvollstaendiger Aufruf hinterlaesst nichts');
+        $this->assertSame(500, $withoutAnything);
+        $this->assertSame(500, $withoutUser);
+        $this->assertSame($before, $this->pdo()->query('SELECT COUNT(*) FROM pim_token')->fetchColumn(),
+            'An incomplete call leaves nothing behind');
     }
 
-    public function testAddTokenLehntEinenUnbekanntenBenutzerAb(): void
+    public function testAddTokenRejectsUnknownUser(): void
     {
         [$status] = $this->systemDo('addToken', array(
             'referrer' => 'https://x.example',
             'token'    => 'test-'.bin2hex(random_bytes(8)),
-            'user'     => 'diesen-benutzer-gibt-es-nicht',
+            'user'     => 'this-user-does-not-exist',
         ));
 
         $this->assertSame(500, $status);
     }
 
-    public function testEinBereitsVergebenerTokenWirdAbgelehnt(): void
+    public function testAlreadyAssignedTokenIsRejected(): void
     {
-        $wert = 'test-'.bin2hex(random_bytes(16));
+        $value = 'test-'.bin2hex(random_bytes(16));
 
-        [$erster] = $this->tokenAnlegen($wert);
-        $this->assertSame(200, $erster, 'Vorbedingung');
+        [$first] = $this->createToken($value);
+        $this->assertSame(200, $first, 'Precondition');
 
-        [$zweiter] = $this->systemDo('addToken', array(
-            'referrer' => 'https://zweitversuch.example',
-            'token'    => $wert,
+        [$second] = $this->systemDo('addToken', array(
+            'referrer' => 'https://secondattempt.example',
+            'token'    => $value,
             'user'     => $this->adminId(),
         ));
 
-        $this->assertSame(500, $zweiter, 'pim_token.token ist unique — der zweite Versuch scheitert');
+        $this->assertSame(500, $second, 'pim_token.token is unique — the second attempt fails');
     }
 
-    public function testListTokensZeigtNurTokenMitReferrer(): void
+    public function testListTokensShowsOnlyTokensWithReferrer(): void
     {
-        // Die Abfrage lautet "WHERE token.referrer <> ''". Anmeldetoken aus /auth/login haben
-        // keinen Referrer (NULL) und tauchen deshalb nicht auf — deshalb kann diese Methode
-        // den Token des laufenden Tests auch nicht preisgeben. Die Trennung ist ein
-        // Nebeneffekt der Abfrage, keine ausdrueckliche Regel.
-        $wert = 'test-'.bin2hex(random_bytes(16));
-        $this->tokenAnlegen($wert, 'https://listtokens.example');
+        // The query reads "WHERE token.referrer <> ''". Login tokens from /auth/login have
+        // no referrer (NULL) and therefore do not show up — which is why this method cannot
+        // reveal the token of the running test either. The separation is a side effect of
+        // the query, not an explicit rule.
+        $value = 'test-'.bin2hex(random_bytes(16));
+        $this->createToken($value, 'https://listtokens.example');
 
         [$status, $body] = $this->systemDo('listTokens');
 
         $this->assertSame(200, $status);
 
-        $werte = array_column($body['message'], 'token');
+        $values = array_column($body['message'], 'token');
         /*
-         * `token` ist seit 013-001-0004 der HASH. Der Token selbst laesst sich nicht mehr
-         * nachschlagen — auch nicht vom Betreiber. Wer einen in der Hand haelt, hasht ihn
-         * selbst und findet so seine Zeile.
+         * Since 013-001-0004 `token` is the HASH. The token itself can no longer be looked
+         * up — not even by the operator. Whoever holds one hashes it themselves and finds
+         * their row that way.
          */
-        $this->assertNotContains($wert, $werte, 'Der Klartext wird nicht ausgeliefert');
-        $this->assertContains(hash('sha256', $wert), $werte, 'sein Hash benennt die Zeile');
-        $this->assertNotContains($this->token(), $werte, 'Der Anmeldetoken des Testlaufs taucht nicht auf');
+        $this->assertNotContains($value, $values, 'The plain text is not delivered');
+        $this->assertContains(hash('sha256', $value), $values, 'its hash identifies the row');
+        $this->assertNotContains($this->token(), $values, 'The login token of the test run does not show up');
 
-        foreach ($body['message'] as $eintrag) {
-            $this->assertSame(array('id', 'token', 'referrer', 'user'), array_keys($eintrag));
-            $this->assertNotSame('', $eintrag['referrer']);
+        foreach ($body['message'] as $entry) {
+            $this->assertSame(array('id', 'token', 'referrer', 'user'), array_keys($entry));
+            $this->assertNotSame('', $entry['referrer']);
         }
     }
 
     /**
-     * Der Referrer-Token funktioniert weiterhin (013-001-0004).
+     * The referrer token still works (013-001-0004).
      *
-     * Er ist der zweite Weg in die API — ein Dauerschluessel ohne Timeout, den ein Betreiber
-     * selbst waehlt und ueber `addToken` hinterlegt. Beim Hashen der Tokentabelle ist genau er
-     * der Fall, den man uebersehen kann: Sein Wert kommt vom Aufrufer und nicht aus dem
-     * Konstruktor, er wird also ueber `setToken()` gesetzt statt beim Anlegen erzeugt.
+     * It is the second way into the API — a permanent key without timeout that an operator
+     * chooses and stores via `addToken`. When hashing the token table, exactly this is the
+     * case that is easy to overlook: its value comes from the caller and not from the
+     * constructor, so it is set via `setToken()` instead of being generated on creation.
      */
-    public function testEinReferrerTokenOeffnetDieApiWeiterhin(): void
+    public function testReferrerTokenStillOpensApi(): void
     {
-        $wert = 'test-'.bin2hex(random_bytes(16));
-        $this->tokenAnlegen($wert, 'https://referrer.example');
+        $value = 'test-'.bin2hex(random_bytes(16));
+        $this->createToken($value, 'https://referrer.example');
 
-        [$status] = $this->get('/api/schema', $wert);
+        [$status] = $this->get('/api/schema', $value);
 
-        $this->assertSame(200, $status, 'Der selbst gewaehlte API-Token wird angenommen');
+        $this->assertSame(200, $status, 'The self-chosen API token is accepted');
     }
 
     /**
-     * **Umgedreht mit `000-000-0015`, nicht geloescht.**
+     * **Inverted with `000-000-0015`, not deleted.**
      *
-     * Der Test hiess `testDeleteTokenIstDurchEinenFalschenNamensraumUnbrauchbar()`. Die
-     * Methode suchte in `Areanet\Contently\Entity\Token` — „Contently" statt „PIM", die
-     * einzige Stelle im ganzen Baum mit diesem Namen. Doctrine kannte die Klasse nicht, und
-     * die Methode endete vor ihrer ersten fachlichen Zeile: **Ein API-Token liess sich ueber
-     * die API nicht wieder loswerden.**
+     * The test was called `testDeleteTokenIstDurchEinenFalschenNamensraumUnbrauchbar()`. The
+     * method looked in `Areanet\Contently\Entity\Token` — "Contently" instead of "PIM", the
+     * only place in the whole tree with that name. Doctrine did not know the class, and the
+     * method ended before its first functional line: **an API token could not be got rid of
+     * via the API.**
      *
-     * Der alte Test forderte das Umdrehen woertlich ein — „dann muss die Zeile verschwinden
-     * und ein Logeintrag mit `Log::DELETED` entstehen". Genau das steht hier.
+     * The old test literally demanded the inversion — "then the row has to disappear and a
+     * log entry with `Log::DELETED` has to be created". Exactly that is what is here.
      *
-     * Der Rest der Methode lief bis dahin **nie**. Geprueft wird deshalb nicht nur der
-     * Repository-Aufruf, sondern was danach kommt.
+     * The rest of the method **never** ran until then. So the test checks not only the
+     * repository call, but what comes after it.
      */
-    public function testDeleteTokenEntferntDieZeileUndProtokolliertEs(): void
+    public function testDeleteTokenRemovesRowAndLogsIt(): void
     {
-        $wert = 'test-'.bin2hex(random_bytes(16));
+        $value = 'test-'.bin2hex(random_bytes(16));
 
-        [, $body] = $this->tokenAnlegen($wert);
+        [, $body] = $this->createToken($value);
         $id       = $body['message']['id'];
 
         [$status] = $this->systemDo('deleteToken', array('id' => $id));
         $this->assertSame(200, $status);
 
-        $zeile = $this->pdo()->prepare('SELECT COUNT(*) FROM pim_token WHERE id = :id');
-        $zeile->execute(array('id' => $id));
-        $this->assertSame('0', (string) $zeile->fetchColumn(), 'Die Zeile ist weg');
+        $row = $this->pdo()->prepare('SELECT COUNT(*) FROM pim_token WHERE id = :id');
+        $row->execute(array('id' => $id));
+        $this->assertSame('0', (string) $row->fetchColumn(), 'The row is gone');
 
         $log = $this->pdo()->prepare(
             'SELECT mode, model_label FROM pim_log WHERE model_name = :n AND model_id = :i AND mode = :m'
         );
         $log->execute(array('n' => 'PIM\\Token', 'i' => (string) $id, 'm' => 'DEL'));
-        $eintrag = $log->fetch(\PDO::FETCH_ASSOC);
+        $entry = $log->fetch(\PDO::FETCH_ASSOC);
 
-        $this->assertNotFalse($eintrag, 'und ein Logeintrag mit Log::DELETED steht da');
-        $this->assertSame(hash('sha256', $wert), $eintrag['model_label'], 'mit dem Hash als Kennzeichen');
+        $this->assertNotFalse($entry, 'and a log entry with Log::DELETED exists');
+        $this->assertSame(hash('sha256', $value), $entry['model_label'], 'with the hash as identifier');
     }
 
-    public function testDeleteTokenMeldetEinenUnbekanntenToken(): void
+    public function testDeleteTokenReportsUnknownToken(): void
     {
-        // Die zweite Haelfte, die der Task verlangt: Der Fall "Token unbekannt". Er lief
-        // vorher aus demselben Grund nie — die Methode kam gar nicht bis zur Pruefung.
+        // The second half the task requires: the case "token unknown". Before, it never ran
+        // for the same reason — the method did not even get as far as the check.
         [$status, $body] = $this->postJson(
             '/system/do',
-            array('method' => 'deleteToken', 'id' => 'gibtesnicht-'.bin2hex(random_bytes(4))),
+            array('method' => 'deleteToken', 'id' => 'doesnotexist-'.bin2hex(random_bytes(4))),
             $this->token()
         );
 
@@ -471,123 +469,122 @@ class SystemControllerApiTest extends IntegrationTestCase
         $this->assertSame('Invalid token', $body['message'] ?? null);
     }
 
-    public function testDerAnmeldeTokenDesLaufsUeberstehtDieTokenMethoden(): void
+    public function testLoginTokenOfTestRunSurvivesTokenMethods(): void
     {
-        // Die Zusicherung, die diese Datei gegenueber dem Rest der Suite gibt: Was hier mit
-        // Token geschieht, beruehrt den Token des laufenden Tests nicht.
+        // The guarantee this file gives to the rest of the suite: whatever happens to tokens
+        // here does not affect the token of the running test.
         $this->systemDo('generateToken');
         $this->systemDo('listTokens');
-        $this->tokenAnlegen('test-'.bin2hex(random_bytes(16)));
+        $this->createToken('test-'.bin2hex(random_bytes(16)));
 
         [$status] = $this->get('/api/schema', $this->token());
 
-        $this->assertSame(200, $status, 'Der Anmeldetoken gilt weiterhin');
+        $this->assertSame(200, $status, 'The login token is still valid');
     }
 
     /**
-     * Der Aufraeumweg zu Punkt 5 aus `000-000-0015`.
+     * The cleanup path for item 5 of `000-000-0015`.
      *
-     * `pim_token` wuchs unbegrenzt: Aufgeraeumt wurde nur traege, wenn ein abgelaufener Token
-     * noch einmal vorgezeigt wurde. Wer den Browser schliesst, hinterlaesst eine Zeile fuer
-     * immer.
+     * `pim_token` grew without limit: cleanup only happened lazily, when an expired token was
+     * presented once more. Whoever closes the browser leaves a row behind forever.
      *
-     * **Der Task liess offen, ob `013-003` die Tabelle ohnehin ersetzt. Tut es nicht:** Die
-     * Story behaelt den opaquen DB-Token ausdruecklich als Refresh-Token. Also braucht es den
-     * Aufraeumlauf — `appcms:token:cleanup`.
+     * **The task left open whether `013-003` replaces the table anyway. It does not:** the
+     * story explicitly keeps the opaque DB token as refresh token. So the cleanup run is
+     * needed — `appcms:token:cleanup`.
      *
-     * Geprueft wird ueber die Datenbank, nicht ueber den Command-Aufruf: Die Suite laeuft
-     * gegen einen Testserver, der Command in einem eigenen Prozess. Was zaehlt, ist die
-     * Rechnung, nach der er entscheidet — und die ist dieselbe wie in `checkToken()`.
+     * The check goes through the database, not through the command call: the suite runs
+     * against a test server, the command in a process of its own. What counts is the
+     * calculation it decides by — and that is the same as in `checkToken()`.
      */
-    public function testAbgelaufeneAnmeldetokenLassenSichAufraeumen(): void
+    public function testExpiredLoginTokensCanBeCleanedUp(): void
     {
-        $benutzerId = $this->pdo()->query("SELECT id FROM pim_user WHERE alias = 'admin'")->fetchColumn();
+        $userId = $this->pdo()->query("SELECT id FROM pim_user WHERE alias = 'admin'")->fetchColumn();
 
-        // Ein abgelaufener Anmeldetoken (kein referrer) und ein API-Token (mit referrer).
-        $abgelaufen = 'alt-'.bin2hex(random_bytes(16));
-        $apiToken   = 'api-'.bin2hex(random_bytes(16));
+        // An expired login token (no referrer) and an API token (with referrer).
+        $expired  = 'old-'.bin2hex(random_bytes(16));
+        $apiToken = 'api-'.bin2hex(random_bytes(16));
 
-        // pim_token.id ist eine Integer-Spalte mit Auto-Increment — anders als die Entities,
-        // die von Base erben und eine GUID tragen. Die Id kommt deshalb von MySQL.
-        $einfuegen = $this->pdo()->prepare(
+        // pim_token.id is an integer column with auto-increment — unlike the entities that
+        // inherit from Base and carry a GUID. The id therefore comes from MySQL.
+        $insert = $this->pdo()->prepare(
             'INSERT INTO pim_token (user_id, token, referrer, created, modified)'
             .' VALUES (:u, :t, :r, :c, :m)'
         );
-        $alt = (new \DateTime('-30 days'))->format('Y-m-d H:i:s');
+        $old = (new \DateTime('-30 days'))->format('Y-m-d H:i:s');
 
-        $einfuegen->execute(array('u' => $benutzerId, 't' => $abgelaufen, 'r' => null, 'c' => $alt, 'm' => $alt));
-        $idAbgelaufen = $this->pdo()->lastInsertId();
+        $insert->execute(array('u' => $userId, 't' => $expired, 'r' => null, 'c' => $old, 'm' => $old));
+        $idExpired = $this->pdo()->lastInsertId();
 
-        $einfuegen->execute(array('u' => $benutzerId, 't' => $apiToken, 'r' => 'https://example.invalid', 'c' => $alt, 'm' => $alt));
+        $insert->execute(array('u' => $userId, 't' => $apiToken, 'r' => 'https://example.invalid', 'c' => $old, 'm' => $old));
         $idApi = $this->pdo()->lastInsertId();
 
-        $this->deleteAfterTest('pim_token', $idAbgelaufen);
+        $this->deleteAfterTest('pim_token', $idExpired);
         $this->deleteAfterTest('pim_token', $idApi);
 
-        $ausgabe = array();
+        $output = array();
         exec(
             sprintf('%s %s appcms:token:cleanup 2>&1', escapeshellarg(PHP_BINARY), escapeshellarg(self::console())),
-            $ausgabe
+            $output
         );
 
-        $zaehlen = $this->pdo()->prepare('SELECT COUNT(*) FROM pim_token WHERE id = :id');
+        $count = $this->pdo()->prepare('SELECT COUNT(*) FROM pim_token WHERE id = :id');
 
-        $zaehlen->execute(array('id' => $idAbgelaufen));
-        $this->assertSame('0', (string) $zaehlen->fetchColumn(),
-            'Der abgelaufene Anmeldetoken ist weg — '.implode(' ', $ausgabe));
+        $count->execute(array('id' => $idExpired));
+        $this->assertSame('0', (string) $count->fetchColumn(),
+            'The expired login token is gone — '.implode(' ', $output));
 
-        $zaehlen->execute(array('id' => $idApi));
-        $this->assertSame('1', (string) $zaehlen->fetchColumn(),
-            'Der API-Token mit referrer bleibt: Er verfaellt nicht ueber die Zeit');
+        $count->execute(array('id' => $idApi));
+        $this->assertSame('1', (string) $count->fetchColumn(),
+            'The API token with referrer stays: it does not expire over time');
     }
 
-    public function testJedeAnmeldungLegtEineZeileAnDieNurBeimNaechstenGebrauchVerfaellt(): void
+    public function testEveryLoginCreatesRowThatOnlyExpiresOnNextUse(): void
     {
-        // Gehoert hierher, weil pim_token die Tabelle ist, die dieser Controller verwaltet —
-        // und weil listTokens sie ausdruecklich **nicht** zeigt (kein Referrer).
+        // Belongs here because pim_token is the table this controller manages — and because
+        // listTokens explicitly does **not** show it (no referrer).
         //
-        // /auth/login legt je Anmeldung eine Zeile an. Aufgeraeumt wird nur traege, im
-        // opaquen Zweig des Tokenhandlers: Wird ein abgelaufener Token noch einmal vorgezeigt,
-        // verschwindet er. Ein Token, den niemand wieder benutzt — der Normalfall beim
-        // Schliessen des Browsers — bleibt unbegrenzt stehen. Es gibt keinen Aufraeumlauf,
-        // kein Console-Command und keinen Endpunkt dafuer.
+        // /auth/login creates one row per login. Cleanup only happens lazily, in the opaque
+        // branch of the token handler: if an expired token is presented once more, it
+        // disappears. A token nobody uses again — the normal case when closing the
+        // browser — stays forever. There is no cleanup run, no console command and no
+        // endpoint for it.
         //
-        // NACHGEZOGEN MIT 013-002-0004: Der traege Loeschzweig stand bis dahin in
-        // BaseControllerProvider::checkToken(). Die Methode ist entfallen; der Zweig steht
-        // unveraendert in Classes/Security/TokenHandler.php.
+        // UPDATED WITH 013-002-0004: until then the lazy deletion branch was in
+        // BaseControllerProvider::checkToken(). The method is gone; the branch lives on
+        // unchanged in Classes/Security/TokenHandler.php.
         //
-        // Befund, notiert in 000-000-0015. Story 013-003 (JWT und Widerruf) loest das Problem
-        // vermutlich ohnehin auf; bis dahin ist es festgehalten.
-        $vorher = (int) $this->pdo()->query('SELECT COUNT(*) FROM pim_token')->fetchColumn();
+        // Finding, noted in 000-000-0015. Story 013-003 (JWT and revocation) probably solves
+        // the problem anyway; until then it is recorded.
+        $before = (int) $this->pdo()->query('SELECT COUNT(*) FROM pim_token')->fetchColumn();
 
-        $frisch = $this->login();
+        $fresh = $this->login();
 
-        $nachher = (int) $this->pdo()->query('SELECT COUNT(*) FROM pim_token')->fetchColumn();
-        $this->assertSame($vorher + 1, $nachher, 'Die Anmeldung hinterlaesst eine Zeile');
+        $after = (int) $this->pdo()->query('SELECT COUNT(*) FROM pim_token')->fetchColumn();
+        $this->assertSame($before + 1, $after, 'The login leaves a row behind');
 
-        // Gesucht wird ueber den HASH. Hier stand der Klartext — ein Rest, den 013-001-0004
-        // uebersehen hat. Die Abfrage fand seither NICHTS, `fetch()` lieferte `false`, und
-        // `$gefunden['referrer']` war deshalb null: Die Zusicherung darunter galt, ohne etwas
-        // zu pruefen. Aufgefallen ist es erst, als die Quelltextprobe am Ende dieses Tests
-        // wegen 013-002-0004 rot wurde.
-        $zeile = $this->pdo()->prepare('SELECT id, referrer FROM pim_token WHERE token = :t');
-        $zeile->execute(array('t' => hash('sha256', $frisch)));
-        $gefunden = $zeile->fetch(\PDO::FETCH_ASSOC);
+        // The lookup uses the HASH. The plain text used to be here — a leftover that
+        // 013-001-0004 overlooked. Since then the query found NOTHING, `fetch()` returned
+        // `false`, and `$found['referrer']` was therefore null: the assertion below held
+        // without checking anything. It was only noticed when the source probe at the end of
+        // this test turned red because of 013-002-0004.
+        $row = $this->pdo()->prepare('SELECT id, referrer FROM pim_token WHERE token = :t');
+        $row->execute(array('t' => hash('sha256', $fresh)));
+        $found = $row->fetch(\PDO::FETCH_ASSOC);
 
-        $this->assertIsArray($gefunden, 'Die Zeile der Anmeldung ist auffindbar');
-        $this->deleteAfterTest('pim_token', (string) $gefunden['id']);
+        $this->assertIsArray($found, 'The row of the login can be found');
+        $this->deleteAfterTest('pim_token', (string) $found['id']);
 
-        $this->assertNull($gefunden['referrer'],
-            'Ohne Referrer — deshalb unterliegt er dem Timeout und taucht nicht in listTokens auf');
+        $this->assertNull($found['referrer'],
+            'Without referrer — therefore it is subject to the timeout and does not show up in listTokens');
 
-        $quelle = file_get_contents(CONTENTFLY_PROJECT_DIR.'/lib/contentfly/Classes/Security/TokenHandler.php');
-        $this->assertStringContainsString('$this->em->remove($row);', $quelle,
-            'Entfernt wird nur im opaquen Zweig — also nur, wenn der Token erneut vorgezeigt wird');
+        $source = file_get_contents(CONTENTFLY_PROJECT_DIR.'/lib/contentfly/Classes/Security/TokenHandler.php');
+        $this->assertStringContainsString('$this->em->remove($row);', $source,
+            'Removal happens only in the opaque branch — so only when the token is presented again');
     }
 
     // ── flushSchemaCache ───────────────────────────────────────────────────────────────
 
-    public function testFlushSchemaCacheMeldetErfolgUndLaesstDasSchemaLesbar(): void
+    public function testFlushSchemaCacheReportsSuccessAndLeavesSchemaReadable(): void
     {
         [$status, $body] = $this->systemDo('flushSchemaCache');
 
@@ -595,75 +592,75 @@ class SystemControllerApiTest extends IntegrationTestCase
         $this->assertSame('Schema cache cleared!', $body['message']);
 
         [$statusSchema] = $this->get('/api/schema', $this->token());
-        $this->assertSame(200, $statusSchema, 'Das Schema wird danach neu aufgebaut');
+        $this->assertSame(200, $statusSchema, 'The schema is rebuilt afterwards');
     }
 
-    public function testFlushSchemaCacheLeertDenAbfrageCacheWirklich(): void
+    public function testFlushSchemaCacheReallyClearsQueryCache(): void
     {
-        // NEU MIT 010-002-0003, weil die beiden Tests darueber und darunter die Methode nur
-        // zur Haelfte zusichern: Sie pruefen die Meldung und die Datei
-        // data/cache/schema.cache — nicht die Doctrine-Caches, um die es der Methode
-        // eigentlich geht. Ein Umbau von deleteAll() auf clear() waere daran nicht
-        // aufgefallen, und ein Aufruf, der gar nichts mehr leert, ebensowenig.
+        // NEW WITH 010-002-0003, because the two tests above and below only half assert the
+        // method: they check the message and the file data/cache/schema.cache — not the
+        // Doctrine caches the method is actually about. A change from deleteAll() to clear()
+        // would not have been noticed by them, and neither would a call that no longer
+        // clears anything.
         //
-        // Beobachtet wird das Verzeichnis, nicht der Cache selbst: Der Testlauf sieht die
-        // Anwendung nur ueber HTTP, und der Abfrage-Cache liegt bei der ausgelieferten
-        // Konfiguration unter data/cache/query. Der Metadaten-Cache bleibt aussen vor — er
-        // schreibt nichts, und zwar aus einem eigenen Grund (010-002-0005).
+        // The directory is observed, not the cache itself: the test run sees the application
+        // only via HTTP, and with the shipped configuration the query cache lives under
+        // data/cache/query. The metadata cache is left out — it writes nothing, and for a
+        // reason of its own (010-002-0005).
         //
-        // GEPRUEFT WIRD, DASS KEINE DATEI VON VORHER UEBERLEBT — nicht, dass das Verzeichnis
-        // danach leer ist. Der Unterschied ist gemessen: Nach dem Flush stehen dort wieder
-        // Dateien, aber andere. Der Request laeuft nach der Action weiter und stellt dabei
-        // erneut Abfragen; ein leeres Verzeichnis zu verlangen hiesse, dem Endpunkt etwas
-        // zuzuschreiben, was er gar nicht zusagt.
-        $verzeichnis = self::dataDir().'/cache/query';
+        // THE CHECK IS THAT NO FILE FROM BEFORE SURVIVES — not that the directory is empty
+        // afterwards. The difference is measured: after the flush there are files again, but
+        // different ones. The request continues after the action and runs queries again;
+        // demanding an empty directory would attribute something to the endpoint that it
+        // does not promise at all.
+        $directory = self::dataDir().'/cache/query';
 
-        // Etwas in den Cache bringen: /api/list stellt eine DQL-Abfrage.
+        // Put something into the cache: /api/list runs a DQL query.
         $this->postJson('/api/list', array('entity' => 'PIM\\User'), $this->token());
 
-        $vorher = $this->dateienAuflisten($verzeichnis);
-        $this->assertNotEmpty($vorher, 'Vorbedingung: der Abfrage-Cache traegt Eintraege');
+        $before = $this->listFiles($directory);
+        $this->assertNotEmpty($before, 'Precondition: the query cache holds entries');
 
         $this->systemDo('flushSchemaCache');
 
-        $ueberlebt = array_intersect($vorher, $this->dateienAuflisten($verzeichnis));
+        $survived = array_intersect($before, $this->listFiles($directory));
 
-        $this->assertSame(array(), array_values($ueberlebt),
-            'Keine der Dateien von vorher hat den Flush ueberlebt');
+        $this->assertSame(array(), array_values($survived),
+            'None of the files from before survived the flush');
     }
 
-    /** Listet die Dateien unterhalb eines Verzeichnisses; fehlt es, ist die Liste leer. */
-    private function dateienAuflisten(string $verzeichnis): array
+    /** Lists the files below a directory; if it is missing, the list is empty. */
+    private function listFiles(string $directory): array
     {
-        if (!is_dir($verzeichnis)) {
+        if (!is_dir($directory)) {
             return array();
         }
 
-        $dateien = array();
+        $files = array();
 
-        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($verzeichnis, \FilesystemIterator::SKIP_DOTS)) as $eintrag) {
-            if ($eintrag->isFile()) {
-                $dateien[] = $eintrag->getPathname();
+        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS)) as $entry) {
+            if ($entry->isFile()) {
+                $files[] = $entry->getPathname();
             }
         }
 
-        sort($dateien);
+        sort($files);
 
-        return $dateien;
+        return $files;
     }
 
-    public function testFlushSchemaCacheMeldetErfolgAuchWennEsNichtsZuLoeschenGibt(): void
+    public function testFlushSchemaCacheReportsSuccessEvenWhenNothingToDelete(): void
     {
-        // Die Methode raeumt zwei Dinge: die Datei data/cache/schema.cache und die
-        // Doctrine-Caches. Die Datei entsteht aber nur, wenn APP_ENABLE_SCHEMA_CACHE an ist
-        // — und die Vorlage schaltet sie aus. Unter der ausgelieferten Konfiguration ist der
-        // erste Teil also folgenlos; die Meldung lautet trotzdem unveraendert "geleert!".
-        $vorlage = file_get_contents(CONTENTFLY_PROJECT_DIR.'/custom/config.php');
+        // The method clears two things: the file data/cache/schema.cache and the Doctrine
+        // caches. But the file is only created when APP_ENABLE_SCHEMA_CACHE is on — and the
+        // template switches it off. Under the shipped configuration the first part therefore
+        // has no effect; the message still reads "cleared!" unchanged.
+        $template = file_get_contents(CONTENTFLY_PROJECT_DIR.'/custom/config.php');
 
         $this->assertMatchesRegularExpression(
             '/APP_ENABLE_SCHEMA_CACHE\s*=\s*false;/',
-            $vorlage,
-            'Vorbedingung: die Vorlage schaltet den Schema-Cache aus'
+            $template,
+            'Precondition: the template switches the schema cache off'
         );
 
         $this->assertFileDoesNotExist(self::dataDir().'/cache/schema.cache');
@@ -671,65 +668,65 @@ class SystemControllerApiTest extends IntegrationTestCase
         [, $body] = $this->systemDo('flushSchemaCache');
 
         $this->assertSame('Schema cache cleared!', $body['message'],
-            'Die Meldung sagt nicht, ob ueberhaupt etwas da war');
+            'The message does not say whether there was anything at all');
     }
 
-    // ── D: Das Notschloss ──────────────────────────────────────────────────────────────
+    // ── D: The emergency lock ──────────────────────────────────────────────────────────
 
     /**
-     * **Umgedreht mit `000-000-0015`, nicht geloescht.**
+     * **Inverted with `000-000-0015`, not deleted.**
      *
-     * Der Test hiess `testValidateORMStehtInDerAusnahmelisteExistiertAberNicht()`: Das
-     * Notschloss liess `validateORM` und `updateDatabase` **ohne Token und ohne Adminrecht**
-     * durch — und die erste der beiden gab es im Controller nicht. Eine Ausnahme ins Leere.
+     * The test was called `testValidateORMStehtInDerAusnahmelisteExistiertAberNicht()`: the
+     * emergency lock let `validateORM` and `updateDatabase` through **without token and
+     * without admin rights** — and the first of the two did not exist in the controller. An
+     * exception into the void.
      *
-     * **Gestrichen statt wiederhergestellt.** Doctrine braechte mit `SchemaValidator` alles
-     * mit, und der Import steht noch oben in der Datei — aber eine wiederhergestellte Methode
-     * waere ein zweiter Endpunkt ohne Token und ohne Adminrecht. Ein Notschloss soll so klein
-     * sein wie moeglich.
+     * **Removed instead of restored.** Doctrine would bring everything needed with
+     * `SchemaValidator`, and the import is still at the top of the file — but a restored
+     * method would be a second endpoint without token and without admin rights. An emergency
+     * lock should be as small as possible.
      */
-    public function testDasNotschlossKenntNurNochUpdateDatabase(): void
+    public function testEmergencyLockOnlyKnowsUpdateDatabase(): void
     {
         $this->assertFalse(method_exists(SystemController::class, 'validateORM'),
-            'validateORM existiert weiterhin nicht');
+            'validateORM still does not exist');
 
-        $quelle = file_get_contents(CONTENTFLY_PROJECT_DIR.'/lib/contentfly/Classes/Controller/Provider/Base/SystemControllerProvider.php');
-        $this->assertStringNotContainsString("== 'validateORM'", $quelle,
-            'und steht nicht mehr in der Ausnahmeliste');
-        // Die Schreibweise hat sich mit 009-003-0001 geaendert — Request::get() ist in
-        // Symfony 7.4 deprecated, gelesen wird jetzt aus dem request-Beutel. Die Bedingung
-        // selbst ist dieselbe, und genau sie ist gemeint.
-        $this->assertStringContainsString("all()['method'] ?? null) == 'updateDatabase'", $quelle,
-            'updateDatabase bleibt — ein kaputtes Schema muss reparierbar sein');
+        $source = file_get_contents(CONTENTFLY_PROJECT_DIR.'/lib/contentfly/Classes/Controller/Provider/Base/SystemControllerProvider.php');
+        $this->assertStringNotContainsString("== 'validateORM'", $source,
+            'and is no longer in the exception list');
+        // The notation changed with 009-003-0001 — Request::get() is deprecated in
+        // Symfony 7.4, the value is now read from the request bag. The condition itself is
+        // the same, and it is exactly what is meant.
+        $this->assertStringContainsString("all()['method'] ?? null) == 'updateDatabase'", $source,
+            'updateDatabase stays — a broken schema must be repairable');
 
         [$status] = $this->systemDo('validateORM');
-        $this->assertSame(500, $status, 'und wird als unbekannte Methode abgewiesen');
+        $this->assertSame(500, $status, 'and is rejected as an unknown method');
     }
 
-    public function testDasNotschlossGreiftNurBeiEinerInvalidFieldNameException(): void
+    public function testEmergencyLockOnlyTriggersOnInvalidFieldNameException(): void
     {
-        // Der Ausnahmezweig haengt an genau einer Doctrine-Ausnahme: Faellt eine Spalte weg,
-        // die checkToken() liest, kommt eine InvalidFieldNameException — und dann ist
-        // updateDatabase **ohne Token und ohne Adminrecht** erreichbar (seit 000-000-0015 nur
-        // noch diese eine Methode; validateORM stand hier ebenfalls und existierte nicht). Der
-        // Sinn ist erkennbar (ein kaputtes Schema muss reparierbar bleiben, ohne dass man
-        // sich anmelden kann); der Preis ist eine ungesicherte Schreiboperation auf dem
-        // Schema.
+        // The exception branch hangs on exactly one Doctrine exception: if a column that
+        // checkToken() reads goes missing, an InvalidFieldNameException occurs — and then
+        // updateDatabase is reachable **without token and without admin rights** (since
+        // 000-000-0015 only this one method; validateORM was listed here as well and did not
+        // exist). The purpose is recognizable (a broken schema must stay repairable without
+        // being able to log in); the price is an unprotected write operation on the schema.
         //
-        // **Warum hier kein scharfer Test steht:** Um den Zweig auszuloesen, muesste der Test
-        // das Schema der gemeinsamen Testdatenbank absichtlich beschaedigen — und dann darauf
-        // hoffen, dass updateDatabase es vollstaendig wiederherstellt. Scheitert er auf
-        // halbem Weg, ist die Datenbank fuer jeden folgenden Test kaputt. Das Testnetz soll
-        // Vertrauen schaffen, nicht die Umgebung riskieren; deshalb wird hier die Bedingung
-        // festgehalten und nicht die Wirkung erzwungen.
+        // **Why there is no live test here:** to trigger the branch, the test would have to
+        // damage the schema of the shared test database on purpose — and then hope that
+        // updateDatabase restores it completely. If it fails halfway, the database is broken
+        // for every following test. The test net should create trust, not put the
+        // environment at risk; so the condition is recorded here and the effect is not
+        // forced.
         //
-        // Wer Epic 009 umsetzt, findet an diesem Test, was der neue Kernel entweder
-        // nachbilden oder bewusst streichen muss.
-        $quelle = file_get_contents(CONTENTFLY_PROJECT_DIR.'/lib/contentfly/Classes/Controller/Provider/Base/SystemControllerProvider.php');
+        // Whoever implements epic 009 finds in this test what the new kernel has to either
+        // replicate or deliberately drop.
+        $source = file_get_contents(CONTENTFLY_PROJECT_DIR.'/lib/contentfly/Classes/Controller/Provider/Base/SystemControllerProvider.php');
 
-        $this->assertStringContainsString('catch(InvalidFieldNameException $e)', $quelle,
-            'Nur diese eine Ausnahme oeffnet das Notschloss');
-        $this->assertStringContainsString('throw $e;', $quelle,
-            'Jede andere Methode fliegt weiter — das Schloss oeffnet nur fuer diese eine');
+        $this->assertStringContainsString('catch(InvalidFieldNameException $e)', $source,
+            'Only this one exception opens the emergency lock');
+        $this->assertStringContainsString('throw $e;', $source,
+            'Every other method keeps flying — the lock only opens for this one');
     }
 }

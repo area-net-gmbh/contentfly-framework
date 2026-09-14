@@ -209,7 +209,7 @@ Zwei mitgelieferte Provider, beide **nicht** vorregistriert:
 
 Beide münden in dieselbe Token-Ausstellung wie der lokale Login — ein Client merkt nicht, woher
 der Benutzer kam. Das ist der Weg hinter `Anmeldeprovider`, und den misst
-`AnmeldeproviderApiTest` end-to-end.
+`LoginProviderApiTest` end-to-end.
 
 **Wer aus dem Fremdsystem verschwindet, wird gesperrt, nicht gelöscht.**
 `appcms:provider:abgleich` hält den Bestand dagegen; `Bestandspruefung::kenntKennung()` gibt
