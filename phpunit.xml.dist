@@ -9,26 +9,26 @@
          cacheDirectory=".phpunit.cache"
          executionOrder="random">
 
-    <!-- Die Zeitzone des Testprozesses wird hier festgelegt, nicht der php.ini ueberlassen:
-         tests/bootstrap.php setzt bewusst kein date_default_timezone_set(), sonst haenge die
-         Suite davon ab, auf welcher Maschine sie laeuft. UTC ist die Zone, in der die API
-         ihre Zeitstempel ausliefert - Tests pruefen damit dieselbe Annahme wie die Anwendung.
+    <!-- The time zone of the test process is set here, not left to php.ini:
+         tests/bootstrap.php deliberately does not call date_default_timezone_set(), otherwise the
+         suite would depend on the machine it runs on. UTC is the zone in which the API delivers
+         its timestamps - so tests check the same assumption as the application.
 
-         Achtung: Der CLI-Schalter fuer date.timezone uebersteuert das NICHT. PHPUnit wendet
-         diesen Block nach dem Schalter an, und PHP ignoriert die TZ-Umgebungsvariable, solange
-         date.timezone gesetzt ist - beides scheitert stillschweigend. -->
+         Note: the CLI switch for date.timezone does NOT override this. PHPUnit applies this block
+         after the switch, and PHP ignores the TZ environment variable as long as date.timezone
+         is set - both fail silently. -->
     <php>
         <ini name="date.timezone" value="UTC"/>
     </php>
 
-    <!-- Zwei Suiten, bewusst getrennt: `unit` laeuft ohne Datenbank und ohne Container und
-         muss auf jedem Checkout gruen sein. `integration` braucht die Umgebung aus
-         docker-compose.yml und eine durchgefuehrte Installation. Zusammengelegt stuende die
-         ganze Suite still, sobald kein Container laeuft - und eine Suite, die haeufig rot ist,
-         weil die Umgebung fehlt, wird nicht mehr gelesen.
+    <!-- Two suites, deliberately separate: `unit` runs without a database and without a
+         container and has to be green on every checkout. `integration` needs the environment
+         from docker-compose.yml and a completed installation. Combined, the whole suite would
+         stand still as soon as no container runs - and a suite that is often red because the
+         environment is missing stops being read.
 
-         Der Aufruf ohne Argumente laeuft beide; mit dem testsuite-Schalter nur eine.
-         Die Befehle stehen im Runbook. -->
+         Running without arguments runs both; with the testsuite switch only one.
+         The commands are in the runbook. -->
     <testsuites>
         <testsuite name="unit">
             <directory>tests/Unit</directory>
@@ -52,12 +52,10 @@
         </exclude>
     </source>
 
-    <!-- Keine fest verdrahteten Coverage-Berichte: Sie fordern bei JEDEM Lauf einen
-         Coverage-Treiber an, und fehlt Xdebug oder PCOV, endet die Suite mit Exit-Code 1,
-         obwohl jeder Test gruen ist. Eine Suite, die aus dem falschen Grund rot ist,
-         verliert ihre Aussagekraft. Abdeckung wird deshalb angefordert, wenn man sie will:
-         ./vendor/bin/phpunit with-coverage-text (siehe Runbook).
-         Die Schreibweise "with-coverage-text" statt der echten Option ist Absicht:
-         Zwei aufeinanderfolgende Bindestriche sind in einem XML-Kommentar nicht
-         erlaubt, und der Parser bricht daran ab. -->
+    <!-- No hard-wired coverage reports: they request a coverage driver on EVERY run, and
+         without Xdebug or PCOV the suite ends with exit code 1 although every test is green. A
+         suite that is red for the wrong reason loses its meaning. Coverage is therefore
+         requested when wanted: ./vendor/bin/phpunit with-coverage-text (see runbook).
+         Writing "with-coverage-text" instead of the real option is deliberate: two consecutive
+         hyphens are not allowed in an XML comment, and the parser aborts on them. -->
 </phpunit>
