@@ -20,3 +20,8 @@ Pipeline weiterläuft.
 die IT-Security zuerst liest.
 
 ## Tasks
+- [ ] 014-002-0001 — Token-Prüfung auf Englisch
+- [ ] 014-002-0002 — Anmeldeprovider auf Englisch
+- [ ] 014-002-0003 — Anmeldebremse, Proxies und Feldverschlüsselung auf Englisch
+- [ ] 014-002-0004 — AuthController vollständig englisch
+- [ ] 014-002-0005 — Sprachwächter um die Security-Pfade erweitern
