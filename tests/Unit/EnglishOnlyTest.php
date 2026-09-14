@@ -44,12 +44,7 @@ class EnglishOnlyTest extends TestCase
         'index.php',
         'bin',
         'phpunit.xml.dist',
-        'lib/contentfly/bootstrap.php',
-        'lib/contentfly/bootstrap-web.php',
-        'lib/contentfly/Classes/Kernel',
-        'lib/contentfly/Classes/Metadata',
-        'lib/contentfly/Classes/Security',
-        'lib/contentfly/Controller/AuthController.php',
+        'lib/contentfly',
         'tests/bootstrap.php',
     );
 
@@ -75,6 +70,7 @@ class EnglishOnlyTest extends TestCase
         'vertraut', 'verzeichnis', 'vorlage', 'waechter', 'zugang', 'abgleich', 'einstieg',
         'anwendung', 'absicherung', 'keinesilex', 'paketmanifest', 'letzt', 'kette',
         'hashen', 'zweck', 'klartext', 'brauchtneu', 'passwort', 'sperren', 'faellt',
+        'zugriff', 'verweiger', 'gestattet',
     );
 
     /** German verbs that start a camelCase identifier such as `istRefreshToken()`. */
@@ -89,8 +85,10 @@ class EnglishOnlyTest extends TestCase
      * @var array<int,array{0:string,1:string,2:string}>
      */
     private const EXCEPTIONS = array(
+        array('lib/contentfly/Classes/Api.php', 'Gelöscht', 'legacy value stored by Contentfly 1.x in pim_log.mode; kept for existing data by decision of 2026-09-14'),
         array('lib/contentfly/Classes/Security/FieldEncryption.php', 'testEineManipulationFaelltAuf', 'renamed in 014-005'),
         array('lib/contentfly/bootstrap.php', 'AutoloaderUeberschneidungTest', 'renamed in 014-005'),
+        array('lib/contentfly/composer.json', 'PaketmanifestTest', 'renamed in 014-005'),
         array('lib/contentfly/bootstrap.php', 'KeineSilexTypenTest', 'renamed in 014-005'),
         array('lib/contentfly/bootstrap-web.php', 'FehlerantwortApiTest', 'renamed in 014-005'),
         array('lib/contentfly/Classes/Kernel/Application.php', 'FehlerantwortApiTest', 'renamed in 014-005'),
@@ -164,6 +162,7 @@ class EnglishOnlyTest extends TestCase
         $this->assertNotNull($this->germanIn('// Größe'), 'an umlaut');
         $this->assertNotNull($this->germanIn('if ($row->istRefreshToken()) {'), 'a German verb prefix in camelCase');
         $this->assertNotNull($this->germanIn('$token->getKlartext();'), 'a German word inside a getter');
+        $this->assertNotNull($this->germanIn("throw new AccessDeniedHttpException('Zugriff verweigert');"), 'a German message without a listed word');
 
         $this->assertNull($this->germanIn('// The container does not know "%s".'), 'an English message');
         $this->assertNull($this->germanIn('public function routes(): RouteCollection'), 'an English identifier');
