@@ -115,7 +115,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         // Nebenbefund aus 008-004-0003 hat sich mit dem Stack-Wechsel erledigt.
         $quelle = file_get_contents(CONTENTFLY_PROJECT_DIR.'/lib/contentfly/Classes/Controller/Provider/Base/SystemControllerProvider.php');
 
-        $this->assertStringContainsString("AccessDeniedHttpException('Zugriff verweigert', null, 401)", $quelle,
+        $this->assertStringContainsString("AccessDeniedHttpException('Access denied', null, 401)", $quelle,
             'Die Absicht im Code ist 401');
 
         [$status] = $this->postJson('/system/do', array('method' => 'listTokens'));
@@ -173,7 +173,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         [$status, $body] = $this->systemDo('gibtEsNicht');
 
         $this->assertSame(500, $status);
-        $this->assertSame('Methode gibtEsNicht nicht verfügbar.', $body['message'] ?? null,
+        $this->assertSame('Method gibtEsNicht is not available.', $body['message'] ?? null,
             'Die Meldung der Exception kommt jetzt als JSON beim Client an');
     }
 
@@ -211,7 +211,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         // Der Unterschied zu vorher steht in der Meldung: Sie kommt jetzt aus doAction,
         // nicht aus einer Typpruefung tief in der Basisklasse.
         [, $body] = $this->postJson('/system/do', array('method' => 'setEM'), $this->token());
-        $this->assertSame('Methode setEM nicht verfügbar.', $body['message'] ?? null);
+        $this->assertSame('Method setEM is not available.', $body['message'] ?? null);
     }
 
     /**
@@ -236,7 +236,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/system/do', array('method' => 'doAction'), $this->token());
 
         $this->assertSame(500, $status);
-        $this->assertSame('Methode doAction nicht verfügbar.', $body['message'] ?? null,
+        $this->assertSame('Method doAction is not available.', $body['message'] ?? null,
             'Abgewiesen, statt sich selbst aufzurufen');
     }
 
@@ -468,7 +468,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         );
 
         $this->assertSame(500, $status);
-        $this->assertSame('Token ungültig', $body['message'] ?? null);
+        $this->assertSame('Invalid token', $body['message'] ?? null);
     }
 
     public function testDerAnmeldeTokenDesLaufsUeberstehtDieTokenMethoden(): void
@@ -592,7 +592,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         [$status, $body] = $this->systemDo('flushSchemaCache');
 
         $this->assertSame(200, $status);
-        $this->assertSame('Schema-Cache wurde geleert!', $body['message']);
+        $this->assertSame('Schema cache cleared!', $body['message']);
 
         [$statusSchema] = $this->get('/api/schema', $this->token());
         $this->assertSame(200, $statusSchema, 'Das Schema wird danach neu aufgebaut');
@@ -670,7 +670,7 @@ class SystemControllerApiTest extends IntegrationTestCase
 
         [, $body] = $this->systemDo('flushSchemaCache');
 
-        $this->assertSame('Schema-Cache wurde geleert!', $body['message'],
+        $this->assertSame('Schema cache cleared!', $body['message'],
             'Die Meldung sagt nicht, ob ueberhaupt etwas da war');
     }
 

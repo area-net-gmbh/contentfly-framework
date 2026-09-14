@@ -398,7 +398,7 @@ class TokenHandlerTest extends TestCase
     public function testEinRefreshTokenOeffnetDieApiNicht(): void
     {
         $zeile = $this->zeile($this->benutzer());
-        $zeile->setPurpose(Token::ZWECK_REFRESH);
+        $zeile->setPurpose(Token::PURPOSE_REFRESH);
 
         $handler = new TokenHandler($this->em($zeile));
 

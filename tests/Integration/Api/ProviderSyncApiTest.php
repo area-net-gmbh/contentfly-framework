@@ -15,7 +15,7 @@ use Tests\Integration\IntegrationTestCase;
  * Console-Aufruf bekommt eine andere Liste als der Testserver — damit verschwindet ein Benutzer
  * aus Sicht des Abgleichs, ohne dass irgendwo ein Verzeichnis laufen müsste.
  */
-class ProviderAbgleichApiTest extends IntegrationTestCase
+class ProviderSyncApiTest extends IntegrationTestCase
 {
     private function eintrag(): array
     {
@@ -68,7 +68,7 @@ class ProviderAbgleichApiTest extends IntegrationTestCase
         $ausgabe = array();
 
         exec(sprintf(
-            'CONTENTFLY_BEISPIEL_PROVIDER=%s %s %s appcms:provider:abgleich %s 2>&1',
+            'CONTENTFLY_BEISPIEL_PROVIDER=%s %s %s appcms:provider:sync %s 2>&1',
             escapeshellarg($liste),
             escapeshellarg(PHP_BINARY),
             escapeshellarg(self::konsole()),
@@ -131,7 +131,7 @@ class ProviderAbgleichApiTest extends IntegrationTestCase
         $ausgabe = $this->abgleich('');
 
         $this->assertTrue($this->istAktiv($eintrag['kennung']), 'Unangetastet — '.$ausgabe);
-        $this->assertStringContainsString('keine Auskunft', $ausgabe);
+        $this->assertStringContainsString('could not give an answer', $ausgabe);
     }
 
     public function testWerNochImFremdsystemStehtBleibtAktiv(): void

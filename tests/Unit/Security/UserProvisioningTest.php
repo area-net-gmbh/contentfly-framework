@@ -46,8 +46,8 @@ class UserProvisioningTest extends TestCase
     {
         $benutzer = $this->bereitstellung(null)->findOrCreate('ldap', new ExternalIdentity('mmustermann'));
 
-        $this->assertTrue($benutzer->istPasswortGesperrt());
-        $this->assertSame(User::PASSWORT_GESPERRT, $benutzer->getPass());
+        $this->assertTrue($benutzer->isPasswordLocked());
+        $this->assertSame(User::PASSWORD_LOCKED, $benutzer->getPass());
     }
 
     /**
@@ -59,7 +59,7 @@ class UserProvisioningTest extends TestCase
 
         $this->assertFalse($benutzer->isPass('mmustermann'));
         $this->assertFalse($benutzer->isPass($benutzer->getAlias()));
-        $this->assertFalse($benutzer->isPass(User::PASSWORT_GESPERRT));
+        $this->assertFalse($benutzer->isPass(User::PASSWORD_LOCKED));
         $this->assertFalse($benutzer->isPass(''));
     }
 
@@ -128,7 +128,7 @@ class UserProvisioningTest extends TestCase
 
         $gefunden = $this->bereitstellung($vorhanden)->findOrCreate('ldap', new ExternalIdentity('chef'));
 
-        $this->assertFalse($gefunden->istPasswortGesperrt());
+        $this->assertFalse($gefunden->isPasswordLocked());
         $this->assertTrue($gefunden->isPass('ein-echtes-passwort'));
     }
 
@@ -137,13 +137,13 @@ class UserProvisioningTest extends TestCase
     /**
      * Ein gesperrtes Passwort wird nicht umgeschlüsselt — es soll ja keines werden.
      *
-     * Ohne diese Prüfung hielte `brauchtNeuenHash()` den Stern für einen Altformat-Hash und der
+     * Ohne diese Prüfung hielte `needsRehash()` den Stern für einen Altformat-Hash und der
      * Login versuchte, ihn durch das vorgezeigte Passwort zu ersetzen.
      */
     public function testEinGesperrtesPasswortWirdNichtUmgeschluesselt(): void
     {
         $benutzer = $this->bereitstellung(null)->findOrCreate('ldap', new ExternalIdentity('mmustermann'));
 
-        $this->assertFalse($benutzer->brauchtNeuenHash());
+        $this->assertFalse($benutzer->needsRehash());
     }
 }

@@ -74,7 +74,7 @@ use Areanet\PIM\Classes\Manager\TypeManager;
 use Areanet\PIM\Classes\ORM\Mapping\ContentflyQuoteStrategy;
 use Areanet\PIM\Command\InstallCommand;
 use Areanet\PIM\Command\SetupCommand;
-use Areanet\PIM\Command\ProviderAbgleichCommand;
+use Areanet\PIM\Command\ProviderSyncCommand;
 use Areanet\PIM\Command\ReencryptCommand;
 use Areanet\PIM\Command\TokenCleanupCommand;
 use Areanet\PIM\Classes\ORM\EntityManagerFactory;
@@ -404,7 +404,7 @@ if($app['is_installed']) {
     $app['orm.em'] = function ($app) use ($selectCaches) {
         [$queryCache, $metadataCache] = $selectCaches();
 
-        return EntityManagerFactory::erzeugen(
+        return EntityManagerFactory::create(
             $app['dbs']['pim'],
             array(
                 array('namespace' => 'Areanet\PIM\Entity', 'path' => Paths::frameworkEntities()),
@@ -520,7 +520,7 @@ $app->extend('dispatcher', function (EventDispatcherInterface $dispatcher, $app)
         $console->addCommand(new SetupCommand());
         $console->addCommand(new TokenCleanupCommand());
         $console->addCommand(new ReencryptCommand());
-        $console->addCommand(new ProviderAbgleichCommand());
+        $console->addCommand(new ProviderSyncCommand());
     });
     return $dispatcher;
 });
@@ -554,7 +554,7 @@ $app['database'] = function ($app){
  * created, and `orm:validate-schema` reported on every installation that schema and mapping did
  * not match.
  *
- * It is now registered in `EntityManagerFactory::erzeugen()` — where every EntityManager passes,
+ * It is now registered in `EntityManagerFactory::create()` — where every EntityManager passes,
  * the installer's included.
  */
 

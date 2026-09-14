@@ -91,10 +91,10 @@ class ReencryptCommandTest extends TestCase
         $vorher = $this->werteLesen();
 
         $ergebnis = (new ReencryptCommand())
-            ->spalteUmschluesseln($this->db, self::TABELLE, 'geheim', 'id', true, 500);
+            ->reencryptColumn($this->db, self::TABELLE, 'geheim', 'id', true, 500);
 
-        $this->assertSame(3, $ergebnis['geprueft']);
-        $this->assertSame(3, $ergebnis['umgeschluesselt'], 'Er haette drei umgeschluesselt');
+        $this->assertSame(3, $ergebnis['checked']);
+        $this->assertSame(3, $ergebnis['reencrypted'], 'Er haette drei umgeschluesselt');
         $this->assertSame($vorher, $this->werteLesen(), 'aber die Zeilen sind unveraendert');
     }
 
@@ -109,8 +109,8 @@ class ReencryptCommandTest extends TestCase
         $befehl = new ReencryptCommand();
         $krypto = new FieldEncryption();
 
-        $erster = $befehl->spalteUmschluesseln($this->db, self::TABELLE, 'geheim', 'id', false, 500);
-        $this->assertSame(3, $erster['umgeschluesselt']);
+        $erster = $befehl->reencryptColumn($this->db, self::TABELLE, 'geheim', 'id', false, 500);
+        $this->assertSame(3, $erster['reencrypted']);
 
         // Der Klartext ist derselbe — das ist der eigentliche Punkt der Umschluesselung.
         $this->assertSame($klartexte, array_values(array_map(
@@ -122,9 +122,9 @@ class ReencryptCommandTest extends TestCase
             $this->assertTrue($krypto->isNewFormat($wert), 'und jeder Wert traegt jetzt das AEAD-Format');
         }
 
-        $zweiter = $befehl->spalteUmschluesseln($this->db, self::TABELLE, 'geheim', 'id', false, 500);
-        $this->assertSame(0, $zweiter['umgeschluesselt'], 'Ein zweiter Lauf hat nichts mehr zu tun');
-        $this->assertSame(3, $zweiter['uebersprungen']);
+        $zweiter = $befehl->reencryptColumn($this->db, self::TABELLE, 'geheim', 'id', false, 500);
+        $this->assertSame(0, $zweiter['reencrypted'], 'Ein zweiter Lauf hat nichts mehr zu tun');
+        $this->assertSame(3, $zweiter['skipped']);
     }
 
     public function testErArbeitetInStapelnUndErwischtAlleZeilen(): void
@@ -136,9 +136,9 @@ class ReencryptCommandTest extends TestCase
         }
 
         $ergebnis = (new ReencryptCommand())
-            ->spalteUmschluesseln($this->db, self::TABELLE, 'geheim', 'id', false, 4);
+            ->reencryptColumn($this->db, self::TABELLE, 'geheim', 'id', false, 4);
 
-        $this->assertSame(25, $ergebnis['umgeschluesselt']);
+        $this->assertSame(25, $ergebnis['reencrypted']);
 
         $krypto = new FieldEncryption();
 
@@ -156,7 +156,7 @@ class ReencryptCommandTest extends TestCase
         $vorher = $this->werteLesen();
 
         try {
-            (new ReencryptCommand())->spalteUmschluesseln($this->db, self::TABELLE, 'geheim', 'id', false, 500);
+            (new ReencryptCommand())->reencryptColumn($this->db, self::TABELLE, 'geheim', 'id', false, 500);
             $this->fail('Ein unlesbarer Wert muss den Lauf anhalten');
         } catch (\RuntimeException $fehler) {
             $this->assertStringContainsString('SECURITY_CIPHER_KEY', $fehler->getMessage(),
@@ -177,7 +177,7 @@ class ReencryptCommandTest extends TestCase
             'pass'  => array('encoded' => false),
         )));
 
-        $gefunden = (new ReencryptCommand())->betroffeneFelder($schema, $this->emAttrappe(), $this->helferAttrappe());
+        $gefunden = (new ReencryptCommand())->affectedFields($schema, $this->emAttrappe(), $this->helferAttrappe());
 
         $this->assertSame(array(), $gefunden);
     }

@@ -85,7 +85,7 @@ class LoginManagerApiTest extends IntegrationTestCase
         $bedingung = $this->pdo()->query(
             "SELECT COUNT(*) FROM information_schema.STATISTICS
              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'pim_user'
-               AND INDEX_NAME = 'uniq_user_fremdkennung' AND NON_UNIQUE = 0"
+               AND INDEX_NAME = 'uniq_user_external_identity' AND NON_UNIQUE = 0"
         )->fetchColumn();
 
         $this->assertSame('2', (string) $bedingung,
