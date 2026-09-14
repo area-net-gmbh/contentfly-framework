@@ -49,13 +49,13 @@ chmod +x "$FALLE/sendmail"
 
 # 3. Testserver — mit Router, Versandfalle und ohne Fehlerausgabe im Antwortstrom
 #
-#    SECURITY_JWT_SECRET und CONTENTFLY_BEISPIEL_PROVIDER gehen an die ANWENDUNG, nicht an die
+#    SECURITY_JWT_SECRET und CONTENTFLY_EXAMPLE_PROVIDER gehen an die ANWENDUNG, nicht an die
 #    Suite: Das erste laesst sie JWT ausstellen (013-003), das zweite speist die
 #    Provider-Vorlage (013-004). Ohne sie stellt der Login keine JWT aus und die Vorlage laesst
 #    niemanden herein — beides richtig, aber dann haben die zugehoerigen Tests nichts zu messen.
 APP_ENV=production APP_DEBUG=0 \
   SECURITY_JWT_SECRET=dev-only-jwt-secret-mit-genug-laenge \
-  CONTENTFLY_BEISPIEL_PROVIDER='extern-eins:dev-only-provider-secret:CN=Redaktion' \
+  CONTENTFLY_EXAMPLE_PROVIDER='extern-eins:dev-only-provider-secret:CN=Redaktion' \
   php -d display_errors=Off -d log_errors=On -d sendmail_path="$FALLE/sendmail" \
       -S 127.0.0.1:8145 tests/router.php &
 

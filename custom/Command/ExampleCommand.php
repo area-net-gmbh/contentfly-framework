@@ -33,7 +33,7 @@ class ExampleCommand extends CustomCommand
     {
         $this
             ->setName('example:command:run')
-            ->setDescription('Beispiel-Command der Vorlage — tut nichts.');
+            ->setDescription('Example command of the template — does nothing.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -42,7 +42,7 @@ class ExampleCommand extends CustomCommand
         //
         //     $em = $this->application()['orm.em'];
         //
-        $output->writeln('<info>Der Beispiel-Command der Vorlage ist gelaufen.</info>');
+        $output->writeln('<info>The template example command has run.</info>');
 
         return self::SUCCESS;
     }

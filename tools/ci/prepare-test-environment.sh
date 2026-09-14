@@ -14,7 +14,7 @@
 #   CONTENTFLY_TEST_BASE_URL       Adresse, unter der der Testserver antwortet
 #   CONTENTFLY_TEST_MAIL_TRAP      Verzeichnis der Versandfalle
 #   CONTENTFLY_TEST_ADMIN_PASS     Passwort des Admin-Benutzers
-#   CONTENTFLY_TEST_JWT_SECRET     Signaturgeheimnis fuer die JWT-Tests (mind. 32 Byte)#   CONTENTFLY_TEST_PROVIDER       Liste fuer den BeispielProvider (013-004-0004),
+#   CONTENTFLY_TEST_JWT_SECRET     Signaturgeheimnis fuer die JWT-Tests (mind. 32 Byte)#   CONTENTFLY_TEST_PROVIDER       Liste fuer den ExampleProvider (013-004-0004),
 #                                  Format kennung:geheimnis:gruppe|gruppe, mehrere per Komma
 
 set -eu
@@ -140,11 +140,11 @@ ADRESSE=$(echo "$CONTENTFLY_TEST_BASE_URL" | sed 's#^https\{0,1\}://##')
 # SECURITY_JWT_SECRET die der Anwendung. Sie hier gleichzusetzen ist eine Entscheidung dieser
 # Datei und keine, die in der Anwendung steht.
 echo "→ Testserver auf $ADRESSE"
-# CONTENTFLY_BEISPIEL_PROVIDER speist die Vorlage aus 013-004-0004. Ohne sie laesst sie
+# CONTENTFLY_EXAMPLE_PROVIDER speist die Vorlage aus 013-004-0004. Ohne sie laesst sie
 # NIEMANDEN herein — was ein eigener Test misst; hier bekommt sie einen Wert, damit der andere
 # Test die Anmeldung ueber einen Provider end-to-end durchspielen kann.
 APP_ENV=production APP_DEBUG=0 SECURITY_JWT_SECRET="$CONTENTFLY_TEST_JWT_SECRET" \
-    CONTENTFLY_BEISPIEL_PROVIDER="$CONTENTFLY_TEST_PROVIDER" php \
+    CONTENTFLY_EXAMPLE_PROVIDER="$CONTENTFLY_TEST_PROVIDER" php \
     -d display_errors=Off \
     -d log_errors=On \
     -d sendmail_path="$CONTENTFLY_TEST_MAIL_TRAP/sendmail" \

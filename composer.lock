@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "bb8de9f980d9b154a5b75753dfa4032f",
+    "content-hash": "2842e0902c0e10df70759e46d593509b",
     "packages": [
         {
             "name": "areanet/contentfly",
