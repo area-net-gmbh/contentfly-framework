@@ -1,7 +1,7 @@
 ---
 id: 014-005-0001
 title: Test-Infrastruktur auf Englisch
-status: review
+status: done
 depends_on: []
 ---
 

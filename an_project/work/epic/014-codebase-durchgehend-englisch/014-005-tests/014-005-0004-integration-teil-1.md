@@ -1,7 +1,7 @@
 ---
 id: 014-005-0004
 title: Integrationstests Teil 1 auf Englisch
-status: review
+status: done
 depends_on: [014-005-0003]
 ---
 

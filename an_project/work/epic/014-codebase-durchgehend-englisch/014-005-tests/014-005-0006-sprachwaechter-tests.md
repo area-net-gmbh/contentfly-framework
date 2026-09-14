@@ -1,7 +1,7 @@
 ---
 id: 014-005-0006
 title: Sprachwächter auf die Testsuite
-status: review
+status: done
 depends_on: [014-005-0005]
 ---
 
