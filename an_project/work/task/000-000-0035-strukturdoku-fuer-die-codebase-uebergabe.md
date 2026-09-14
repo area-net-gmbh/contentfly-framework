@@ -1,7 +1,7 @@
 ---
 id: 000-000-0035
 title: Englische Strukturdoku im Root für die Übergabe der Codebase
-status: review
+status: done
 depends_on: []
 ---
 
