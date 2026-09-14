@@ -90,7 +90,6 @@ class EnglishOnlyTest extends TestCase
      */
     private const EXCEPTIONS = array(
         array('lib/contentfly/bootstrap.php', 'ProviderAbgleichCommand', 'renamed in 014-003'),
-        array('lib/contentfly/Classes/Security/TokenAuthenticator.php', 'BaseControllerProvider::anmelden', 'renamed in 014-003'),
         array('lib/contentfly/Classes/Security/UserExistenceCheck.php', 'appcms:provider:abgleich', 'renamed in 014-003'),
         array('lib/contentfly/Classes/Security/FieldEncryption.php', 'testEineManipulationFaelltAuf', 'renamed in 014-005'),
         array('lib/contentfly/bootstrap.php', 'EntityManagerFactory::erzeugen', 'renamed in 014-003'),
