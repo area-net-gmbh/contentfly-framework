@@ -1,7 +1,7 @@
 ---
 id: 014-002-0003
 title: Anmeldebremse, Proxies und Feldverschlüsselung auf Englisch
-status: review
+status: done
 depends_on: [014-002-0002]
 ---
 

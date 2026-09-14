@@ -1,7 +1,7 @@
 ---
 id: 014-002-0004
 title: AuthController vollständig englisch
-status: review
+status: done
 depends_on: [014-002-0003]
 ---
 

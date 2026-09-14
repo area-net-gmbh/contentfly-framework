@@ -1,7 +1,7 @@
 ---
 id: 014-002-0001
 title: Token-Prüfung auf Englisch
-status: review
+status: done
 depends_on: []
 ---
 

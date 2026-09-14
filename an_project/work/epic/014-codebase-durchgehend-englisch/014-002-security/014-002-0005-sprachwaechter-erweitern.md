@@ -1,7 +1,7 @@
 ---
 id: 014-002-0005
 title: Sprachwächter um die Security-Pfade erweitern
-status: review
+status: done
 depends_on: [014-002-0004]
 ---
 
