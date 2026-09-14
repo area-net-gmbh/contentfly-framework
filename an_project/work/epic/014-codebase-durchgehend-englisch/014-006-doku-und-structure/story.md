@@ -1,7 +1,7 @@
 ---
 id: 014-006-0000
 title: Doku und STRUCTURE.md nachziehen
-status: todo
+status: in-progress
 depends_on: [014-005-0000]
 ---
 
