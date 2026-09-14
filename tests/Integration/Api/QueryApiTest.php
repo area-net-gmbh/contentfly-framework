@@ -5,16 +5,16 @@ use Areanet\PIM\Entity\Permission;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * Charakterisierungstests für `/api/query` und `/api/translations`.
+ * Characterization tests for `/api/query` and `/api/translations`.
  *
- * `/api/query` ist der **einzige lesende Endpunkt mit eigener Berechtigungsprüfung**: Wer
- * kein Admin ist, braucht eine Gruppe mit `apiQueryEnabled = 'enabled'`. Ein Endpunkt für
- * freie Abfragen, dessen Gating beim Kernel-Tausch unbemerkt wegfällt, wäre eine offene
- * Datenbank — deshalb sind alle drei Fälle hier festgehalten.
+ * `/api/query` is the **only reading endpoint with its own permission check**: anyone who is
+ * not an admin needs a group with `apiQueryEnabled = 'enabled'`. An endpoint for free-form
+ * queries whose gating silently disappears during the kernel swap would be an open
+ * database — which is why all three cases are recorded here.
  *
- * `/api/translations` bedient die Mehrsprachigkeit. Sie ist in der Vorlage **nicht
- * konfiguriert** (`APP_LANGUAGES` ist leer, und es gibt keine konkrete `BaseI18n`-Entity),
- * weshalb sich hier nur festhalten lässt, wie der Endpunkt ohne i18n reagiert.
+ * `/api/translations` serves multilingual content. It is **not configured** in the template
+ * (`APP_LANGUAGES` is empty, and there is no concrete `BaseI18n` entity), which is why all
+ * that can be recorded here is how the endpoint reacts without i18n.
  */
 class QueryApiTest extends IntegrationTestCase
 {
@@ -27,19 +27,19 @@ class QueryApiTest extends IntegrationTestCase
         $this->tag = 'query-'.bin2hex(random_bytes(6));
         $this->pdo()->prepare(
             'INSERT INTO pim_tag (id, title, created, modified, views, isIntern)
-             VALUES (:id, :titel, NOW(), NOW(), 0, 0)'
-        )->execute(array('id' => $this->tag, 'titel' => 'Query-Probe'));
+             VALUES (:id, :title, NOW(), NOW(), 0, 0)'
+        )->execute(array('id' => $this->tag, 'title' => 'Query-probe'));
         $this->deleteAfterTest('pim_tag', $this->tag);
     }
 
     /**
-     * Meldet einen Nicht-Admin an, dessen Gruppe die Abfrage-API erlaubt oder nicht.
+     * Logs in a non-admin whose group allows the query API or not.
      *
-     * Die Permission-Zeile fuer PIM\Tag ist noetig, weil ein Nicht-Admin sonst schon an der
-     * Lesepruefung der Entity scheitert — also an einem anderen Gate als dem, das dieser
-     * Test isolieren soll.
+     * The permission row for PIM\Tag is needed because a non-admin would otherwise already
+     * fail at the entity's read check — i.e. at a different gate than the one this test is
+     * meant to isolate.
      */
-    private function anmeldungAlsNichtAdmin(string $apiQueryEnabled): string
+    private function loginAsNonAdmin(string $apiQueryEnabled): string
     {
         [$token] = $this->createTestUser(
             array('PIM\\Tag' => array('readable' => Permission::ALL)),
@@ -51,7 +51,7 @@ class QueryApiTest extends IntegrationTestCase
 
     // ── /api/query ─────────────────────────────────────────────────────────────────────
 
-    public function testQueryAlsAdminIstErlaubtUndEchotDieParameter(): void
+    public function testQueryAsAdminIsAllowedAndEchoesTheParameters(): void
     {
         [$status, $body] = $this->postJson(
             '/api/query',
@@ -61,90 +61,90 @@ class QueryApiTest extends IntegrationTestCase
 
         $this->assertSame(200, $status);
         $this->assertSame(array('ts', 'params', 'data', 'version', 'hash'), array_keys($body),
-            'query traegt als einziger Endpunkt die Anfrageparameter in der Antwort zurueck');
+            'query is the only endpoint that carries the request parameters back in the response');
         $this->assertSame(array('select' => 'id', 'from' => 'PIM\\Tag'), $body['params']);
         $this->assertIsArray($body['data']);
     }
 
-    public function testQueryFuerNichtAdminMitFreigegebenerGruppeIstErlaubt(): void
+    public function testQueryForNonAdminWithEnabledGroupIsAllowed(): void
     {
-        $token = $this->anmeldungAlsNichtAdmin('enabled');
+        $token = $this->loginAsNonAdmin('enabled');
 
         [$status] = $this->postJson('/api/query', array('select' => 'id', 'from' => 'PIM\\Tag'), $token);
 
         $this->assertSame(200, $status,
-            'apiQueryEnabled = "enabled" gibt den Endpunkt fuer die Gruppe frei — '
-            .'zusammen mit einer Permission-Zeile fuer die abgefragte Entity');
+            'apiQueryEnabled = "enabled" opens the endpoint for the group — '
+            .'together with a permission row for the queried entity');
     }
 
-    public function testQueryFuerNichtAdminOhneFreigabeIstVerboten(): void
+    public function testQueryForNonAdminWithoutEnablementIsForbidden(): void
     {
-        // Der wichtigste Fall: Faellt dieses Gating beim Kernel-Tausch weg, steht die
-        // Datenbank jedem angemeldeten Benutzer offen.
-        $token = $this->anmeldungAlsNichtAdmin('disabled');
+        // The most important case: if this gating disappears during the kernel swap, the
+        // database is open to every logged-in user.
+        $token = $this->loginAsNonAdmin('disabled');
 
         [$status, $body] = $this->postJson('/api/query', array('select' => 'id', 'from' => 'PIM\\Tag'), $token);
 
-        $this->assertNotSame(200, $status, 'Ohne apiQueryEnabled ist der Endpunkt gesperrt');
-        $this->assertArrayNotHasKey('data', $body, 'Es fliessen keine Daten');
+        $this->assertNotSame(200, $status, 'Without apiQueryEnabled the endpoint is locked');
+        $this->assertArrayNotHasKey('data', $body, 'No data flows');
     }
 
-    public function testQueryOhneSelectWirdAbgewiesen(): void
+    public function testQueryWithoutSelectIsRejected(): void
     {
         [$status] = $this->postJson('/api/query', array('from' => 'PIM\\Tag'), $this->token());
 
-        $this->assertNotSame(200, $status, 'Api::getQuery() verlangt select und from');
+        $this->assertNotSame(200, $status, 'Api::getQuery() requires select and from');
     }
 
-    public function testQueryOhneFromWirdAbgewiesen(): void
+    public function testQueryWithoutFromIsRejected(): void
     {
         [$status] = $this->postJson('/api/query', array('select' => 'id'), $this->token());
 
         $this->assertNotSame(200, $status);
     }
 
-    public function testQueryOhneTokenLiefertKeineDaten(): void
+    public function testQueryWithoutTokenReturnsNoData(): void
     {
         [$status, $body] = $this->postJson('/api/query', array('select' => 'id', 'from' => 'PIM\\Tag'));
 
-        $this->assertSame(401, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
+        $this->assertSame(401, $status, 'Since the stack switch (006-002-0003) the intended code — Symfony 4.4 fixes 000-000-0006 here');
         $this->assertArrayNotHasKey('data', $body);
     }
 
     // ── /api/translations ──────────────────────────────────────────────────────────────
 
-    public function testTranslationsFuerEineEntityOhneI18nWirft(): void
+    public function testTranslationsForEntityWithoutI18nThrows(): void
     {
-        // Ist-Zustand. Die Vorlage konfiguriert keine Sprachen (`APP_LANGUAGES` ist leer)
-        // und bringt keine konkrete BaseI18n-Entity mit — nur die abstrakten Basisklassen.
-        // Die Wirkung von i18n_universal ist damit heute nicht beobachtbar; sie gehoert in
-        // einen Test, sobald ein Projekt oder die Vorlage Mehrsprachigkeit einschaltet.
+        // Current state. The template configures no languages (`APP_LANGUAGES` is empty)
+        // and ships no concrete BaseI18n entity — only the abstract base classes.
+        // The effect of i18n_universal is therefore not observable today; it belongs in a
+        // test as soon as a project or the template switches on multilingual support.
         [$status] = $this->postJson('/api/translations', array('entity' => 'PIM\\Tag'), $this->token());
 
         $this->assertSame(500, $status,
-            'Ohne konfigurierte Mehrsprachigkeit endet der Endpunkt im Fehler — siehe 000-000-0006 '
-            .'fuer die Frage, warum das ein 500 und keine fachliche Antwort ist');
+            'Without configured multilingual support the endpoint ends in an error — see 000-000-0006 '
+            .'for the question why that is a 500 and not a domain response');
     }
 
-    public function testTranslationsOhneTokenLiefertKeineDaten(): void
+    public function testTranslationsWithoutTokenReturnsNoData(): void
     {
         [$status, $body] = $this->postJson('/api/translations', array('entity' => 'PIM\\Tag'));
 
         $this->assertSame(401, $status,
-            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
+            'Since 006-002-0003 the intended code — Symfony 4.4 fixes 000-000-0006 here');
         $this->assertArrayNotHasKey('data', $body);
     }
 
-    public function testAppLanguagesIstInDerVorlageLeer(): void
+    public function testAppLanguagesIsEmptyInTheTemplate(): void
     {
-        // Haelt die Vorbedingung des Tests darueber fest: Waere APP_LANGUAGES gesetzt,
-        // muesste /api/translations anders reagieren — und dieser Test schlaegt an.
-        [$status, $roh] = $this->get('/api/config');
+        // Records the precondition of the test above: if APP_LANGUAGES were set,
+        // /api/translations would have to react differently — and this test fails.
+        [$status, $raw] = $this->get('/api/config');
 
-        $this->assertSame(200, $status, '/api/config ist die einzige Route ohne Token-Pflicht');
+        $this->assertSame(200, $status, '/api/config is the only route without a token requirement');
 
-        $config = json_decode($roh, true);
+        $config = json_decode($raw, true);
         $this->assertSame(array(), $config['data']['languages'] ?? array(),
-            'Die Vorlage konfiguriert keine Sprachen');
+            'The template configures no languages');
     }
 }

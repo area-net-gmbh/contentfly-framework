@@ -5,13 +5,13 @@ use Areanet\PIM\Entity\Permission;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * Charakterisierungstests für `Permission::isWritable()` und `isDeletable()`.
+ * Characterisation tests for `Permission::isWritable()` and `isDeletable()`.
  *
- * Die Gegenstücke zu `isReadable`, mit dem Unterschied, dass ein Fehler hier **Daten kostet**
- * statt sie preiszugeben. Deshalb prüft jede Zusicherung über eine abgewiesene Operation
- * zusätzlich die Datenbank: Ein HTTP 500 sagt nichts darüber, ob die Operation trotzdem wirkte.
+ * The counterparts of `isReadable`, with the difference that a bug here **costs data** instead
+ * of disclosing it. That is why every assertion about a rejected operation additionally checks
+ * the database: an HTTP 500 says nothing about whether the operation took effect anyway.
  *
- * Die Stufen sind als Konstanten geschrieben — ihre Werte sind nicht aufsteigend geordnet
+ * The levels are written as constants — their values are not in ascending order
  * (`NONE` 0, `OWN` 1, `ALL` 2, `GROUP` 3).
  */
 class WritePermissionApiTest extends IntegrationTestCase
@@ -27,202 +27,201 @@ class WritePermissionApiTest extends IntegrationTestCase
             ->fetchColumn();
     }
 
-    private function tag(string $titel, ?string $userCreated = null, ?string $groups = null): string
+    private function tag(string $title, ?string $userCreated = null, ?string $groups = null): string
     {
         $id = 'wp-'.bin2hex(random_bytes(6));
 
-        // `groups` gequotet — in MySQL 8 ein reserviertes Wort.
+        // `groups` quoted — a reserved word in MySQL 8.
         $this->pdo()->prepare(
             'INSERT INTO pim_tag (id, title, created, modified, views, isIntern, usercreated_id, `groups`)
-             VALUES (:id, :titel, NOW(), NOW(), 0, 0, :uc, :grp)'
-        )->execute(array('id' => $id, 'titel' => $titel, 'uc' => $userCreated, 'grp' => $groups));
+             VALUES (:id, :title, NOW(), NOW(), 0, 0, :uc, :grp)'
+        )->execute(array('id' => $id, 'title' => $title, 'uc' => $userCreated, 'grp' => $groups));
 
         $this->deleteAfterTest('pim_tag', $id);
 
         return $id;
     }
 
-    private function titel(string $id): ?string
+    private function title(string $id): ?string
     {
-        $wert = $this->pdo()
+        $value = $this->pdo()
             ->query('SELECT title FROM pim_tag WHERE id = '.$this->pdo()->quote($id))
             ->fetchColumn();
 
-        return $wert === false ? null : (string) $wert;
+        return $value === false ? null : (string) $value;
     }
 
-    private function existiert(string $id): bool
+    private function exists(string $id): bool
     {
         return (int) $this->pdo()
             ->query('SELECT COUNT(*) FROM pim_tag WHERE id = '.$this->pdo()->quote($id))
             ->fetchColumn() === 1;
     }
 
-    // ── insert: nur das Entity-Recht zählt ─────────────────────────────────────────────
+    // ── insert: only the entity right counts ───────────────────────────────────────────
 
-    public function testInsertPruefetNurDasRechtAufDieEntity(): void
+    public function testInsertChecksOnlyTheRightOnTheEntity(): void
     {
-        // Folgerichtig: Ein neues Objekt hat noch keinen Besitzer, an dem sich OWN oder
-        // GROUP messen liessen. Api::insert() prueft deshalb bei Zeile 248 nur, ob
-        // ueberhaupt Schreibrecht besteht.
+        // Consistent: a new object has no owner yet against which OWN or GROUP could be
+        // measured. Api::insert() therefore only checks at line 248 whether there is any
+        // write right at all.
         [$token] = $this->createTestUser(array('PIM\\Tag' => array(
             'readable' => Permission::ALL, 'writable' => Permission::OWN,
         )));
 
         [$status, $body] = $this->postJson(
             '/api/insert',
-            array('entity' => 'PIM\\Tag', 'data' => array('title' => 'Mit OWN angelegt')),
+            array('entity' => 'PIM\\Tag', 'data' => array('title' => 'Created with OWN')),
             $token
         );
 
-        $this->assertSame(200, $status, 'OWN reicht zum Anlegen — es gibt noch nichts Fremdes');
+        $this->assertSame(200, $status, 'OWN is enough for creating — there is nothing foreign yet');
         $this->deleteAfterTest('pim_tag', $body['id']);
         $this->pdo()->prepare('DELETE FROM pim_log WHERE model_id = :id')->execute(array('id' => $body['id']));
     }
 
-    public function testOhneSchreibrechtEntstehtNichts(): void
+    public function testWithoutWriteRightNothingIsCreated(): void
     {
         [$token] = $this->createTestUser(array('PIM\\Tag' => array('readable' => Permission::ALL)));
 
-        $titel = 'Darf-nicht-entstehen-'.bin2hex(random_bytes(4));
+        $title = 'Must-not-be-created-'.bin2hex(random_bytes(4));
 
         [$status] = $this->postJson(
             '/api/insert',
-            array('entity' => 'PIM\\Tag', 'data' => array('title' => $titel)),
+            array('entity' => 'PIM\\Tag', 'data' => array('title' => $title)),
             $token
         );
 
-        $this->assertSame(403, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
+        $this->assertSame(403, $status, 'Since the stack switch (006-002-0003) the intended code — Symfony 4.4 fixes 000-000-0006 here');
 
-        $anzahl = (int) $this->pdo()
-            ->query('SELECT COUNT(*) FROM pim_tag WHERE title = '.$this->pdo()->quote($titel))
+        $count = (int) $this->pdo()
+            ->query('SELECT COUNT(*) FROM pim_tag WHERE title = '.$this->pdo()->quote($title))
             ->fetchColumn();
-        $this->assertSame(0, $anzahl, 'Gegen die Datenbank geprueft — der Statuscode allein sagt nichts');
+        $this->assertSame(0, $count, 'Checked against the database — the status code alone says nothing');
     }
 
-    // ── update: die Objekt-Zugehörigkeit wird geprüft ──────────────────────────────────
+    // ── update: object ownership is checked ────────────────────────────────────────────
 
-    public function testMitStufeOwnLaesstSichDasEigeneObjektAendern(): void
+    public function testWithLevelOwnTheOwnObjectCanBeChanged(): void
     {
         [$token, $userId] = $this->createTestUser(array('PIM\\Tag' => array(
             'readable' => Permission::ALL, 'writable' => Permission::OWN,
         )));
 
-        $eigener = $this->tag('Original', $userId);
+        $own = $this->tag('Original', $userId);
 
         [$status] = $this->postJson(
             '/api/update',
-            array('entity' => 'PIM\\Tag', 'id' => $eigener, 'data' => array('title' => 'Geaendert')),
+            array('entity' => 'PIM\\Tag', 'id' => $own, 'data' => array('title' => 'Changed')),
             $token
         );
 
         $this->assertSame(200, $status);
-        $this->assertSame('Geaendert', $this->titel($eigener));
-        $this->pdo()->prepare('DELETE FROM pim_log WHERE model_id = :id')->execute(array('id' => $eigener));
+        $this->assertSame('Changed', $this->title($own));
+        $this->pdo()->prepare('DELETE FROM pim_log WHERE model_id = :id')->execute(array('id' => $own));
     }
 
-    public function testMitStufeOwnBleibtEinFremdesObjektUnveraendert(): void
+    public function testWithLevelOwnAForeignObjectStaysUnchanged(): void
     {
-        // Die Frage, die dieser Task klaeren sollte: Prueft Api::update() auch die
-        // Zugehoerigkeit des Objekts, oder kennt es nur das Recht auf die Entity?
-        // Antwort: Es prueft (Api.php:452). Hier ist keine Luecke.
+        // The question this task was meant to answer: does Api::update() also check the
+        // ownership of the object, or does it only know the right on the entity?
+        // Answer: it checks (Api.php:452). There is no gap here.
         [$token] = $this->createTestUser(array('PIM\\Tag' => array(
             'readable' => Permission::ALL, 'writable' => Permission::OWN,
         )));
 
-        $fremder = $this->tag('Fremd-Original', $this->adminId);
+        $foreign = $this->tag('Foreign-Original', $this->adminId);
 
         [$status] = $this->postJson(
             '/api/update',
-            array('entity' => 'PIM\\Tag', 'id' => $fremder, 'data' => array('title' => 'Uebergriff')),
+            array('entity' => 'PIM\\Tag', 'id' => $foreign, 'data' => array('title' => 'Intrusion')),
             $token
         );
 
         $this->assertSame(403, $status,
-            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
-        $this->assertSame('Fremd-Original', $this->titel($fremder),
-            'Der alte Wert steht noch da — gegen die Datenbank geprueft');
+            'Since 006-002-0003 the intended code — Symfony 4.4 fixes 000-000-0006 here');
+        $this->assertSame('Foreign-Original', $this->title($foreign),
+            'The old value is still there — checked against the database');
     }
 
-    public function testMitStufeGroupZaehltDieGruppeDesObjekts(): void
+    public function testWithLevelGroupTheGroupOfTheObjectCounts(): void
     {
-        [$token, , $gruppeId] = $this->createTestUser(array('PIM\\Tag' => array(
+        [$token, , $groupId] = $this->createTestUser(array('PIM\\Tag' => array(
             'readable' => Permission::ALL, 'writable' => Permission::GROUP,
         )));
 
-        $geteilt     = $this->tag('Geteilt-Original', $this->adminId, $gruppeId);
-        $unbeteiligt = $this->tag('Unbeteiligt-Original', $this->adminId);
+        $shared    = $this->tag('Shared-Original', $this->adminId, $groupId);
+        $unrelated = $this->tag('Unrelated-Original', $this->adminId);
 
-        [$statusGeteilt] = $this->postJson(
+        [$statusShared] = $this->postJson(
             '/api/update',
-            array('entity' => 'PIM\\Tag', 'id' => $geteilt, 'data' => array('title' => 'Geteilt-neu')),
+            array('entity' => 'PIM\\Tag', 'id' => $shared, 'data' => array('title' => 'Shared-new')),
             $token
         );
-        [$statusFremd] = $this->postJson(
+        [$statusForeign] = $this->postJson(
             '/api/update',
-            array('entity' => 'PIM\\Tag', 'id' => $unbeteiligt, 'data' => array('title' => 'Uebergriff')),
+            array('entity' => 'PIM\\Tag', 'id' => $unrelated, 'data' => array('title' => 'Intrusion')),
             $token
         );
 
-        $this->assertSame(200, $statusGeteilt);
-        $this->assertSame('Geteilt-neu', $this->titel($geteilt));
+        $this->assertSame(200, $statusShared);
+        $this->assertSame('Shared-new', $this->title($shared));
 
-        $this->assertSame(403, $statusFremd,
-            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
-        $this->assertSame('Unbeteiligt-Original', $this->titel($unbeteiligt),
-            'Ohne Gruppenbezug bleibt das Objekt unangetastet');
+        $this->assertSame(403, $statusForeign,
+            'Since 006-002-0003 the intended code — Symfony 4.4 fixes 000-000-0006 here');
+        $this->assertSame('Unrelated-Original', $this->title($unrelated),
+            'Without a group relation the object stays untouched');
 
-        $this->pdo()->prepare('DELETE FROM pim_log WHERE model_id = :id')->execute(array('id' => $geteilt));
+        $this->pdo()->prepare('DELETE FROM pim_log WHERE model_id = :id')->execute(array('id' => $shared));
     }
 
     // ── delete ─────────────────────────────────────────────────────────────────────────
 
-    public function testOhneLoeschrechtBleibtDasObjektBestehen(): void
+    public function testWithoutDeleteRightTheObjectRemains(): void
     {
         [$token] = $this->createTestUser(array('PIM\\Tag' => array(
             'readable' => Permission::ALL, 'writable' => Permission::ALL,
         )));
 
-        $tag = $this->tag('Unloeschbar', $this->adminId);
+        $tag = $this->tag('Undeletable', $this->adminId);
 
         [$status] = $this->postJson('/api/delete', array('entity' => 'PIM\\Tag', 'id' => $tag), $token);
 
         $this->assertSame(403, $status,
-            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
-        $this->assertTrue($this->existiert($tag),
-            'Schreibrecht allein berechtigt nicht zum Loeschen — gegen die Datenbank geprueft');
+            'Since 006-002-0003 the intended code — Symfony 4.4 fixes 000-000-0006 here');
+        $this->assertTrue($this->exists($tag),
+            'Write right alone does not entitle to delete — checked against the database');
     }
 
-    public function testMitLoeschrechtOwnBleibtEinFremdesObjektBestehen(): void
+    public function testWithDeleteRightOwnAForeignObjectRemains(): void
     {
         [$token, $userId] = $this->createTestUser(array('PIM\\Tag' => array(
             'readable' => Permission::ALL, 'deletable' => Permission::OWN,
         )));
 
-        $eigener = $this->tag('Eigener', $userId);
-        $fremder = $this->tag('Fremder', $this->adminId);
+        $own     = $this->tag('Own', $userId);
+        $foreign = $this->tag('Foreign', $this->adminId);
 
-        [$statusFremd]  = $this->postJson('/api/delete', array('entity' => 'PIM\\Tag', 'id' => $fremder), $token);
-        [$statusEigen]  = $this->postJson('/api/delete', array('entity' => 'PIM\\Tag', 'id' => $eigener), $token);
+        [$statusForeign] = $this->postJson('/api/delete', array('entity' => 'PIM\\Tag', 'id' => $foreign), $token);
+        [$statusOwn]     = $this->postJson('/api/delete', array('entity' => 'PIM\\Tag', 'id' => $own), $token);
 
-        $this->assertSame(403, $statusFremd,
-            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
-        $this->assertTrue($this->existiert($fremder), 'Das fremde Objekt ist noch da');
+        $this->assertSame(403, $statusForeign,
+            'Since 006-002-0003 the intended code — Symfony 4.4 fixes 000-000-0006 here');
+        $this->assertTrue($this->exists($foreign), 'The foreign object is still there');
 
-        $this->assertSame(200, $statusEigen);
-        $this->assertFalse($this->existiert($eigener), 'Das eigene ist weg');
+        $this->assertSame(200, $statusOwn);
+        $this->assertFalse($this->exists($own), 'The own one is gone');
 
-        $this->pdo()->prepare('DELETE FROM pim_log WHERE model_id = :id')->execute(array('id' => $eigener));
+        $this->pdo()->prepare('DELETE FROM pim_log WHERE model_id = :id')->execute(array('id' => $own));
     }
 
-    // ── Die Sonderregel: sich selbst darf man immer ────────────────────────────────────
+    // ── The special rule: a user may always change themselves ──────────────────────────
 
-    public function testMitStufeOwnDarfSichEinBenutzerImmerSelbstAendern(): void
+    public function testWithLevelOwnAUserMayAlwaysChangeThemselves(): void
     {
-        // Api.php:452 traegt eine dritte Bedingung, die den beiden anderen Pruefungen
-        // hinzugefuegt ist: `&& $object != $this->app['auth.user']`. Ein Benutzer faellt
-        // damit nie unter die OWN-Sperre fuer sich selbst — auch dann nicht, wenn er sich
-        // nicht selbst angelegt hat.
+        // Api.php:452 carries a third condition added to the two other checks:
+        // `&& $object != $this->app['auth.user']`. A user thus never falls under the OWN lock
+        // for themselves — not even when they did not create themselves.
         [$token, $userId] = $this->createTestUser(array('PIM\\User' => array(
             'readable' => Permission::ALL, 'writable' => Permission::OWN,
         )));
@@ -234,62 +233,62 @@ class WritePermissionApiTest extends IntegrationTestCase
         );
 
         $this->assertSame(200, $status,
-            'Der Testbenutzer wurde vom Test angelegt, nicht von sich selbst — und darf sich '
-            .'trotzdem aendern');
+            'The test user was created by the test, not by itself — and may still '
+            .'change itself');
 
         $this->pdo()->prepare('DELETE FROM pim_log WHERE model_id = :id')->execute(array('id' => $userId));
     }
 
-    // ── MultijoinType: nicht auslösbar ─────────────────────────────────────────────────
+    // ── MultijoinType: cannot be triggered ─────────────────────────────────────────────
 
-    public function testDieSchreibpruefungInMultijoinTypeIstNichtAusloesbar(): void
+    public function testTheWriteCheckInMultijoinTypeCannotBeTriggered(): void
     {
-        // MultijoinType prueft an zwei Stellen (Zeilen 190 und 230) das Schreibrecht auf die
-        // Zielentity — aber nur im `mappedBy`-Zweig, der `acceptFrom` voraussetzt.
+        // MultijoinType checks the write right on the target entity in two places (lines 190
+        // and 230) — but only in the `mappedBy` branch, which requires `acceptFrom`.
         //
-        // Im Framework und in der Vorlage traegt **keine einzige Eigenschaft** ein
-        // `acceptFrom`. Der einzige Multijoin ist PIM\File.tags, und der hat keines. Der
-        // Code-Pfad hat damit keinen Ausloeser.
+        // In the framework and in the template **not a single property** carries an
+        // `acceptFrom`. The only multijoin is PIM\File.tags, and it has none. The code path
+        // thus has no trigger.
         //
-        // Entsteht eine bidirektionale Multijoin-Beziehung, schlaegt dieser Test an. Dann
-        // gehoert hierher der Nachweis, dass ohne Schreibrecht auf die Zielentity ein
-        // AccessDeniedHttpException kommt.
-        [$status, $roh] = $this->get('/api/schema', $this->token());
+        // If a bidirectional multijoin relation comes into being, this test fails. Then the
+        // proof that without write right on the target entity an AccessDeniedHttpException
+        // is raised belongs here.
+        [$status, $raw] = $this->get('/api/schema', $this->token());
         $this->assertSame(200, $status);
 
-        $mitAcceptFrom = array();
-        foreach (json_decode($roh, true)['data'] as $entity => $eintrag) {
-            if ($entity === '_hash' || !isset($eintrag['properties'])) {
+        $withAcceptFrom = array();
+        foreach (json_decode($raw, true)['data'] as $entity => $entry) {
+            if ($entity === '_hash' || !isset($entry['properties'])) {
                 continue;
             }
-            foreach ($eintrag['properties'] as $name => $config) {
+            foreach ($entry['properties'] as $name => $config) {
                 if (!empty($config['acceptFrom'])) {
-                    $mitAcceptFrom[] = $entity.'.'.$name;
+                    $withAcceptFrom[] = $entity.'.'.$name;
                 }
             }
         }
 
-        $this->assertSame(array(), $mitAcceptFrom,
-            'Ohne acceptFrom greift die Schreibpruefung in MultijoinType nicht. Aendert sich '
-            .'das, gehoert der Nachweis in diesen Test.');
+        $this->assertSame(array(), $withAcceptFrom,
+            'Without acceptFrom the write check in MultijoinType does not apply. If that '
+            .'changes, the proof belongs in this test.');
     }
 
     // ── Admin ──────────────────────────────────────────────────────────────────────────
 
-    public function testEinAdminSchreibtUndLoeschtOhneBerechtigungszeile(): void
+    public function testAnAdminWritesAndDeletesWithoutAPermissionRow(): void
     {
         $tag = $this->tag('Admin-Probe', $this->adminId);
 
         [$statusUpdate] = $this->postJson(
             '/api/update',
-            array('entity' => 'PIM\\Tag', 'id' => $tag, 'data' => array('title' => 'Admin-geaendert')),
+            array('entity' => 'PIM\\Tag', 'id' => $tag, 'data' => array('title' => 'Admin-changed')),
             $this->token()
         );
         $this->assertSame(200, $statusUpdate);
 
         [$statusDelete] = $this->postJson('/api/delete', array('entity' => 'PIM\\Tag', 'id' => $tag), $this->token());
         $this->assertSame(200, $statusDelete);
-        $this->assertFalse($this->existiert($tag));
+        $this->assertFalse($this->exists($tag));
 
         $this->pdo()->prepare('DELETE FROM pim_log WHERE model_id = :id')->execute(array('id' => $tag));
     }

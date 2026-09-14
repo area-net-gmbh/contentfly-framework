@@ -4,75 +4,75 @@ namespace Tests\Integration\Api;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * Charakterisierungstests für die Absicherung der Routen und die Middleware der Vorlage.
+ * Characterization tests for route protection and the template's middleware.
  *
- * Der Schalter heißt **`Route::$isSecure`** und liegt in
- * `Classes/Controller/Provider/Base/CustomControllerProvider.php` — nicht `_secured` im
- * `RouteManager`, wie der Text von Epic `008` ursprünglich annahm; die Bezeichnung kommt im
- * Baum nicht vor (festgestellt in `012-006-0003`).
+ * The switch is called **`Route::$isSecure`** and lives in
+ * `Classes/Controller/Provider/Base/CustomControllerProvider.php` — not `_secured` in the
+ * `RouteManager`, as the text of epic `008` originally assumed; that name does not occur in
+ * the tree (established in `012-006-0003`).
  *
- * Auf diese Semantik verlässt sich Epic `009` beim Kernel-Tausch: Ein Projekt baut damit
- * seine öffentlichen Endpunkte. Deshalb sind **beide** Richtungen festgehalten — dass eine
- * gesicherte Route abweist, und dass eine ungesicherte antwortet.
+ * Epic `009` relies on these semantics during the kernel swap: a project builds its public
+ * endpoints with it. That is why **both** directions are recorded — that a secured route
+ * rejects, and that an unsecured one responds.
  */
 class RouteSecurityApiTest extends IntegrationTestCase
 {
     // ── isSecure = true ────────────────────────────────────────────────────────────────
 
-    public function testEineGesicherteRouteWeistOhneTokenAb(): void
+    public function testSecuredRouteRejectsWithoutToken(): void
     {
         [$status, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'));
 
-        $this->assertSame(401, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
-        $this->assertArrayNotHasKey('data', $body, 'Entscheidend ist: es fliessen keine Daten');
+        $this->assertSame(401, $status, 'Since the stack switch (006-002-0003) the intended code — Symfony 4.4 fixes 000-000-0006 here');
+        $this->assertArrayNotHasKey('data', $body, 'What matters: no data flows');
     }
 
     /**
-     * **GET, nicht POST** — geklaert mit `000-000-0020`.
+     * **GET, not POST** — clarified with `000-000-0020`.
      *
-     * Diese Zusicherung rief `/api/schema` bis dahin per POST auf. Die Route ist aber seit
-     * dem initialen Import als `$controllers->get('/schema', ...)` definiert; POST war **nie**
-     * Teil des Vertrags. Auch jeder andere Aufrufer im Repo — 19 Stellen in 11 Testdateien —
-     * benutzt GET.
+     * Until then this assertion called `/api/schema` via POST. The route, however, has been
+     * defined as `$controllers->get('/schema', ...)` since the initial import; POST was
+     * **never** part of the contract. Every other caller in the repo — 19 places in 11 test
+     * files — uses GET as well.
      *
-     * Dass es trotzdem lange durchging, lag an der Schwaeche der alten Zusicherung: Sie
-     * pruefte `assertNotSame(500, ...)`, und ein „Method Not Allowed" ist 405. Erst seit dem
-     * Stack-Wechsel kommt derselbe Fall als 500 heraus (`MethodNotAllowedHttpException`, vom
-     * Statuscode her ueberschrieben — das ist `000-000-0006`), und damit fiel er auf.
+     * That it passed for so long was due to the weakness of the old assertion: it checked
+     * `assertNotSame(500, ...)`, and a "Method Not Allowed" is 405. Only since the stack
+     * switch does the same case come out as 500 (`MethodNotAllowedHttpException`, with its
+     * status code overwritten — that is `000-000-0006`), and that is when it was noticed.
      *
-     * Die Zusicherung steht jetzt auf dem tatsaechlichen Ergebnis statt auf der Verneinung
-     * eines einzelnen Fehlercodes. Der Zweck dieser Klasse verlangt das: Epic `009` verlaesst
-     * sich auf die `isSecure`-Semantik, und „irgendetwas ausser 500" belegt sie nicht.
+     * The assertion now targets the actual result instead of negating a single error code.
+     * The purpose of this class requires that: epic `009` relies on the `isSecure` semantics,
+     * and "anything except 500" does not prove them.
      */
-    public function testEineGesicherteRouteAntwortetMitToken(): void
+    public function testSecuredRouteRespondsWithToken(): void
     {
         [$status] = $this->get('/api/schema', $this->token());
 
-        $this->assertSame(200, $status, 'Mit Token laeuft die Pruefung durch');
+        $this->assertSame(200, $status, 'With a token the check passes');
     }
 
-    public function testEineLeereListeKommtAls200(): void
+    public function testEmptyListComesAs200(): void
     {
-        // Umgedreht mit 000-000-0014. Der Test hiess testEineLeereListeKommtAls404 und hielt
-        // fest, dass listAction() bei leerem Ergebnis mit HTTP 404 {"message":"Not found"}
-        // antwortet — einer achten Antwortform, die mit keiner der sieben anderen etwas zu
-        // tun hatte. Fuer einen Client waren "keine Treffer" und "Route gibt es nicht"
-        // damit nicht unterscheidbar.
+        // Inverted with 000-000-0014. The test was called testEineLeereListeKommtAls404 and
+        // recorded that listAction() responds to an empty result with HTTP 404
+        // {"message":"Not found"} — an eighth response shape that had nothing to do with any
+        // of the other seven. For a client, "no hits" and "route does not exist" were thus
+        // indistinguishable.
         //
-        // PIM\\Nav ist nach einer frischen Installation leer — kein Loeschen noetig, das
-        // wuerde den Datenbestand anderer Tests anfassen.
+        // PIM\\Nav is empty after a fresh installation — no deletion needed, which would
+        // touch the data of other tests.
         [$status, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\Nav'), $this->token());
 
         $this->assertSame(200, $status);
-        $this->assertSame(array(), $body['data'], 'Eine leere Liste, keine Fehlermeldung');
+        $this->assertSame(array(), $body['data'], 'An empty list, not an error message');
         $this->assertSame(0, $body['totalItems']);
     }
 
-    public function testEineUnbekannteEntityBleibtEin404MitBegruendung(): void
+    public function testUnknownEntityRemainsA404WithReason(): void
     {
-        // Die Gegenprobe zum Test darueber: Der Fall, fuer den der 404 gedacht war, meldet
-        // sich weiterhin — und zwar unterscheidbar, mit einer Begruendung im Rumpf.
-        [$status, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\GibtesNicht'), $this->token());
+        // The counter-check to the test above: the case the 404 was meant for is still
+        // reported — and distinguishably so, with a reason in the body.
+        [$status, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\DoesNotExist'), $this->token());
 
         $this->assertSame(404, $status);
         $this->assertSame('contentfly_general_unknown_entity', $body['message']);
@@ -80,106 +80,106 @@ class RouteSecurityApiTest extends IntegrationTestCase
 
     // ── isSecure = false ───────────────────────────────────────────────────────────────
 
-    public function testEineUngesicherteRouteAntwortetOhneToken(): void
+    public function testUnsecuredRouteRespondsWithoutToken(): void
     {
-        // Die andere Richtung, und der eigentliche Vertrag: `custom/app.php` bindet
+        // The other direction, and the actual contract: `custom/app.php` binds
         //
         //     $controllerProvider->mount('api/v1/example/', …)->post('/bootstrap', false, …)
         //
-        // Das zweite Argument ist isSecure. Auf false gesetzt, ist die Route ohne Token
-        // erreichbar — so baut ein Projekt seine oeffentlichen Endpunkte. Faellt diese
-        // Faehigkeit beim Kernel-Tausch weg, merkt es niemand, bis ein Projekt bricht.
+        // The second argument is isSecure. Set to false, the route is reachable without a
+        // token — this is how a project builds its public endpoints. If this capability
+        // disappears during the kernel swap, nobody notices until a project breaks.
         [$status, $body] = $this->postJson('/api/v1/example/bootstrap', array());
 
-        $this->assertSame(200, $status, 'Ohne Token erreichbar, weil isSecure=false');
+        $this->assertSame(200, $status, 'Reachable without a token because isSecure=false');
 
-        // Und ein Befund nebenbei: Die Vorlage antwortet in ihrem EIGENEN Format — success,
-        // status, i18n, data, errors, meta, timestamp — nicht im Envelope des Frameworks.
-        // Ein Projekt ist an dessen Form also nicht gebunden.
+        // And a finding on the side: the template responds in its OWN format — success,
+        // status, i18n, data, errors, meta, timestamp — not in the framework's envelope.
+        // A project is therefore not bound to its shape.
         $this->assertSame(
             array('success', 'status', 'i18n', 'data', 'errors', 'meta', 'timestamp'),
             array_keys($body),
-            'Die Vorlage bringt ihren eigenen Antwort-Envelope mit'
+            'The template brings its own response envelope'
         );
         $this->assertTrue($body['success']);
     }
 
-    public function testDieUngesicherteRouteAntwortetAuchMitToken(): void
+    public function testUnsecuredRouteAlsoRespondsWithToken(): void
     {
         [$status] = $this->postJson('/api/v1/example/bootstrap', array(), $this->token());
 
-        $this->assertSame(200, $status, 'isSecure=false heisst "Token nicht noetig", nicht "Token verboten"');
+        $this->assertSame(200, $status, 'isSecure=false means "token not required", not "token forbidden"');
     }
 
-    // ── /api/config: die einzige GET-Route ohne Token-Pflicht ──────────────────────────
+    // ── /api/config: the only GET route without a token requirement ────────────────────
 
-    public function testApiConfigIstOhneTokenErreichbar(): void
+    public function testApiConfigIsReachableWithoutToken(): void
     {
-        // Im ApiControllerProvider die einzige Route, die ohne ->before($checkAuth) gebunden
-        // ist. Was sie preisgibt, gehoert damit zum oeffentlichen Teil der API.
-        [$status, $roh] = $this->get('/api/config');
+        // The only route in ApiControllerProvider that is bound without ->before($checkAuth).
+        // Whatever it reveals therefore belongs to the public part of the API.
+        [$status, $raw] = $this->get('/api/config');
 
         $this->assertSame(200, $status);
 
-        $config = json_decode($roh, true);
+        $config = json_decode($raw, true);
 
-        // UMGEDREHT MIT 000-000-0010, nicht geloescht.
+        // INVERTED WITH 000-000-0010, not deleted.
         //
-        // Bis dahin hielt dieser Test fest, dass der oeffentliche Endpunkt weiterhin
-        // customLogo bewirbt — eine Eigenschaft der Oberflaeche, die Epic 012 entfernt hat.
-        // Der Kommentar lautete: "Festgehalten, nicht bereinigt — das waere ein eigener
-        // Task." Das ist dieser Task.
+        // Until then this test recorded that the public endpoint still advertises
+        // customLogo — a property of the UI that epic 012 removed.
+        // The comment read: "Recorded, not cleaned up — that would be a task of its own."
+        // This is that task.
         //
-        // Der frontend-Schluessel ist ganz entfallen, nicht geleert: Ein Schluessel, der
-        // nichts mehr traegt, laedt dazu ein, wieder etwas hineinzulegen. Vermerkt als
-        // Breaking Change in an_project/docs/breaking-changes.md.
+        // The frontend key was dropped entirely, not emptied: a key that no longer carries
+        // anything invites putting something back into it. Noted as a
+        // breaking change in an_project/docs/breaking-changes.md.
         $this->assertSame(array('devmode', 'version', 'hash'), array_keys($config),
-            'Ein eigener Envelope, der siebte — ohne data und ohne ts');
+            'An envelope of its own, the seventh — without data and without ts');
 
         $this->assertArrayNotHasKey('frontend', $config,
-            'Der oeffentliche Endpunkt bewirbt nichts mehr aus der geloeschten Oberflaeche');
+            'The public endpoint no longer advertises anything from the deleted UI');
     }
 
-    // ── Die Middleware der Vorlage ─────────────────────────────────────────────────────
+    // ── The template's middleware ──────────────────────────────────────────────────────
 
-    public function testDerAfterHookAusCustomAppSetztDenReferrerPolicyHeader(): void
+    public function testAfterHookFromCustomAppSetsTheReferrerPolicyHeader(): void
     {
-        // custom/app.php registriert einen after-Hook, der diesen Header auf jede Antwort
-        // setzt. Er ist der einfachste Nachweis, dass die Middleware der Vorlage ueberhaupt
-        // greift — und damit, dass RouteManager und Hook-Reihenfolge zusammenspielen.
-        [$status, , $kopf] = $this->get('/api/config');
+        // custom/app.php registers an after hook that sets this header on every response.
+        // It is the simplest proof that the template's middleware takes effect at all — and
+        // thus that RouteManager and hook order work together.
+        [$status, , $headers] = $this->get('/api/config');
 
         $this->assertSame(200, $status);
-        $this->assertSame('strict-origin-when-cross-origin', $this->header($kopf, 'Referrer-Policy'));
+        $this->assertSame('strict-origin-when-cross-origin', $this->header($headers, 'Referrer-Policy'));
     }
 
-    public function testDerAfterHookGreiftAuchAufEinerGesichertenRoute(): void
+    public function testAfterHookAlsoAppliesOnASecuredRoute(): void
     {
-        [, , $kopf] = $this->get('/api/schema', $this->token());
+        [, , $headers] = $this->get('/api/schema', $this->token());
 
-        $this->assertSame('strict-origin-when-cross-origin', $this->header($kopf, 'Referrer-Policy'),
-            'Die Middleware laeuft unabhaengig davon, ob die Route gesichert ist');
+        $this->assertSame('strict-origin-when-cross-origin', $this->header($headers, 'Referrer-Policy'),
+            'The middleware runs regardless of whether the route is secured');
     }
 
-    // ── I18nPermission über die API ────────────────────────────────────────────────────
+    // ── I18nPermission via the API ─────────────────────────────────────────────────────
 
-    public function testDieSprachrechtePruefungIstUeberDieApiNichtAusloesbar(): void
+    public function testLanguagePermissionCheckCannotBeTriggeredViaTheApi(): void
     {
-        // Api.php:122 prueft I18nPermission::isWritable() beim Loeschen, und
-        // Api.php:248/465 pruefen isOnlyReadable() beim Schreiben. Alle drei brauchen eine
-        // i18n-Entity und konfigurierte Sprachen — die Vorlage hat weder das eine noch das
-        // andere (`APP_LANGUAGES` ist leer, es gibt nur die abstrakten BaseI18n-Klassen).
+        // Api.php:122 checks I18nPermission::isWritable() on delete, and
+        // Api.php:248/465 check isOnlyReadable() on write. All three need an
+        // i18n entity and configured languages — the template has neither the one nor the
+        // other (`APP_LANGUAGES` is empty, there are only the abstract BaseI18n classes).
         //
-        // Die Logik dahinter ist stattdessen als Unit-Test abgedeckt:
-        // tests/Unit/Entity/GroupLanguagePermissionTest.php. Aendert sich die Vorbedingung,
-        // schlaegt dieser Test an und fordert den Integrationsnachweis ein.
-        [$status, $roh] = $this->get('/api/config');
+        // The logic behind it is covered by a unit test instead:
+        // tests/Unit/Entity/GroupLanguagePermissionTest.php. If the precondition changes,
+        // this test fails and demands the integration proof.
+        [$status, $raw] = $this->get('/api/config');
         $this->assertSame(200, $status);
 
-        $config = json_decode($roh, true);
+        $config = json_decode($raw, true);
 
         $this->assertArrayNotHasKey('languages', $config,
-            'Ohne konfigurierte Sprachen meldet /api/config gar keine — es gibt also keine '
-            .'Sprachrechte zu pruefen');
+            'Without configured languages /api/config reports none at all — so there are no '
+            .'language permissions to check');
     }
 }

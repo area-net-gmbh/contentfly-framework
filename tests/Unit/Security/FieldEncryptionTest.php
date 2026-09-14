@@ -12,7 +12,7 @@ use PHPUnit\Framework\TestCase;
  * WHY THEY DID NOT EXIST BEFORE: the code had nothing to be tested against. No entity sets
  * `encoded: true`, and `SECURITY_CIPHER_KEY` defaults to `null` — encryption could not be
  * triggered through the API.
- * `ConstraintApiTest::testKeineEntityNutztDieEncodedVerschluesselung` records exactly that and
+ * `ConstraintApiTest::testNoEntityUsesEncodedEncryption` records exactly that and
  * demands proof as soon as someone sets the flag. Until then THIS file is the only place where
  * the algorithm runs.
  *

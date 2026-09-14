@@ -4,59 +4,59 @@ namespace Tests\Integration\Api;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * Charakterisierungstests für die Baum-Endpunkte `/api/tree` und `/api/tree2`.
+ * Characterisation tests for the tree endpoints `/api/tree` and `/api/tree2`.
  *
- * Die beiden gehen völlig verschiedene Wege und liefern dieselben Daten in **unvereinbaren
- * Formen**: `tree` baut über die Entities und serialisiert wie der Rest der API, `tree2` liest
- * eine einzige SQL-Abfrage gegen `pim_tree` aus und reicht die Rohwerte durch. Das ist keine
- * Feinheit, sondern der Unterschied zwischen `"created": {"LOCAL": …, "ISO8601": …}` und
+ * The two take entirely different routes and return the same data in **incompatible
+ * shapes**: `tree` builds via the entities and serialises like the rest of the API, `tree2` reads
+ * a single SQL query against `pim_tree` and passes the raw values through. That is not a
+ * subtlety, but the difference between `"created": {"LOCAL": …, "ISO8601": …}` and
  * `"created": "2026-09-07 09:12:23"`.
  *
- * Zwei Zusicherungen hier schützen Entscheidungen aus `012-005-0003`:
- * die Feldauswahl von `tree2` und das Quoting seiner Spaltennamen.
+ * Two assertions here protect decisions from `012-005-0003`:
+ * the field selection of `tree2` and the quoting of its column names.
  */
 class TreeApiTest extends IntegrationTestCase
 {
-    private string $wurzel = '';
-    private string $kind   = '';
+    private string $root  = '';
+    private string $child = '';
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $lauf         = bin2hex(random_bytes(6));
-        $this->wurzel = 'tree-w-'.$lauf;
-        $this->kind   = 'tree-k-'.$lauf;
+        $run         = bin2hex(random_bytes(6));
+        $this->root  = 'tree-r-'.$run;
+        $this->child = 'tree-c-'.$run;
 
-        $this->ordnerAnlegen($this->wurzel, 'Wurzel', null, 1);
-        $this->ordnerAnlegen($this->kind,   'Kind',   $this->wurzel, 2);
+        $this->createFolder($this->root,  'Root',  null, 1);
+        $this->createFolder($this->child, 'Child', $this->root, 2);
     }
 
-    private function ordnerAnlegen(string $id, string $titel, ?string $elternId, int $sortierung): void
+    private function createFolder(string $id, string $title, ?string $parentId, int $sorting): void
     {
         $this->pdo()->prepare(
             'INSERT INTO pim_tree (id, sorting, isActive, created, modified, views, isIntern, dtype, parent_id)
              VALUES (:id, :s, 1, NOW(), NOW(), 0, 0, :dtype, :parent)'
-        )->execute(array('id' => $id, 's' => $sortierung, 'dtype' => 'folder', 'parent' => $elternId));
+        )->execute(array('id' => $id, 's' => $sorting, 'dtype' => 'folder', 'parent' => $parentId));
 
-        $this->pdo()->prepare('INSERT INTO pim_folder (id, title) VALUES (:id, :titel)')
-             ->execute(array('id' => $id, 'titel' => $titel));
+        $this->pdo()->prepare('INSERT INTO pim_folder (id, title) VALUES (:id, :title)')
+             ->execute(array('id' => $id, 'title' => $title));
 
-        // pim_folder zuerst — pim_tree traegt den Primaerschluessel, auf den es zeigt.
+        // pim_folder first — pim_tree carries the primary key it points to.
         $this->deleteAfterTest('pim_tree', $id);
         $this->deleteAfterTest('pim_folder', $id);
     }
 
-    /** Sucht einen Knoten in einem Baum, unabhaengig vom Namen des Kind-Schluessels. */
-    private function knoten(array $baum, string $id, string $kindSchluessel): ?array
+    /** Finds a node in a tree, regardless of the name of the child key. */
+    private function node(array $tree, string $id, string $childKey): ?array
     {
-        foreach ($baum as $eintrag) {
-            if (($eintrag['id'] ?? null) === $id) {
-                return $eintrag;
+        foreach ($tree as $entry) {
+            if (($entry['id'] ?? null) === $id) {
+                return $entry;
             }
-            $treffer = $this->knoten($eintrag[$kindSchluessel] ?? array(), $id, $kindSchluessel);
-            if ($treffer !== null) {
-                return $treffer;
+            $match = $this->node($entry[$childKey] ?? array(), $id, $childKey);
+            if ($match !== null) {
+                return $match;
             }
         }
 
@@ -65,35 +65,35 @@ class TreeApiTest extends IntegrationTestCase
 
     // ── /api/tree ──────────────────────────────────────────────────────────────────────
 
-    public function testTreeHaengtKinderAlsTreeChildsAn(): void
+    public function testTreeAttachesChildrenAsTreeChilds(): void
     {
         [$status, $body] = $this->postJson('/api/tree', array('entity' => 'PIM\\Folder'), $this->token());
 
         $this->assertSame(200, $status);
         $this->assertSame(array('ts', 'data', 'version', 'hash'), array_keys($body));
 
-        $wurzel = $this->knoten($body['data'], $this->wurzel, 'treeChilds');
-        $this->assertNotNull($wurzel, 'Die Wurzel liegt auf der obersten Ebene');
-        $this->assertSame('Wurzel', $wurzel['title']);
+        $root = $this->node($body['data'], $this->root, 'treeChilds');
+        $this->assertNotNull($root, 'The root is on the top level');
+        $this->assertSame('Root', $root['title']);
 
-        $kindIds = array_column($wurzel['treeChilds'], 'id');
-        $this->assertContains($this->kind, $kindIds, 'Das Kind haengt unter treeChilds der Wurzel');
+        $childIds = array_column($root['treeChilds'], 'id');
+        $this->assertContains($this->child, $childIds, 'The child hangs under treeChilds of the root');
     }
 
-    public function testTreeSerialisiertWieDerRestDerApi(): void
+    public function testTreeSerialisesLikeTheRestOfTheApi(): void
     {
         [, $body] = $this->postJson('/api/tree', array('entity' => 'PIM\\Folder'), $this->token());
-        $wurzel   = $this->knoten($body['data'], $this->wurzel, 'treeChilds');
+        $root     = $this->node($body['data'], $this->root, 'treeChilds');
 
         $this->assertSame(
             array('LOCAL_TIME', 'LOCAL', 'ISO8601', 'TIMESTAMP'),
-            array_keys($wurzel['created']),
-            'tree liefert Datumsfelder als Vierergruppe — anders als tree2'
+            array_keys($root['created']),
+            'tree returns date fields as a group of four — unlike tree2'
         );
-        $this->assertIsBool($wurzel['isActive'], 'tree liefert echte Boolesche Werte');
+        $this->assertIsBool($root['isActive'], 'tree returns real boolean values');
     }
 
-    public function testTreePropertiesSchraenktDieFeldmengeEin(): void
+    public function testTreePropertiesRestrictsTheFieldSet(): void
     {
         [, $body] = $this->postJson(
             '/api/tree',
@@ -101,84 +101,84 @@ class TreeApiTest extends IntegrationTestCase
             $this->token()
         );
 
-        $wurzel = $this->knoten($body['data'], $this->wurzel, 'treeChilds');
+        $root = $this->node($body['data'], $this->root, 'treeChilds');
 
-        $this->assertNotNull($wurzel);
-        $this->assertSame('Wurzel', $wurzel['title']);
-        $this->assertArrayNotHasKey('views', $wurzel, 'Nicht angeforderte Felder fehlen');
+        $this->assertNotNull($root);
+        $this->assertSame('Root', $root['title']);
+        $this->assertArrayNotHasKey('views', $root, 'Fields not requested are missing');
     }
 
-    public function testTreeOhneTokenLiefertKeineDaten(): void
+    public function testTreeWithoutTokenReturnsNoData(): void
     {
         [$status, $body] = $this->postJson('/api/tree', array('entity' => 'PIM\\Folder'));
 
-        $this->assertSame(401, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
+        $this->assertSame(401, $status, 'Since the stack switch (006-002-0003) the intended code — Symfony 4.4 fixes 000-000-0006 here');
         $this->assertArrayNotHasKey('data', $body);
     }
 
     // ── /api/tree2 ─────────────────────────────────────────────────────────────────────
 
-    public function testTree2HaengtKinderAlsChildsAnUndTraegtParent(): void
+    public function testTree2AttachesChildrenAsChildsAndCarriesParent(): void
     {
         [$status, $body] = $this->postJson('/api/tree2', array('entity' => 'PIM\\Folder'), $this->token());
 
         $this->assertSame(200, $status);
         $this->assertSame(array('ts', 'data', 'version', 'hash'), array_keys($body));
 
-        $wurzel = $this->knoten($body['data'], $this->wurzel, 'childs');
-        $this->assertNotNull($wurzel);
-        $this->assertSame(array('id' => null), $wurzel['parent'], 'Die Wurzel hat kein Elternteil');
-        $this->assertSame(1, $wurzel['sorting']);
+        $root = $this->node($body['data'], $this->root, 'childs');
+        $this->assertNotNull($root);
+        $this->assertSame(array('id' => null), $root['parent'], 'The root has no parent');
+        $this->assertSame(1, $root['sorting']);
 
-        $kind = $this->knoten($body['data'], $this->kind, 'childs');
-        $this->assertNotNull($kind, 'Das Kind haengt unter childs — nicht treeChilds wie bei /api/tree');
-        $this->assertSame(array('id' => $this->wurzel), $kind['parent']);
+        $child = $this->node($body['data'], $this->child, 'childs');
+        $this->assertNotNull($child, 'The child hangs under childs — not treeChilds as with /api/tree');
+        $this->assertSame(array('id' => $this->root), $child['parent']);
     }
 
-    public function testTree2ReichtDieRohwerteDerDatenbankDurch(): void
+    public function testTree2PassesThroughTheRawDatabaseValues(): void
     {
-        // Der harte Unterschied zu /api/tree: keine Serialisierung ueber die Typ-Klassen.
+        // The hard difference from /api/tree: no serialisation via the type classes.
         [, $body] = $this->postJson('/api/tree2', array('entity' => 'PIM\\Folder'), $this->token());
-        $wurzel   = $this->knoten($body['data'], $this->wurzel, 'childs');
+        $root     = $this->node($body['data'], $this->root, 'childs');
 
-        $this->assertIsString($wurzel['created'],
-            'tree2 liefert das Datum als SQL-String, nicht als Vierergruppe');
-        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $wurzel['created']);
-        $this->assertSame(1, $wurzel['isActive'], 'Boolesche Werte kommen als Integer durch');
+        $this->assertIsString($root['created'],
+            'tree2 returns the date as an SQL string, not as a group of four');
+        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $root['created']);
+        $this->assertSame(1, $root['isActive'], 'Boolean values come through as integers');
     }
 
-    public function testTree2LiefertAlleSkalarenFelder(): void
+    public function testTree2ReturnsAllScalarFields(): void
     {
-        // Schuetzt 012-005-0003: Die Spaltenauswahl kam frueher aus `showInList` — der
-        // Listenposition der geloeschten Oberflaeche. Seither sind es alle skalaren Felder.
+        // Protects 012-005-0003: the column selection used to come from `showInList` — the
+        // list position of the deleted user interface. Since then it is all scalar fields.
         [, $body] = $this->postJson('/api/tree2', array('entity' => 'PIM\\Folder'), $this->token());
-        $wurzel   = $this->knoten($body['data'], $this->wurzel, 'childs');
+        $root     = $this->node($body['data'], $this->root, 'childs');
 
-        foreach (array('title', 'isActive', 'created', 'modified', 'views', 'isIntern', 'sorting') as $feld) {
-            $this->assertArrayHasKey($feld, $wurzel, "tree2 liefert alle skalaren Felder ($feld)");
+        foreach (array('title', 'isActive', 'created', 'modified', 'views', 'isIntern', 'sorting') as $field) {
+            $this->assertArrayHasKey($field, $root, "tree2 returns all scalar fields ($field)");
         }
     }
 
-    public function testTree2QuotetSpaltennamenUndVertraegtDasReservierteWortGroups(): void
+    public function testTree2QuotesColumnNamesAndHandlesTheReservedWordGroups(): void
     {
-        // Regressionsschutz aus 012-005-0003: Ohne Backticks bricht die Abfrage, sobald
-        // `groups` in der Auswahl landet — in MySQL 8 ein reserviertes Wort. PIM\Folder erbt
-        // von BaseTree und traegt damit `users` und `groups`; ein erfolgreicher Abruf ist
-        // der Beweis, dass gequotet wird.
+        // Regression protection from 012-005-0003: without backticks the query breaks as soon
+        // as `groups` ends up in the selection — a reserved word in MySQL 8. PIM\Folder inherits
+        // from BaseTree and thereby carries `users` and `groups`; a successful fetch is the
+        // proof that quoting happens.
         [$status, $body] = $this->postJson('/api/tree2', array('entity' => 'PIM\\Folder'), $this->token());
 
-        $this->assertSame(200, $status, 'Ohne Quoting waere das ein SQL-Syntaxfehler');
+        $this->assertSame(200, $status, 'Without quoting this would be an SQL syntax error');
 
-        $wurzel = $this->knoten($body['data'], $this->wurzel, 'childs');
-        $this->assertArrayHasKey('groups', $wurzel, 'Das reservierte Wort ist Teil der Auswahl');
-        $this->assertArrayHasKey('users', $wurzel);
+        $root = $this->node($body['data'], $this->root, 'childs');
+        $this->assertArrayHasKey('groups', $root, 'The reserved word is part of the selection');
+        $this->assertArrayHasKey('users', $root);
     }
 
-    public function testTree2OhneTokenLiefertKeineDaten(): void
+    public function testTree2WithoutTokenReturnsNoData(): void
     {
         [$status, $body] = $this->postJson('/api/tree2', array('entity' => 'PIM\\Folder'));
 
-        $this->assertSame(401, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
+        $this->assertSame(401, $status, 'Since the stack switch (006-002-0003) the intended code — Symfony 4.4 fixes 000-000-0006 here');
         $this->assertArrayNotHasKey('data', $body);
     }
 }

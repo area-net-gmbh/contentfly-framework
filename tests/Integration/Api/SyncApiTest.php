@@ -4,12 +4,12 @@ namespace Tests\Integration\Api;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * Charakterisierungstests für die Sync-Endpunkte `/api/all`, `/api/deleted` und `/api/count`.
+ * Characterisation tests for the sync endpoints `/api/all`, `/api/deleted` and `/api/count`.
  *
- * `/api/all` antwortete bis Task `000-000-0007` bedingungslos mit HTTP 500 — ein Pfad in
- * `Api::getAll()` trug ein `../` zu viel und zeigte aus dem Repo heraus. Die Tests hielten das
- * als Ist-Zustand fest; mit dem Fix sind sie **umgedreht** worden, wie ihr Kommentar es
- * vorsah. Sie beschreiben jetzt den Sync-Vertrag, nicht mehr seinen Ausfall.
+ * Until task `000-000-0007`, `/api/all` answered unconditionally with HTTP 500 — a path in
+ * `Api::getAll()` carried one `../` too many and pointed out of the repo. The tests recorded that
+ * as the current state; with the fix they were **inverted**, as their comment intended. They now
+ * describe the sync contract, no longer its failure.
  */
 class SyncApiTest extends IntegrationTestCase
 {
@@ -23,52 +23,52 @@ class SyncApiTest extends IntegrationTestCase
 
         $this->pdo()->prepare(
             'INSERT INTO pim_tag (id, title, created, modified, views, isIntern)
-             VALUES (:id, :titel, NOW(), NOW(), 0, 0)'
-        )->execute(array('id' => $this->tag, 'titel' => 'Sync-Probe'));
+             VALUES (:id, :title, NOW(), NOW(), 0, 0)'
+        )->execute(array('id' => $this->tag, 'title' => 'Sync-Probe'));
 
         $this->deleteAfterTest('pim_tag', $this->tag);
     }
 
     // ── /api/all ───────────────────────────────────────────────────────────────────────
 
-    public function testAllLiefertDieDatenAllerSynchronisierbarenEntities(): void
+    public function testAllReturnsTheDataOfAllSyncableEntities(): void
     {
         [$status, $body] = $this->postJson('/api/all', array(), $this->token());
 
-        $this->assertSame(200, $status, 'Bis 000-000-0007 war das ein HTTP 500');
+        $this->assertSame(200, $status, 'Until 000-000-0007 this was an HTTP 500');
         $this->assertSame(array('lastModified', 'data', 'version', 'hash'), array_keys($body),
-            'all traegt lastModified statt ts — der naechste eigene Envelope');
+            'all carries lastModified instead of ts — the next envelope of its own');
         $this->assertArrayHasKey('PIM\\Tag', $body['data'],
-            'Seit 000-000-0007 bestimmt das Schema die Entities, nicht mehr eine fest '
-            .'verdrahtete Liste aus File, User und Group');
+            'Since 000-000-0007 the schema determines the entities, no longer a hard-wired '
+            .'list of File, User and Group');
         $this->assertContains($this->tag, array_column($body['data']['PIM\\Tag'], 'id'));
     }
 
-    public function testAllSchliesstDieselbenEntitiesAusWieDeleted(): void
+    public function testAllExcludesTheSameEntitiesAsDeleted(): void
     {
-        // Der Kern von 000-000-0007: Vorher meldete getDeleted() Loeschungen fuer Entities,
-        // die getAll() nie ausgeliefert hat — ein Client erfuhr vom Verschwinden von Objekten,
-        // die er nie bekommen hatte. Beide nutzen jetzt dieselbe Ausschlussliste.
+        // The core of 000-000-0007: before, getDeleted() reported deletions for entities that
+        // getAll() never delivered — a client learned about the disappearance of objects it
+        // had never received. Both now use the same exclusion list.
         [, $body] = $this->postJson('/api/all', array(), $this->token());
 
-        foreach (array('PIM\\Folder', 'PIM\\Token', 'PIM\\Group', 'PIM\\Log', 'PIM\\Permission') as $ausgeschlossen) {
-            $this->assertArrayNotHasKey($ausgeschlossen, $body['data'],
-                "$ausgeschlossen steht auf der Ausschlussliste beider Sync-Haelften");
+        foreach (array('PIM\\Folder', 'PIM\\Token', 'PIM\\Group', 'PIM\\Log', 'PIM\\Permission') as $excluded) {
+            $this->assertArrayNotHasKey($excluded, $body['data'],
+                "$excluded is on the exclusion list of both sync halves");
         }
     }
 
-    public function testAllOhneTokenLiefertKeineDaten(): void
+    public function testAllWithoutTokenReturnsNoData(): void
     {
         [$status, $body] = $this->postJson('/api/all', array());
 
         $this->assertSame(401, $status,
-            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
-        $this->assertArrayNotHasKey('data', $body, 'Ohne Token fliessen keine Daten');
+            'Since 006-002-0003 the intended code — Symfony 4.4 fixes 000-000-0006 here');
+        $this->assertArrayNotHasKey('data', $body, 'Without a token no data flows');
     }
 
     // ── /api/deleted ───────────────────────────────────────────────────────────────────
 
-    public function testDeletedLiefertEineListeImStandardEnvelope(): void
+    public function testDeletedReturnsAListInTheStandardEnvelope(): void
     {
         [$status, $body] = $this->postJson('/api/deleted', array(), $this->token());
 
@@ -77,77 +77,77 @@ class SyncApiTest extends IntegrationTestCase
         $this->assertIsArray($body['data']);
     }
 
-    public function testDeletedLiefertEineFlacheListeRoherLogZeilen(): void
+    public function testDeletedReturnsAFlatListOfRawLogRows(): void
     {
-        // /api/deleted liest die zweite Haelfte des Sync-Vertrags aus pim_log. Die Antwort
-        // ist **keine** nach Entity gruppierte Struktur, sondern eine flache Liste der
-        // Spalten model_name und model_id — array_merge ueber die Treffer je Entity.
+        // /api/deleted reads the second half of the sync contract from pim_log. The response
+        // is **not** a structure grouped by entity, but a flat list of the columns model_name
+        // and model_id — array_merge over the matches per entity.
         $logId = 'synclog-'.bin2hex(random_bytes(6));
-        $this->logZeile($logId, 'PIM\\Tag', $this->tag);
+        $this->logRow($logId, 'PIM\\Tag', $this->tag);
 
         [$status, $body] = $this->postJson('/api/deleted', array(), $this->token());
 
         $this->assertSame(200, $status);
-        $this->assertNotEmpty($body['data'], 'Die geloeschte Zeile wird gemeldet');
+        $this->assertNotEmpty($body['data'], 'The deleted row is reported');
 
-        $treffer = array_values(array_filter(
+        $matches = array_values(array_filter(
             $body['data'],
-            fn (array $z): bool => ($z['model_id'] ?? null) === $this->tag
+            fn (array $row): bool => ($row['model_id'] ?? null) === $this->tag
         ));
 
-        $this->assertCount(1, $treffer);
-        $this->assertSame(array('model_name', 'model_id'), array_keys($treffer[0]),
-            'Je Zeile kommen genau diese beiden Spalten — roh aus pim_log');
-        $this->assertSame('PIM\\Tag', $treffer[0]['model_name']);
+        $this->assertCount(1, $matches);
+        $this->assertSame(array('model_name', 'model_id'), array_keys($matches[0]),
+            'Each row carries exactly these two columns — raw from pim_log');
+        $this->assertSame('PIM\\Tag', $matches[0]['model_name']);
     }
 
-    public function testDeletedSchliesstAusWasExcludeFromSyncSetzt(): void
+    public function testDeletedExcludesWhatExcludeFromSyncSets(): void
     {
-        // Umgedreht mit 000-000-0013. Der Test hiess
-        // testDeletedSchliesstEineFesteListeVonEntitiesAus und hielt eine zweite, fest
-        // verdrahtete Ausschlussliste im Code fest. Die Wirkung ist dieselbe geblieben, die
-        // Ursache ist eine andere: PIM\\Folder traegt jetzt @PIM\\Config(excludeFromSync=true),
-        // und getDeleted() prueft das Feld — was es vorher nie tat.
+        // Inverted with 000-000-0013. The test was called
+        // testDeletedSchliesstEineFesteListeVonEntitiesAus and recorded a second, hard-wired
+        // exclusion list in the code. The effect has stayed the same, the cause is a different
+        // one: PIM\\Folder now carries @PIM\\Config(excludeFromSync=true), and getDeleted()
+        // checks the field — which it never did before.
         $logId  = 'synclog-'.bin2hex(random_bytes(6));
-        $ordner = 'sync-f-'.bin2hex(random_bytes(6));
-        $this->logZeile($logId, 'PIM\\Folder', $ordner);
+        $folder = 'sync-f-'.bin2hex(random_bytes(6));
+        $this->logRow($logId, 'PIM\\Folder', $folder);
 
         [, $body] = $this->postJson('/api/deleted', array(), $this->token());
 
         $ids = array_column($body['data'], 'model_id');
-        $this->assertNotContains($ordner, $ids,
-            'PIM\\Folder ist mit excludeFromSync aus der Synchronisation genommen');
+        $this->assertNotContains($folder, $ids,
+            'PIM\\Folder is taken out of synchronisation with excludeFromSync');
     }
 
-    public function testZweiLoeschungenInDerselbenSekundeKommenBeide(): void
+    public function testTwoDeletionsInTheSameSecondAreBothReturned(): void
     {
-        // Der Nachweis zu 000-000-0013 C. pim_log.created hat Sekundenaufloesung; zwei
-        // Loeschungen im selben API-Aufruf tragen denselben Zeitstempel. Mit dem alten
-        // `created > ?` verlor ein Sync-Client jede Loeschung aus der Sekunde, deren
-        // Zeitstempel er sich gemerkt hatte. Jetzt `>=`: lieber doppelt melden als verlieren.
-        $eins = 'synca-'.bin2hex(random_bytes(6));
-        $zwei = 'syncb-'.bin2hex(random_bytes(6));
+        // The proof for 000-000-0013 C. pim_log.created has second resolution; two deletions
+        // in the same API call carry the same timestamp. With the old `created > ?` a sync
+        // client lost every deletion from the second whose timestamp it had remembered. Now
+        // `>=`: better to report twice than to lose.
+        $first  = 'synca-'.bin2hex(random_bytes(6));
+        $second = 'syncb-'.bin2hex(random_bytes(6));
 
-        $this->logZeile('synclog-'.bin2hex(random_bytes(6)), 'PIM\\Tag', $eins);
-        $this->logZeile('synclog-'.bin2hex(random_bytes(6)), 'PIM\\Tag', $zwei);
+        $this->logRow('synclog-'.bin2hex(random_bytes(6)), 'PIM\\Tag', $first);
+        $this->logRow('synclog-'.bin2hex(random_bytes(6)), 'PIM\\Tag', $second);
 
-        // Der Zeitstempel, den sich ein Client nach diesem Durchgang merken wuerde: der der
-        // zuletzt gemeldeten Zeile. Beide Zeilen tragen ihn.
-        $grenze = (string) $this->pdo()
-            ->query('SELECT created FROM pim_log WHERE model_id = '.$this->pdo()->quote($zwei))
+        // The timestamp a client would remember after this pass: the one of the last reported
+        // row. Both rows carry it.
+        $boundary = (string) $this->pdo()
+            ->query('SELECT created FROM pim_log WHERE model_id = '.$this->pdo()->quote($second))
             ->fetchColumn();
 
-        [, $body] = $this->postJson('/api/deleted', array('lastModified' => $grenze), $this->token());
+        [, $body] = $this->postJson('/api/deleted', array('lastModified' => $boundary), $this->token());
 
         $ids = array_column($body['data'], 'model_id');
-        $this->assertContains($zwei, $ids, 'Die Zeile an der Grenze selbst');
-        $this->assertContains($eins, $ids, 'Und die andere aus derselben Sekunde — sonst waere sie fuer immer verloren');
+        $this->assertContains($second, $ids, 'The row at the boundary itself');
+        $this->assertContains($first, $ids, 'And the other one from the same second — otherwise it would be lost forever');
     }
 
-    private function logZeile(string $logId, string $entityName, string $modelId): void
+    private function logRow(string $logId, string $entityName, string $modelId): void
     {
-        // Gebundene Parameter statt eingesetzter Zeichenketten: Der Entity-Name traegt einen
-        // Backslash, und der ueberlebt keine der drei Escaping-Ebenen zuverlaessig.
+        // Bound parameters instead of inserted strings: the entity name carries a backslash,
+        // and that does not reliably survive any of the three escaping levels.
         $this->pdo()->prepare(
             'INSERT INTO pim_log (id, model_id, model_name, mode, created, modified, views, isIntern)
              VALUES (:id, :modelId, :modelName, :mode, NOW(), NOW(), 0, 0)'
@@ -158,21 +158,21 @@ class SyncApiTest extends IntegrationTestCase
         $this->deleteAfterTest('pim_log', $logId);
     }
 
-    public function testDeletedOhneTokenLiefertKeineDaten(): void
+    public function testDeletedWithoutTokenReturnsNoData(): void
     {
         [$status, $body] = $this->postJson('/api/deleted', array());
 
         $this->assertSame(401, $status,
-            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
+            'Since 006-002-0003 the intended code — Symfony 4.4 fixes 000-000-0006 here');
         $this->assertArrayNotHasKey('data', $body);
     }
 
     // ── /api/count ─────────────────────────────────────────────────────────────────────
 
-    public function testCountIstEineGlobaleStatistikKeinGefilterterZaehler(): void
+    public function testCountIsAGlobalStatisticNotAFilteredCounter(): void
     {
-        // Ueberraschend, aber der Ist-Zustand: /api/count zaehlt nicht die Treffer einer
-        // Abfrage, sondern liefert eine Bestandsuebersicht ueber Datensaetze und Dateien.
+        // Surprising, but the current state: /api/count does not count the matches of a query,
+        // but returns an inventory overview of records and files.
         [$status, $body] = $this->postJson('/api/count', array('entity' => 'PIM\\Tag'), $this->token());
 
         $this->assertSame(200, $status);
@@ -180,73 +180,72 @@ class SyncApiTest extends IntegrationTestCase
         $this->assertSame(
             array('dataCount', 'filesCount', 'filesSize', 'details'),
             array_keys($body['data']),
-            'count liefert eine Statistik, keine Trefferzahl zu Filtern'
+            'count returns a statistic, not a match count for filters'
         );
     }
 
-    public function testCountWeistDieAnzahlJeEntityInDetailsAus(): void
+    public function testCountReportsTheNumberPerEntityInDetails(): void
     {
         [, $body] = $this->postJson('/api/count', array('entity' => 'PIM\\Tag'), $this->token());
 
         $this->assertArrayHasKey('PIM\\Tag', $body['data']['details']);
         $this->assertGreaterThanOrEqual(1, $body['data']['details']['PIM\\Tag'],
-            'Der im setUp angelegte Tag ist mitgezaehlt');
+            'The tag created in setUp is counted');
         $this->assertIsInt($body['data']['dataCount']);
     }
 
-    public function testCountOhneTokenLiefertKeineDaten(): void
+    public function testCountWithoutTokenReturnsNoData(): void
     {
         [$status, $body] = $this->postJson('/api/count', array('entity' => 'PIM\\Tag'));
 
         $this->assertSame(401, $status,
-            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
+            'Since 006-002-0003 the intended code — Symfony 4.4 fixes 000-000-0006 here');
         $this->assertArrayNotHasKey('data', $body);
     }
 
     // ── excludeFromSync ────────────────────────────────────────────────────────────────
 
-    public function testSiebenEntitiesSetzenExcludeFromSync(): void
+    public function testSevenEntitiesSetExcludeFromSync(): void
     {
-        // Umgedreht mit 000-000-0013, und der alte Test hat genau das eingefordert: Er hiess
-        // testKeineEntitySetztExcludeFromSync und schlug an, sobald jemand das Flag setzt.
+        // Inverted with 000-000-0013, and the old test demanded exactly that: it was called
+        // testKeineEntitySetztExcludeFromSync and failed as soon as someone set the flag.
         //
-        // Vorgeschichte: 012-005-0002 hat excludeFromSync mit der Begruendung "steuert die
-        // Sync-API" behalten. Das war nur halb richtig — bis 000-000-0007 wurde es
-        // ausschliesslich in getCount() geprueft, wirkte also auf die Bestandsstatistik und
-        // nie auf den Endpunkt, nach dem es benannt ist. getAll() prueft es seit dem Fix,
-        // getDeleted() seit 000-000-0013.
-        [$status, $roh] = $this->get('/api/schema', $this->token());
+        // Background: 012-005-0002 kept excludeFromSync with the reasoning "controls the sync
+        // API". That was only half right — until 000-000-0007 it was checked exclusively in
+        // getCount(), so it affected the inventory statistic and never the endpoint it is
+        // named after. getAll() has checked it since the fix, getDeleted() since 000-000-0013.
+        [$status, $raw] = $this->get('/api/schema', $this->token());
         $this->assertSame(200, $status);
 
-        $schema = json_decode($roh, true)['data'];
+        $schema = json_decode($raw, true)['data'];
 
-        $mitFlag = array();
-        foreach ($schema as $name => $eintrag) {
-            if ($name === '_hash' || !isset($eintrag['settings']['excludeFromSync'])) {
+        $withFlag = array();
+        foreach ($schema as $name => $entry) {
+            if ($name === '_hash' || !isset($entry['settings']['excludeFromSync'])) {
                 continue;
             }
-            if ($eintrag['settings']['excludeFromSync']) {
-                $mitFlag[] = $name;
+            if ($entry['settings']['excludeFromSync']) {
+                $withFlag[] = $name;
             }
         }
 
-        sort($mitFlag);
+        sort($withFlag);
 
         $this->assertSame(
             array('PIM\\Folder', 'PIM\\Group', 'PIM\\Log', 'PIM\\Nav', 'PIM\\NavItem', 'PIM\\Permission', 'PIM\\ThumbnailSetting'),
-            $mitFlag,
-            'Genau die Entities aus der frueher fest verdrahteten Liste — nicht mehr und nicht weniger'
+            $withFlag,
+            'Exactly the entities from the formerly hard-wired list — no more and no fewer'
         );
     }
 
-    public function testDieAusschlussliegtNichtMehrImCode(): void
+    public function testTheExclusionIsNoLongerInTheCode(): void
     {
-        // Der eigentliche Punkt von 000-000-0013 A: Ein Projekt soll sehen koennen, warum
-        // eine Entity nie synchronisiert wird. Solange die Liste im Code stand, konnte es das
-        // nicht. Dieser Test haelt fest, dass sie dort nicht zurueckkehrt.
-        $quelle = file_get_contents(CONTENTFLY_PROJECT_DIR.'/lib/contentfly/Classes/Api.php');
+        // The actual point of 000-000-0013 A: a project should be able to see why an entity
+        // is never synchronised. As long as the list was in the code, it could not. This test
+        // records that it does not return there.
+        $source = file_get_contents(CONTENTFLY_PROJECT_DIR.'/lib/contentfly/Classes/Api.php');
 
-        $this->assertStringNotContainsString('$entitiesToExclude', $quelle,
-            'Die fest verdrahteten Ausschlusslisten sind zu excludeFromSync geworden');
+        $this->assertStringNotContainsString('$entitiesToExclude', $source,
+            'The hard-wired exclusion lists have become excludeFromSync');
     }
 }

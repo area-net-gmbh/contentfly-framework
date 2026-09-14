@@ -4,34 +4,34 @@ namespace Tests\Integration\Api;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * Charakterisierungstests für `/api/insert` und `/api/delete` — die beiden Enden des
- * Lebenszyklus.
+ * Characterisation tests for `/api/insert` and `/api/delete` — the two ends of the
+ * life cycle.
  *
- * Anders als bei den Lesetests entstehen die Daten hier **über die API selbst**: Der
- * Schreibweg ist der Prüfgegenstand. Aufgeräumt wird trotzdem über `pdo()`, damit ein
- * gescheiterter Test die folgenden nicht mit einfärbt.
+ * Unlike the read tests, the data here is created **via the API itself**: the write path is
+ * what is under test. Cleanup still goes through `pdo()`, so that a failed test does not
+ * taint the following ones.
  */
 class WriteApiTest extends IntegrationTestCase
 {
-    /** Legt einen Tag über die API an und meldet ihn zum Aufräumen an. */
-    private function tagAnlegen(string $titel): array
+    /** Creates a tag via the API and registers it for cleanup. */
+    private function createTag(string $title): array
     {
         [$status, $body] = $this->postJson(
             '/api/insert',
-            array('entity' => 'PIM\\Tag', 'data' => array('title' => $titel)),
+            array('entity' => 'PIM\\Tag', 'data' => array('title' => $title)),
             $this->token()
         );
 
-        $this->assertSame(200, $status, 'Vorbedingung: das Anlegen gelingt');
+        $this->assertSame(200, $status, 'Precondition: creating succeeds');
 
         $this->deleteAfterTest('pim_tag', $body['id']);
-        $this->logZeilenAufraeumen($body['id']);
+        $this->cleanUpLogRows($body['id']);
 
         return $body;
     }
 
-    /** Jede Schreiboperation hinterlaesst Log-Zeilen; die gehoeren mit weggeraeumt. */
-    private function logZeilenAufraeumen(string $modelId): void
+    /** Every write operation leaves log rows behind; they have to be cleaned up as well. */
+    private function cleanUpLogRows(string $modelId): void
     {
         $ids = $this->pdo()
             ->query('SELECT id FROM pim_log WHERE model_id = '.$this->pdo()->quote($modelId))
@@ -44,10 +44,10 @@ class WriteApiTest extends IntegrationTestCase
 
     protected function tearDown(): void
     {
-        // Log-Zeilen entstehen erst beim Schreiben — also nach dem Anmelden zum Aufraeumen.
-        // Deshalb hier noch einmal nachfassen, bevor die Basis aufraeumt.
-        foreach ($this->pdo()->query("SELECT id, model_id FROM pim_log WHERE model_name = 'PIM\\\\Tag'") as $zeile) {
-            $this->pdo()->prepare('DELETE FROM pim_log WHERE id = :id')->execute(array('id' => $zeile['id']));
+        // Log rows only come into being on writing — that is, after registering for cleanup.
+        // So follow up here once more, before the base class cleans up.
+        foreach ($this->pdo()->query("SELECT id, model_id FROM pim_log WHERE model_name = 'PIM\\\\Tag'") as $row) {
+            $this->pdo()->prepare('DELETE FROM pim_log WHERE id = :id')->execute(array('id' => $row['id']));
         }
 
         parent::tearDown();
@@ -55,48 +55,48 @@ class WriteApiTest extends IntegrationTestCase
 
     // ── /api/insert ────────────────────────────────────────────────────────────────────
 
-    public function testInsertLiefertDieErzeugteIdAufOberSterEbene(): void
+    public function testInsertReturnsTheGeneratedIdOnTheTopLevel(): void
     {
-        $body = $this->tagAnlegen('Insert-Probe');
+        $body = $this->createTag('Insert-Probe');
 
         $this->assertSame(array('ts', 'id', 'data', 'version', 'hash'), array_keys($body),
-            'insert traegt die erzeugte id neben data auf oberster Ebene — anders als single und list');
+            'insert carries the generated id next to data on the top level — unlike single and list');
         $this->assertSame($body['id'], $body['data']['id']);
     }
 
-    public function testInsertErzeugtEineGuid(): void
+    public function testInsertGeneratesAGuid(): void
     {
-        $body = $this->tagAnlegen('Guid-Probe');
+        $body = $this->createTag('Guid-Probe');
 
         $this->assertMatchesRegularExpression(
             '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/',
             $body['id'],
-            'Die Installation lief mit --db-strategy=guid'
+            'The installation ran with --db-strategy=guid'
         );
     }
 
-    public function testInsertSetztCreatedModifiedUndUserCreated(): void
+    public function testInsertSetsCreatedModifiedAndUserCreated(): void
     {
-        $body = $this->tagAnlegen('Automatik-Probe');
-        $daten = $body['data'];
+        $body = $this->createTag('Automatic-Probe');
+        $data = $body['data'];
 
-        foreach (array('created', 'modified') as $feld) {
+        foreach (array('created', 'modified') as $field) {
             $this->assertSame(
                 array('LOCAL_TIME', 'LOCAL', 'ISO8601', 'TIMESTAMP'),
-                array_keys($daten[$feld]),
-                "$feld ist automatisch gesetzt und kommt als Vierergruppe"
+                array_keys($data[$field]),
+                "$field is set automatically and comes as a group of four"
             );
-            $this->assertGreaterThan(0, $daten[$feld]['TIMESTAMP']);
+            $this->assertGreaterThan(0, $data[$field]['TIMESTAMP']);
         }
 
         $adminId = (string) $this->pdo()->query("SELECT id FROM pim_user WHERE alias = 'admin'")->fetchColumn();
-        $this->assertSame(array('id' => $adminId), $daten['userCreated'],
-            'userCreated wird auf den angemeldeten Benutzer gesetzt');
+        $this->assertSame(array('id' => $adminId), $data['userCreated'],
+            'userCreated is set to the logged-in user');
     }
 
-    public function testDasAngelegteObjektIstUeberSingleAbrufbar(): void
+    public function testTheCreatedObjectCanBeFetchedViaSingle(): void
     {
-        $body = $this->tagAnlegen('Abruf-Probe');
+        $body = $this->createTag('Fetch-Probe');
 
         [$status, $single] = $this->postJson(
             '/api/single',
@@ -105,14 +105,14 @@ class WriteApiTest extends IntegrationTestCase
         );
 
         $this->assertSame(200, $status);
-        $this->assertSame('Abruf-Probe', $single['data']['title']);
+        $this->assertSame('Fetch-Probe', $single['data']['title']);
     }
 
-    public function testInsertUndSingleStellenBoolescheWerteUnterschiedlichDar(): void
+    public function testInsertAndSingleRepresentBooleanValuesDifferently(): void
     {
-        // Ist-Zustand und inkonsistent: Die Antwort von insert reicht den Rohwert durch
-        // (isIntern als 0), waehrend single ueber die Typ-Klassen serialisiert (false).
-        $body = $this->tagAnlegen('Boolean-Probe');
+        // Current state and inconsistent: the response of insert passes the raw value through
+        // (isIntern as 0), while single serialises via the type classes (false).
+        $body = $this->createTag('Boolean-Probe');
 
         [, $single] = $this->postJson(
             '/api/single',
@@ -120,70 +120,70 @@ class WriteApiTest extends IntegrationTestCase
             $this->token()
         );
 
-        $this->assertSame(0, $body['data']['isIntern'], 'insert liefert den Integer');
-        $this->assertFalse($single['data']['isIntern'], 'single liefert den Booleschen Wert');
+        $this->assertSame(0, $body['data']['isIntern'], 'insert returns the integer');
+        $this->assertFalse($single['data']['isIntern'], 'single returns the boolean value');
     }
 
-    public function testInsertOhneDatenWirdAbgewiesen(): void
+    public function testInsertWithoutDataIsRejected(): void
     {
         [$status] = $this->postJson('/api/insert', array('entity' => 'PIM\\Tag'), $this->token());
 
-        $this->assertSame(500, $status, 'Heute 500 statt 400 — siehe 000-000-0006');
+        $this->assertSame(500, $status, 'Today 500 instead of 400 — see 000-000-0006');
     }
 
-    public function testInsertMitUnbekannterEntityWirdAbgewiesen(): void
+    public function testInsertWithUnknownEntityIsRejected(): void
     {
         [$status] = $this->postJson(
             '/api/insert',
-            array('entity' => 'PIM\\GibtesNicht', 'data' => array('title' => 'egal')),
+            array('entity' => 'PIM\\DoesNotExist', 'data' => array('title' => 'whatever')),
             $this->token()
         );
 
         $this->assertSame(404, $status,
-            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
+            'Since 006-002-0003 the intended code — Symfony 4.4 fixes 000-000-0006 here');
     }
 
-    public function testInsertOhneTokenLegtNichtsAn(): void
+    public function testInsertWithoutTokenCreatesNothing(): void
     {
         [$status] = $this->postJson(
             '/api/insert',
-            array('entity' => 'PIM\\Tag', 'data' => array('title' => 'Ohne-Token'))
+            array('entity' => 'PIM\\Tag', 'data' => array('title' => 'Without-Token'))
         );
 
-        $this->assertSame(401, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
+        $this->assertSame(401, $status, 'Since the stack switch (006-002-0003) the intended code — Symfony 4.4 fixes 000-000-0006 here');
 
-        $anzahl = (int) $this->pdo()
-            ->query("SELECT COUNT(*) FROM pim_tag WHERE title = 'Ohne-Token'")
+        $count = (int) $this->pdo()
+            ->query("SELECT COUNT(*) FROM pim_tag WHERE title = 'Without-Token'")
             ->fetchColumn();
-        $this->assertSame(0, $anzahl, 'Ohne Token entsteht kein Objekt — gegen die Datenbank geprueft');
+        $this->assertSame(0, $count, 'Without a token no object is created — checked against the database');
     }
 
     // ── /api/delete ────────────────────────────────────────────────────────────────────
 
-    public function testDeleteEntferntDasObjekt(): void
+    public function testDeleteRemovesTheObject(): void
     {
-        $body = $this->tagAnlegen('Loesch-Probe');
+        $body = $this->createTag('Delete-Probe');
 
-        [$status, $antwort] = $this->postJson(
+        [$status, $response] = $this->postJson(
             '/api/delete',
             array('entity' => 'PIM\\Tag', 'id' => $body['id']),
             $this->token()
         );
 
         $this->assertSame(200, $status);
-        $this->assertSame(array('ts', 'id', 'version', 'hash'), array_keys($antwort),
-            'delete liefert die id zurueck, aber kein data');
-        $this->assertSame($body['id'], $antwort['id']);
+        $this->assertSame(array('ts', 'id', 'version', 'hash'), array_keys($response),
+            'delete returns the id, but no data');
+        $this->assertSame($body['id'], $response['id']);
 
-        $anzahl = (int) $this->pdo()
+        $count = (int) $this->pdo()
             ->query('SELECT COUNT(*) FROM pim_tag WHERE id = '.$this->pdo()->quote($body['id']))
             ->fetchColumn();
-        $this->assertSame(0, $anzahl, 'Die Zeile ist wirklich weg — gegen die Datenbank geprueft');
+        $this->assertSame(0, $count, 'The row is really gone — checked against the database');
     }
 
-    public function testNachDemLoeschenLiefertSingleEinen404(): void
+    public function testAfterDeletingSingleReturnsA404(): void
     {
-        $body = $this->tagAnlegen('Nachher-Probe');
+        $body = $this->createTag('After-Probe');
         $this->postJson('/api/delete', array('entity' => 'PIM\\Tag', 'id' => $body['id']), $this->token());
 
         [$status, $single] = $this->postJson(
@@ -192,38 +192,38 @@ class WriteApiTest extends IntegrationTestCase
             $this->token()
         );
 
-        // Umgedreht mit 000-000-0006: dasselbe wie bei einer nie existierenden Id — vorher das
-        // `headers`-Artefakt mit 200, jetzt ein 404. Der Test hiess bis dahin
+        // Inverted with 000-000-0006: the same as for an id that never existed — before, the
+        // `headers` artefact with 200, now a 404. Until then the test was called
         // testNachDemLoeschenLiefertSingleDasLeereHeadersArtefakt.
         $this->assertSame(404, $status);
         $this->assertArrayNotHasKey('data', $single);
     }
 
-    public function testDeleteMitUnbekannterIdWirdAbgewiesen(): void
+    public function testDeleteWithUnknownIdIsRejected(): void
     {
         [$status] = $this->postJson(
             '/api/delete',
-            array('entity' => 'PIM\\Tag', 'id' => 'gibtesnicht'),
+            array('entity' => 'PIM\\Tag', 'id' => 'doesnotexist'),
             $this->token()
         );
 
-        // Seit 000-000-0006 der gemeinte Code. Vorher lief doUpdate()/doDelete() an der
-        // eigenen Nicht-gefunden-Pruefung vorbei, weil getSingle() eine JsonResponse
-        // zurueckgab, und starb weiter unten an einem TypeError.
+        // Since 000-000-0006 the intended code. Before, doUpdate()/doDelete() bypassed its own
+        // not-found check, because getSingle() returned a JsonResponse, and died further down
+        // with a TypeError.
         $this->assertSame(404, $status);
     }
 
-    public function testDeleteOhneTokenLoeschtNichts(): void
+    public function testDeleteWithoutTokenDeletesNothing(): void
     {
-        $body = $this->tagAnlegen('Geschuetzt-Probe');
+        $body = $this->createTag('Protected-Probe');
 
         [$status] = $this->postJson('/api/delete', array('entity' => 'PIM\\Tag', 'id' => $body['id']));
 
-        $this->assertSame(401, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
+        $this->assertSame(401, $status, 'Since the stack switch (006-002-0003) the intended code — Symfony 4.4 fixes 000-000-0006 here');
 
-        $anzahl = (int) $this->pdo()
+        $count = (int) $this->pdo()
             ->query('SELECT COUNT(*) FROM pim_tag WHERE id = '.$this->pdo()->quote($body['id']))
             ->fetchColumn();
-        $this->assertSame(1, $anzahl, 'Ohne Token bleibt das Objekt bestehen');
+        $this->assertSame(1, $count, 'Without a token the object remains');
     }
 }

@@ -5,42 +5,42 @@ use PDO;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * Charakterisierungstests für `/api/multiupdate`.
+ * Characterization tests for `/api/multiupdate`.
  *
- * **Zwei dieser Tests hielten einen Mangel fest und sind mit `000-000-0009` umgedreht.**
- * Der Endpunkt lief ohne Transaktion: Scheiterte ein Objekt mitten im Stapel, blieben die
- * vorher verarbeiteten geändert, die danach wurden nie angefasst, und die Antwort war ein
- * Fehler ohne Angabe, wie weit es kam.
+ * **Two of these tests recorded a defect and were inverted with `000-000-0009`.**
+ * The endpoint ran without a transaction: if an object failed in the middle of the batch, the
+ * ones processed before it stayed changed, the ones after it were never touched, and the
+ * response was an error without saying how far it got.
  *
- * Seit `000-000-0009` gilt ganz oder gar nicht. `testTeilfehlerLaesstDasVorherigeGeschrieben()`
- * heisst jetzt `testTeilfehlerRolltDenGanzenStapelZurueck()` und prüft das Gegenteil dessen,
- * was es vorher zusicherte; `testDieAntwortNenntWederZeitstempelNochErgebnis()` ist zu
- * `testDieAntwortNenntZeitstempelUndDieGeaendertenObjekte()` geworden. Beide sind bewusst
- * umgeschrieben und nicht gelöscht — die alte Zusicherung steht im Verlauf.
+ * Since `000-000-0009` it is all or nothing. `testTeilfehlerLaesstDasVorherigeGeschrieben()`
+ * became `testPartialFailureRollsBackTheWholeBatch()` and checks the opposite of what it
+ * asserted before; `testDieAntwortNenntWederZeitstempelNochErgebnis()` became
+ * `testResponseListsTimestampAndUpdatedObjects()`. Both were rewritten on purpose, not
+ * deleted — the old assertion is in the history.
  */
 class MultiupdateApiTest extends IntegrationTestCase
 {
-    private string $ersterTag = '';
-    private string $letzterTag = '';
+    private string $firstTag = '';
+    private string $lastTag = '';
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $lauf = bin2hex(random_bytes(6));
+        $run = bin2hex(random_bytes(6));
 
-        // 'a-' und 'z-', damit die Reihenfolge im Stapel unabhaengig von der Id-Sortierung
-        // allein durch die Reihenfolge im Request bestimmt ist.
-        $this->ersterTag  = $this->tagAnlegen('mu-a-'.$lauf, 'Erster');
-        $this->letzterTag = $this->tagAnlegen('mu-z-'.$lauf, 'Letzter');
+        // 'a-' and 'z-', so that the order within the batch is determined solely by the order
+        // in the request, independent of the id sorting.
+        $this->firstTag = $this->createTag('mu-a-'.$run, 'First');
+        $this->lastTag  = $this->createTag('mu-z-'.$run, 'Last');
     }
 
-    private function tagAnlegen(string $id, string $titel): string
+    private function createTag(string $id, string $title): string
     {
         $this->pdo()->prepare(
             'INSERT INTO pim_tag (id, title, created, modified, views, isIntern)
-             VALUES (:id, :titel, NOW(), NOW(), 0, 0)'
-        )->execute(array('id' => $id, 'titel' => $titel));
+             VALUES (:id, :title, NOW(), NOW(), 0, 0)'
+        )->execute(array('id' => $id, 'title' => $title));
 
         $this->deleteAfterTest('pim_tag', $id);
 
@@ -56,125 +56,125 @@ class MultiupdateApiTest extends IntegrationTestCase
         parent::tearDown();
     }
 
-    private function titel(string $id): string
+    private function title(string $id): string
     {
         return (string) $this->pdo()
             ->query('SELECT title FROM pim_tag WHERE id = '.$this->pdo()->quote($id))
             ->fetchColumn();
     }
 
-    // ── Erfolgsfall ────────────────────────────────────────────────────────────────────
+    // ── Success case ───────────────────────────────────────────────────────────────────
 
-    public function testMehrereObjekteWerdenInEinemAufrufGeaendert(): void
+    public function testMultipleObjectsAreUpdatedInOneCall(): void
     {
         [$status] = $this->postJson('/api/multiupdate', array('objects' => array(
-            array('entity' => 'PIM\\Tag', 'id' => $this->ersterTag,  'data' => array('title' => 'Erster-neu')),
-            array('entity' => 'PIM\\Tag', 'id' => $this->letzterTag, 'data' => array('title' => 'Letzter-neu')),
+            array('entity' => 'PIM\\Tag', 'id' => $this->firstTag, 'data' => array('title' => 'First-new')),
+            array('entity' => 'PIM\\Tag', 'id' => $this->lastTag,  'data' => array('title' => 'Last-new')),
         )), $this->token());
 
         $this->assertSame(200, $status);
-        $this->assertSame('Erster-neu', $this->titel($this->ersterTag));
-        $this->assertSame('Letzter-neu', $this->titel($this->letzterTag));
+        $this->assertSame('First-new', $this->title($this->firstTag));
+        $this->assertSame('Last-new', $this->title($this->lastTag));
     }
 
-    public function testDieAntwortNenntZeitstempelUndDieGeaendertenObjekte(): void
+    public function testResponseListsTimestampAndUpdatedObjects(): void
     {
-        // Vorher der duennste Envelope aller Endpunkte: renderResponse(array()) — kein ts,
-        // kein data, keine Liste der aktualisierten Ids. Seit 000-000-0009 zaehlt die Antwort
-        // auf, was geschrieben wurde, in der Reihenfolge des Requests.
+        // Previously the thinnest envelope of all endpoints: renderResponse(array()) — no ts,
+        // no data, no list of the updated ids. Since 000-000-0009 the response lists what was
+        // written, in the order of the request.
         [$status, $body] = $this->postJson('/api/multiupdate', array('objects' => array(
-            array('entity' => 'PIM\\Tag', 'id' => $this->ersterTag,  'data' => array('title' => 'Envelope-Probe')),
-            array('entity' => 'PIM\\Tag', 'id' => $this->letzterTag, 'data' => array('title' => 'Envelope-Probe-2')),
+            array('entity' => 'PIM\\Tag', 'id' => $this->firstTag, 'data' => array('title' => 'Envelope-probe')),
+            array('entity' => 'PIM\\Tag', 'id' => $this->lastTag,  'data' => array('title' => 'Envelope-probe-2')),
         )), $this->token());
 
         $this->assertSame(200, $status);
         $this->assertArrayHasKey('ts', $body);
         $this->assertSame(array(
-            array('entity' => 'PIM\\Tag', 'id' => $this->ersterTag),
-            array('entity' => 'PIM\\Tag', 'id' => $this->letzterTag),
+            array('entity' => 'PIM\\Tag', 'id' => $this->firstTag),
+            array('entity' => 'PIM\\Tag', 'id' => $this->lastTag),
         ), $body['data']);
     }
 
-    // ── Teilfehler — der eigentliche Befund ────────────────────────────────────────────
+    // ── Partial failure — the actual finding ───────────────────────────────────────────
 
-    public function testTeilfehlerRolltDenGanzenStapelZurueck(): void
+    public function testPartialFailureRollsBackTheWholeBatch(): void
     {
-        // Umgedreht mit 000-000-0009. Vorher hielt dieser Test fest, dass 'Vor-dem-Fehler'
-        // stehen bleibt; jetzt darf genau das nicht passieren.
+        // Inverted with 000-000-0009. Previously this test recorded that 'Before-the-error'
+        // stays in place; now exactly that must not happen.
         [$status] = $this->postJson('/api/multiupdate', array('objects' => array(
-            array('entity' => 'PIM\\Tag', 'id' => $this->ersterTag,  'data' => array('title' => 'Vor-dem-Fehler')),
-            array('entity' => 'PIM\\Tag', 'id' => 'gibtesnicht',     'data' => array('title' => 'Scheitert')),
-            array('entity' => 'PIM\\Tag', 'id' => $this->letzterTag, 'data' => array('title' => 'Nach-dem-Fehler')),
+            array('entity' => 'PIM\\Tag', 'id' => $this->firstTag, 'data' => array('title' => 'Before-the-error')),
+            array('entity' => 'PIM\\Tag', 'id' => 'doesnotexist',  'data' => array('title' => 'Fails')),
+            array('entity' => 'PIM\\Tag', 'id' => $this->lastTag,  'data' => array('title' => 'After-the-error')),
         )), $this->token());
 
-        // 404 seit 000-000-0006; bis dahin kam die Ausnahme aus doUpdate() als 500 an.
-        $this->assertSame(404, $status, 'Der Code des gescheiterten Eintrags, durchgereicht');
+        // 404 since 000-000-0006; until then the exception from doUpdate() arrived as a 500.
+        $this->assertSame(404, $status, 'The code of the failed entry, passed through');
 
-        $this->assertSame('Erster', $this->titel($this->ersterTag),
-            'Das vor dem Fehler verarbeitete Objekt ist zurueckgerollt');
-        $this->assertSame('Letzter', $this->titel($this->letzterTag),
-            'Das Objekt nach dem Fehler wird weiterhin nie erreicht');
+        $this->assertSame('First', $this->title($this->firstTag),
+            'The object processed before the error is rolled back');
+        $this->assertSame('Last', $this->title($this->lastTag),
+            'The object after the error is still never reached');
     }
 
-    public function testEinFehlerHinterlaesstAuchKeineProtokollzeile(): void
+    public function testFailureAlsoLeavesNoLogRow(): void
     {
-        // Die Rueckabwicklung muss auch das mitnehmen, was doUpdate() nebenbei schreibt:
-        // pim_log bekommt je Aenderung eine Zeile. Bliebe sie stehen, behauptete das
-        // Protokoll eine Aenderung, die es nicht mehr gibt.
-        $vorher = (int) $this->pdo()->query("SELECT COUNT(*) FROM pim_log WHERE model_name = 'PIM\\\\Tag'")->fetchColumn();
+        // The rollback must also take along what doUpdate() writes on the side:
+        // pim_log gets one row per change. If it stayed, the log would claim a change that
+        // no longer exists.
+        $before = (int) $this->pdo()->query("SELECT COUNT(*) FROM pim_log WHERE model_name = 'PIM\\\\Tag'")->fetchColumn();
 
         $this->postJson('/api/multiupdate', array('objects' => array(
-            array('entity' => 'PIM\\Tag', 'id' => $this->ersterTag, 'data' => array('title' => 'Wird-zurueckgerollt')),
-            array('entity' => 'PIM\\Tag', 'id' => 'gibtesnicht',    'data' => array('title' => 'Scheitert')),
+            array('entity' => 'PIM\\Tag', 'id' => $this->firstTag, 'data' => array('title' => 'Gets-rolled-back')),
+            array('entity' => 'PIM\\Tag', 'id' => 'doesnotexist',   'data' => array('title' => 'Fails')),
         )), $this->token());
 
-        $nachher = (int) $this->pdo()->query("SELECT COUNT(*) FROM pim_log WHERE model_name = 'PIM\\\\Tag'")->fetchColumn();
+        $after = (int) $this->pdo()->query("SELECT COUNT(*) FROM pim_log WHERE model_name = 'PIM\\\\Tag'")->fetchColumn();
 
-        $this->assertSame($vorher, $nachher, 'Kein Log-Eintrag ueberlebt den Rollback');
+        $this->assertSame($before, $after, 'No log entry survives the rollback');
     }
 
-    public function testDerFehlerfallMeldetKeineGeaendertenObjekte(): void
+    public function testFailureResponseReportsNoUpdatedObjects(): void
     {
-        // Die Antwort im Fehlerfall wird hier bewusst NICHT umgebaut — die Vereinheitlichung
-        // der Envelopes ist 000-000-0014. Was 000-000-0009 zusichert, steht in der Datenbank,
-        // und genau das wird hier geprueft. Der Code ist seit 000-000-0006 der der Ausnahme.
+        // The error response is deliberately NOT reshaped here — unifying the envelopes is
+        // 000-000-0014. What 000-000-0009 guarantees is in the database, and exactly that is
+        // checked here. Since 000-000-0006 the code is the one of the exception.
         [$status, $body] = $this->postJson('/api/multiupdate', array('objects' => array(
-            array('entity' => 'PIM\\Tag', 'id' => $this->ersterTag, 'data' => array('title' => 'Egal')),
-            array('entity' => 'PIM\\Tag', 'id' => 'gibtesnicht',    'data' => array('title' => 'Scheitert')),
+            array('entity' => 'PIM\\Tag', 'id' => $this->firstTag, 'data' => array('title' => 'Irrelevant')),
+            array('entity' => 'PIM\\Tag', 'id' => 'doesnotexist',   'data' => array('title' => 'Fails')),
         )), $this->token());
 
         $this->assertSame(404, $status);
         $this->assertArrayNotHasKey('data', $body,
-            'Die Fehlerantwort behauptet keine Aenderung');
-        $this->assertSame('Erster', $this->titel($this->ersterTag),
-            'Und es gab auch keine — der Stapel ist als Ganzes gescheitert');
+            'The error response claims no change');
+        $this->assertSame('First', $this->title($this->firstTag),
+            'And there was none either — the batch failed as a whole');
     }
 
-    // ── Absicherung ────────────────────────────────────────────────────────────────────
+    // ── Protection ─────────────────────────────────────────────────────────────────────
 
-    public function testMultiupdateOhneTokenAendertNichts(): void
+    public function testMultiupdateWithoutTokenChangesNothing(): void
     {
         [$status] = $this->postJson('/api/multiupdate', array('objects' => array(
-            array('entity' => 'PIM\\Tag', 'id' => $this->ersterTag, 'data' => array('title' => 'Ohne-Token')),
+            array('entity' => 'PIM\\Tag', 'id' => $this->firstTag, 'data' => array('title' => 'Without-token')),
         )));
 
-        $this->assertSame(401, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
-        $this->assertSame('Erster', $this->titel($this->ersterTag),
-            'Ohne Token bleibt der Wert unveraendert — gegen die Datenbank geprueft');
+        $this->assertSame(401, $status, 'Since the stack switch (006-002-0003) the intended code — Symfony 4.4 fixes 000-000-0006 here');
+        $this->assertSame('First', $this->title($this->firstTag),
+            'Without a token the value stays unchanged — checked against the database');
     }
 
-    public function testLeererStapelIstKeinFehler(): void
+    public function testEmptyBatchIsNotAnError(): void
     {
         [$status, $body] = $this->postJson('/api/multiupdate', array('objects' => array()), $this->token());
 
-        $this->assertSame(200, $status, 'Ein leerer Stapel laeuft durch, ohne etwas zu tun');
-        $this->assertSame(array(), $body['data'], 'und meldet eine leere Liste, keine fehlende');
+        $this->assertSame(200, $status, 'An empty batch runs through without doing anything');
+        $this->assertSame(array(), $body['data'], 'and reports an empty list, not a missing one');
     }
 
-    public function testEinFehlendesObjectsIstEinFehlerUndKeinLeerlauf(): void
+    public function testMissingObjectsIsAnErrorNotANoOp(): void
     {
-        // Vorher lief foreach ueber null durch und der Aufruf endete mit 200. Seit die Antwort
-        // aufzaehlt, was geschrieben wurde, waere das eine falsche Auskunft (000-000-0009).
+        // Previously foreach ran over null and the call ended with 200. Since the response
+        // lists what was written, that would be false information (000-000-0009).
         [$status] = $this->postJson('/api/multiupdate', array(), $this->token());
 
         $this->assertSame(500, $status);

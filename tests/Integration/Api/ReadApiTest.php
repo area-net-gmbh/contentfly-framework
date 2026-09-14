@@ -4,18 +4,18 @@ namespace Tests\Integration\Api;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * Charakterisierungstests für die lesenden Endpunkte `/api/single` und `/api/list`.
+ * Characterization tests for the reading endpoints `/api/single` and `/api/list`.
  *
- * **Charakterisierung heißt: festhalten, was ist** — auch das Fragwürdige. Zwei der hier
- * festgehaltenen Merkwürdigkeiten sind inzwischen behoben und die Zusicherungen bewusst
- * umgedreht: Ein Zugriff ohne Token endet seit dem Stack-Wechsel (`006-002-0003`) mit 401
- * statt 500, und eine unbekannte Id liefert seit `000-000-0006` einen 404 statt eines 200 mit
- * leerem `headers`-Objekt. Was bleibt, beschreibt weiter den Ist-Zustand, den Epic `009` beim
- * Kernel-Tausch reproduzieren muss.
+ * **Characterization means: record what is** — including the questionable. Two of the
+ * oddities recorded here have since been fixed and their assertions deliberately inverted:
+ * an access without a token ends with 401 instead of 500 since the stack switch
+ * (`006-002-0003`), and an unknown id returns a 404 since `000-000-0006` instead of a 200 with
+ * an empty `headers` object. What remains still describes the current state that epic `009`
+ * has to reproduce during the kernel swap.
  *
- * Testdaten entstehen über `pdo()`, nicht über die Schreib-Endpunkte: Story `008-001` soll
- * nicht von `008-002` abhängen, und eine Vorbedingung über den ungeprüften Schreibpfad würde
- * die Aussagekraft der Lesetests untergraben.
+ * Test data is created via `pdo()`, not via the write endpoints: story `008-001` must not
+ * depend on `008-002`, and a precondition via the unverified write path would undermine the
+ * significance of the read tests.
  */
 class ReadApiTest extends IntegrationTestCase
 {
@@ -31,21 +31,21 @@ class ReadApiTest extends IntegrationTestCase
             ->query("SELECT id FROM pim_user WHERE alias = 'admin'")
             ->fetchColumn();
 
-        // Die Ids sind bewusst gegenlaeufig zu den Titeln vergeben: 'a-…' traegt 'Zeta',
-        // 'z-…' traegt 'Alpha'. Damit unterscheiden sich die beiden moeglichen Sortierungen
-        // — nach id absteigend und nach title aufsteigend — im Ergebnis eindeutig.
-        $lauf = bin2hex(random_bytes(6));
-        $this->tagB = $this->tagAnlegen('a-'.$lauf, 'Zeta',  null);
-        $this->tagA = $this->tagAnlegen('z-'.$lauf, 'Alpha', $this->adminId);
+        // The ids are deliberately assigned opposite to the titles: 'a-…' carries 'Zeta',
+        // 'z-…' carries 'Alpha'. This way the two possible sort orders — by id descending
+        // and by title ascending — produce clearly different results.
+        $run = bin2hex(random_bytes(6));
+        $this->tagB = $this->createTag('a-'.$run, 'Zeta',  null);
+        $this->tagA = $this->createTag('z-'.$run, 'Alpha', $this->adminId);
     }
 
-    private function tagAnlegen(string $id, string $titel, ?string $userCreated): string
+    private function createTag(string $id, string $title, ?string $userCreated): string
     {
 
         $this->pdo()->prepare(
             'INSERT INTO pim_tag (id, title, created, modified, views, isIntern, usercreated_id)
-             VALUES (:id, :titel, NOW(), NOW(), 0, 0, :uc)'
-        )->execute(array('id' => $id, 'titel' => $titel, 'uc' => $userCreated));
+             VALUES (:id, :title, NOW(), NOW(), 0, 0, :uc)'
+        )->execute(array('id' => $id, 'title' => $title, 'uc' => $userCreated));
 
         $this->deleteAfterTest('pim_tag', $id);
 
@@ -54,7 +54,7 @@ class ReadApiTest extends IntegrationTestCase
 
     // ── /api/single ────────────────────────────────────────────────────────────────────
 
-    public function testSingleLiefertDasObjektImStandardEnvelope(): void
+    public function testSingleReturnsTheObjectInTheStandardEnvelope(): void
     {
         [$status, $body] = $this->postJson(
             '/api/single',
@@ -64,12 +64,12 @@ class ReadApiTest extends IntegrationTestCase
 
         $this->assertSame(200, $status);
         $this->assertSame(array('ts', 'data', 'version', 'hash'), array_keys($body),
-            'Der Envelope von /api/single — beachte: ohne totalItems, anders als /api/list');
+            'The envelope of /api/single — note: without totalItems, unlike /api/list');
         $this->assertSame($this->tagA, $body['data']['id']);
         $this->assertSame('Alpha', $body['data']['title']);
     }
 
-    public function testDatumsfelderKommenAlsViererGruppe(): void
+    public function testDateFieldsComeAsGroupOfFour(): void
     {
         [, $body] = $this->postJson(
             '/api/single',
@@ -77,46 +77,46 @@ class ReadApiTest extends IntegrationTestCase
             $this->token()
         );
 
-        foreach (array('created', 'modified') as $feld) {
+        foreach (array('created', 'modified') as $field) {
             $this->assertSame(
                 array('LOCAL_TIME', 'LOCAL', 'ISO8601', 'TIMESTAMP'),
-                array_keys($body['data'][$feld]),
-                "Jedes datetime-Feld kommt als diese vier Darstellungen ($feld)"
+                array_keys($body['data'][$field]),
+                "Every datetime field comes as these four representations ($field)"
             );
-            $this->assertIsInt($body['data'][$feld]['TIMESTAMP']);
+            $this->assertIsInt($body['data'][$field]['TIMESTAMP']);
         }
     }
 
-    public function testVerschachteltesObjektTraegtAlleEigenschaften(): void
+    public function testNestedObjectCarriesAllProperties(): void
     {
-        // Seit 012-005-0003 sind verschachtelte Objekte nicht mehr auf die Listenspalten
-        // der geloeschten Oberflaeche beschraenkt; begrenzt wird nur ueber DB_NESTED_LEVELS.
+        // Since 012-005-0003 nested objects are no longer restricted to the list columns
+        // of the deleted UI; the only limit is DB_NESTED_LEVELS.
         [, $body] = $this->postJson(
             '/api/single',
             array('entity' => 'PIM\\Tag', 'id' => $this->tagA),
             $this->token()
         );
 
-        $verjoint = $body['data']['userCreated'];
+        $joined = $body['data']['userCreated'];
 
-        $this->assertSame($this->adminId, $verjoint['id']);
-        foreach (array('alias', 'isActive', 'isAdmin', 'isIntern', 'loginManager') as $feld) {
-            $this->assertArrayHasKey($feld, $verjoint,
-                "Verschachtelte Objekte liefern alle Eigenschaften, nicht nur die id ($feld)");
+        $this->assertSame($this->adminId, $joined['id']);
+        foreach (array('alias', 'isActive', 'isAdmin', 'isIntern', 'loginManager') as $field) {
+            $this->assertArrayHasKey($field, $joined,
+                "Nested objects return all properties, not just the id ($field)");
         }
-        $this->assertArrayNotHasKey('pass', $verjoint, 'Der Passwort-Hash wird nicht ausgeliefert');
+        $this->assertArrayNotHasKey('pass', $joined, 'The password hash is not delivered');
     }
 
-    public function testUnbekannteIdLiefert404(): void
+    public function testUnknownIdReturns404(): void
     {
-        // Umgedreht mit 000-000-0006. Vorher hiess dieser Test
-        // testUnbekannteIdLiefert200MitLeeremHeadersObjekt und hielt fest, dass der Endpunkt
-        // mit 200 und `data: {"headers": {}}` antwortet — dem Artefakt aus einer JsonResponse,
-        // die Api::getSingle() als "nicht gefunden" zurueckgab und singleAction() als Nutzlast
-        // weiterreichte.
+        // Inverted with 000-000-0006. Previously this test was called
+        // testUnbekannteIdLiefert200MitLeeremHeadersObjekt and recorded that the endpoint
+        // responds with 200 and `data: {"headers": {}}` — the artefact of a JsonResponse
+        // that Api::getSingle() returned as "not found" and singleAction() passed on as
+        // payload.
         [$status, $body] = $this->postJson(
             '/api/single',
-            array('entity' => 'PIM\\Tag', 'id' => 'gibtesnicht'),
+            array('entity' => 'PIM\\Tag', 'id' => 'doesnotexist'),
             $this->token()
         );
 
@@ -125,56 +125,55 @@ class ReadApiTest extends IntegrationTestCase
         $this->assertArrayNotHasKey('data', $body);
     }
 
-    public function testUnbekannteEntityLiefert500(): void
+    public function testUnknownEntityReturns404(): void
     {
-        // Ebenfalls 000-000-0006: die Ausnahme wird nicht in eine API-Antwort uebersetzt.
+        // Also 000-000-0006: the exception is not translated into an API response.
         [$status] = $this->postJson(
             '/api/single',
-            array('entity' => 'PIM\\GibtesNicht', 'id' => 'egal'),
+            array('entity' => 'PIM\\DoesNotExist', 'id' => 'irrelevant'),
             $this->token()
         );
 
         $this->assertSame(404, $status,
-            'Seit 006-002-0003 der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
+            'Since 006-002-0003 the intended code — Symfony 4.4 fixes 000-000-0006 here');
     }
 
-    public function testSingleOhneTokenLiefert500(): void
+    public function testSingleWithoutTokenReturns401(): void
     {
-        // Der Zugriffsschutz greift, die Antwort ist nur die falsche: 500 statt 401.
-        // In 012-004-0003 bereits so festgehalten, hier fuer /api/single wiederholt.
+        // The access protection works, only the response is wrong: 500 instead of 401.
+        // Already recorded this way in 012-004-0003, repeated here for /api/single.
         [$status, $body] = $this->postJson(
             '/api/single',
             array('entity' => 'PIM\\Tag', 'id' => $this->tagA)
         );
 
-        $this->assertSame(401, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
-        $this->assertArrayNotHasKey('data', $body, 'Ohne Token fliessen keine Daten');
+        $this->assertSame(401, $status, 'Since the stack switch (006-002-0003) the intended code — Symfony 4.4 fixes 000-000-0006 here');
+        $this->assertArrayNotHasKey('data', $body, 'Without a token no data flows');
     }
 
     // ── /api/list ──────────────────────────────────────────────────────────────────────
 
-    public function testListLiefertEinenAnderenEnvelopeAlsSingle(): void
+    public function testListReturnsADifferentEnvelopeThanSingle(): void
     {
         [$status, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'), $this->token());
 
         $this->assertSame(200, $status);
         $this->assertSame(array('data', 'totalItems', 'version', 'hash'), array_keys($body),
-            'list traegt totalItems, aber kein ts — single umgekehrt. Inkonsistent, aber Ist-Zustand.');
+            'list carries totalItems but no ts — single the other way round. Inconsistent, but the current state.');
         $this->assertGreaterThanOrEqual(2, $body['totalItems']);
     }
 
-    public function testListSortiertOhneOrderParameterNachIdAbsteigend(): void
+    public function testListWithoutOrderParameterSortsByIdDescending(): void
     {
-        // Api::getList() wertet sortBy/sortOrder der Entity NICHT aus. Ohne `order` im
-        // Request bleibt es bei `ORDER BY id DESC`. PIM\Tag traegt sortBy="title",
-        // sortOrder="ASC" — wirkungslos fuer diese Antwort.
+        // Api::getList() does NOT evaluate the entity's sortBy/sortOrder. Without `order` in
+        // the request it stays at `ORDER BY id DESC`. PIM\Tag carries sortBy="title",
+        // sortOrder="ASC" — without effect on this response.
         //
-        // 000-000-0013 hat entschieden, dass das SO BLEIBT, und die Begruendung steht dort:
-        // `id` ist eindeutig, `created` (die Vorgabe fuer jede Entity ohne eigene Angabe) ist
-        // es nicht — die Sortierung anzuwenden haette eine stabile Blaetterreihenfolge gegen
-        // eine unstabile getauscht, und zwar still, fuer jeden Client, der kein `order`
-        // schickt. Wer die deklarierte Reihenfolge will, liest sie aus dem Schema und
-        // schickt sie als `order` mit.
+        // 000-000-0013 decided that it STAYS THIS WAY, and the reasoning is there:
+        // `id` is unique, `created` (the default for every entity without its own setting) is
+        // not — applying the sort order would have swapped a stable paging order for an
+        // unstable one, silently, for every client that sends no `order`. Whoever wants the
+        // declared order reads it from the schema and sends it along as `order`.
         [, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'), $this->token());
 
         $ids = array_values(array_intersect(
@@ -183,39 +182,39 @@ class ReadApiTest extends IntegrationTestCase
         ));
 
         $this->assertSame(array($this->tagA, $this->tagB), $ids,
-            'Ohne order-Parameter sortiert die Liste nach id absteigend — die Entity-Settings '
-            .'sortBy/sortOrder bleiben unbeachtet');
+            'Without an order parameter the list sorts by id descending — the entity settings '
+            .'sortBy/sortOrder are ignored');
     }
 
-    public function testSortByUndSortOrderStehenImSchemaWirkenAberNichtAufDieAntwort(): void
+    public function testSortByAndSortOrderAreInTheSchemaButDoNotAffectTheResponse(): void
     {
-        // Festgehalten, weil 012-005-0002 diese beiden Felder als "Sortierung der
-        // API-Antworten" behalten hat. Sie stehen im Schema und ein Client kann sie lesen,
-        // aber kein Leser im Framework wendet sie an — anders als sortRestrictTo, das
-        // JoinBidirectionalType tatsaechlich auswertet.
+        // Recorded because 012-005-0002 kept these two fields as "sort order of the
+        // API responses". They are in the schema and a client can read them, but no reader
+        // in the framework applies them — unlike sortRestrictTo, which
+        // JoinBidirectionalType actually evaluates.
         //
-        // Die Begruendung aus 012-005-0002 ist mit 000-000-0013 in
-        // an_project/docs/pim-annotationen-migration.md richtiggestellt: Es sind Angaben fuer
-        // den Client, nicht die Sortierung der API-Antworten.
+        // The reasoning from 012-005-0002 was corrected with 000-000-0013 in
+        // an_project/docs/pim-annotationen-migration.md: they are hints for the client, not
+        // the sort order of the API responses.
         [, $schema] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'), $this->token());
-        [$status, $roh] = $this->get('/api/schema', $this->token());
+        [$status, $raw] = $this->get('/api/schema', $this->token());
 
         $this->assertSame(200, $status);
-        $einstellungen = json_decode($roh, true)['data']['PIM\\Tag']['settings'];
+        $settings = json_decode($raw, true)['data']['PIM\\Tag']['settings'];
 
-        $this->assertSame('title', $einstellungen['sortBy']);
-        $this->assertSame('ASC', $einstellungen['sortOrder']);
+        $this->assertSame('title', $settings['sortBy']);
+        $this->assertSame('ASC', $settings['sortOrder']);
 
-        $titel = array_values(array_intersect(
+        $titles = array_values(array_intersect(
             array_column($schema['data'], 'title'),
             array('Alpha', 'Zeta')
         ));
-        $this->assertSame(array('Alpha', 'Zeta'), $titel,
-            'Zufall waere hier nicht erkennbar: Alpha liegt auf der hoeheren id und kommt '
-            .'deshalb bei id-DESC zuerst — nicht wegen sortBy="title"');
+        $this->assertSame(array('Alpha', 'Zeta'), $titles,
+            'Coincidence would not be recognisable here: Alpha sits on the higher id and therefore '
+            .'comes first with id DESC — not because of sortBy="title"');
     }
 
-    public function testOrderParameterBestimmtDieReihenfolge(): void
+    public function testOrderParameterDeterminesTheOrder(): void
     {
         [, $body] = $this->postJson(
             '/api/list',
@@ -223,16 +222,16 @@ class ReadApiTest extends IntegrationTestCase
             $this->token()
         );
 
-        $titel = array_values(array_intersect(
+        $titles = array_values(array_intersect(
             array_column($body['data'], 'title'),
             array('Alpha', 'Zeta')
         ));
 
-        $this->assertSame(array('Alpha', 'Zeta'), $titel,
-            'Die Sortierung kommt aus dem Request, nicht aus den Entity-Settings');
+        $this->assertSame(array('Alpha', 'Zeta'), $titles,
+            'The sort order comes from the request, not from the entity settings');
     }
 
-    public function testPropertiesSchraenktDieFeldmengeEin(): void
+    public function testPropertiesRestrictsTheFieldSet(): void
     {
         [, $body] = $this->postJson(
             '/api/list',
@@ -241,39 +240,39 @@ class ReadApiTest extends IntegrationTestCase
         );
 
         $this->assertNotEmpty($body['data']);
-        foreach ($body['data'] as $eintrag) {
-            $this->assertSame(array('id', 'title'), array_keys($eintrag),
-                'Mit properties kommen genau die angeforderten Felder');
+        foreach ($body['data'] as $entry) {
+            $this->assertSame(array('id', 'title'), array_keys($entry),
+                'With properties exactly the requested fields are returned');
         }
     }
 
-    public function testPartialSelectLiefertDieLabelPropertyDesVerjointenZiels(): void
+    public function testPartialSelectReturnsTheLabelPropertyOfTheJoinedTarget(): void
     {
-        // Schuetzt die Entscheidung aus 012-005-0002: labelProperty stand auf der
-        // Streichliste, bleibt aber — Api::getList() nimmt genau dieses Feld des
-        // verjointen Ziels mit in den partial-Select. PIM\User traegt labelProperty="alias".
+        // Protects the decision from 012-005-0002: labelProperty was on the removal list,
+        // but stays — Api::getList() includes exactly this field of the joined target in
+        // the partial select. PIM\User carries labelProperty="alias".
         [, $body] = $this->postJson(
             '/api/list',
             array('entity' => 'PIM\\Tag', 'properties' => array('id', 'title', 'userCreated')),
             $this->token()
         );
 
-        $mitBenutzer = array_values(array_filter(
+        $withUser = array_values(array_filter(
             $body['data'],
             fn (array $e): bool => $e['id'] === $this->tagA
         ));
 
-        $this->assertCount(1, $mitBenutzer);
-        $this->assertSame($this->adminId, $mitBenutzer[0]['userCreated']['id']);
-        $this->assertSame('admin', $mitBenutzer[0]['userCreated']['alias'],
-            'Die labelProperty des Ziels ist im partial-Select enthalten — siehe 012-005-0002');
+        $this->assertCount(1, $withUser);
+        $this->assertSame($this->adminId, $withUser[0]['userCreated']['id']);
+        $this->assertSame('admin', $withUser[0]['userCreated']['alias'],
+            'The labelProperty of the target is included in the partial select — see 012-005-0002');
     }
 
-    public function testListOhneTokenLiefertKeineDaten(): void
+    public function testListWithoutTokenReturnsNoData(): void
     {
         [$status, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'));
 
-        $this->assertSame(401, $status, 'Seit dem Stack-Wechsel (006-002-0003) der gemeinte Code — Symfony 4.4 behebt hier 000-000-0006');
+        $this->assertSame(401, $status, 'Since the stack switch (006-002-0003) the intended code — Symfony 4.4 fixes 000-000-0006 here');
         $this->assertArrayNotHasKey('data', $body);
     }
 }

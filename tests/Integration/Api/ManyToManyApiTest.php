@@ -4,27 +4,27 @@ namespace Tests\Integration\Api;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * Charakterisierungstests für den einzigen ManyToMany-Pfad des Frameworks: `PIM\File.tags`.
+ * Characterisation tests for the framework's only ManyToMany path: `PIM\File.tags`.
  *
- * **Warum diese Datei mitten in Epic `006` entsteht und nicht in `008`:** `doctrine/orm` steht
- * heute auf einem eigenen Fork — `area-net-gmbh/doctrine2`, Branch **`bugfix-many2many`**,
- * Stand 2018-08-07. Story `006-002` wechselt auf ein Release, und niemand kann sagen, ob der
- * Fix dieses Forks dort aufgegangen ist (`006-001-0003`).
+ * **Why this file is created in the middle of epic `006` and not in `008`:** `doctrine/orm` is
+ * currently on a fork of its own — `area-net-gmbh/doctrine2`, branch **`bugfix-many2many`**,
+ * as of 2018-08-07. Story `006-002` switches to a release, and nobody can say whether the
+ * fix of this fork was merged there (`006-001-0003`).
  *
- * Der Fork ist nach *diesem* Pfad benannt. Ohne Tests darauf mischte sich ein möglicher Bruch
- * mit vier weiteren Major-Sprüngen — Symfony 3.4→4.4, DBAL 2.6→2.13, annotations 1.8→1.14,
- * uuid 3→4 — und wäre nicht mehr zuzuordnen.
+ * The fork is named after *this* path. Without tests on it, a possible break would mix
+ * with four further major jumps — Symfony 3.4→4.4, DBAL 2.6→2.13, annotations 1.8→1.14,
+ * uuid 3→4 — and could no longer be attributed.
  *
- * ## Nicht zu verwechseln mit der dokumentierten Lücke
- * `an_project/docs/technical.md` führt „Schreibprüfung des `MultijoinType`" als Lücke. Das ist
- * ein **Berechtigungs**pfad im `acceptFrom`-Zweig, der mangels `acceptFrom` im ganzen Baum
- * nicht auslösbar ist — festgehalten in
- * `WritePermissionApiTest::testDieSchreibpruefungInMultijoinTypeIstNichtAusloesbar()`.
+ * ## Not to be confused with the documented gap
+ * `an_project/docs/technical.md` lists the "write check" of `MultijoinType` as a gap. That is
+ * a **permission** path in the `acceptFrom` branch, which cannot be triggered because there is
+ * no `acceptFrom` anywhere in the tree — recorded in
+ * `WritePermissionApiTest::testTheWriteCheckInMultijoinTypeCannotBeTriggered()`.
  *
- * Diese Datei prüft etwas anderes: das **ORM-Verhalten**. Verknüpfungen anlegen, lesen,
- * ändern, löschen. Das ist sehr wohl auslösbar, und es ist das, wonach der Fork benannt ist.
+ * This file checks something else: the **ORM behaviour**. Creating, reading,
+ * changing, deleting links. That can very well be triggered, and it is what the fork is named after.
  *
- * ## Die Entity
+ * ## The entity
  * ```php
  * // lib/contentfly/Entity/File.php:81
  * @ORM\ManyToMany(targetEntity="Areanet\PIM\Entity\Tag")
@@ -32,189 +32,189 @@ use Tests\Integration\IntegrationTestCase;
  * @PIM\Config(isFilterable=true)
  * ```
  *
- * **Der Zustand der Verknüpfungstabelle wird direkt per SQL geprüft, nicht nur über die
- * API-Antwort.** Ein ORM-Wechsel kann die Antwort richtig aussehen lassen und die Tabelle
- * trotzdem falsch füllen — genau die Sorte Fehler, die dieser Fork einmal behoben haben soll.
+ * **The state of the join table is checked directly via SQL, not only via the
+ * API response.** An ORM switch can make the response look right and still fill the table
+ * wrongly — exactly the kind of bug this fork is supposed to have fixed once.
  *
- * Beim Schreiben zeigte sich dabei ein Punkt, der aus der Entity **nicht** ablesbar ist:
- * Die Annotation setzt `onDelete="CASCADE"` nur auf den `joinColumns` (`file_id`), Doctrine
- * legt es aber auf **beiden** Fremdschlüsseln an. Das Schema ist symmetrisch, die Annotation
- * beschreibt es asymmetrisch — wer nur sie liest, erwartet verwaiste Zeilen, die es nicht
- * gibt.
+ * While writing, one point emerged that **cannot** be read from the entity:
+ * the annotation sets `onDelete="CASCADE"` only on the `joinColumns` (`file_id`), but Doctrine
+ * creates it on **both** foreign keys. The schema is symmetric, the annotation
+ * describes it asymmetrically — anyone reading only the annotation expects orphaned rows that
+ * do not exist.
  */
 class ManyToManyApiTest extends IntegrationTestCase
 {
     private const ENTITY = 'PIM\\File';
 
-    /** @var array<int,string> Ids, deren Protokoll- und Verknüpfungszeilen tearDown() entfernt. */
-    private array $aufzuraeumendeIds = array();
+    /** @var array<int,string> Ids whose log and link rows tearDown() removes. */
+    private array $idsToCleanUp = array();
 
     /**
-     * Entfernt, was `deleteAfterTest()` nicht erreicht, und übergibt dann an die Basis.
+     * Removes what `deleteAfterTest()` does not reach, and then hands over to the base.
      *
-     * Zwei Dinge fallen durch: die Zeilen in `pim_file_tags` (sie haben keine eigene `id`,
-     * die Basis löscht aber über `id`) und die Protokollzeilen (sie stehen unter `model_id`,
-     * und die entscheidenden entstehen erst **nach** der Anmeldung — jedes `/api/update`
-     * schreibt eine).
+     * Two things slip through: the rows in `pim_file_tags` (they have no `id` of their own,
+     * but the base deletes by `id`) and the log rows (they are stored under `model_id`,
+     * and the decisive ones are only created **after** registration — every `/api/update`
+     * writes one).
      *
-     * Ohne das wuchs `pim_log` mit jedem Lauf um drei Zeilen. Genau der Rückstand, gegen den
-     * `000-000-0008` geschrieben wurde.
+     * Without this, `pim_log` grew by three rows with every run. Exactly the backlog that
+     * `000-000-0008` was written against.
      */
     protected function tearDown(): void
     {
-        foreach ($this->aufzuraeumendeIds as $id) {
+        foreach ($this->idsToCleanUp as $id) {
             $this->pdo()->prepare('DELETE FROM pim_file_tags WHERE file_id = :id')->execute(array('id' => $id));
             $this->pdo()->prepare('DELETE FROM pim_log WHERE model_id = :id')->execute(array('id' => $id));
         }
 
-        $this->aufzuraeumendeIds = array();
+        $this->idsToCleanUp = array();
 
         parent::tearDown();
     }
 
     /**
-     * Legt einen Tag **an der API vorbei** an.
+     * Creates a tag **bypassing the API**.
      *
-     * Wie in Epic `008`: Ein Lesetest, dessen Vorbedingung über den Schreibpfad läuft, den er
-     * selbst prüft, verliert seine Aussagekraft.
+     * As in epic `008`: a read test whose precondition runs through the write path it
+     * checks itself loses its significance.
      */
-    private function tag(string $titel): string
+    private function tag(string $title): string
     {
         $id = 'm2m-t-'.bin2hex(random_bytes(5));
 
         $this->pdo()->prepare(
             'INSERT INTO pim_tag (id, title, created, modified, views, isIntern)
-             VALUES (:id, :titel, NOW(), NOW(), 0, 0)'
-        )->execute(array('id' => $id, 'titel' => $titel));
+             VALUES (:id, :title, NOW(), NOW(), 0, 0)'
+        )->execute(array('id' => $id, 'title' => $title));
 
         $this->deleteAfterTest('pim_tag', $id);
-        $this->aufzuraeumendeIds[] = $id;
+        $this->idsToCleanUp[] = $id;
 
         return $id;
     }
 
     /**
-     * Legt eine Datei-Zeile an — ohne Upload.
+     * Creates a file row — without an upload.
      *
-     * `/api/insert` scheidet aus: `pim_file` verlangt `hash` und `type` als NOT NULL, und der
-     * Insert-Pfad füllt sie nicht. Dateien entstehen sonst über `/file/upload`, aber der
-     * Upload-Pfad hat mit ManyToMany nichts zu tun und brächte nur eigene Fehlerquellen mit
-     * (siehe `FileApiTest`, wo er charakterisiert ist).
+     * `/api/insert` is ruled out: `pim_file` requires `hash` and `type` as NOT NULL, and the
+     * insert path does not fill them. Files are otherwise created via `/file/upload`, but the
+     * upload path has nothing to do with ManyToMany and would only bring its own sources of error
+     * (see `FileApiTest`, where it is characterised).
      */
-    private function datei(string $name = 'm2m.txt'): string
+    private function file(string $name = 'm2m.txt'): string
     {
         $id = 'm2m-f-'.bin2hex(random_bytes(5));
 
         $this->pdo()->prepare(
             'INSERT INTO pim_file (id, name, type, hash, size, created, modified, views, isIntern)
-             VALUES (:id, :name, :typ, :hash, 5, NOW(), NOW(), 0, 0)'
+             VALUES (:id, :name, :type, :hash, 5, NOW(), NOW(), 0, 0)'
         )->execute(array(
             'id'   => $id,
             'name' => $name,
-            'typ'  => 'text/plain',
+            'type' => 'text/plain',
             'hash' => bin2hex(random_bytes(8)),
         ));
 
         $this->deleteAfterTest('pim_file', $id);
-        $this->aufzuraeumendeIds[] = $id;
+        $this->idsToCleanUp[] = $id;
 
         return $id;
     }
 
-    /** Setzt Verknüpfungen direkt in die Tabelle. */
-    private function verknuepfen(string $dateiId, string ...$tagIds): void
+    /** Inserts links directly into the table. */
+    private function link(string $fileId, string ...$tagIds): void
     {
         $stmt = $this->pdo()->prepare('INSERT INTO pim_file_tags (file_id, tag_id) VALUES (:f, :t)');
 
         foreach ($tagIds as $tagId) {
-            $stmt->execute(array('f' => $dateiId, 't' => $tagId));
+            $stmt->execute(array('f' => $fileId, 't' => $tagId));
         }
     }
 
-    /** Die Tag-Ids, die in `pim_file_tags` für diese Datei stehen — sortiert. */
-    private function verknuepfungen(string $dateiId): array
+    /** The tag ids stored in `pim_file_tags` for this file — sorted. */
+    private function links(string $fileId): array
     {
         $stmt = $this->pdo()->prepare('SELECT tag_id FROM pim_file_tags WHERE file_id = :f ORDER BY tag_id');
-        $stmt->execute(array('f' => $dateiId));
+        $stmt->execute(array('f' => $fileId));
 
         return $stmt->fetchAll(\PDO::FETCH_COLUMN);
     }
 
     /**
-     * Räumt die Verknüpfungen einer Datei ab.
+     * Clears the links of a file.
      *
-     * `tearDown()` tut das ohnehin; die Aufrufe im Testrumpf stehen dort, wo **vor** einer
-     * Assertion aufgeräumt werden soll — dann hängt eine Fehlermeldung nicht davon ab, ob
-     * das Aufräumen vorher gelungen ist.
+     * `tearDown()` does that anyway; the calls in the test body are placed where cleanup should
+     * happen **before** an assertion — then a failure message does not depend on whether
+     * the cleanup succeeded beforehand.
      */
-    private function verknuepfungenAufraeumen(string $dateiId): void
+    private function clearLinks(string $fileId): void
     {
-        $this->pdo()->prepare('DELETE FROM pim_file_tags WHERE file_id = :f')->execute(array('f' => $dateiId));
+        $this->pdo()->prepare('DELETE FROM pim_file_tags WHERE file_id = :f')->execute(array('f' => $fileId));
     }
 
-    // ── Lesen ──────────────────────────────────────────────────────────────────────────
+    // ── Reading ────────────────────────────────────────────────────────────────────────
 
-    public function testEineVerknuepfteDateiLiefertIhreTagsAlsVolleObjekte(): void
+    public function testLinkedFileReturnsItsTagsAsFullObjects(): void
     {
-        // Bemerkenswert und deshalb festgehalten: Die Antwort enthaelt nicht nur die Ids,
-        // sondern jeden Tag als vollstaendiges Objekt — mit created, modified, views, users,
-        // groups. Ein Client, der nur die Zuordnung braucht, bekommt den ganzen Datensatz.
-        $datei = $this->datei();
+        // Remarkable and therefore recorded: the response contains not only the ids,
+        // but every tag as a complete object — with created, modified, views, users,
+        // groups. A client that only needs the mapping gets the whole record.
+        $file  = $this->file();
         $alpha = $this->tag('M2M-Alpha');
         $beta  = $this->tag('M2M-Beta');
-        $this->verknuepfen($datei, $alpha, $beta);
+        $this->link($file, $alpha, $beta);
 
         [$status, $body] = $this->postJson(
             '/api/single',
-            array('entity' => self::ENTITY, 'id' => $datei),
+            array('entity' => self::ENTITY, 'id' => $file),
             $this->token()
         );
 
         $this->assertSame(200, $status);
 
-        // Sortiert verglichen: Die Reihenfolge, in der die Tags zurueckkommen, sichert
-        // nichts zu — weder die Entity noch die Abfrage geben eine an. Ein Test, der sich
-        // darauf verlaesst, ist ein Test, der irgendwann ohne Grund rot wird.
+        // Compared sorted: the order in which the tags come back guarantees
+        // nothing — neither the entity nor the query specifies one. A test that
+        // relies on it is a test that eventually turns red for no reason.
         $tags = $body['data']['tags'];
         $this->assertCount(2, $tags);
 
         $ids = array_column($tags, 'id');
         sort($ids);
-        $erwartet = array($alpha, $beta);
-        sort($erwartet);
-        $this->assertSame($erwartet, $ids);
+        $expected = array($alpha, $beta);
+        sort($expected);
+        $this->assertSame($expected, $ids);
 
-        $titel = array_column($tags, 'title');
-        sort($titel);
-        $this->assertSame(array('M2M-Alpha', 'M2M-Beta'), $titel);
-        $this->assertArrayHasKey('created', $tags[0], 'Volles Objekt, nicht nur die Id');
+        $titles = array_column($tags, 'title');
+        sort($titles);
+        $this->assertSame(array('M2M-Alpha', 'M2M-Beta'), $titles);
+        $this->assertArrayHasKey('created', $tags[0], 'Full object, not just the id');
 
-        $this->verknuepfungenAufraeumen($datei);
+        $this->clearLinks($file);
     }
 
-    public function testEineDateiOhneTagsLiefertEineLeereListe(): void
+    public function testFileWithoutTagsReturnsAnEmptyList(): void
     {
-        $datei = $this->datei();
+        $file = $this->file();
 
         [, $body] = $this->postJson(
             '/api/single',
-            array('entity' => self::ENTITY, 'id' => $datei),
+            array('entity' => self::ENTITY, 'id' => $file),
             $this->token()
         );
 
         $this->assertSame(array(), $body['data']['tags'],
-            'Leere Liste, nicht null — der Unterschied zaehlt fuer einen Client');
+            'Empty list, not null — the difference matters to a client');
     }
 
-    public function testDasSchemaBeschreibtDieVerknuepfungstabelle(): void
+    public function testSchemaDescribesTheJoinTable(): void
     {
-        // Der Client erfaehrt aus dem Schema, wie die Beziehung physisch aussieht. Nach dem
-        // Doctrine-Wechsel muss das unveraendert gelten — sonst brechen Clients, die danach
-        // gehen.
-        [$status, $roh] = $this->get('/api/schema', $this->token());
+        // The client learns from the schema what the relation physically looks like. After the
+        // Doctrine switch this must hold unchanged — otherwise clients that rely on it
+        // break.
+        [$status, $raw] = $this->get('/api/schema', $this->token());
         $this->assertSame(200, $status);
 
-        $tags = json_decode($roh, true)['data'][self::ENTITY]['properties']['tags'];
+        $tags = json_decode($raw, true)['data'][self::ENTITY]['properties']['tags'];
 
         $this->assertSame('multijoin', $tags['type']);
         $this->assertSame('Areanet\\PIM\\Entity\\Tag', $tags['accept']);
@@ -224,110 +224,110 @@ class ManyToManyApiTest extends IntegrationTestCase
         $this->assertTrue($tags['isFilterable']);
     }
 
-    // ── Schreiben ──────────────────────────────────────────────────────────────────────
+    // ── Writing ────────────────────────────────────────────────────────────────────────
 
-    public function testTagsLassenSichUeberUpdateSetzen(): void
+    public function testTagsCanBeSetViaUpdate(): void
     {
-        $datei = $this->datei();
-        $alpha = $this->tag('M2M-Setzen-A');
-        $beta  = $this->tag('M2M-Setzen-B');
+        $file  = $this->file();
+        $alpha = $this->tag('M2M-Set-A');
+        $beta  = $this->tag('M2M-Set-B');
 
         [$status] = $this->postJson(
             '/api/update',
-            array('entity' => self::ENTITY, 'id' => $datei, 'data' => array('tags' => array($alpha, $beta))),
+            array('entity' => self::ENTITY, 'id' => $file, 'data' => array('tags' => array($alpha, $beta))),
             $this->token()
         );
 
-        $erwartet = array($alpha, $beta);
-        sort($erwartet);
+        $expected = array($alpha, $beta);
+        sort($expected);
 
         $this->assertSame(200, $status);
-        $this->assertSame($erwartet, $this->verknuepfungen($datei),
-            'Die Zeilen stehen wirklich in pim_file_tags — per SQL geprueft, nicht ueber die Antwort');
+        $this->assertSame($expected, $this->links($file),
+            'The rows really are in pim_file_tags — checked via SQL, not via the response');
 
-        $this->verknuepfungenAufraeumen($datei);
+        $this->clearLinks($file);
     }
 
-    public function testEineNeueMengeErsetztDieAlteVollstaendig(): void
+    public function testNewSetReplacesTheOldOneCompletely(): void
     {
-        // Der Punkt, an dem ein ORM-Wechsel schiefgehen kann: Update ist ERSETZEN, nicht
-        // Ergaenzen. Wer beta wegnehmen will, schickt die Menge ohne beta — und die Zeile
-        // muss verschwinden, nicht liegenbleiben.
-        $datei = $this->datei();
-        $alpha = $this->tag('M2M-Ersetzen-A');
-        $beta  = $this->tag('M2M-Ersetzen-B');
-        $this->verknuepfen($datei, $alpha, $beta);
+        // The point where an ORM switch can go wrong: update means REPLACE, not
+        // ADD. Whoever wants to remove beta sends the set without beta — and the row
+        // must disappear, not remain.
+        $file  = $this->file();
+        $alpha = $this->tag('M2M-Replace-A');
+        $beta  = $this->tag('M2M-Replace-B');
+        $this->link($file, $alpha, $beta);
 
         [$status] = $this->postJson(
             '/api/update',
-            array('entity' => self::ENTITY, 'id' => $datei, 'data' => array('tags' => array($alpha))),
-            $this->token()
-        );
-
-        $this->assertSame(200, $status);
-        $this->assertSame(array($alpha), $this->verknuepfungen($datei),
-            'beta ist weg — die Menge wurde ersetzt, nicht ergaenzt');
-
-        $this->verknuepfungenAufraeumen($datei);
-    }
-
-    public function testEineLeereMengeLoestAlleVerknuepfungen(): void
-    {
-        $datei = $this->datei();
-        $this->verknuepfen($datei, $this->tag('M2M-Leeren-A'), $this->tag('M2M-Leeren-B'));
-
-        [$status] = $this->postJson(
-            '/api/update',
-            array('entity' => self::ENTITY, 'id' => $datei, 'data' => array('tags' => array())),
+            array('entity' => self::ENTITY, 'id' => $file, 'data' => array('tags' => array($alpha))),
             $this->token()
         );
 
         $this->assertSame(200, $status);
-        $this->assertSame(array(), $this->verknuepfungen($datei));
+        $this->assertSame(array($alpha), $this->links($file),
+            'beta is gone — the set was replaced, not extended');
+
+        $this->clearLinks($file);
     }
 
-    // ── Löschen ────────────────────────────────────────────────────────────────────────
-
-    public function testMitDerDateiVerschwindenAuchIhreVerknuepfungen(): void
+    public function testEmptySetRemovesAllLinks(): void
     {
-        // Die JoinColumn traegt onDelete="CASCADE". Ob die Verknuepfungen von der Datenbank
-        // (Fremdschluessel) oder vom ORM entfernt werden, ist von aussen nicht zu
-        // unterscheiden — und fuer den Vertrag auch nicht wichtig. Wichtig ist, dass keine
-        // verwaisten Zeilen zurueckbleiben.
-        $datei = $this->datei();
-        $this->verknuepfen($datei, $this->tag('M2M-Cascade-A'), $this->tag('M2M-Cascade-B'));
+        $file = $this->file();
+        $this->link($file, $this->tag('M2M-Clear-A'), $this->tag('M2M-Clear-B'));
 
-        $this->assertCount(2, $this->verknuepfungen($datei), 'Vorbedingung');
+        [$status] = $this->postJson(
+            '/api/update',
+            array('entity' => self::ENTITY, 'id' => $file, 'data' => array('tags' => array())),
+            $this->token()
+        );
+
+        $this->assertSame(200, $status);
+        $this->assertSame(array(), $this->links($file));
+    }
+
+    // ── Deleting ───────────────────────────────────────────────────────────────────────
+
+    public function testLinksDisappearTogetherWithTheFile(): void
+    {
+        // The JoinColumn carries onDelete="CASCADE". Whether the links are removed by the database
+        // (foreign key) or by the ORM cannot be distinguished from the
+        // outside — and does not matter for the contract either. What matters is that no
+        // orphaned rows remain.
+        $file = $this->file();
+        $this->link($file, $this->tag('M2M-Cascade-A'), $this->tag('M2M-Cascade-B'));
+
+        $this->assertCount(2, $this->links($file), 'Precondition');
 
         [$status] = $this->postJson(
             '/api/delete',
-            array('entity' => self::ENTITY, 'id' => $datei),
+            array('entity' => self::ENTITY, 'id' => $file),
             $this->token()
         );
 
         $this->assertSame(200, $status);
-        $this->assertSame(array(), $this->verknuepfungen($datei),
-            'Keine verwaisten Zeilen in pim_file_tags');
+        $this->assertSame(array(), $this->links($file),
+            'No orphaned rows in pim_file_tags');
 
     }
 
-    public function testAuchDasLoeschenDesTagsRaeumtDieVerknuepfungAuf(): void
+    public function testDeletingTheTagAlsoCleansUpTheLink(): void
     {
-        // Die Gegenrichtung — und sie raeumt ebenfalls auf, entgegen der Erwartung beim
-        // Schreiben dieses Tests. Die Annotation setzt onDelete="CASCADE" nur auf den
-        // joinColumns (file_id); Doctrine legt es aber auf BEIDEN Fremdschluesseln an:
+        // The opposite direction — and it cleans up as well, contrary to the expectation when
+        // this test was written. The annotation sets onDelete="CASCADE" only on the
+        // joinColumns (file_id); but Doctrine creates it on BOTH foreign keys:
         //
         //   CONSTRAINT FK_…46F22BC   FOREIGN KEY (file_id) REFERENCES pim_file (id) ON DELETE CASCADE
         //   CONSTRAINT FK_…DD1FDCE8  FOREIGN KEY (tag_id)  REFERENCES pim_tag  (id) ON DELETE CASCADE
         //
-        // Das Schema ist also symmetrisch, obwohl die Annotation es asymmetrisch beschreibt.
-        // Gut so — es gibt keine verwaisten Zeilen. Festgehalten, weil es NICHT aus der
-        // Entity ablesbar ist: Wer nur die Annotation liest, erwartet das Gegenteil.
-        $datei = $this->datei();
-        $tag   = $this->tag('M2M-Tag-geloescht');
-        $this->verknuepfen($datei, $tag);
+        // So the schema is symmetric, although the annotation describes it asymmetrically.
+        // Good — there are no orphaned rows. Recorded because it can NOT be read from the
+        // entity: anyone reading only the annotation expects the opposite.
+        $file = $this->file();
+        $tag  = $this->tag('M2M-Tag-deleted');
+        $this->link($file, $tag);
 
-        $this->assertSame(array($tag), $this->verknuepfungen($datei), 'Vorbedingung');
+        $this->assertSame(array($tag), $this->links($file), 'Precondition');
 
         [$status] = $this->postJson(
             '/api/delete',
@@ -335,27 +335,27 @@ class ManyToManyApiTest extends IntegrationTestCase
             $this->token()
         );
 
-        $verbliebene = $this->verknuepfungen($datei);
+        $remaining = $this->links($file);
 
-        $this->assertSame(200, $status, 'Das Loeschen des Tags gelingt');
-        $this->assertSame(array(), $verbliebene,
-            'Keine verwaiste Zeile — der Fremdschluessel auf tag_id kaskadiert ebenfalls');
+        $this->assertSame(200, $status, 'Deleting the tag succeeds');
+        $this->assertSame(array(), $remaining,
+            'No orphaned row — the foreign key on tag_id cascades as well');
     }
 
-    // ── Filtern ────────────────────────────────────────────────────────────────────────
+    // ── Filtering ──────────────────────────────────────────────────────────────────────
 
-    public function testUeberTagsLaesstSichFiltern(): void
+    public function testFilteringByTagsWorks(): void
     {
-        // isFilterable=true steht im Schema; hier der Nachweis, dass es auch wirkt. Der
-        // Filter geht ueber die Verknuepfungstabelle — genau die Art Abfrage, die ein
-        // ORM-Wechsel anders erzeugen koennte.
-        $gesucht    = $this->datei('m2m-gesucht.txt');
-        $ungesucht  = $this->datei('m2m-ungesucht.txt');
-        $tag        = $this->tag('M2M-Filter');
-        $andererTag = $this->tag('M2M-Filter-Anders');
+        // isFilterable=true is in the schema; here is the proof that it also takes effect. The
+        // filter goes through the join table — exactly the kind of query that an
+        // ORM switch could generate differently.
+        $wanted    = $this->file('m2m-wanted.txt');
+        $unwanted  = $this->file('m2m-unwanted.txt');
+        $tag       = $this->tag('M2M-Filter');
+        $otherTag  = $this->tag('M2M-Filter-Other');
 
-        $this->verknuepfen($gesucht, $tag);
-        $this->verknuepfen($ungesucht, $andererTag);
+        $this->link($wanted, $tag);
+        $this->link($unwanted, $otherTag);
 
         [$status, $body] = $this->postJson(
             '/api/list',
@@ -365,11 +365,11 @@ class ManyToManyApiTest extends IntegrationTestCase
 
         $ids = array_column($body['data'], 'id');
 
-        $this->verknuepfungenAufraeumen($gesucht);
-        $this->verknuepfungenAufraeumen($ungesucht);
+        $this->clearLinks($wanted);
+        $this->clearLinks($unwanted);
 
         $this->assertSame(200, $status);
-        $this->assertContains($gesucht, $ids, 'Die verknuepfte Datei wird gefunden');
-        $this->assertNotContains($ungesucht, $ids, 'Die anders verknuepfte nicht');
+        $this->assertContains($wanted, $ids, 'The linked file is found');
+        $this->assertNotContains($unwanted, $ids, 'The differently linked one is not');
     }
 }
