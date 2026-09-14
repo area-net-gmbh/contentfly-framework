@@ -65,7 +65,7 @@ class LoginManagerApiTest extends IntegrationTestCase
 
         $this->assertSame(401, $status);
         $this->assertArrayNotHasKey('token', $body);
-        $this->assertSame('Der Benutzer ist nur über LoginManager authorisierbar.', $body['message']);
+        $this->assertSame('The user can only be authenticated through their login provider.', $body['message']);
     }
 
     /**
@@ -136,7 +136,7 @@ class LoginManagerApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORT));
 
         $this->assertSame(401, $status);
-        $this->assertSame('Der Benutzer ist nur über LoginManager authorisierbar.', $body['message']);
+        $this->assertSame('The user can only be authenticated through their login provider.', $body['message']);
     }
 
     /** Legt einen Benutzer mit gesperrtem Passwort an — wie die Bereitstellung es täte. */

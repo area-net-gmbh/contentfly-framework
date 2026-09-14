@@ -29,7 +29,7 @@ class AnmeldebremseApiTest extends IntegrationTestCase
     /** Zwanzig pro IP und Minute. */
     private const GRENZE_IP = 20;
 
-    private const MELDUNG = 'Zu viele Anmeldeversuche. Bitte später erneut versuchen.';
+    private const MELDUNG = 'Too many login attempts. Please try again later.';
 
     protected function setUp(): void
     {
