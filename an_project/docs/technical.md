@@ -128,10 +128,10 @@ SecurityBundle:
 
 | Klasse | tut |
 |---|---|
-| `Classes/Security/Tokenquellen` | woher ein Token kommen darf: `Authorization: Bearer` plus die vier Altquellen, in der Reihenfolge von früher |
-| `Classes/Security/Tokenhandler` | verzweigt nach der Form: JWT oder `pim_token` |
-| `Classes/Security/Anmeldetreiber` | fährt den Authenticator und fängt jeden Fehlschlag gleich ab |
-| `Classes/Security/Benutzerlader` | macht aus einer Kennung einen Benutzer |
+| `Classes/Security/TokenSources` | woher ein Token kommen darf: `Authorization: Bearer` plus die vier Altquellen, in der Reihenfolge von früher |
+| `Classes/Security/TokenHandler` | verzweigt nach der Form: JWT oder `pim_token` |
+| `Classes/Security/TokenAuthenticator` | fährt den Authenticator und fängt jeden Fehlschlag gleich ab |
+| `Classes/Security/UserLoader` | macht aus einer Kennung einen Benutzer |
 
 Damit ist „stateful oder stateless" keine Endpunkt-Entscheidung mehr, sondern eine Eigenschaft
 des ausgestellten Tokens. Der Sliding-Expiration-Write passiert nur noch im opaquen Zweig; der
@@ -144,7 +144,7 @@ Der Login gibt auf `tokenType: "jwt"` ein kurzlebiges Access-JWT plus ein Refres
 
 | Stück | wo |
 |---|---|
-| Claims und Ausstellung | `Classes/Security/Zugangstoken` — `sub`, `iss`, `iat`, `exp`, `jti`, mehr nicht |
+| Claims und Ausstellung | `Classes/Security/JwtAccessToken` — `sub`, `iss`, `iat`, `exp`, `jti`, mehr nicht |
 | Erneuerung | `POST /auth/refresh`, mit Rotation des Refresh-Tokens |
 | Widerruf | `GET /auth/logout` + Sperrliste `pim_revoked_token` für das Restfenster |
 | Schlüsselwechsel | `kid` im Header, zwei Schlüssel während einer Übergangszeit |
@@ -171,7 +171,7 @@ fremden Code, keine vorhandene Funktion.
 |---|---|---|
 | ~~A-1~~ | ~~Passwörter sind `hash("sha256", $pass.$salt)`. SHA-256 hat keinen Arbeitsfaktor.~~ **Behoben mit `013-001-0001`:** Argon2id über `password_hash()`; Bestandshashes werden beim ersten Login des jeweiligen Benutzers ersetzt, der alte Weg wird nur noch gelesen. |
 | ~~A-2~~ | ~~`APP_MASTER_PASSWORD` akzeptiert den Login für **jeden** Benutzer.~~ **Behoben mit `013-001-0002`:** ersatzlos entfernt, nicht abschaltbar gemacht. |
-| ~~A-3~~ | ~~Kein Rate-Limiting — `CHECK_LOGIN_INTERVAL` ist eine `false`-Konstante.~~ **Behoben mit `013-001-0003`:** Anmeldebremse pro Kennung **und** pro IP, mit ansteigender Verzögerung (60 s → 900 s → 3600 s). Beide Konstanten und der tote Zweig sind entfallen; `setTrustedProxies()` ist konfigurierbar, damit die Achse IP hinter einem Proxy den Richtigen trifft. |
+| ~~A-3~~ | ~~Kein Rate-Limiting — `CHECK_LOGIN_INTERVAL` ist eine `false`-Konstante.~~ **Behoben mit `013-001-0003`:** `LoginThrottle` pro Kennung **und** pro IP, mit ansteigender Verzögerung (60 s → 900 s → 3600 s). Beide Konstanten und der tote Zweig sind entfallen; `setTrustedProxies()` ist konfigurierbar, damit die Achse IP hinter einem Proxy den Richtigen trifft. |
 | ~~A-4~~ | ~~`pim_token.token` steht im Klartext.~~ **Behoben mit `013-001-0004`:** gespeichert wird ein SHA-256, nachgeschlagen wird der Hash. Der Token verlässt das System genau einmal, bei der Anmeldung. Auch `pim_log.model_label` trug ihn im Klartext — dort steht jetzt ebenfalls der Hash. |
 | A-5 | `referrer`-Tokens laufen nie ab, und der Token-String kommt beim Anlegen vom Client (`Controller/SystemController.php:159`) | Ratbare Dauerschlüssel möglich |
 | ~~A-6~~ | ~~`LoginManager::createManagedUser()` setzt `setPass($alias)` — das Passwort ist der Benutzername.~~ **Behoben mit `013-004-0002`:** Ein über ein Fremdsystem angelegter Benutzer hat ein **gesperrtes** Passwort (`*`), gegen das keine Eingabe passt. Die Provisionierung liegt im Framework statt im Projekt; `Classes\Manager\LoginManager` ist entfallen. |
@@ -183,18 +183,18 @@ programmiert die Prüfung. Was fällt, sind die Konstruktionsfehler:
 
 | Stück | wo |
 |---|---|
-| Vertrag | `Classes/Security/Anmeldeprovider` — **eine** Pflicht: `pruefen(Request): ?Fremdkennung` |
-| Auswahl | `Classes/Security/Anbieterverzeichnis`, gefüllt aus `custom/app.php`; ein Name, kein Klassenname |
-| Provisionierung | `Classes/Security/Benutzerbereitstellung` — gesperrtes Passwort, Kennung in `pim_user.externalId` |
-| Rollenabbildung | `Classes/Security/Gruppenabbildung`, konfiguriert über `SECURITY_PROVIDER_GRUPPEN` |
-| Vorlage | `custom/Classes/Anmeldung/BeispielProvider` — läuft, lässt aber ohne Konfiguration niemanden herein |
+| Vertrag | `Classes/Security/LoginProvider` — **eine** Pflicht: `authenticate(Request): ?ExternalIdentity` |
+| Auswahl | `Classes/Security/LoginProviderRegistry`, gefüllt aus `custom/app.php`; ein Name, kein Klassenname |
+| Provisionierung | `Classes/Security/UserProvisioning` — gesperrtes Passwort, Kennung in `pim_user.externalId` |
+| Rollenabbildung | `Classes/Security/GroupMapping`, konfiguriert über `SECURITY_PROVIDER_GROUPS` |
+| Vorlage | `custom/Classes/Authentication/ExampleProvider` — läuft, lässt aber ohne Konfiguration niemanden herein |
 
 **Ein Provider fasst die Datenbank nicht an.** Das ist der Unterschied zum alten `LoginManager`,
 der eine fertige `User`-Entity liefern musste und damit die Provisionierung ins Projekt schob —
 `setPass($alias)` ist das prominenteste Ergebnis dieser Aufteilung.
 
 **Der MD5-Präfix im Alias ist weg.** Die Eindeutigkeit kommt jetzt aus einer Bedingung über
-`loginManager` und `externalId`; der Alias liest sich als `<provider>:<kennung>`.
+`loginManager` und `externalId`; der Alias liest sich als `<provider>:<identifier>`.
 
 Was ein Bestandsprojekt zu tun hat, steht in `an_project/docs/breaking-changes.md`.
 
@@ -208,11 +208,11 @@ Zwei mitgelieferte Provider, beide **nicht** vorregistriert:
 | `Classes/Security/OidcProvider` | Userinfo-Endpunkt des Identity-Providers | gegen `MockHttpClient`, nicht gegen einen echten Provider |
 
 Beide münden in dieselbe Token-Ausstellung wie der lokale Login — ein Client merkt nicht, woher
-der Benutzer kam. Das ist der Weg hinter `Anmeldeprovider`, und den misst
+der Benutzer kam. Das ist der Weg hinter `LoginProvider`, und den misst
 `LoginProviderApiTest` end-to-end.
 
 **Wer aus dem Fremdsystem verschwindet, wird gesperrt, nicht gelöscht.**
-`appcms:provider:abgleich` hält den Bestand dagegen; `Bestandspruefung::kenntKennung()` gibt
+`appcms:provider:sync` hält den Bestand dagegen; `UserExistenceCheck::knowsIdentifier()` gibt
 `?bool` zurück, und `null` heisst „kann es gerade nicht sagen" — **ein Ausfall darf nicht wie ein
 gelöschter Benutzer aussehen**, sonst sperrt ein Netzwerkfehler die ganze Belegschaft aus.
 
@@ -222,7 +222,7 @@ Was ein Projekt konfigurieren muss, steht in `an_project/docs/dev-guide.md`.
 
 - ~~`POST /api/login` und `/api/logout` zeigen auf Methoden, die im `ApiController` nicht
   existieren.~~ Beim Nachmessen war es schlimmer und harmloser zugleich: Sie erreichten den
-  Router **nie**. `Routensammlung` zählt ihre Routen je Provider durch, `/api/login` hiess
+  Router **nie**. `RouteCollector` zählt ihre Routen je Provider durch, `/api/login` hiess
   `login_0` und wurde beim Mounten von `/auth/login` gleichen Namens verdrängt — 30 registrierte
   Routen, 29 in der Sammlung. Die Namen tragen jetzt den Mountpunkt, die beiden toten Routen
   sind entfernt statt umgebogen.

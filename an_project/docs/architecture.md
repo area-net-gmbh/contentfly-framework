@@ -145,7 +145,7 @@ existiert entweder zufällig oder erzeugt eine Meldung über die falsche Sache.
 #### Wie ein Projekt Frameworkverhalten überschreibt
 
 **Über die Registrierungsstellen, die es schon gibt** — `custom/app.php` für Routen und
-Anmeldeprovider, die Konfigurationskonstanten für Typen (`APP_SYSTEM_TYPES`,
+Login-Provider, die Konfigurationskonstanten für Typen (`APP_SYSTEM_TYPES`,
 `APP_CUSTOM_TYPES`), die Plugin-Schnittstelle. **Nicht mehr durch Danebenlegen im selben Baum**;
 das ist ab jetzt unmöglich, weil der Frameworkcode in `vendor/` bei jedem Update überschrieben
 wird.

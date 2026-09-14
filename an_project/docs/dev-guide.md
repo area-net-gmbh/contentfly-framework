@@ -65,7 +65,7 @@ hält beide Richtungen fest.
 | `dispatcher` | der `EventDispatcher` |
 | `auth.user` | der angemeldete Benutzer, **`null` solange niemand angemeldet ist** |
 | `orm.em` | der Doctrine-EntityManager, **`null` solange nicht installiert ist** |
-| `loginProviders` | das Verzeichnis der Anmeldeprovider (Story `013-004`) |
+| `loginProviders` | das Verzeichnis der Login-Provider, `LoginProviderRegistry` (Story `013-004`) |
 
 ### Erst wenn die Anwendung installiert ist
 
@@ -115,14 +115,14 @@ jemand liest.
 
 ### Vier Regeln, an denen man sich sonst die Finger verbrennt
 
-**1. Was ein Projekt selbst setzt, sichert niemand zu.** `$app['meine.service'] = …` ist
+**1. Was ein Projekt selbst setzt, sichert niemand zu.** `$app['my.service'] = …` ist
 erlaubt und bleibt es — die Vorlage zeigt es in `custom/app.php` vor. Aber es ist Sache des
 Projekts: Das Framework kennt den Schlüssel nicht und räumt ihn nicht auf.
 
 **2. Ein unbekannter Schlüssel wirft.**
 
 ```
-Der Container kennt "tippfehler" nicht.
+The container does not know "typo".
 ```
 
 Und das ist die Zusicherung, nicht ihr Gegenteil: Ein Tippfehler fällt laut auf und liefert
@@ -132,8 +132,8 @@ nicht still `null`. Wer prüfen will, ob es einen Schlüssel gibt, nimmt `isset(
 **3. Eine Closure gilt als Factory, nicht als Wert.**
 
 ```php
-$app['rückruf'] = function () { return 'A'; };
-$app['rückruf'];   // 'A' — die Closure wurde AUFGERUFEN, nicht zurückgegeben
+$app['callback'] = function () { return 'A'; };
+$app['callback'];   // 'A' — die Closure wurde AUFGERUFEN, nicht zurückgegeben
 ```
 
 Das ist Pimples Regel, und sie hat eine Kehrseite: **Wer einen Callback ablegen will, bekommt
@@ -143,8 +143,7 @@ niemand eine Closure als Wert ablegt. Wer es braucht, packt sie in ein Objekt od
 **4. Ein einmal gelesener Dienst ist eingefroren.** Danach wirft `extend()`:
 
 ```
-Der Dienst "dispatcher" ist bereits ausgelesen und laesst sich nicht mehr erweitern.
-Wer extend() benutzt, muss es tun, bevor jemand den Dienst anfasst.
+The service "dispatcher" has already been read and can no longer be extended. Whoever uses extend() has to do so before anyone touches the service.
 ```
 
 **Das ist mit Absicht so und nicht bloss eine Einschränkung.** Ein Container, der das
@@ -189,15 +188,15 @@ es keinen Weg an der Passwortprüfung vorbei.
 1. **Provider registrieren** in `custom/app.php`, unter einem Namen:
 
    ```php
-   $app['anmeldeanbieter']->eintragen('ldap', function () {
-       return \Areanet\PIM\Classes\Security\LdapProvider::ausKonfiguration();
+   $app['loginProviders']->register('ldap', function () {
+       return \Areanet\PIM\Classes\Security\LdapProvider::fromConfig();
    });
    ```
 
 2. **Konfigurieren** über die `SECURITY_*`-Felder (unten). Geheimnisse gehören in die Umgebung,
    nicht in eine committete Datei.
-3. **Gruppen abbilden** über `SECURITY_PROVIDER_GRUPPEN` — je Anbietername ein Eintrag mit
-   `gruppen`, `admin` und `vorgabe`.
+3. **Gruppen abbilden** über `SECURITY_PROVIDER_GROUPS` — je Providername ein Eintrag mit
+   `groups`, `admin` und `default`.
 4. **Der Client schickt den Namen** als `loginManager` an `POST /auth/login`. Ein Name, den
    niemand eingetragen hat, wird abgewiesen.
 
@@ -213,8 +212,8 @@ Benutzer kam.**
 | `SECURITY_LDAP_ENCRYPTION` | `none`, `ssl` oder `tls` |
 | `SECURITY_LDAP_BASE_DN` | Basis der Suche |
 | `SECURITY_LDAP_SEARCH_DN`, `SECURITY_LDAP_SEARCH_PASSWORD` | Dienstkonto; leer heisst anonyme Suche |
-| `SECURITY_LDAP_FILTER` | Vorgabe `(sAMAccountName={kennung})`; für OpenLDAP meist `(uid={kennung})` |
-| `SECURITY_LDAP_GRUPPEN_ATTRIBUT` | Vorgabe `memberOf` |
+| `SECURITY_LDAP_FILTER` | Vorgabe `(sAMAccountName={identifier})`; für OpenLDAP meist `(uid={identifier})` |
+| `SECURITY_LDAP_GROUP_ATTRIBUTE` | Vorgabe `memberOf` |
 
 **Das Paket kommt nicht mit.** `symfony/ldap` steht **nicht** im `require` des Frameworks,
 sondern in `suggest` — es verlangt die Systemerweiterung `ext-ldap`, und die jeder Installation
@@ -226,7 +225,7 @@ composer require symfony/ldap    # im Projekt
 # und ext-ldap ins PHP-Image
 ```
 
-Ohne das Paket wirft `LdapProvider::ausKonfiguration()` mit genau diesem Hinweis.
+Ohne das Paket wirft `LdapProvider::fromConfig()` mit genau diesem Hinweis.
 
 **Der Weg ist suchen, dann binden**, nicht der direkte Bind mit einem aus der Kennung gebauten
 DN. Der funktioniert nur, solange alle Benutzer flach in einer OU liegen; im Active Directory
@@ -237,8 +236,8 @@ tun sie das nicht, und angemeldet wird dort mit `sAMAccountName`, der im DN gar 
 | Feld | Bedeutung |
 |---|---|
 | `SECURITY_OIDC_USERINFO_ENDPOINT` | Vollständige URL des Userinfo-Endpunkts |
-| `SECURITY_OIDC_KENNUNG_CLAIM` | Vorgabe `sub` |
-| `SECURITY_OIDC_GRUPPEN_CLAIM` | Vorgabe `groups`; leer heisst keine Gruppen |
+| `SECURITY_OIDC_IDENTIFIER_CLAIM` | Vorgabe `sub` |
+| `SECURITY_OIDC_GROUPS_CLAIM` | Vorgabe `groups`; leer heisst keine Gruppen |
 
 Der Client holt sein Access-Token beim Identity-Provider und schickt es als `accessToken` — oder
 als `pass`, wenn er dasselbe Formular benutzt wie für ein Passwort.
@@ -256,8 +255,8 @@ Er kommt nicht mehr herein — aber sein Konto bleibt, und ein laufendes Refresh
 seinem Zeitlimit weiter frische Access-JWT. Dagegen gibt es
 
 ```sh
-php bin/console.php appcms:provider:abgleich --dry-run   # erst ansehen
-php bin/console.php appcms:provider:abgleich             # dann sperren
+php bin/console.php appcms:provider:sync --dry-run   # erst ansehen
+php bin/console.php appcms:provider:sync             # dann sperren
 ```
 
 Der Befehl setzt `isActive` auf false, wo das Fremdsystem die Kennung nicht mehr kennt. Er
@@ -272,17 +271,17 @@ Gehört in einen Cron, zusammen mit `appcms:token:cleanup`.
 
 ### Einen eigenen Provider schreiben
 
-`Areanet\PIM\Classes\Security\Anmeldeprovider` hat **eine** Pflicht:
+`Areanet\PIM\Classes\Security\LoginProvider` hat **eine** Pflicht:
 
 ```php
-public function pruefen(Request $request): ?Fremdkennung;
+public function authenticate(Request $request): ?ExternalIdentity;
 ```
 
 `null` heisst abgelehnt. Der Provider fasst die Datenbank **nicht** an — Benutzer anlegen,
 Gruppen setzen und Token ausstellen macht das Framework. Wer zusätzlich sagen kann, ob es eine
-Kennung noch gibt, implementiert `Bestandspruefung`.
+Kennung noch gibt, implementiert `UserExistenceCheck` mit `knowsIdentifier()`.
 
-`custom/Classes/Anmeldung/BeispielProvider.php` führt beides an einem lauffähigen Beispiel vor.
+`custom/Classes/Authentication/ExampleProvider.php` führt beides an einem lauffähigen Beispiel vor.
 
 ### Was in der Testabdeckung fehlt
 
