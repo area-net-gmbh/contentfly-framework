@@ -2,11 +2,20 @@
 
 # Übergabe an die IT-Security
 
-**Stand:** `v2.0.0-pre-security-2026-09-11` · **Repo:** `areanet/contentfly-framework`
+**Stand:** `v2.0.0-pre-security-2026-09-14` · **Repo:** `areanet/contentfly-framework`
+
+**Der frühere Tag `v2.0.0-pre-security-2026-09-11` ist nicht mehr der Prüfstand.** Zwischen beiden
+liegt Epic `014`: Klassen, Methoden, Config-Keys, Meldungen, Kommentare und Testnamen sind
+durchgehend englisch, das Verhalten ist unverändert. Befunde beziehen sich deshalb bitte auf
+die Namen des neuen Tags; die des alten gibt es nicht mehr.
 
 Diese Notiz begleitet die Übergabe des neuen Contentfly-Frameworks an die Sicherheitsprüfung.
 Sie sagt in dieser Reihenfolge: was Sie vor sich haben, was schon bekannt ist, was noch nicht
 endgültig ist, und wie ein Fund zurückkommt.
+
+**Der Einstieg in die Codebase ist `STRUCTURE.md`** im Wurzelverzeichnis, auf Englisch: Aufbau,
+Weg eines Requests, Authentifizierung, Konfiguration und Tests. Diese Notiz ergänzt sie um das,
+was nur für die Prüfung gilt.
 
 ---
 
@@ -21,8 +30,8 @@ PIM-Oberfläche ist mit Epic `012` ersatzlos gestrichen. Zugriff gibt es über d
 | Kernel | Symfony 7.4 LTS (Silex 2 ist seit Epic `009` aus dem Baum) |
 | Persistenz | Doctrine ORM 3.7 über DBAL 3.10, Entities mit PHP-Attributen |
 | PHP | ≥ 8.3, geprüft auf 8.3 und 8.4; Zielplattform 8.5 |
-| Umfang | 152 Dateien Frameworkcode, 18 Laufzeit-Abhängigkeiten |
-| Suite | 59 Testdateien, 524 Tests |
+| Umfang | 153 Dateien Frameworkcode, 18 Laufzeit-Abhängigkeiten |
+| Suite | 60 Testdateien, 528 Tests |
 
 **Das Repo ist zugleich Paket und Projektgerüst.** `lib/contentfly/` ist das Composer-Paket
 `areanet/contentfly`; die Wurzel darum herum ist das, was ein Projekt vor sich hat. Was zu
@@ -50,7 +59,7 @@ eigenen Commit und Tests; die Einzelheiten stehen in `an_project/docs/technical.
 |---|---|---|
 | A-1 | Passwörter als `sha256($pass.$salt)`, ohne Arbeitsfaktor | Argon2id über `password_hash()`; Bestandshashes werden beim ersten Login umgeschlüsselt |
 | A-2 | `APP_MASTER_PASSWORD` akzeptierte den Login für **jeden** Benutzer | ersatzlos entfernt — nicht abschaltbar gemacht, sondern entfernt |
-| A-3 | kein Rate-Limiting; die vorgesehene Konstante war `false` | Anmeldebremse pro Kennung **und** pro IP, ansteigend 60 s → 900 s → 3600 s |
+| A-3 | kein Rate-Limiting; die vorgesehene Konstante war `false` | `LoginThrottle` pro Kennung **und** pro IP, ansteigend 60 s → 900 s → 3600 s |
 | A-4 | `pim_token.token` im Klartext | SHA-256; der Klartext verlässt das System genau einmal, bei der Anmeldung |
 | A-6 | `createManagedUser()` setzte `setPass($alias)` — das Passwort war der Benutzername | ein über ein Fremdsystem angelegter Benutzer hat ein gesperrtes Passwort |
 
@@ -78,10 +87,11 @@ der erste steht in der Befundtabelle:
 1. **Der Schlüssel kommt vom Aufrufer.** `SystemController::addToken()` nimmt `token` aus dem
    Request und schreibt ihn, wie er ist. Geprüft wird nur, dass das Feld nicht leer ist —
    `token=test` wird angenommen.
-2. **Er läuft nie ab.** `Tokenhandler::timeoutGilt()` gibt für jede Zeile mit `referrer`
-   `false` zurück: „ein API-Token verfällt nicht".
-3. **Beim Vorzeigen bremst nichts.** Die Anmeldebremse aus A-3 hängt am Login; im Weg über
-   `Tokenhandler::ausDatenbank()` kommt sie nicht vor. Ein schwacher API-Token lässt sich
+2. **Er läuft nie ab.** `TokenHandler::timeoutApplies()` gibt für jede Zeile mit `referrer`
+   `false` zurück; der Kommentar dort sagt es wörtlich: „A token with a `referrer` is an API token
+   and does not expire".
+3. **Beim Vorzeigen bremst nichts.** `LoginThrottle` aus A-3 hängt am Login; im Weg über
+   `TokenHandler::fromDatabase()` kommt er nicht vor. Ein schwacher API-Token lässt sich
    ungedrosselt durchprobieren.
 
 **Was den Befund begrenzt:** `/system/do` verlangt Anmeldung **und** Adminrecht. In der Tabelle
@@ -131,7 +141,7 @@ laufen auseinander:**
 | Die Testsuite fahren | `tests/README.md` |
 | Die drei Gates (Audit, Deprecations, PHPStan) | `an_project/docs/deployment.md`, *Die Gates* |
 
-**Der Stand, den Sie bekommen, ist grün:** 524 Tests, PHPStan `[OK] No errors`,
+**Der Stand, den Sie bekommen, ist grün:** 528 Tests, PHPStan `[OK] No errors`,
 `composer audit --locked` ohne Advisories und ohne abandoned Pakete, 0 Deprecations bei 0
 Ausnahmen.
 
