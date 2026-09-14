@@ -23,7 +23,7 @@ use Symfony\Component\Console\Output\OutputInterface;
  * As a result the command is called `custom:example:command:run`. That is the visible price, and it
  * is intended: the name tells you who the command belongs to.
  *
- * THE APPLICATION NO LONGER COMES FROM THE CONSTRUCTOR but from `anwendung()`. Commands
+ * THE APPLICATION NO LONGER COMES FROM THE CONSTRUCTOR but from `application()`. Commands
  * are registered before the application is up — see `ConsoleManager` — so it does not
  * even exist yet at construction time.
  */
@@ -38,9 +38,9 @@ class ExampleCommand extends CustomCommand
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        // $this->anwendung() returns the application including its container here:
+        // $this->application() returns the application including its container here:
         //
-        //     $em = $this->anwendung()['orm.em'];
+        //     $em = $this->application()['orm.em'];
         //
         $output->writeln('<info>Der Beispiel-Command der Vorlage ist gelaufen.</info>');
 

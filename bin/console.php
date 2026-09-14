@@ -2,34 +2,33 @@
 set_time_limit(0);
 
 /*
- * Gleich gebaut wie index.php (007-001-0003): Autoloader laden, Projektverzeichnis benennen,
- * Start rufen. Kein Pfad in den Frameworkcode. `APPCMS_CONSOLE` setzt Start selbst.
+ * Built the same way as index.php (007-001-0003): load the autoloader, name the project
+ * directory, call Start. No path into the framework code. Start defines `APPCMS_CONSOLE` itself.
  */
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
-$app = \Areanet\PIM\Classes\Kernel\Start::konsole(dirname(__DIR__));
+$app = \Areanet\PIM\Classes\Kernel\Start::console(dirname(__DIR__));
 
 use Doctrine\DBAL\Tools\Console\ConnectionProvider\SingleConnectionProvider;
 use Doctrine\ORM\Tools\Console\EntityManagerProvider\SingleManagerProvider;
 
-// Doctrine-Commands brauchen eine konfigurierte Datenbank. Auf einem frischen Checkout gibt es
-// die noch nicht: bootstrap.php registriert DBAL und ORM nur, wenn is_installed true ist. Ohne
-// diese Bedingung stirbt die Konsole an $app['db'] — und ausgerechnet `appcms:install`, das die
-// Installation erst herstellt, waere nie erreichbar.
+// Doctrine commands need a configured database. A fresh checkout does not have one yet:
+// bootstrap.php only registers DBAL and ORM when is_installed is true. Without this condition the
+// console dies on $app['db'] — and `appcms:install`, of all commands, which creates the
+// installation in the first place, would never be reachable.
 if ($app['is_installed']) {
 
     /*
-     * PROVIDER STATT HelperSet (009-005-0003).
+     * PROVIDERS INSTEAD OF A HelperSet (009-005-0003).
      *
-     * Bis DBAL 2 bekamen die Commands ihre Verbindung ueber ein HelperSet mit
-     * `Doctrine\DBAL\Tools\Console\Helper\ConnectionHelper`. Die Klasse gibt es in DBAL 3 nicht
-     * mehr — `bin/console.php` starb daran in Zeile 14, und damit war die ganze Konsole
-     * unbenutzbar, `appcms:install` eingeschlossen.
+     * Up to DBAL 2 the commands got their connection through a HelperSet with
+     * `Doctrine\DBAL\Tools\Console\Helper\ConnectionHelper`. That class no longer exists in
+     * DBAL 3 — `bin/console.php` died on it in line 14, which made the whole console unusable,
+     * `appcms:install` included.
      *
-     * An ihre Stelle tritt der ConnectionProvider, den DBAL 3 den Commands in den Konstruktor
-     * gibt. Fuer die ORM-Commands gilt dasselbe mit dem EntityManagerProvider; das dortige
-     * HelperSet gibt es zwar noch, ist aber deprecated, und zwei Wege nebeneinander waeren
-     * einer zu viel.
+     * It is replaced by the ConnectionProvider that DBAL 3 passes to the commands' constructors.
+     * The same applies to the ORM commands with the EntityManagerProvider; the HelperSet there
+     * still exists but is deprecated, and two ways side by side would be one too many.
      */
     $verbindung   = new SingleConnectionProvider($app['db']);
     $entityManager = new SingleManagerProvider($app['orm.em']);
@@ -41,26 +40,26 @@ if ($app['is_installed']) {
         new \Doctrine\ORM\Tools\Console\Command\SchemaTool\CreateCommand($entityManager),
         new \Doctrine\ORM\Tools\Console\Command\SchemaTool\DropCommand($entityManager),
         new \Doctrine\ORM\Tools\Console\Command\SchemaTool\UpdateCommand($entityManager),
-        // FUENF COMMANDS SIND MIT ORM 3 ENTFALLEN (010-003-0002), gezaehlt statt geschaetzt:
+        // FIVE COMMANDS WERE REMOVED WITH ORM 3 (010-003-0002), counted, not estimated:
         // ConvertDoctrine1Schema, ConvertMapping, EnsureProductionSettings, GenerateEntities
-        // und GenerateRepositories. Von den sechzehn frueher registrierten laufen elf weiter.
+        // and GenerateRepositories. Of the sixteen previously registered, eleven keep working.
         //
-        // Entfernt statt auskommentiert — wie ImportCommand in 009-005-0003. Ein
-        // auskommentierter Command sieht aus wie etwas, das zurueckkommt.
+        // Removed rather than commented out — like ImportCommand in 009-005-0003. A
+        // commented-out command looks like something that is coming back.
         //
-        // Was sie taten und was an ihre Stelle tritt: ConvertMapping und GenerateEntities
-        // erzeugten Mapping-Dateien und Entity-Klassen aus einer Datenbank — dieser Weg ist in
-        // ORM 3 aufgegeben; GenerateRepositories erzeugte Repository-Ruempfe, die man in einer
-        // Zeile selbst schreibt; EnsureProductionSettings prueft Einstellungen, die es so nicht
-        // mehr gibt; ConvertDoctrine1Schema stammte aus einer Doctrine-Generation vor dieser.
+        // What they did and what replaces them: ConvertMapping and GenerateEntities generated
+        // mapping files and entity classes from a database — ORM 3 abandoned that approach;
+        // GenerateRepositories generated repository stubs you write yourself in one line;
+        // EnsureProductionSettings checks settings that no longer exist in that form;
+        // ConvertDoctrine1Schema dates from a Doctrine generation before this one.
         new \Doctrine\ORM\Tools\Console\Command\GenerateProxiesCommand($entityManager),
         new \Doctrine\ORM\Tools\Console\Command\InfoCommand($entityManager),
         new \Doctrine\ORM\Tools\Console\Command\RunDqlCommand($entityManager),
         new \Doctrine\ORM\Tools\Console\Command\ValidateSchemaCommand($entityManager),
 
-        // ImportCommand ist in DBAL 3 ersatzlos entfallen (009-005-0003). Es las eine
-        // SQL-Datei ein; wer das braucht, nimmt den mysql-Client. Entfernt statt
-        // auskommentiert: Ein auskommentierter Command sieht aus wie etwas, das zurueckkommt.
+        // ImportCommand was removed from DBAL 3 without replacement (009-005-0003). It read an
+        // SQL file; whoever needs that uses the mysql client. Removed rather than commented
+        // out: a commented-out command looks like something that is coming back.
         new \Doctrine\DBAL\Tools\Console\Command\ReservedWordsCommand($verbindung),
         new \Doctrine\DBAL\Tools\Console\Command\RunSqlCommand($verbindung)
     ));

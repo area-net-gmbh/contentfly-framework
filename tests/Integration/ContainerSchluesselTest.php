@@ -406,7 +406,7 @@ class ContainerSchluesselTest extends IntegrationTestCase
         $projekt = self::anwendungsverzeichnis();
 
         $skript = <<<'PHP'
-$app = \Areanet\PIM\Classes\Kernel\Start::konsole($argv[1]);
+$app = \Areanet\PIM\Classes\Kernel\Start::console($argv[1]);
 echo isset($app[$argv[2]]) ? var_export($app[$argv[2]], true) : '__FEHLT__';
 PHP;
 
@@ -439,7 +439,7 @@ PHP;
         $projekt = self::anwendungsverzeichnis();
 
         $skript = <<<'PHP'
-$app = \Areanet\PIM\Classes\Kernel\Start::konsole($argv[1]);
+$app = \Areanet\PIM\Classes\Kernel\Start::console($argv[1]);
 
 if ($argv[2] === '*') {
     echo implode(',', $app->keys());

@@ -50,7 +50,7 @@ class UnenforcedPermissionApiTest extends IntegrationTestCase
         // — man kann nichts konfigurieren, was es nicht gibt. Das ist der Unterschied zwischen
         // "abgeschaltet" und "entfernt", und genau darum ging es.
         foreach (array('lib/contentfly/Classes/Config.php', 'lib/contentfly/Controller/AuthController.php') as $datei) {
-            $quelle = file_get_contents(CONTENTFLY_PROJEKT.'/'.$datei);
+            $quelle = file_get_contents(CONTENTFLY_PROJECT_DIR.'/'.$datei);
 
             // Der Name darf in ERKLAERUNGEN stehen — sie beschreiben, was entfallen ist.
             $ohneKommentare = preg_replace('#/\*.*?\*/|//[^\n]*#s', '', $quelle);

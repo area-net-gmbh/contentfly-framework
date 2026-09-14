@@ -47,7 +47,7 @@ class PluginManagerTest extends TestCase
     private function pluginSchreiben(string $rumpf = '', string $entityQuelltext = ''): string
     {
         $key = 'Probe'.bin2hex(random_bytes(5));
-        $dir = CONTENTFLY_PROJEKT.'/plugins/'.$key;
+        $dir = CONTENTFLY_PROJECT_DIR.'/plugins/'.$key;
 
         mkdir($dir, 0777, true);
         $this->angelegteVerzeichnisse[] = $dir;
@@ -141,7 +141,7 @@ PHP
     public function testEineKlasseDieNichtVonPluginErbtWirdAbgewiesen(): void
     {
         $key = 'Falsch'.bin2hex(random_bytes(5));
-        $dir = CONTENTFLY_PROJEKT.'/plugins/'.$key;
+        $dir = CONTENTFLY_PROJECT_DIR.'/plugins/'.$key;
         mkdir($dir, 0777, true);
         $this->angelegteVerzeichnisse[] = $dir;
 
@@ -255,7 +255,7 @@ PHP
             'und ist ein AttributeDriver, kein Annotation-Driver'
         );
         $this->assertSame(
-            array(CONTENTFLY_PROJEKT.'/plugins/'.$key.'/Entity'),
+            array(CONTENTFLY_PROJECT_DIR.'/plugins/'.$key.'/Entity'),
             $spion->treiber->getPaths(),
             'und zeigt auf das Entity-Verzeichnis des Plugins'
         );
@@ -266,14 +266,14 @@ PHP
         // initORM() ruft mkdir(), wenn plugins/<Key>/Entity nicht existiert — ein Plugin
         // muss das Verzeichnis also nicht mitliefern.
         $key = $this->pluginSchreiben('    public function init(){ $this->useORM(); }');
-        $this->assertDirectoryDoesNotExist(CONTENTFLY_PROJEKT.'/plugins/'.$key.'/Entity', 'Vorbedingung');
+        $this->assertDirectoryDoesNotExist(CONTENTFLY_PROJECT_DIR.'/plugins/'.$key.'/Entity', 'Vorbedingung');
 
         $app = $this->app();
         $app['orm.em'] = new EntityManagerAttrappe(new OrmKonfigurationsSpion());
 
         (new PluginManager($app))->register($key);
 
-        $this->assertDirectoryExists(CONTENTFLY_PROJEKT.'/plugins/'.$key.'/Entity');
+        $this->assertDirectoryExists(CONTENTFLY_PROJECT_DIR.'/plugins/'.$key.'/Entity');
     }
 
     public function testMitUseOrmSammeltGetEntitiesDieKlassenAusDemVerzeichnis(): void
