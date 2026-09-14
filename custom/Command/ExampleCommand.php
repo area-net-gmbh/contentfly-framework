@@ -6,26 +6,26 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * Ein Console-Command des Projekts — das Muster, das `custom/app.php` beschreibt.
+ * A console command of the project — the pattern described in `custom/app.php`.
  *
- * ERBT VON `CustomCommand`, NICHT VON SYMFONYS `Command` (009-004-0001). Bis dahin tat es
- * Letzteres und erwartete die Anwendung im Konstruktor. Der `ConsoleManager` nimmt aber
- * ausschliesslich `CustomCommand`, und deshalb war dieses Beispiel in `custom/app.php`
- * **nicht registriert** — es zeigte einen Weg, den das Framework so nicht anbietet.
- * `technical.md` hat den Widerspruch seit Epic 012 festgehalten.
+ * EXTENDS `CustomCommand`, NOT SYMFONY'S `Command` (009-004-0001). Until then it did
+ * the latter and expected the application in its constructor. The `ConsoleManager`, however,
+ * only accepts `CustomCommand`, and that is why this example was **not registered** in
+ * `custom/app.php` — it showed a path the framework does not offer in that form.
+ * `technical.md` had recorded the contradiction since Epic 012.
  *
- * ENTSCHIEDEN WURDE, DAS BEISPIEL UMZUSTELLEN statt den Manager zu oeffnen. Der Grund ist der
- * `custom:`-Praefix: `CustomCommand::setName()` stellt ihn voran, damit ein Projekt-Command nie
- * mit einem des Frameworks kollidiert. Waere der Manager fuer jedes Symfony-Command offen, waere
- * der Praefix kein Versprechen mehr, sondern ein Angebot — und `appcms:install` liesse sich
- * ueberschreiben.
+ * THE DECISION WAS TO CONVERT THE EXAMPLE rather than open up the manager. The reason is the
+ * `custom:` prefix: `CustomCommand::setName()` prepends it so that a project command never
+ * collides with one of the framework's. If the manager were open to any Symfony command, the
+ * prefix would no longer be a promise but an offer — and `appcms:install` could be
+ * overridden.
  *
- * Der Command heisst dadurch `custom:example:command:run`. Das ist der sichtbare Preis, und er
- * ist gewollt: Am Namen sieht man, wem der Command gehoert.
+ * As a result the command is called `custom:example:command:run`. That is the visible price, and it
+ * is intended: the name tells you who the command belongs to.
  *
- * DIE ANWENDUNG KOMMT NICHT MEHR AUS DEM KONSTRUKTOR, sondern aus `anwendung()`. Commands
- * werden registriert, bevor die Anwendung steht — siehe `ConsoleManager` —, also gibt es sie
- * beim Konstruieren noch gar nicht.
+ * THE APPLICATION NO LONGER COMES FROM THE CONSTRUCTOR but from `anwendung()`. Commands
+ * are registered before the application is up — see `ConsoleManager` — so it does not
+ * even exist yet at construction time.
  */
 class ExampleCommand extends CustomCommand
 {
@@ -38,7 +38,7 @@ class ExampleCommand extends CustomCommand
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        // $this->anwendung() liefert hier die Anwendung samt Container:
+        // $this->anwendung() returns the application including its container here:
         //
         //     $em = $this->anwendung()['orm.em'];
         //

@@ -371,7 +371,9 @@ class VorlageApiTest extends IntegrationTestCase
         // Die Formulierung hat sich mit 009-004-0001 geaendert: Sie nennt jetzt auch das
         // Prioritaetsargument und verweist auf HookReihenfolgeTest, der die Reihenfolge
         // nachweist, statt sie zu behaupten. Die Aussage ist dieselbe geblieben.
-        $this->assertStringContainsString('die Reihenfolge der Registrierung die Ausführungsreihenfolge', $vorlage,
+        // Mit 000-000-0034 sind die Kommentare der Vorlage englisch; geprueft wird seitdem der
+        // englische Satz. Die Zusicherung ist unveraendert.
+        $this->assertStringContainsString('the order of registration is the order of execution', $vorlage,
             'Die Vorlage beschreibt die Reihenfolge als bedeutsam — mit einem Hook nicht pruefbar');
     }
 

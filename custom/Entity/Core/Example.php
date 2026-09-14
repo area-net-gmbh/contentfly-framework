@@ -6,35 +6,35 @@ use Areanet\PIM\Classes\Annotations as PIM;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * Die Beispiel-Entity der Vorlage. Sie fuehrt vor, wie ein Projekt eigene Entities anlegt:
- * Ableitung von `Base`, `#[ORM\...]`-Attribute fuer die Spalten, `#[PIM\...]`-Attribute fuer
- * das, was die API darueber hinaus wissen muss.
+ * The template's example entity. It demonstrates how a project creates its own entities:
+ * extending `Base`, `#[ORM\...]` attributes for the columns, `#[PIM\...]` attributes for
+ * whatever else the API needs to know.
  *
- * **Attribute statt Annotationen seit Epic `010`.** Bis dahin standen dieselben Angaben als
- * `@ORM\...` und `@PIM\...` im Docblock. Der Unterschied ist mehr als Schreibweise: Ein
- * Attribut ist PHP-Code. Es wird vom Parser gepruefft statt von einer Bibliothek gelesen, ein
- * Tippfehler faellt beim Laden auf, und eine Konstante wie `APPCMS_ID_TYPE` ist ein
- * gewoehnlicher konstanter Ausdruck.
+ * **Attributes instead of annotations since Epic `010`.** Until then the same information was
+ * written as `@ORM\...` and `@PIM\...` in the docblock. The difference is more than notation: an
+ * attribute is PHP code. It is checked by the parser instead of being read by a library, a
+ * typo shows up at load time, and a constant such as `APPCMS_ID_TYPE` is an
+ * ordinary constant expression.
  *
- * **Eine Falle, die dabei aufgefallen ist:** Ein Attribut wird gegen die `use`-Zeilen **seiner
- * eigenen Datei** aufgeloest. Wer Felder in einen Trait auslagert, braucht die Imports dort
- * ebenfalls — unter Annotationen ging es ohne, siehe `custom/Traits/User.php`.
+ * **A trap that surfaced along the way:** an attribute is resolved against the `use` lines of
+ * **its own file**. Anyone moving fields into a trait needs the imports there
+ * as well — with annotations it worked without them, see `custom/Traits/User.php`.
  *
- * Die Felder sind Beispiele und stehen fuer nichts Bestimmtes — bis `000-000-0017` trugen
- * sie Kommentare aus dem Kundenprojekt, aus dem diese Vorlage einmal herausgeschnitten
- * wurde: Mandanten-Lebenszyklen, ein `TrialExpiryChecker`, eine Stripe-Steuerbefreiung.
- * Nichts davon gab es je in diesem Baum.
+ * The fields are examples and stand for nothing in particular — until `000-000-0017` they
+ * carried comments from the customer project this template was once cut out of:
+ * tenant lifecycles, a `TrialExpiryChecker`, a Stripe tax exemption.
+ * None of that ever existed in this tree.
  *
- * **Index und UniqueConstraint stehen als eigene Attribute**, nicht mehr verschachtelt in
- * `Table`. Doctrine liest sie seit jeher als eigenstaendige Angaben; als Annotation mussten
- * sie mangels Wiederholbarkeit in ein Array unter `Table`. Ein Attribut darf sich
- * wiederholen (`Attribute::IS_REPEATABLE`), also stehen sie jetzt nebeneinander.
+ * **Index and UniqueConstraint are separate attributes**, no longer nested inside
+ * `Table`. Doctrine has always read them as independent declarations; as annotations they had
+ * to go into an array under `Table` because annotations cannot repeat. An attribute may
+ * repeat (`Attribute::IS_REPEATABLE`), so they now sit side by side.
  *
- * `idx_example_slug` WIRD NICHT ANGELEGT, und das ist kein Fehler: DBAL laesst einen Index
- * weg, den ein vorhandener bereits erfuellt (`Table::isFulfilledBy()`) — der Unique-Index auf
- * derselben Spalte tut das. Nachgemessen mit `SHOW INDEX`, vor wie nach der Umstellung auf
- * Attribute. Die Deklaration bleibt hier stehen, weil sie die Schreibweise vorfuehrt; wer
- * einen Index braucht, den nichts anderes abdeckt, bekommt ihn auch.
+ * `idx_example_slug` IS NOT CREATED, and that is not a bug: DBAL omits an index
+ * that an existing one already fulfils (`Table::isFulfilledBy()`) — the unique index on
+ * the same column does. Verified with `SHOW INDEX`, both before and after the switch to
+ * attributes. The declaration stays here because it demonstrates the notation; anyone who
+ * needs an index that nothing else covers does get it.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'example_entity')]
@@ -44,16 +44,16 @@ use Doctrine\ORM\Mapping as ORM;
 class Example extends Base {
 
 	/**
-	 * Ein Feld mit fester Werteliste.
+	 * A field with a fixed list of values.
 	 *
-	 * `#[PIM\Select]` veroeffentlicht die Optionen im Schema — ein Client kann daraus eine
-	 * Auswahl bauen — und **prueft sie beim Schreiben**: Ein Wert ausserhalb der Liste wird
-	 * mit `contentfly_general_invalid_params` abgewiesen (`000-000-0017`). Leer und `null`
-	 * gehen durch; ob das erlaubt ist, entscheidet `nullable` an der Spalte.
+	 * `#[PIM\Select]` publishes the options in the schema — a client can build a
+	 * selection from them — and **validates them on write**: a value outside the list is
+	 * rejected with `contentfly_general_invalid_params` (`000-000-0017`). Empty and `null`
+	 * pass; whether that is allowed is decided by `nullable` on the column.
 	 *
-	 * Die Werteliste selbst bleibt unveraendert: Sie ist Teil des Schemas, das die
-	 * Charakterisierungstests aus `008-004-0005` zusichern. Umbenennen waere eine
-	 * Datenaenderung, nicht das Entfernen eines Kommentars.
+	 * The list of values itself stays unchanged: it is part of the schema that the
+	 * characterization tests from `008-004-0005` guarantee. Renaming would be a
+	 * data change, not the removal of a comment.
 	 */
 	#[ORM\Column(type: 'string', length: 32, options: ['default' => 'active'])]
 	#[PIM\Select(options: 'provisioning,active,trial_expired,suspended,deactivated')]
@@ -66,25 +66,25 @@ class Example extends Base {
 	protected $slug;
 
 	/**
-	 * Ein JSON-Feld.
+	 * A JSON field.
 	 *
-	 * Doctrine kodiert und dekodiert die Spalte; ueber die API kommt und geht ein
-	 * verschachteltes Objekt, kein String. Der zugehoerige `JsonType` ist mit `000-000-0017`
-	 * dazugekommen — davor fiel ein solches Feld **still aus dem Schema**: Lesen lieferte es
-	 * nicht, Schreiben scheiterte mit `contentfly_general_unknown_property`, und niemand
-	 * erfuhr, warum.
+	 * Doctrine encodes and decodes the column; through the API a nested object comes in and
+	 * goes out, not a string. The matching `JsonType` was added with `000-000-0017`
+	 * — before that such a field **silently dropped out of the schema**: reading did not return it,
+	 * writing failed with `contentfly_general_unknown_property`, and nobody
+	 * found out why.
 	 *
-	 * Beispielwert:
+	 * Example value:
 	 * {
-	 *   "titel": "Beispiel",
-	 *   "merkmale": ["a", "b"]
+	 *   "title": "Example",
+	 *   "features": ["a", "b"]
 	 * }
 	 */
 	#[ORM\Column(type: 'json', nullable: true)]
 	protected $jsonExample;
 
 	/**
-	 * Ein boolesches Feld mit Vorgabewert.
+	 * A boolean field with a default value.
 	 */
 	#[ORM\Column(type: 'boolean', options: ['default' => false])]
 	protected $boolExample = false;

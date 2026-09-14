@@ -8,16 +8,16 @@ use \DateTimeImmutable;
 class ApiResponseService
 {
     /**
-     * Die Erfolgsantwort der Vorlage.
+     * The template's success response.
      *
-     * Die Form ist bewusst konsistent: Ein Client wertet jede Antwort gleich aus. Sie ist
-     * das Vorbild fuer den kuenftigen Envelope des Frameworks — nicht woertlich, siehe
+     * The shape is deliberately consistent: a client evaluates every response the same way. It is
+     * the model for the framework's future envelope — not literally, see
      * an_project/docs/api-envelope.md.
      *
      * @param mixed $data The main data object (e.g., Entity, Array, Collection, etc.)
      * @param string $message Fallback message for systems that do not use i18n
-     * @param string $messageKey Schluessel fuer die Uebersetzung im Client (optional)
-     * @param array $messageParameters Platzhalter-Werte zu diesem Schluessel (optional)
+     * @param string $messageKey Key for the translation in the client (optional)
+     * @param array $messageParameters Placeholder values for this key (optional)
      * @param array $translations Alternative translations for external systems or logs (optional)
      * @param mixed $meta Additional metadata (optional, e.g., pagination, filters)
      * @param int $status HTTP status code (default: 200 OK)
@@ -45,22 +45,22 @@ class ApiResponseService
             'data' => $data,
             'errors' => null,
             'meta' => $meta,
-            // Ein Formatierer fuer jeden Zeitstempel, den die API ausgibt, Envelope eingeschlossen.
+            // One formatter for every timestamp the API outputs, envelope included.
             'timestamp' => ApiDateTimeFormatter::format(new DateTimeImmutable())
         ], $status);
     }
 
     /**
-     * Die Fehlerantwort der Vorlage, in derselben Form wie der Erfolgsfall.
+     * The template's error response, in the same shape as the success case.
      *
-     * Ein Client muss nicht zwei Formate koennen, um zu erfahren, dass etwas schiefging.
+     * A client does not need to understand two formats to learn that something went wrong.
      *
      * @param array $errors List of errors, e.g., [
      *     ['code' => 'invalid_input', 'field' => 'email', 'detail' => 'Invalid email address']
      * ]
      * @param string $message Fallback message for systems that do not use i18n
-     * @param string $messageKey Schluessel fuer die Uebersetzung im Client (optional)
-     * @param array $messageParameters Platzhalter-Werte zu diesem Schluessel (optional)
+     * @param string $messageKey Key for the translation in the client (optional)
+     * @param array $messageParameters Placeholder values for this key (optional)
      * @param array $translations Alternative translations for external systems or logs (optional)
      * @param int $status HTTP status code (default: 400 Bad Request)
      * @param mixed $data Optional additional data object (e.g., for returning context information)
@@ -90,7 +90,7 @@ class ApiResponseService
             'data' => $data,
             'errors' => $errors,
             'meta' => $meta,
-            // Ein Formatierer fuer jeden Zeitstempel, den die API ausgibt, Envelope eingeschlossen.
+            // One formatter for every timestamp the API outputs, envelope included.
             'timestamp' => ApiDateTimeFormatter::format(new DateTimeImmutable())
         ], $status);
     }

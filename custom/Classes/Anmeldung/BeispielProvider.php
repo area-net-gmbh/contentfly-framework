@@ -7,39 +7,39 @@ use Areanet\PIM\Classes\Security\Fremdkennung;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
- * Die Vorlage für einen Anmeldeprovider — und sie läuft wirklich (`013-004-0004`).
+ * The template for a login provider — and it really runs (`013-004-0004`).
  *
- * Ein Provider hat **eine** Pflicht: gegen das Fremdsystem prüfen. Alles andere macht das
- * Framework — Benutzer finden oder anlegen, Gruppen und Adminflag setzen, den Token ausstellen,
- * abmelden. Er fasst die Datenbank **nicht** an; das ist der Unterschied zum alten
- * `LoginManager`, der eine fertige `User`-Entity liefern musste und damit die Provisionierung
- * ins Projekt schob.
+ * A provider has **one** duty: verify against the external system. Everything else is done by
+ * the framework — finding or creating users, setting groups and the admin flag, issuing the
+ * token, logging out. It does **not** touch the database; that is the difference from the old
+ * `LoginManager`, which had to return a finished `User` entity and thereby pushed provisioning
+ * into the project.
  *
- * ── Was ein echtes Projekt hier ändert ────────────────────────────────────────────────
+ * ── What a real project changes here ──────────────────────────────────────────────────
  *
- * `pruefen()`. Dort steht in einem echten Projekt der Aufruf gegen LDAP, SAML, OIDC oder was
- * immer das Fremdsystem ist. Zurück kommt eine `Fremdkennung` mit der Kennung **im
- * Fremdsystem** — nicht dem Contentfly-Alias — und dem, was das Fremdsystem an Gruppen sagt.
+ * `pruefen()`. In a real project this is where the call to LDAP, SAML, OIDC or whatever
+ * the external system is goes. It returns a `Fremdkennung` carrying the identifier **in the
+ * external system** — not the Contentfly alias — and whatever groups the external system reports.
  *
- * ── Was es nicht anfassen sollte ──────────────────────────────────────────────────────
+ * ── What it should not touch ──────────────────────────────────────────────────────────
  *
- * Den Rückgabetyp. `null` heisst abgelehnt, und es ist der einzige Weg, abzulehnen: Eine
- * Ausnahme führt zum selben Ergebnis, wird aber vom Framework verschluckt, damit ihre Meldung
- * nicht beim Aufrufer landet. Ein LDAP-Fehler samt Servernamen in der Antwort ist genau das,
- * was bis `013-004-0001` passierte.
+ * The return type. `null` means rejected, and it is the only way to reject: an
+ * exception leads to the same result, but is swallowed by the framework so that its message
+ * does not reach the caller. An LDAP error including the server name in the response is exactly
+ * what happened until `013-004-0001`.
  *
- * Und die Abbildung auf Contentfly-Gruppen: Die gehört in `SECURITY_PROVIDER_GRUPPEN`, nicht
- * hierher. Ein Provider sagt, was das Fremdsystem sagt.
+ * And the mapping to Contentfly groups: that belongs in `SECURITY_PROVIDER_GRUPPEN`, not
+ * here. A provider reports what the external system reports.
  *
- * ── Warum diese Vorlage niemanden hereinlässt ─────────────────────────────────────────
+ * ── Why this template lets nobody in ──────────────────────────────────────────────────
  *
- * Sie prüft gegen eine Liste aus der Umgebungsvariablen `CONTENTFLY_BEISPIEL_PROVIDER`. Ist sie
- * nicht gesetzt, ist die Liste leer, und **jede** Anmeldung wird abgelehnt. Eine Vorlage, die
- * eine Installation versehentlich offen lässt, wäre schlimmer als gar keine.
+ * It checks against a list from the environment variable `CONTENTFLY_BEISPIEL_PROVIDER`. If that
+ * is not set, the list is empty and **every** login is rejected. A template that accidentally
+ * leaves an installation open would be worse than none at all.
  *
- * Das Format ist `kennung:geheimnis:gruppe|gruppe`, mehrere durch Komma getrennt. Es ist ein
- * Platzhalter für ein Fremdsystem und kein Vorschlag: Geheimnisse in einer Umgebungsvariablen
- * sind für einen Test in Ordnung und für den Betrieb nicht.
+ * The format is `identifier:secret:group|group`, several separated by commas. It is a
+ * placeholder for an external system, not a recommendation: secrets in an environment variable
+ * are fine for a test and not for production.
  */
 final class BeispielProvider implements Anmeldeprovider, Bestandspruefung
 {
@@ -61,9 +61,9 @@ final class BeispielProvider implements Anmeldeprovider, Bestandspruefung
             }
 
             /*
-             * `hash_equals()` und nicht `===`: Ein Vergleich, der beim ersten abweichenden
-             * Zeichen abbricht, verrät über seine Laufzeit, wie weit man richtig lag. Bei einem
-             * Geheimnis dieser Art ist das die ganze Prüfung.
+             * `hash_equals()` and not `===`: a comparison that stops at the first differing
+             * character reveals through its running time how much was right. For a
+             * secret of this kind, that is the whole check.
              */
             if (!hash_equals($eintrag['geheimnis'], $vorgezeigt)) {
                 return null;
@@ -76,17 +76,17 @@ final class BeispielProvider implements Anmeldeprovider, Bestandspruefung
     }
 
     /**
-     * Kennt das „Fremdsystem" diese Kennung noch? (`013-005-0002`)
+     * Does the "external system" still know this identifier? (`013-005-0002`)
      *
-     * Die Vorlage implementiert `Bestandspruefung`, weil sie es **kann**: Ihre Liste steht in
-     * der Umgebung, und darin nachzusehen braucht kein Geheimnis. Ein echter Provider kann das
-     * nicht immer — ein OIDC-Provider etwa prüft einen Token, den der Client mitbringt, und hat
-     * ohne ihn keine Handhabe. Dann bleibt dieses Interface weg, und `appcms:provider:abgleich`
-     * überspringt ihn sichtbar.
+     * The template implements `Bestandspruefung` because it **can**: its list lives in
+     * the environment, and looking it up needs no secret. A real provider cannot always
+     * do that — an OIDC provider, for instance, verifies a token the client brings along and has
+     * no means without it. Then this interface is left out, and `appcms:provider:abgleich`
+     * visibly skips the provider.
      *
-     * **Ohne konfigurierte Liste gibt es keine Auskunft, nicht „kennt niemanden".** Der
-     * Unterschied entscheidet: Würde eine fehlende Konfiguration als `false` gelesen, sperrte
-     * der erste Abgleich nach einem vergessenen Umgebungseintrag jeden Benutzer aus.
+     * **Without a configured list there is no answer, not "knows nobody".** The
+     * difference is decisive: if a missing configuration were read as `false`, the first
+     * sync after a forgotten environment entry would lock out every user.
      */
     public function kenntKennung(string $kennung): ?bool
     {
