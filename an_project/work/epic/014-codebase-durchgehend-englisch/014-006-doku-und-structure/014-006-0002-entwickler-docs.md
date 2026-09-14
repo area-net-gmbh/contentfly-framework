@@ -1,7 +1,7 @@
 ---
 id: 014-006-0002
 title: Entwickler-Docs auf die englischen Namen
-status: review
+status: done
 depends_on: [014-006-0001]
 ---
 

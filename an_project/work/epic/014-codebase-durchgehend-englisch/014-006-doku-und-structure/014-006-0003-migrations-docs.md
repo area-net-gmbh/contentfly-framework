@@ -1,7 +1,7 @@
 ---
 id: 014-006-0003
 title: Migrations-Docs auf die englischen Namen
-status: review
+status: done
 depends_on: [014-006-0002]
 ---
 

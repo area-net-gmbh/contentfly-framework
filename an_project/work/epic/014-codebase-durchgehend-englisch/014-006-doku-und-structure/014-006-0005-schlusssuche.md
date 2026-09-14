@@ -1,7 +1,7 @@
 ---
 id: 014-006-0005
 title: Schlusssuche nach alten Namen über alle Docs
-status: review
+status: done
 depends_on: [014-006-0004]
 ---
 

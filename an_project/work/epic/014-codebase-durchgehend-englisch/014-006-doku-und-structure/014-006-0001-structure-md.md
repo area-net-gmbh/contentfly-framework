@@ -1,7 +1,7 @@
 ---
 id: 014-006-0001
 title: STRUCTURE.md auf die englischen Namen
-status: review
+status: done
 depends_on: []
 ---
 

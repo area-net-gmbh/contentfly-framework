@@ -1,7 +1,7 @@
 ---
 id: 014-006-0004
 title: Übergabenotiz für die Sicherheitsprüfung auf den neuen Stand
-status: review
+status: done
 depends_on: [014-006-0003]
 ---
 
