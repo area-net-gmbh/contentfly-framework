@@ -190,7 +190,7 @@ class SystemControllerApiTest extends IntegrationTestCase
     /**
      * **Inverted with `000-000-0015`, not deleted.**
      *
-     * The test was called `testDasTorIstMethodExistsUndNichtEineErlaubnisliste()`: everything
+     * The test used to record that the gate is `method_exists()` and not an allowlist: everything
      * that `method_exists()` affirmed was reachable — including `setEM` and `__construct` from
      * `BaseController`. They were called and only failed on their type check; the boundary
      * was drawn by the signature, not by the endpoint.
@@ -419,7 +419,7 @@ class SystemControllerApiTest extends IntegrationTestCase
     /**
      * **Inverted with `000-000-0015`, not deleted.**
      *
-     * The test was called `testDeleteTokenIstDurchEinenFalschenNamensraumUnbrauchbar()`. The
+     * The test used to record that `deleteToken` is unusable because of a wrong namespace. The
      * method looked in `Areanet\Contently\Entity\Token` — "Contently" instead of "PIM", the
      * only place in the whole tree with that name. Doctrine did not know the class, and the
      * method ended before its first functional line: **an API token could not be got rid of
@@ -676,7 +676,7 @@ class SystemControllerApiTest extends IntegrationTestCase
     /**
      * **Inverted with `000-000-0015`, not deleted.**
      *
-     * The test was called `testValidateORMStehtInDerAusnahmelisteExistiertAberNicht()`: the
+     * The test used to record that `validateORM` is on the exception list but does not exist: the
      * emergency lock let `validateORM` and `updateDatabase` through **without token and
      * without admin rights** — and the first of the two did not exist in the controller. An
      * exception into the void.

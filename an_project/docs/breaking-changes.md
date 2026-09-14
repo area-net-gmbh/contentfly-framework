@@ -1366,7 +1366,7 @@ Konten, die `createManagedUser()` angelegt hat, tragen einen Alias der Form
 `<md5-des-klassennamens>-<identifier>`, `loginManager` mit dem **Klassennamen** und `externalId`
 leer. Das Framework schreibt sie **nicht** um, und zwar aus drei Gründen:
 
-1. **Die Zuordnung ist nicht rückrechenbar.** Aus `3f2a…-mueller` lässt sich die alte Klasse nur
+1. **Die Zuordnung ist nicht rückrechenbar.** Aus `3f2a…-jdoe` lässt sich die alte Klasse nur
    erraten, indem man alle Klassennamen durchprobiert, die ein Projekt je hatte — und die kennt
    das Framework nicht.
 2. **Ein automatischer Umschrieb änderte den Alias**, und der Alias ist die Kennung, unter der

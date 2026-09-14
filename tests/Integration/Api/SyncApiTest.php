@@ -103,11 +103,11 @@ class SyncApiTest extends IntegrationTestCase
 
     public function testDeletedExcludesWhatExcludeFromSyncSets(): void
     {
-        // Inverted with 000-000-0013. The test was called
-        // testDeletedSchliesstEineFesteListeVonEntitiesAus and recorded a second, hard-wired
-        // exclusion list in the code. The effect has stayed the same, the cause is a different
-        // one: PIM\\Folder now carries @PIM\\Config(excludeFromSync=true), and getDeleted()
-        // checks the field — which it never did before.
+        // Inverted with 000-000-0013. The test used to record that deleted excludes a fixed list of
+        // entities — a second, hard-wired exclusion list in the code. The effect has stayed the
+        // same, the cause is a different one: PIM\\Folder now carries
+        // @PIM\\Config(excludeFromSync=true), and getDeleted() checks the field — which it never
+        // did before.
         $logId  = 'synclog-'.bin2hex(random_bytes(6));
         $folder = 'sync-f-'.bin2hex(random_bytes(6));
         $this->logRow($logId, 'PIM\\Folder', $folder);
@@ -207,8 +207,8 @@ class SyncApiTest extends IntegrationTestCase
 
     public function testSevenEntitiesSetExcludeFromSync(): void
     {
-        // Inverted with 000-000-0013, and the old test demanded exactly that: it was called
-        // testKeineEntitySetztExcludeFromSync and failed as soon as someone set the flag.
+        // Inverted with 000-000-0013, and the old test demanded exactly that: it asserted that no
+        // entity sets excludeFromSync and failed as soon as someone set the flag.
         //
         // Background: 012-005-0002 kept excludeFromSync with the reasoning "controls the sync
         // API". That was only half right — until 000-000-0007 it was checked exclusively in

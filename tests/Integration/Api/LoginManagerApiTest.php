@@ -71,11 +71,11 @@ class LoginManagerApiTest extends IntegrationTestCase
     /**
      * **Inverted with `013-004-0002`, not deleted.**
      *
-     * The test was called `testDerAliasPraefixVerhindertKollisionenZwischenLoginManagern` and recorded
-     * that `createManagedUser()` prefixes the alias with `md5(get_class($this))`. The
+     * The test used to record that the alias prefix prevents collisions between login
+     * managers: `createManagedUser()` prefixes the alias with `md5(get_class($this))`. The
      * prefix solved a real problem — two external systems that deliver the same user name
      * must not get the same account —, but it solved it by making the answer unreadable:
-     * Whoever looked into `pim_user` found `3f2a…-mueller` and did not know who that was.
+     * Whoever looked into `pim_user` found `3f2a…-jdoe` and did not know who that was.
      *
      * The same uniqueness now comes from a constraint over `loginManager` **and**
      * `externalId`, and the alias reads as `<provider>:<identifier>`.

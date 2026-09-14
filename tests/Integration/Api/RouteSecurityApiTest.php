@@ -53,11 +53,10 @@ class RouteSecurityApiTest extends IntegrationTestCase
 
     public function testEmptyListComesAs200(): void
     {
-        // Inverted with 000-000-0014. The test was called testEineLeereListeKommtAls404 and
-        // recorded that listAction() responds to an empty result with HTTP 404
-        // {"message":"Not found"} — an eighth response shape that had nothing to do with any
-        // of the other seven. For a client, "no hits" and "route does not exist" were thus
-        // indistinguishable.
+        // Inverted with 000-000-0014. The test used to record that listAction() responds to an
+        // empty result with HTTP 404 {"message":"Not found"} — an eighth response shape that had
+        // nothing to do with any of the other seven. For a client, "no hits" and "route does not
+        // exist" were thus indistinguishable.
         //
         // PIM\\Nav is empty after a fresh installation — no deletion needed, which would
         // touch the data of other tests.
