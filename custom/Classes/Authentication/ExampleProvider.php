@@ -1,5 +1,5 @@
 <?php
-namespace Custom\Classes\Anmeldung;
+namespace Custom\Classes\Authentication;
 
 use Areanet\PIM\Classes\Security\LoginProvider;
 use Areanet\PIM\Classes\Security\UserExistenceCheck;
@@ -33,7 +33,7 @@ use Symfony\Component\HttpFoundation\Request;
  *
  * ── Why this template lets nobody in ──────────────────────────────────────────────────
  *
- * It checks against a list from the environment variable `CONTENTFLY_BEISPIEL_PROVIDER`. If that
+ * It checks against a list from the environment variable `CONTENTFLY_EXAMPLE_PROVIDER`. If that
  * is not set, the list is empty and **every** login is rejected. A template that accidentally
  * leaves an installation open would be worse than none at all.
  *
@@ -41,22 +41,22 @@ use Symfony\Component\HttpFoundation\Request;
  * placeholder for an external system, not a recommendation: secrets in an environment variable
  * are fine for a test and not for production.
  */
-final class BeispielProvider implements LoginProvider, UserExistenceCheck
+final class ExampleProvider implements LoginProvider, UserExistenceCheck
 {
-    public const UMGEBUNGSVARIABLE = 'CONTENTFLY_BEISPIEL_PROVIDER';
+    public const ENVIRONMENT_VARIABLE = 'CONTENTFLY_EXAMPLE_PROVIDER';
 
     public function authenticate(Request $request): ?ExternalIdentity
     {
-        $daten    = $request->request->all();
-        $kennung  = $daten['alias'] ?? null;
-        $vorgezeigt = $daten['pass'] ?? null;
+        $data       = $request->request->all();
+        $identifier = $data['alias'] ?? null;
+        $presented  = $data['pass'] ?? null;
 
-        if (!is_string($kennung) || !is_string($vorgezeigt) || $kennung === '') {
+        if (!is_string($identifier) || !is_string($presented) || $identifier === '') {
             return null;
         }
 
-        foreach ($this->bekannte() as $eintrag) {
-            if ($eintrag['kennung'] !== $kennung) {
+        foreach ($this->knownEntries() as $entry) {
+            if ($entry['identifier'] !== $identifier) {
                 continue;
             }
 
@@ -65,11 +65,11 @@ final class BeispielProvider implements LoginProvider, UserExistenceCheck
              * character reveals through its running time how much was right. For a
              * secret of this kind, that is the whole check.
              */
-            if (!hash_equals($eintrag['geheimnis'], $vorgezeigt)) {
+            if (!hash_equals($entry['secret'], $presented)) {
                 return null;
             }
 
-            return new ExternalIdentity($eintrag['kennung'], $eintrag['gruppen']);
+            return new ExternalIdentity($entry['identifier'], $entry['groups']);
         }
 
         return null;
@@ -88,16 +88,16 @@ final class BeispielProvider implements LoginProvider, UserExistenceCheck
      * difference is decisive: if a missing configuration were read as `false`, the first
      * sync after a forgotten environment entry would lock out every user.
      */
-    public function knowsIdentifier(string $kennung): ?bool
+    public function knowsIdentifier(string $identifier): ?bool
     {
-        $roh = $_ENV[self::UMGEBUNGSVARIABLE] ?? getenv(self::UMGEBUNGSVARIABLE) ?: '';
+        $raw = $_ENV[self::ENVIRONMENT_VARIABLE] ?? getenv(self::ENVIRONMENT_VARIABLE) ?: '';
 
-        if (!is_string($roh) || trim($roh) === '') {
+        if (!is_string($raw) || trim($raw) === '') {
             return null;
         }
 
-        foreach ($this->bekannte() as $eintrag) {
-            if ($eintrag['kennung'] === $kennung) {
+        foreach ($this->knownEntries() as $entry) {
+            if ($entry['identifier'] === $identifier) {
                 return true;
             }
         }
@@ -106,34 +106,34 @@ final class BeispielProvider implements LoginProvider, UserExistenceCheck
     }
 
     /**
-     * @return list<array{kennung: string, geheimnis: string, gruppen: list<string>}>
+     * @return list<array{identifier: string, secret: string, groups: list<string>}>
      */
-    private function bekannte(): array
+    private function knownEntries(): array
     {
-        $roh = $_ENV[self::UMGEBUNGSVARIABLE] ?? getenv(self::UMGEBUNGSVARIABLE) ?: '';
+        $raw = $_ENV[self::ENVIRONMENT_VARIABLE] ?? getenv(self::ENVIRONMENT_VARIABLE) ?: '';
 
-        if (!is_string($roh) || trim($roh) === '') {
+        if (!is_string($raw) || trim($raw) === '') {
             return array();
         }
 
-        $liste = array();
+        $list = array();
 
-        foreach (explode(',', $roh) as $zeile) {
-            $teile = explode(':', trim($zeile));
+        foreach (explode(',', $raw) as $line) {
+            $parts = explode(':', trim($line));
 
-            if (count($teile) < 2 || $teile[0] === '' || $teile[1] === '') {
+            if (count($parts) < 2 || $parts[0] === '' || $parts[1] === '') {
                 continue;
             }
 
-            $liste[] = array(
-                'kennung'   => $teile[0],
-                'geheimnis' => $teile[1],
-                'gruppen'   => isset($teile[2]) && $teile[2] !== ''
-                    ? explode('|', $teile[2])
+            $list[] = array(
+                'identifier' => $parts[0],
+                'secret'     => $parts[1],
+                'groups'     => isset($parts[2]) && $parts[2] !== ''
+                    ? explode('|', $parts[2])
                     : array(),
             );
         }
 
-        return $liste;
+        return $list;
     }
 }

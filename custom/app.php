@@ -131,12 +131,12 @@ $app['consoleManager']->addCommand(new \Custom\Command\ExampleCommand());
  *    **As long as nothing is registered here, there is no way around the password check.**
  *    Logging in through an external system is a decision someone has to make.
  *
- *    `BeispielProvider` is registered below and really runs — but it lets nobody
- *    in unless `CONTENTFLY_BEISPIEL_PROVIDER` is set. A template that could accidentally
+ *    `ExampleProvider` is registered below and really runs — but it lets nobody
+ *    in unless `CONTENTFLY_EXAMPLE_PROVIDER` is set. A template that could accidentally
  *    leave an installation open would be worse than none at all.
  * --------------------------------------------------------------------------------------- */
-$app['loginProviders']->register('beispiel', function () {
-    return new \Custom\Classes\Anmeldung\BeispielProvider();
+$app['loginProviders']->register('example', function () {
+    return new \Custom\Classes\Authentication\ExampleProvider();
 });
 
 //   Since `013-005` the framework ships two ready-made providers. Neither is
@@ -160,5 +160,5 @@ $app['loginProviders']->register('beispiel', function () {
 //   A custom provider, where neither of the two fits:
 //
 //   $app['loginProviders']->register('my-sso', function () use ($app) {
-//       return new \Custom\Classes\Anmeldung\MySsoProvider($app);
+//       return new \Custom\Classes\Authentication\MySsoProvider($app);
 //   });

@@ -11,7 +11,7 @@ use Tests\Integration\IntegrationTestCase;
  * frische Access-JWT holt. Ein Benutzer, den die Personalabteilung entfernt hat, arbeitet also
  * weiter, bis ein Zeitlimit abläuft, das niemand dafür gewählt hat.
  *
- * Gemessen wird über den `BeispielProvider`: Er liest seine Liste aus der Umgebung, und der
+ * Gemessen wird über den `ExampleProvider`: Er liest seine Liste aus der Umgebung, und der
  * Console-Aufruf bekommt eine andere Liste als der Testserver — damit verschwindet ein Benutzer
  * aus Sicht des Abgleichs, ohne dass irgendwo ein Verzeichnis laufen müsste.
  */
@@ -38,12 +38,12 @@ class ProviderSyncApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/auth/login', array(
             'alias'        => $eintrag['kennung'],
             'pass'         => $eintrag['geheimnis'],
-            'loginManager' => 'beispiel',
+            'loginManager' => 'example',
             'tokenType'    => 'jwt',
         ));
 
         $zeile = $this->pdo()->prepare('SELECT id FROM pim_user WHERE loginManager = :lm AND externalId = :ext');
-        $zeile->execute(array('lm' => 'beispiel', 'ext' => $eintrag['kennung']));
+        $zeile->execute(array('lm' => 'example', 'ext' => $eintrag['kennung']));
 
         if ($id = $zeile->fetchColumn()) {
             $this->nachTestLoeschen('pim_user', (string) $id);
@@ -68,7 +68,7 @@ class ProviderSyncApiTest extends IntegrationTestCase
         $ausgabe = array();
 
         exec(sprintf(
-            'CONTENTFLY_BEISPIEL_PROVIDER=%s %s %s appcms:provider:sync %s 2>&1',
+            'CONTENTFLY_EXAMPLE_PROVIDER=%s %s %s appcms:provider:sync %s 2>&1',
             escapeshellarg($liste),
             escapeshellarg(PHP_BINARY),
             escapeshellarg(self::konsole()),
@@ -81,7 +81,7 @@ class ProviderSyncApiTest extends IntegrationTestCase
     private function istAktiv(string $kennung): bool
     {
         $zeile = $this->pdo()->prepare('SELECT isActive FROM pim_user WHERE loginManager = :lm AND externalId = :ext');
-        $zeile->execute(array('lm' => 'beispiel', 'ext' => $kennung));
+        $zeile->execute(array('lm' => 'example', 'ext' => $kennung));
 
         return (string) $zeile->fetchColumn() === '1';
     }
@@ -119,7 +119,7 @@ class ProviderSyncApiTest extends IntegrationTestCase
      * nicht" als „Benutzer gibt es nicht mehr" gelesen wird, sperrt ein Netzwerkfehler alle.
      * Deshalb hat `knowsIdentifier()` drei Antworten statt zwei, und `null` fasst niemanden an.
      *
-     * Beim `BeispielProvider` ist eine **leere** Liste genau dieser Fall — sie heisst „keine
+     * Beim `ExampleProvider` ist eine **leere** Liste genau dieser Fall — sie heisst „keine
      * Auskunft" und nicht „kennt niemanden". Würde eine fehlende Konfiguration als `false`
      * gelesen, sperrte der erste Abgleich nach einem vergessenen Umgebungseintrag jeden aus.
      */

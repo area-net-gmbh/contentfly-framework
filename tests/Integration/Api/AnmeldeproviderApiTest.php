@@ -10,7 +10,7 @@ use Tests\Integration\IntegrationTestCase;
  * gemessen. **Erst ein Provider, der wirklich läuft, zeigt, dass sie zusammenpassen** — und den
  * gab es bis hierhin nicht: `custom/Classes/` enthielt zwei Service-Klassen und keinen Provider.
  *
- * Die Vorlage prüft gegen `CONTENTFLY_BEISPIEL_PROVIDER`. Der Testserver bekommt die Variable
+ * Die Vorlage prüft gegen `CONTENTFLY_EXAMPLE_PROVIDER`. Der Testserver bekommt die Variable
  * aus `CONTENTFLY_TEST_PROVIDER` (siehe `tools/ci/prepare-test-environment.sh`); dieselbe
  * Zeichenkette liegt hier vor, damit der Test weiss, welche Kennung er vorzeigen darf.
  */
@@ -41,11 +41,11 @@ class AnmeldeproviderApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/auth/login', array(
             'alias'        => $kennung ?? $eintrag['kennung'],
             'pass'         => $geheimnis ?? $eintrag['geheimnis'],
-            'loginManager' => 'beispiel',
+            'loginManager' => 'example',
         ));
 
         $zeile = $this->pdo()->prepare('SELECT id FROM pim_user WHERE loginManager = :lm AND externalId = :ext');
-        $zeile->execute(array('lm' => 'beispiel', 'ext' => $kennung ?? $eintrag['kennung']));
+        $zeile->execute(array('lm' => 'example', 'ext' => $kennung ?? $eintrag['kennung']));
 
         if ($id = $zeile->fetchColumn()) {
             $this->nachTestLoeschen('pim_user', (string) $id);
@@ -83,13 +83,13 @@ class AnmeldeproviderApiTest extends IntegrationTestCase
             'SELECT alias, pass, externalId, loginManager FROM pim_user
              WHERE loginManager = :lm AND externalId = :ext'
         );
-        $zeile->execute(array('lm' => 'beispiel', 'ext' => $eintrag['kennung']));
+        $zeile->execute(array('lm' => 'example', 'ext' => $eintrag['kennung']));
         $gefunden = $zeile->fetch(\PDO::FETCH_ASSOC);
 
         $this->assertIsArray($gefunden, 'Die Zeile ist angelegt worden');
         $this->assertSame('*', $gefunden['pass'], 'Gesperrt, nicht der Benutzername');
         $this->assertSame($eintrag['kennung'], $gefunden['externalId'], 'Die Kennung steht lesbar da');
-        $this->assertSame('beispiel:'.$eintrag['kennung'], $gefunden['alias'], 'Kein MD5-Praefix');
+        $this->assertSame('example:'.$eintrag['kennung'], $gefunden['alias'], 'Kein MD5-Praefix');
     }
 
     /**
@@ -100,9 +100,9 @@ class AnmeldeproviderApiTest extends IntegrationTestCase
         $eintrag = $this->eintrag();
         $this->anmelden();
 
-        foreach (array($eintrag['kennung'], 'beispiel:'.$eintrag['kennung'], '*') as $versuch) {
+        foreach (array($eintrag['kennung'], 'example:'.$eintrag['kennung'], '*') as $versuch) {
             [$status] = $this->postJson('/auth/login', array(
-                'alias' => 'beispiel:'.$eintrag['kennung'],
+                'alias' => 'example:'.$eintrag['kennung'],
                 'pass'  => $versuch,
             ));
 
@@ -120,7 +120,7 @@ class AnmeldeproviderApiTest extends IntegrationTestCase
         $zaehlen = $this->pdo()->prepare(
             'SELECT COUNT(*) FROM pim_user WHERE loginManager = :lm AND externalId = :ext'
         );
-        $zaehlen->execute(array('lm' => 'beispiel', 'ext' => $eintrag['kennung']));
+        $zaehlen->execute(array('lm' => 'example', 'ext' => $eintrag['kennung']));
 
         $this->assertSame('1', (string) $zaehlen->fetchColumn());
     }
@@ -152,13 +152,13 @@ class AnmeldeproviderApiTest extends IntegrationTestCase
      */
     public function testOhneKonfigurationLaesstDieVorlageNiemandenHerein(): void
     {
-        $vorher = getenv(\Custom\Classes\Anmeldung\BeispielProvider::UMGEBUNGSVARIABLE);
+        $vorher = getenv(\Custom\Classes\Authentication\ExampleProvider::ENVIRONMENT_VARIABLE);
 
-        putenv(\Custom\Classes\Anmeldung\BeispielProvider::UMGEBUNGSVARIABLE);
-        unset($_ENV[\Custom\Classes\Anmeldung\BeispielProvider::UMGEBUNGSVARIABLE]);
+        putenv(\Custom\Classes\Authentication\ExampleProvider::ENVIRONMENT_VARIABLE);
+        unset($_ENV[\Custom\Classes\Authentication\ExampleProvider::ENVIRONMENT_VARIABLE]);
 
         try {
-            $provider = new \Custom\Classes\Anmeldung\BeispielProvider();
+            $provider = new \Custom\Classes\Authentication\ExampleProvider();
             $eintrag  = $this->eintrag();
 
             $request = new \Symfony\Component\HttpFoundation\Request(
@@ -168,8 +168,8 @@ class AnmeldeproviderApiTest extends IntegrationTestCase
             $this->assertNull($provider->authenticate($request));
         } finally {
             if ($vorher !== false) {
-                putenv(\Custom\Classes\Anmeldung\BeispielProvider::UMGEBUNGSVARIABLE.'='.$vorher);
-                $_ENV[\Custom\Classes\Anmeldung\BeispielProvider::UMGEBUNGSVARIABLE] = $vorher;
+                putenv(\Custom\Classes\Authentication\ExampleProvider::ENVIRONMENT_VARIABLE.'='.$vorher);
+                $_ENV[\Custom\Classes\Authentication\ExampleProvider::ENVIRONMENT_VARIABLE] = $vorher;
             }
         }
     }
@@ -195,7 +195,7 @@ class AnmeldeproviderApiTest extends IntegrationTestCase
         $zeile = $this->pdo()->prepare(
             'SELECT group_id, isAdmin FROM pim_user WHERE loginManager = :lm AND externalId = :ext'
         );
-        $zeile->execute(array('lm' => 'beispiel', 'ext' => $eintrag['kennung']));
+        $zeile->execute(array('lm' => 'example', 'ext' => $eintrag['kennung']));
         $gefunden = $zeile->fetch(\PDO::FETCH_ASSOC);
 
         $this->assertNull($gefunden['group_id'], 'Ohne Abbildung keine Gruppe');
