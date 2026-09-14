@@ -20,3 +20,8 @@ Suite grün bleibt. Deren Kommentare und eigene Namen folgen in ihren Stories.
 dieselben Aufrufer zweimal an.
 
 ## Tasks
+- [ ] 014-001-0001 — Paths und Start samt Einstiegspunkten auf Englisch
+- [ ] 014-001-0002 — Container, Application, Console und Command auf Englisch
+- [ ] 014-001-0003 — Routing und Metadaten auf Englisch
+- [ ] 014-001-0004 — bootstrap.php, bootstrap-web.php und phpunit.xml.dist auf Englisch
+- [ ] 014-001-0005 — Sprachwächter als Test
