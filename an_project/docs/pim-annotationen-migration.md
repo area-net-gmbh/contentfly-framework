@@ -241,5 +241,5 @@ die Konfiguration eines Projekts umschreibt, richtet mehr Schaden an, als sie er
    `@PIM`-Angabe verloren gegangen.
 
 **Der Prüfstein des Frameworks ist die Vorlage für diese drei Schritte:**
-`tests/Unit/Migration/RectorRegelTest.php` fährt sie gegen
+`tests/Unit/Migration/RectorRuleTest.php` fährt sie gegen
 `tests/Fixtures/RectorMigration/` und instanziiert am Ende jedes entstandene Attribut.

@@ -6,41 +6,41 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
- * Vertraute Proxies — die Voraussetzung dafuer, dass die Bremse pro IP den Richtigen trifft
+ * Trusted proxies — the precondition for the per-IP throttle hitting the right party
  * (013-001-0003).
  *
- * `setTrustedProxies()` wurde bis zu diesem Task im ganzen Baum nirgends gerufen. Diese Tests
- * halten beides fest: dass ohne Konfiguration nichts geschieht, und dass mit Konfiguration die
- * weitergereichte Adresse gilt.
+ * Until this task, `setTrustedProxies()` was not called anywhere in the whole tree. These tests
+ * pin down both: that nothing happens without configuration, and that with configuration the
+ * forwarded address applies.
  *
- * DIE ANGABE IST GLOBAL — sie haengt an der Klasse `Request`, nicht an einer Instanz. Der
- * vorherige Stand wird deshalb in `setUp()` gesichert und in `tearDown()` zurueckgestellt;
- * andernfalls truege jeder Test dieser Datei seine Einstellung in alle folgenden.
+ * THE SETTING IS GLOBAL — it is attached to the `Request` class, not to an instance. The previous
+ * state is therefore saved in `setUp()` and restored in `tearDown()`; otherwise every test in this
+ * file would carry its setting into all subsequent ones.
  */
 class TrustedProxiesTest extends TestCase
 {
     /** @var list<string> */
-    private array $vorherProxies = array();
+    private array $previousProxies = array();
 
-    private int $vorherHeaderSatz = 0;
+    private int $previousHeaderSet = 0;
 
     protected function setUp(): void
     {
-        $this->vorherProxies    = Request::getTrustedProxies();
-        $this->vorherHeaderSatz = Request::getTrustedHeaderSet();
+        $this->previousProxies   = Request::getTrustedProxies();
+        $this->previousHeaderSet = Request::getTrustedHeaderSet();
     }
 
     protected function tearDown(): void
     {
-        Request::setTrustedProxies($this->vorherProxies, $this->vorherHeaderSatz);
+        Request::setTrustedProxies($this->previousProxies, $this->previousHeaderSet);
     }
 
-    // ── Ohne Konfiguration ─────────────────────────────────────────────────────────────
+    // ── Without configuration ──────────────────────────────────────────────────────────
 
     /**
-     * Der wichtigste Test der Datei: Wer nichts eintraegt, bekommt das Verhalten von vorher.
+     * The most important test in this file: whoever configures nothing gets the previous behaviour.
      */
-    public function testOhneAngabeWirdNichtsGesetzt(): void
+    public function testWithoutSettingNothingIsApplied(): void
     {
         $this->assertFalse(TrustedProxies::apply(array(), 'x-forwarded'));
         $this->assertFalse(TrustedProxies::apply('', 'x-forwarded'));
@@ -49,9 +49,9 @@ class TrustedProxiesTest extends TestCase
         $this->assertSame(array(), Request::getTrustedProxies());
     }
 
-    // ── Die Angabe aus der Konfiguration ───────────────────────────────────────────────
+    // ── The setting from the configuration ─────────────────────────────────────────────
 
-    public function testEinArrayWirdUebernommen(): void
+    public function testArrayIsTakenOver(): void
     {
         $this->assertSame(
             array('10.0.0.0/8', '192.168.1.5'),
@@ -60,10 +60,10 @@ class TrustedProxiesTest extends TestCase
     }
 
     /**
-     * Die zweite Schreibweise gibt es, weil eine solche Angabe oft aus einer Umgebungsvariablen
-     * kommt und dort nur als Zeichenkette existieren kann.
+     * The second notation exists because such a setting often comes from an environment variable
+     * and can only exist there as a string.
      */
-    public function testEineZeichenketteMitKommasWirdZerlegt(): void
+    public function testCommaSeparatedStringIsSplit(): void
     {
         $this->assertSame(
             array('10.0.0.0/8', '192.168.1.5', 'REMOTE_ADDR'),
@@ -71,35 +71,35 @@ class TrustedProxiesTest extends TestCase
         );
     }
 
-    public function testLeereEintraegeFallenWeg(): void
+    public function testEmptyEntriesAreDropped(): void
     {
         $this->assertSame(array('10.0.0.1'), TrustedProxies::list('  ,10.0.0.1,  ,'));
     }
 
-    // ── Der Headersatz ─────────────────────────────────────────────────────────────────
+    // ── The header set ─────────────────────────────────────────────────────────────────
 
-    public function testDieVorgabeIstDieEnge(): void
+    public function testDefaultIsTheNarrowOne(): void
     {
-        $satz = TrustedProxies::headerSet('x-forwarded');
+        $set = TrustedProxies::headerSet('x-forwarded');
 
-        $this->assertSame(Request::HEADER_X_FORWARDED_FOR, $satz & Request::HEADER_X_FORWARDED_FOR);
-        $this->assertSame(0, $satz & Request::HEADER_FORWARDED, 'Forwarded wird nur auf Ansage gelesen');
+        $this->assertSame(Request::HEADER_X_FORWARDED_FOR, $set & Request::HEADER_X_FORWARDED_FOR);
+        $this->assertSame(0, $set & Request::HEADER_FORWARDED, 'Forwarded is only read on request');
     }
 
-    public function testForwardedSchaltetUm(): void
+    public function testForwardedSwitchesOver(): void
     {
-        $satz = TrustedProxies::headerSet('forwarded');
+        $set = TrustedProxies::headerSet('forwarded');
 
-        $this->assertSame(Request::HEADER_FORWARDED, $satz);
-        $this->assertSame(0, $satz & Request::HEADER_X_FORWARDED_FOR, 'Nicht beide gleichzeitig');
+        $this->assertSame(Request::HEADER_FORWARDED, $set);
+        $this->assertSame(0, $set & Request::HEADER_X_FORWARDED_FOR, 'Not both at the same time');
     }
 
     /**
-     * Abgewiesen statt stillschweigend auf die Vorgabe zurueckgefuehrt — dieselbe Regel wie beim
-     * entfallenen Cache-Treiber `apc` (010-002-0002). Ein Tippfehler waere sonst eine
-     * Konfiguration, die zu wirken scheint und nicht wirkt.
+     * Rejected instead of silently falling back to the default — the same rule as for the dropped
+     * cache driver `apc` (010-002-0002). Otherwise a typo would be a configuration that appears to
+     * take effect and does not.
      */
-    public function testEinUnbekannterHeaderSatzWirdAbgewiesen(): void
+    public function testUnknownHeaderSetIsRejected(): void
     {
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessageMatches('/APP_TRUSTED_HEADERS/');
@@ -107,18 +107,18 @@ class TrustedProxiesTest extends TestCase
         TrustedProxies::headerSet('x-forwaded');
     }
 
-    // ── Die Wirkung ────────────────────────────────────────────────────────────────────
+    // ── The effect ─────────────────────────────────────────────────────────────────────
 
     /**
-     * Der eigentliche Nachweis: Dieselbe Anfrage, einmal ohne und einmal mit vertrautem Proxy.
+     * The actual proof: the same request, once without and once with a trusted proxy.
      *
-     * Ohne Angabe ist die Adresse des Aufrufers die des Proxys — genau das haette die Bremse
-     * pro IP wertlos gemacht, weil sie dann den Proxy getroffen haette und damit alle Benutzer
-     * dahinter.
+     * Without the setting, the caller's address is that of the proxy — exactly that would have made
+     * the per-IP throttle worthless, because it would then have hit the proxy and thus all users
+     * behind it.
      */
-    public function testMitVertrautemProxyGiltDieWeitergereichteAdresse(): void
+    public function testWithTrustedProxyTheForwardedAddressApplies(): void
     {
-        $bauen = static function (): Request {
+        $build = static function (): Request {
             return new Request(
                 array(), array(), array(), array(), array(),
                 array(
@@ -128,20 +128,20 @@ class TrustedProxiesTest extends TestCase
             );
         };
 
-        Request::setTrustedProxies(array(), $this->vorherHeaderSatz);
-        $this->assertSame('10.0.0.1', $bauen()->getClientIp(), 'Ohne Angabe zaehlt der naechste Hop');
+        Request::setTrustedProxies(array(), $this->previousHeaderSet);
+        $this->assertSame('10.0.0.1', $build()->getClientIp(), 'Without the setting the next hop counts');
 
         TrustedProxies::apply(array('10.0.0.1'), 'x-forwarded');
-        $this->assertSame('203.0.113.7', $bauen()->getClientIp(), 'Mit Angabe zaehlt der Aufrufer');
+        $this->assertSame('203.0.113.7', $build()->getClientIp(), 'With the setting the caller counts');
     }
 
     /**
-     * Ein Header von einem Absender, dem NICHT vertraut wird, aendert nichts.
+     * A header from a sender that is NOT trusted changes nothing.
      *
-     * Sonst genuegte ein selbstgesetztes `X-Forwarded-For`, um die Bremse pro IP bei jedem
-     * Versuch auf einen anderen Eimer zu lenken.
+     * Otherwise a self-set `X-Forwarded-For` would suffice to steer the per-IP throttle to a
+     * different bucket on every attempt.
      */
-    public function testEinNichtVertrauterAbsenderKannDieAdresseNichtSetzen(): void
+    public function testUntrustedSenderCannotSetTheAddress(): void
     {
         TrustedProxies::apply(array('10.0.0.1'), 'x-forwarded');
 

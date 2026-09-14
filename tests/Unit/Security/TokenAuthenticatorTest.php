@@ -13,15 +13,15 @@ use Symfony\Component\Security\Http\AccessToken\AccessTokenHandlerInterface;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
 
 /**
- * Der Treiber, der Symfonys `access_token`-Authenticator ohne Firewall fährt (013-002-0001).
+ * The driver that runs Symfony's `access_token` authenticator without a firewall (013-002-0001).
  *
- * Geprüft wird gegen Doppelgänger für Handler und Extractor. Das ist die halbe Absicht dieses
- * Tasks: Der Treiber muss stehen und messbar sein, **bevor** es einen echten Handler gibt —
- * der kommt erst mit `013-002-0003`.
+ * It is tested against test doubles for handler and extractor. That is half the purpose of this
+ * task: the driver has to be in place and measurable **before** there is a real handler — that
+ * one only arrives with `013-002-0003`.
  */
 class TokenAuthenticatorTest extends TestCase
 {
-    /** Ein Extractor, der immer denselben Wert liefert — oder keinen. */
+    /** An extractor that always returns the same value — or none. */
     private function extractor(?string $token): AccessTokenExtractorInterface
     {
         return new class($token) implements AccessTokenExtractorInterface {
@@ -34,77 +34,76 @@ class TokenAuthenticatorTest extends TestCase
         };
     }
 
-    /** Ein Handler, der eine Kennung liefert — oder die übergebene Ausnahme wirft. */
-    private function handler(?string $kennung, ?AuthenticationException $fehler = null): AccessTokenHandlerInterface
+    /** A handler that returns an identifier — or throws the given exception. */
+    private function handler(?string $identifier, ?AuthenticationException $error = null): AccessTokenHandlerInterface
     {
-        return new class($kennung, $fehler) implements AccessTokenHandlerInterface {
-            public function __construct(private ?string $kennung, private ?AuthenticationException $fehler) {}
+        return new class($identifier, $error) implements AccessTokenHandlerInterface {
+            public function __construct(private ?string $identifier, private ?AuthenticationException $error) {}
 
             public function getUserBadgeFrom(string $accessToken): UserBadge
             {
-                if ($this->fehler !== null) {
-                    throw $this->fehler;
+                if ($this->error !== null) {
+                    throw $this->error;
                 }
 
                 return new UserBadge(
-                    (string) $this->kennung,
-                    fn (string $kennung) => new InMemoryUser($kennung, null)
+                    (string) $this->identifier,
+                    fn (string $identifier) => new InMemoryUser($identifier, null)
                 );
             }
         };
     }
 
-    public function testEinGueltigesTokenLiefertDenBenutzer(): void
+    public function testValidTokenReturnsTheUser(): void
     {
-        $treiber = new TokenAuthenticator($this->handler('admin'), $this->extractor('irgendein-token'));
+        $driver = new TokenAuthenticator($this->handler('admin'), $this->extractor('some-token'));
 
-        $benutzer = $treiber->user(new Request());
+        $user = $driver->user(new Request());
 
-        $this->assertNotNull($benutzer);
-        $this->assertSame('admin', $benutzer->getUserIdentifier());
+        $this->assertNotNull($user);
+        $this->assertSame('admin', $user->getUserIdentifier());
     }
 
-    public function testOhneTokenGreiftDerTreiberNicht(): void
+    public function testWithoutTokenTheDriverDoesNotApply(): void
     {
-        $treiber = new TokenAuthenticator($this->handler('admin'), $this->extractor(null));
+        $driver = new TokenAuthenticator($this->handler('admin'), $this->extractor(null));
 
-        $this->assertNull($treiber->user(new Request()));
-    }
-
-    /**
-     * Der Grund für `supports() === false` statt `!supports()`.
-     *
-     * `AccessTokenAuthenticator::supports()` liefert **null**, wenn ein Token da ist — die
-     * Kennzeichnung für „vielleicht, entscheide später". Nur `false` heisst „gar kein Token".
-     * Ein `!supports()` behandelte beide Fälle gleich und wiese jeden Request ab; dieser Test
-     * fällt genau dann um.
-     */
-    public function testEinVorhandenesTokenWirdNichtVorschnellAbgewiesen(): void
-    {
-        $treiber = new TokenAuthenticator($this->handler('redakteur'), $this->extractor('token'));
-
-        $this->assertNotNull($treiber->user(new Request()));
+        $this->assertNull($driver->user(new Request()));
     }
 
     /**
-     * Jeder Fehlschlag sieht gleich aus: `null`.
+     * The reason for `supports() === false` instead of `!supports()`.
      *
-     * Kein Token, unbekannte Kennung, gesperrter Benutzer, abgelaufenes oder manipuliertes
-     * Token — der Aufrufer erfährt nur, dass es nicht gereicht hat. Wer hier nach Ursachen
-     * unterscheidet, sagt ihm, welche Tokenart erwartet wird und welche Konten es gibt.
+     * `AccessTokenAuthenticator::supports()` returns **null** when a token is present — the marker
+     * for "maybe, decide later". Only `false` means "no token at all". A `!supports()` would treat
+     * both cases the same and reject every request; this test fails exactly then.
      */
-    public function testJederFehlschlagSiehtGleichAus(): void
+    public function testPresentTokenIsNotRejectedPrematurely(): void
     {
-        $faelle = array(
-            'unbekannte Kennung' => new UserNotFoundException(),
-            'abgelaufen'         => new CustomUserMessageAuthenticationException('abgelaufen'),
-            'manipuliert'        => new CustomUserMessageAuthenticationException('Signatur falsch'),
+        $driver = new TokenAuthenticator($this->handler('editor'), $this->extractor('token'));
+
+        $this->assertNotNull($driver->user(new Request()));
+    }
+
+    /**
+     * Every failure looks the same: `null`.
+     *
+     * No token, unknown identifier, locked user, expired or tampered token — the caller only
+     * learns that it was not enough. Whoever distinguishes by cause here tells them which kind of
+     * token is expected and which accounts exist.
+     */
+    public function testEveryFailureLooksTheSame(): void
+    {
+        $cases = array(
+            'unknown identifier' => new UserNotFoundException(),
+            'expired'            => new CustomUserMessageAuthenticationException('expired'),
+            'tampered'           => new CustomUserMessageAuthenticationException('wrong signature'),
         );
 
-        foreach ($faelle as $name => $fehler) {
-            $treiber = new TokenAuthenticator($this->handler(null, $fehler), $this->extractor('token'));
+        foreach ($cases as $name => $error) {
+            $driver = new TokenAuthenticator($this->handler(null, $error), $this->extractor('token'));
 
-            $this->assertNull($treiber->user(new Request()), $name.' muss wie alles andere scheitern');
+            $this->assertNull($driver->user(new Request()), $name.' must fail like everything else');
         }
     }
 }

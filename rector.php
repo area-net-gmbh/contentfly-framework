@@ -44,7 +44,7 @@ use Rector\Doctrine\Set\DoctrineSetList;
  * A fatal error when loading the entity. The stop condition is therefore not "twice" but
  * **run until a dry run reports nothing more**. Verified against the reference fixture:
  * the second run still changes something, the third nothing more
- * (`tests/Unit/Migration/RectorRegelTest.php`).
+ * (`tests/Unit/Migration/RectorRuleTest.php`).
  *
  * The path after `process` overrides `withPaths()` below. Without a path, the rule runs over
  * what is configured here.
@@ -53,7 +53,7 @@ use Rector\Doctrine\Set\DoctrineSetList;
  *
  * Rector's own scaffold (`rector init`) configures `custom`, `lib`, `tests` and `tools` — that
  * is, the whole tree. Here that would be wrong and dangerous: `lib/` is the framework code,
- * which has long been on attributes, and `tests/Fixtures/RectorMigration/alt/` is the
+ * which has long been on attributes, and `tests/Fixtures/RectorMigration/before/` is the
  * reference fixture of THIS rule, which must stay in the legacy state. A run over the whole
  * tree would rewrite both.
  *

@@ -10,176 +10,176 @@ use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
- * Der OIDC-Provider über den Userinfo-Endpunkt (013-005-0003).
+ * The OIDC provider via the userinfo endpoint (013-005-0003).
  *
- * **Einschränkung, ausdrücklich:** Geprüft wird gegen `MockHttpClient`, nicht gegen einen echten
- * Identity-Provider. Das ist die Konsequenz der gewählten Variante — die lokale Prüfung gegen
- * ein JWKS wäre hier kryptografisch echt prüfbar gewesen, weil man sich den Schlüssel selbst
- * erzeugen kann. Der Userinfo-Weg braucht ein Gegenüber.
+ * **Limitation, explicitly:** tested against `MockHttpClient`, not against a real identity
+ * provider. That is the consequence of the chosen variant — local verification against a JWKS
+ * would have been cryptographically testable for real here, because one can generate the key
+ * oneself. The userinfo path needs a counterpart.
  *
- * Was dadurch **nicht** ungeprüft bleibt: dass die Anmeldung in dieselbe Token-Ausstellung
- * mündet wie der lokale Login. Das ist der Weg hinter `LoginProvider`, und den misst
- * `AnmeldeproviderApiTest` end-to-end — ein Provider ist dort austauschbar, weil der Vertrag
- * genau eine Methode hat.
+ * What does **not** remain untested as a result: that the login ends in the same token issuing
+ * as the local login. That is the path behind `LoginProvider`, and `AnmeldeproviderApiTest`
+ * measures it end-to-end — a provider is interchangeable there, because the contract has exactly
+ * one method.
  */
 class OidcProviderTest extends TestCase
 {
-    /** Merkt sich die Anfrage, die der Provider gestellt hat. */
-    private array $anfrage = array();
+    /** Remembers the request the provider made. */
+    private array $sentRequest = array();
 
-    private function einstellungen(array $abweichend = array()): array
+    private function settings(array $overrides = array()): array
     {
-        return $abweichend + array(
+        return $overrides + array(
             'endpoint'      => 'https://idp.example.invalid/userinfo',
             'identifier_claim' => 'sub',
             'groups_claim' => 'groups',
         );
     }
 
-    private function provider(MockResponse|\Throwable $antwort, array $einstellungen = array()): OidcProvider
+    private function provider(MockResponse|\Throwable $response, array $settings = array()): OidcProvider
     {
-        $this->anfrage = array();
-        $anfrage = &$this->anfrage;
+        $this->sentRequest = array();
+        $sentRequest = &$this->sentRequest;
 
         $client = new MockHttpClient(
-            static function (string $methode, string $url, array $optionen) use (&$anfrage, $antwort) {
-                $anfrage = array('methode' => $methode, 'url' => $url, 'optionen' => $optionen);
+            static function (string $method, string $url, array $options) use (&$sentRequest, $response) {
+                $sentRequest = array('method' => $method, 'url' => $url, 'options' => $options);
 
-                if ($antwort instanceof \Throwable) {
-                    throw $antwort;
+                if ($response instanceof \Throwable) {
+                    throw $response;
                 }
 
-                return $antwort;
+                return $response;
             }
         );
 
-        return new OidcProvider($client, $this->einstellungen($einstellungen));
+        return new OidcProvider($client, $this->settings($settings));
     }
 
-    private function antwort(array $daten, int $status = 200): MockResponse
+    private function response(array $data, int $status = 200): MockResponse
     {
-        return new MockResponse(json_encode($daten), array(
+        return new MockResponse(json_encode($data), array(
             'http_code' => $status,
             'response_headers' => array('content-type' => 'application/json'),
         ));
     }
 
-    private function request(string $feld = 'accessToken', ?string $token = 'ein-oidc-token'): Request
+    private function request(string $field = 'accessToken', ?string $token = 'an-oidc-token'): Request
     {
-        return new Request(array(), $token === null ? array() : array($feld => $token));
+        return new Request(array(), $token === null ? array() : array($field => $token));
     }
 
-    // ── Der gelungene Weg ──────────────────────────────────────────────────────────────
+    // ── The successful path ────────────────────────────────────────────────────────────
 
-    public function testEineGueltigeAntwortLiefertKennungUndGruppen(): void
+    public function testAValidResponseReturnsIdentifierAndGroups(): void
     {
-        $provider = $this->provider($this->antwort(array(
+        $provider = $this->provider($this->response(array(
             'sub'    => '8c1e-4f',
-            'groups' => array('redaktion', 'alle'),
+            'groups' => array('editorial', 'everyone'),
         )));
 
-        $fremd = $provider->authenticate($this->request());
+        $external = $provider->authenticate($this->request());
 
-        $this->assertInstanceOf(ExternalIdentity::class, $fremd);
-        $this->assertSame('8c1e-4f', $fremd->identifier);
-        $this->assertSame(array('redaktion', 'alle'), $fremd->groups);
+        $this->assertInstanceOf(ExternalIdentity::class, $external);
+        $this->assertSame('8c1e-4f', $external->identifier);
+        $this->assertSame(array('editorial', 'everyone'), $external->groups);
     }
 
-    public function testDasTokenGehtAlsBearerAnDenEndpunkt(): void
+    public function testTheTokenIsSentAsBearerToTheEndpoint(): void
     {
-        $this->provider($this->antwort(array('sub' => 'x')))->authenticate($this->request());
+        $this->provider($this->response(array('sub' => 'x')))->authenticate($this->request());
 
-        $this->assertSame('GET', $this->anfrage['methode']);
-        $this->assertSame('https://idp.example.invalid/userinfo', $this->anfrage['url']);
-        $this->assertContains('Authorization: Bearer ein-oidc-token', $this->anfrage['optionen']['headers']);
+        $this->assertSame('GET', $this->sentRequest['method']);
+        $this->assertSame('https://idp.example.invalid/userinfo', $this->sentRequest['url']);
+        $this->assertContains('Authorization: Bearer an-oidc-token', $this->sentRequest['options']['headers']);
     }
 
     /**
-     * `pass` wird zusätzlich gelesen: Ein Client, der schon eine Anmeldemaske gegen
-     * `/auth/login` schickt, kann dasselbe Feld benutzen wie für ein Passwort.
+     * `pass` is read as well: a client that already sends a login form to `/auth/login` can use
+     * the same field as for a password.
      */
-    public function testDasTokenDarfAuchInPassStehen(): void
+    public function testTheTokenMayAlsoBeInPass(): void
     {
-        $provider = $this->provider($this->antwort(array('sub' => 'x')));
+        $provider = $this->provider($this->response(array('sub' => 'x')));
 
         $this->assertNotNull($provider->authenticate($this->request('pass')));
     }
 
     /**
-     * Der Claim-Name ist konfigurierbar — er ist nicht standardisiert, und jeder Provider nennt
-     * ihn anders.
+     * The claim name is configurable — it is not standardised, and every provider names it
+     * differently.
      */
-    public function testDerGruppenClaimIstKonfigurierbar(): void
+    public function testTheGroupsClaimIsConfigurable(): void
     {
         $provider = $this->provider(
-            $this->antwort(array('sub' => 'x', 'roles' => array('admin'))),
+            $this->response(array('sub' => 'x', 'roles' => array('admin'))),
             array('groups_claim' => 'roles')
         );
 
         $this->assertSame(array('admin'), $provider->authenticate($this->request())->groups);
     }
 
-    public function testEineAntwortOhneGruppenIstInOrdnung(): void
+    public function testAResponseWithoutGroupsIsFine(): void
     {
-        $provider = $this->provider($this->antwort(array('sub' => 'x')));
+        $provider = $this->provider($this->response(array('sub' => 'x')));
 
         $this->assertSame(array(), $provider->authenticate($this->request())->groups);
     }
 
-    // ── Abweisungen, alle gleich ───────────────────────────────────────────────────────
+    // ── Rejections, all alike ──────────────────────────────────────────────────────────
 
-    public function testEinAbgelehntesTokenWirdAbgewiesen(): void
+    public function testARejectedTokenIsRejected(): void
     {
-        $provider = $this->provider($this->antwort(array('error' => 'invalid_token'), 401));
+        $provider = $this->provider($this->response(array('error' => 'invalid_token'), 401));
 
         $this->assertNull($provider->authenticate($this->request()));
     }
 
     /**
-     * Eine 200er-Antwort ohne die erwartete Kennung ist keine Anmeldung.
+     * A 200 response without the expected identifier is not a login.
      *
-     * Der Fall ist nicht theoretisch: Ein falsch konfigurierter Claim-Name sieht genau so aus.
+     * The case is not theoretical: a misconfigured claim name looks exactly like this.
      */
-    public function testEineAntwortOhneKennungWirdAbgewiesen(): void
+    public function testAResponseWithoutAnIdentifierIsRejected(): void
     {
-        $provider = $this->provider($this->antwort(array('email' => 'm@example.invalid')));
+        $provider = $this->provider($this->response(array('email' => 'm@example.invalid')));
 
         $this->assertNull($provider->authenticate($this->request()));
     }
 
-    public function testEineLeereKennungWirdAbgewiesen(): void
+    public function testAnEmptyIdentifierIsRejected(): void
     {
-        $provider = $this->provider($this->antwort(array('sub' => '   ')));
+        $provider = $this->provider($this->response(array('sub' => '   ')));
 
         $this->assertNull($provider->authenticate($this->request()));
     }
 
-    public function testEinNichtErreichbarerProviderWirdAbgewiesen(): void
+    public function testAnUnreachableProviderIsRejected(): void
     {
-        $provider = $this->provider(new TransportException('Zeitueberschreitung'));
+        $provider = $this->provider(new TransportException('Timeout'));
 
         $this->assertNull($provider->authenticate($this->request()));
     }
 
-    public function testOhneTokenWirdNichtGefragt(): void
+    public function testWithoutATokenNothingIsAsked(): void
     {
-        $provider = $this->provider($this->antwort(array('sub' => 'x')));
+        $provider = $this->provider($this->response(array('sub' => 'x')));
 
         $this->assertNull($provider->authenticate($this->request('accessToken', null)));
-        $this->assertSame(array(), $this->anfrage, 'Kein Aufruf am Endpunkt');
+        $this->assertSame(array(), $this->sentRequest, 'No call to the endpoint');
     }
 
     /**
-     * Ohne konfigurierten Endpunkt wird gar nicht erst gefragt — und niemand kommt herein.
+     * Without a configured endpoint nothing is asked at all — and nobody gets in.
      *
-     * Dieselbe Linie wie beim JWT-Geheimnis (`013-002-0003`) und bei der Provider-Vorlage
-     * (`013-004-0004`): Ein Weg, der ohne Konfiguration offensteht, wäre schlimmer als keiner.
+     * The same line as with the JWT secret (`013-002-0003`) and the provider template
+     * (`013-004-0004`): a path that is open without configuration would be worse than none.
      */
-    public function testOhneEndpunktWirdNichtGefragt(): void
+    public function testWithoutAnEndpointNothingIsAsked(): void
     {
-        $provider = $this->provider($this->antwort(array('sub' => 'x')), array('endpoint' => ''));
+        $provider = $this->provider($this->response(array('sub' => 'x')), array('endpoint' => ''));
 
         $this->assertNull($provider->authenticate($this->request()));
-        $this->assertSame(array(), $this->anfrage);
+        $this->assertSame(array(), $this->sentRequest);
     }
 }

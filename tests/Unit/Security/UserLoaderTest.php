@@ -9,18 +9,18 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Security\Core\Exception\UserNotFoundException;
 
 /**
- * Der UserLoader (013-002-0001).
+ * The UserLoader (013-002-0001).
  *
- * Er ist der Gegenpart zum TokenHandler: Der liefert eine Kennung, dieser macht daraus einen
- * Benutzer. Geprüft wird gegen einen Repository-Doppelgänger — die Abfrage selbst ist eine Zeile
- * Doctrine, das Verhalten drumherum ist der Punkt.
+ * It is the counterpart to the TokenHandler: that one returns an identifier, this one turns it
+ * into a user. It is tested against a repository test double — the query itself is one line of
+ * Doctrine, the behaviour around it is the point.
  */
 class UserLoaderTest extends TestCase
 {
-    private function lader(?User $gefunden): UserLoader
+    private function loader(?User $found): UserLoader
     {
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($gefunden);
+        $repository->method('findOneBy')->willReturn($found);
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($repository);
@@ -28,70 +28,70 @@ class UserLoaderTest extends TestCase
         return new UserLoader($em);
     }
 
-    private function benutzer(string $alias, bool $aktiv = true): User
+    private function user(string $alias, bool $active = true): User
     {
-        $benutzer = new User();
-        $benutzer->setAlias($alias);
-        $benutzer->setIsActive($aktiv);
+        $user = new User();
+        $user->setAlias($alias);
+        $user->setIsActive($active);
 
-        return $benutzer;
+        return $user;
     }
 
-    public function testEinBekannterBenutzerWirdGeladen(): void
+    public function testKnownUserIsLoaded(): void
     {
-        $geladen = $this->lader($this->benutzer('admin'))->loadUserByIdentifier('admin');
+        $loaded = $this->loader($this->user('admin'))->loadUserByIdentifier('admin');
 
-        $this->assertSame('admin', $geladen->getUserIdentifier());
+        $this->assertSame('admin', $loaded->getUserIdentifier());
     }
 
-    public function testEinUnbekannterBenutzerWirdAbgewiesen(): void
+    public function testUnknownUserIsRejected(): void
     {
         $this->expectException(UserNotFoundException::class);
 
-        $this->lader(null)->loadUserByIdentifier('gibtesnicht');
+        $this->loader(null)->loadUserByIdentifier('doesnotexist');
     }
 
     /**
-     * Ein gesperrter Benutzer wird behandelt wie ein unbekannter, **mit derselben Ausnahme**.
+     * A locked user is treated like an unknown one, **with the same exception**.
      *
-     * Kein Versehen: Die Story verlangt, dass ein ungültiges Token ununterscheidbar scheitert.
-     * Eine eigene Ausnahme für „gesperrt" wäre ein Orakel dafür, welche Konten es gibt und
-     * welche gerade abgeschaltet sind.
+     * Not an oversight: the story requires that an invalid token fails indistinguishably. A
+     * separate exception for "locked" would be an oracle for which accounts exist and which are
+     * currently disabled.
      */
-    public function testEinGesperrterBenutzerWirdWieEinUnbekannterAbgewiesen(): void
+    public function testLockedUserIsRejectedLikeAnUnknownOne(): void
     {
         $this->expectException(UserNotFoundException::class);
 
-        $this->lader($this->benutzer('gesperrt', false))->loadUserByIdentifier('gesperrt');
+        $this->loader($this->user('locked', false))->loadUserByIdentifier('locked');
     }
 
-    public function testDerLaderIstFuerDieBenutzerEntityZustaendig(): void
+    public function testLoaderIsResponsibleForTheUserEntity(): void
     {
-        $lader = $this->lader(null);
+        $loader = $this->loader(null);
 
-        $this->assertTrue($lader->supportsClass(User::class));
-        $this->assertFalse($lader->supportsClass(\stdClass::class));
+        $this->assertTrue($loader->supportsClass(User::class));
+        $this->assertFalse($loader->supportsClass(\stdClass::class));
     }
 
-    // ── Der Benutzer als Symfony-Benutzer ──────────────────────────────────────────────
+    // ── The user as a Symfony user ─────────────────────────────────────────────────────
 
-    public function testDieKennungIstDerAlias(): void
+    public function testIdentifierIsTheAlias(): void
     {
-        $this->assertSame('admin', $this->benutzer('admin')->getUserIdentifier());
+        $this->assertSame('admin', $this->user('admin')->getUserIdentifier());
     }
 
     /**
-     * Abgebildet wird **nur**, was der Zugriffsschutz braucht.
+     * **Only** what access control needs is mapped.
      *
-     * `Permission`, `I18nPermission` und `Group` bleiben, wo sie sind — zwei Berechtigungsmodelle
-     * nebeneinander laufen auseinander.
+     * `Permission`, `I18nPermission` and `Group` stay where they are — two permission models
+     * running side by side drift apart.
      */
-    public function testDieRollenBildenNurDenZugriffsschutzAb(): void
+    public function testRolesOnlyMapAccessControl(): void
     {
-        $normal = $this->benutzer('redakteur');
-        $this->assertSame(array('ROLE_USER'), $normal->getRoles());
+        $regular = $this->user('editor');
+        $this->assertSame(array('ROLE_USER'), $regular->getRoles());
 
-        $admin = $this->benutzer('admin');
+        $admin = $this->user('admin');
         $admin->setIsAdmin(true);
         $this->assertSame(array('ROLE_USER', 'ROLE_ADMIN'), $admin->getRoles());
     }

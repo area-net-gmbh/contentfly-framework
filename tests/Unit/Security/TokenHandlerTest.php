@@ -16,26 +16,26 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 
 /**
- * Der verzweigende TokenHandler (013-002-0003).
+ * The branching TokenHandler (013-002-0003).
  *
- * Symfony erlaubt genau einen `token_handler` je Firewall und bringt keine Verkettung mit. Die
- * Verzweigung ist deshalb eigener Code — und damit etwas, das geprüft gehört.
+ * Symfony allows exactly one `token_handler` per firewall and ships no chaining. The branching is
+ * therefore our own code — and thus something that deserves to be tested.
  */
 class TokenHandlerTest extends TestCase
 {
-    private const GEHEIMNIS = 'test-geheimnis-nur-fuer-diesen-lauf';
+    private const SECRET = 'test-secret-only-for-this-test-run';
 
     /**
-     * Mindestens 32 Byte — php-jwt 7 weist ein kuerzeres Geheimnis fuer HS256 ab, schon beim
-     * Signieren („Provided key is too short"). Beim ersten Entwurf dieses Tests stand hier ein
-     * 21-Byte-Wert, und die Bibliothek hat ihn nicht angenommen.
+     * At least 32 bytes — php-jwt 7 rejects a shorter secret for HS256, already when signing
+     * ("Provided key is too short"). In the first draft of this test there was a 21-byte value
+     * here, and the library did not accept it.
      */
-    private const FREMDES_GEHEIMNIS = 'ein-anderes-geheimnis-mit-genug-laenge';
+    private const FOREIGN_SECRET = 'another-secret-with-sufficient-length';
 
     protected function setUp(): void
     {
         $config = new Config();
-        $config->SECURITY_JWT_SECRET     = self::GEHEIMNIS;
+        $config->SECURITY_JWT_SECRET     = self::SECRET;
         $config->APP_TOKEN_TIMEOUT       = 1800;
         $config->APP_CHECK_TOKEN_TIMEOUT = true;
 
@@ -43,24 +43,24 @@ class TokenHandlerTest extends TestCase
     }
 
     /**
-     * Die Konfiguration ist ein Singleton — was dieser Test setzt, bliebe sonst stehen.
+     * The configuration is a singleton — whatever this test sets would otherwise stay in place.
      *
-     * Zurückgestellt wird auf die Vorgabewerte und nicht auf „nichts": Die Factory kennt kein
-     * Entfernen, und ein `default`-Eintrag, der auf `null` zeigt, wäre schlimmer als einer mit
-     * den Standardwerten.
+     * It is reset to the default values and not to "nothing": the factory has no way to remove
+     * anything, and a `default` entry pointing to `null` would be worse than one with the default
+     * values.
      */
     protected function tearDown(): void
     {
         Factory::getInstance()->setConfig(new Config());
     }
 
-    // ── Doppelgänger ───────────────────────────────────────────────────────────────────
+    // ── Test doubles ───────────────────────────────────────────────────────────────────
 
-    /** Ein EntityManager, der eine Token-Zeile liefert. */
-    private function em(?Token $zeile, ?int $flushes = null): EntityManagerInterface
+    /** An EntityManager that returns a token row. */
+    private function em(?Token $row, ?int $flushes = null): EntityManagerInterface
     {
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($zeile);
+        $repository->method('findOneBy')->willReturn($row);
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($repository);
@@ -73,27 +73,27 @@ class TokenHandlerTest extends TestCase
     }
 
     /**
-     * Ein EntityManager, der jeden Zugriff auf `pim_token` mit einer Ausnahme beantwortet.
+     * An EntityManager that answers every access to `pim_token` with an exception.
      *
-     * So wird „der JWT-Zweig fasst `pim_token` nicht an" gemessen statt behauptet: Greift er
-     * doch zu, fliegt hier eine Ausnahme, die der Handler nicht fängt.
+     * This way "the JWT branch does not touch `pim_token`" is measured instead of claimed: if it
+     * does access it, an exception is thrown here that the handler does not catch.
      *
-     * **Nachgezogen mit `013-003-0003`:** Die Sperrliste liegt in einer eigenen Tabelle, und der
-     * JWT-Zweig liest sie bei jedem Request. Das ist der Preis für den Widerruf, und es ist ein
-     * **Lesezugriff auf eine kleine Tabelle** gegen den Schreibzugriff auf `pim_token`, der der
-     * Grund für den ganzen Umbau war. Der Doppelgänger unterscheidet deshalb nach Tabelle statt
-     * pauschal zu werfen — sonst mässe der Test nicht mehr, was er zu messen behauptet.
+     * **Updated with `013-003-0003`:** the revocation list lives in its own table, and the JWT
+     * branch reads it on every request. That is the price of revocation, and it is a **read access
+     * to a small table** as opposed to the write access to `pim_token` that was the reason for the
+     * whole rework. The test double therefore distinguishes by table instead of throwing across
+     * the board — otherwise the test would no longer measure what it claims to measure.
      *
-     * @param list<RevokedToken> $sperren
+     * @param list<RevokedToken> $revocations
      */
-    private function emDerWirft(array $sperren = array()): EntityManagerInterface
+    private function emThatThrows(array $revocations = array()): EntityManagerInterface
     {
-        $sperrliste = $this->createMock(EntityRepository::class);
-        $sperrliste->method('findOneBy')->willReturnCallback(
-            static function (array $kriterien) use ($sperren) {
-                foreach ($sperren as $sperre) {
-                    if ($sperre->getJti() === ($kriterien['jti'] ?? null)) {
-                        return $sperre;
+        $revocationList = $this->createMock(EntityRepository::class);
+        $revocationList->method('findOneBy')->willReturnCallback(
+            static function (array $criteria) use ($revocations) {
+                foreach ($revocations as $revocation) {
+                    if ($revocation->getJti() === ($criteria['jti'] ?? null)) {
+                        return $revocation;
                     }
                 }
 
@@ -103,36 +103,36 @@ class TokenHandlerTest extends TestCase
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturnCallback(
-            function (string $klasse) use ($sperrliste) {
-                if ($klasse === RevokedToken::class) {
-                    return $sperrliste;
+            function (string $class) use ($revocationList) {
+                if ($class === RevokedToken::class) {
+                    return $revocationList;
                 }
 
-                throw new \LogicException('Der JWT-Zweig darf pim_token nicht anfassen');
+                throw new \LogicException('The JWT branch must not touch pim_token');
             }
         );
-        $em->method('flush')->willThrowException(new \LogicException('Der JWT-Zweig darf nicht schreiben'));
+        $em->method('flush')->willThrowException(new \LogicException('The JWT branch must not write'));
 
         return $em;
     }
 
-    private function benutzer(string $alias = 'admin', bool $aktiv = true): User
+    private function user(string $alias = 'admin', bool $active = true): User
     {
-        $benutzer = new User();
-        $benutzer->setAlias($alias);
-        $benutzer->setIsActive($aktiv);
+        $user = new User();
+        $user->setAlias($alias);
+        $user->setIsActive($active);
 
-        return $benutzer;
+        return $user;
     }
 
-    private function zeile(User $benutzer, ?\DateTime $modified = null, ?string $referrer = null): Token
+    private function row(User $user, ?\DateTime $modified = null, ?string $referrer = null): Token
     {
-        $zeile = new Token();
-        $zeile->setUser($benutzer);
-        $zeile->setReferrer($referrer);
-        $zeile->setModified($modified ?? new \DateTime());
+        $row = new Token();
+        $row->setUser($user);
+        $row->setReferrer($referrer);
+        $row->setModified($modified ?? new \DateTime());
 
-        return $zeile;
+        return $row;
     }
 
     private function jwt(array $claims): string
@@ -143,109 +143,109 @@ class TokenHandlerTest extends TestCase
                 'exp' => time() + 600,
                 'jti' => bin2hex(random_bytes(16)),
             ),
-            self::GEHEIMNIS,
+            self::SECRET,
             'HS256',
-            // Die Kennung ist seit 013-003-0004 Pflicht: `JWT::decode()` waehlt den Schluessel
-            // danach, und ein Token ohne `kid` wird abgewiesen.
+            // The key id is mandatory since 013-003-0004: `JWT::decode()` selects the key by it,
+            // and a token without `kid` is rejected.
             JwtAccessToken::keyId()
         );
     }
 
-    // ── Der opaque Zweig ───────────────────────────────────────────────────────────────
+    // ── The opaque branch ──────────────────────────────────────────────────────────────
 
-    public function testEinOpaquerTokenLiefertSeinenBenutzer(): void
+    public function testOpaqueTokenReturnsItsUser(): void
     {
-        $benutzer = $this->benutzer();
-        $handler  = new TokenHandler($this->em($this->zeile($benutzer)));
+        $user    = $this->user();
+        $handler = new TokenHandler($this->em($this->row($user)));
 
-        $badge = $handler->getUserBadgeFrom('irgendein-opaker-token');
+        $badge = $handler->getUserBadgeFrom('some-opaque-token');
 
         $this->assertSame('admin', $badge->getUserIdentifier());
-        $this->assertSame($benutzer, $badge->getUser(), 'Der Benutzer liegt schon vor — keine zweite Abfrage');
+        $this->assertSame($user, $badge->getUser(), 'The user is already available — no second query');
     }
 
-    public function testEinUnbekannterOpaquerTokenWirdAbgewiesen(): void
+    public function testUnknownOpaqueTokenIsRejected(): void
     {
         $handler = new TokenHandler($this->em(null));
 
         $this->expectException(AuthenticationException::class);
-        $handler->getUserBadgeFrom('gibtesnicht');
+        $handler->getUserBadgeFrom('doesnotexist');
     }
 
-    public function testEinGesperrterBenutzerWirdAbgewiesen(): void
+    public function testLockedUserIsRejected(): void
     {
-        $handler = new TokenHandler($this->em($this->zeile($this->benutzer('gesperrt', false))));
+        $handler = new TokenHandler($this->em($this->row($this->user('locked', false))));
 
         $this->expectException(AuthenticationException::class);
-        $handler->getUserBadgeFrom('irgendein-opaker-token');
+        $handler->getUserBadgeFrom('some-opaque-token');
     }
 
-    public function testEinAbgelaufenerTokenWirdAbgewiesen(): void
+    public function testExpiredTokenIsRejected(): void
     {
-        $alt     = new \DateTime('-1 day');
-        $handler = new TokenHandler($this->em($this->zeile($this->benutzer(), $alt)));
+        $old     = new \DateTime('-1 day');
+        $handler = new TokenHandler($this->em($this->row($this->user(), $old)));
 
         $this->expectException(AuthenticationException::class);
-        $handler->getUserBadgeFrom('abgelaufen');
+        $handler->getUserBadgeFrom('expired');
     }
 
     /**
-     * Ein Token mit `referrer` ist ein API-Token und verfällt nicht — wie in `checkToken()`.
+     * A token with a `referrer` is an API token and does not expire — as in `checkToken()`.
      */
-    public function testEinReferrerTokenVerfaelltNicht(): void
+    public function testReferrerTokenDoesNotExpire(): void
     {
-        $alt      = new \DateTime('-1 year');
-        $handler  = new TokenHandler($this->em($this->zeile($this->benutzer(), $alt, 'https://example.invalid')));
+        $old      = new \DateTime('-1 year');
+        $handler  = new TokenHandler($this->em($this->row($this->user(), $old, 'https://example.invalid')));
 
         $this->assertSame('admin', $handler->getUserBadgeFrom('api-token')->getUserIdentifier());
     }
 
     /**
-     * Der Timeout kommt aus der Gruppe, wenn der Benutzer eine hat — in Minuten, nicht Sekunden.
+     * The timeout comes from the group if the user has one — in minutes, not seconds.
      */
-    public function testDerTimeoutDerGruppeSchlaegtDenAusDerKonfiguration(): void
+    public function testGroupTimeoutOverridesConfiguredTimeout(): void
     {
-        $gruppe = new Group();
-        $gruppe->setTokenTimeout(1);
+        $group = new Group();
+        $group->setTokenTimeout(1);
 
-        $benutzer = $this->benutzer();
-        $benutzer->setGroup($gruppe);
+        $user = $this->user();
+        $user->setGroup($group);
 
-        $handler = new TokenHandler($this->em($this->zeile($benutzer, new \DateTime('-2 minutes'))));
+        $handler = new TokenHandler($this->em($this->row($user, new \DateTime('-2 minutes'))));
 
         $this->expectException(AuthenticationException::class);
-        $handler->getUserBadgeFrom('opaker-token');
+        $handler->getUserBadgeFrom('opaque-token');
     }
 
     /**
-     * Der Sliding-Expiration-Write: Ein gültiger opaquer Token schreibt `modified` zurück.
+     * The sliding-expiration write: a valid opaque token writes `modified` back.
      */
-    public function testDerOpaqueZweigSchreibtModifiedZurueck(): void
+    public function testOpaqueBranchWritesModifiedBack(): void
     {
-        $zeile   = $this->zeile($this->benutzer(), new \DateTime('-10 minutes'));
-        $vorher  = $zeile->getModified()->getTimestamp();
-        $handler = new TokenHandler($this->em($zeile, 1));
+        $row     = $this->row($this->user(), new \DateTime('-10 minutes'));
+        $before  = $row->getModified()->getTimestamp();
+        $handler = new TokenHandler($this->em($row, 1));
 
-        $handler->getUserBadgeFrom('opaker-token');
+        $handler->getUserBadgeFrom('opaque-token');
 
-        $this->assertGreaterThan($vorher, $zeile->getModified()->getTimestamp());
+        $this->assertGreaterThan($before, $row->getModified()->getTimestamp());
     }
 
-    public function testDerAufgeloesteTokenBleibtAbrufbar(): void
+    public function testResolvedTokenRemainsRetrievable(): void
     {
-        $zeile   = $this->zeile($this->benutzer());
-        $handler = new TokenHandler($this->em($zeile));
+        $row     = $this->row($this->user());
+        $handler = new TokenHandler($this->em($row));
 
-        $handler->getUserBadgeFrom('opaker-token');
+        $handler->getUserBadgeFrom('opaque-token');
 
-        $this->assertSame($zeile, $handler->lastToken(), '$app[\'auth.token\'] braucht die Zeile');
+        $this->assertSame($row, $handler->lastToken(), '$app[\'auth.token\'] needs the row');
     }
 
-    // ── Der JWT-Zweig ──────────────────────────────────────────────────────────────────
+    // ── The JWT branch ─────────────────────────────────────────────────────────────────
 
-    public function testEinJwtLiefertSeinenBenutzer(): void
+    public function testJwtReturnsItsUser(): void
     {
-        $handler = new TokenHandler($this->emDerWirft());
+        $handler = new TokenHandler($this->emThatThrows());
 
         $badge = $handler->getUserBadgeFrom($this->jwt(array('sub' => 'admin')));
 
@@ -253,75 +253,75 @@ class TokenHandlerTest extends TestCase
     }
 
     /**
-     * **Der Nachweis, um den es geht:** Der JWT-Zweig fasst `pim_token` nicht an.
+     * **The proof this is about:** the JWT branch does not touch `pim_token`.
      *
-     * Gemessen, nicht behauptet — der EntityManager wirft bei jedem Zugriff. Damit entfällt
-     * auch der Sliding-Expiration-Write, den der opaque Zweig bei *jedem* Request macht.
+     * Measured, not claimed — the EntityManager throws on every access. This also removes the
+     * sliding-expiration write that the opaque branch performs on *every* request.
      */
-    public function testDerJwtZweigFasstDieTokentabelleNichtAn(): void
+    public function testJwtBranchDoesNotTouchTheTokenTable(): void
     {
-        $handler = new TokenHandler($this->emDerWirft());
+        $handler = new TokenHandler($this->emThatThrows());
 
         $handler->getUserBadgeFrom($this->jwt(array('sub' => 'admin')));
 
-        $this->assertNull($handler->lastToken(), 'Im JWT-Zweig gibt es keine Zeile');
+        $this->assertNull($handler->lastToken(), 'There is no row in the JWT branch');
     }
 
     /**
-     * Das Badge kommt **ohne** eigenen Lader zurück — den Benutzer holt der `UserLoader`,
-     * den der Authenticator kennt.
+     * The badge comes back **without** its own loader — the user is fetched by the `UserLoader`
+     * that the authenticator knows.
      */
-    public function testDasJwtBadgeUeberlaesstDasLadenDemBenutzerlader(): void
+    public function testJwtBadgeLeavesLoadingToTheUserLoader(): void
     {
-        $handler = new TokenHandler($this->emDerWirft());
+        $handler = new TokenHandler($this->emThatThrows());
 
         $badge = $handler->getUserBadgeFrom($this->jwt(array('sub' => 'admin')));
 
         $this->assertNull($badge->getUserLoader());
     }
 
-    public function testEinAbgelaufenesJwtWirdAbgewiesen(): void
+    public function testExpiredJwtIsRejected(): void
     {
-        $abgelaufen = JWT::encode(array('sub' => 'admin', 'iss' => JwtAccessToken::ISSUER, 'exp' => time() - 10), self::GEHEIMNIS, 'HS256', JwtAccessToken::keyId());
-        $handler    = new TokenHandler($this->emDerWirft());
+        $expired = JWT::encode(array('sub' => 'admin', 'iss' => JwtAccessToken::ISSUER, 'exp' => time() - 10), self::SECRET, 'HS256', JwtAccessToken::keyId());
+        $handler = new TokenHandler($this->emThatThrows());
 
         $this->expectException(AuthenticationException::class);
-        $handler->getUserBadgeFrom($abgelaufen);
+        $handler->getUserBadgeFrom($expired);
     }
 
-    public function testEinManipuliertesJwtWirdAbgewiesen(): void
+    public function testTamperedJwtIsRejected(): void
     {
-        $echt        = $this->jwt(array('sub' => 'admin'));
-        $manipuliert = substr($echt, 0, -3).'aaa';
-        $handler     = new TokenHandler($this->emDerWirft());
+        $genuine  = $this->jwt(array('sub' => 'admin'));
+        $tampered = substr($genuine, 0, -3).'aaa';
+        $handler  = new TokenHandler($this->emThatThrows());
 
         $this->expectException(AuthenticationException::class);
-        $handler->getUserBadgeFrom($manipuliert);
+        $handler->getUserBadgeFrom($tampered);
     }
 
-    public function testEinJwtMitFremdemGeheimnisWirdAbgewiesen(): void
+    public function testJwtWithForeignSecretIsRejected(): void
     {
-        $fremd   = JWT::encode(array('sub' => 'admin', 'iss' => JwtAccessToken::ISSUER, 'exp' => time() + 600), self::FREMDES_GEHEIMNIS, 'HS256', JwtAccessToken::keyId());
-        $handler = new TokenHandler($this->emDerWirft());
+        $foreign = JWT::encode(array('sub' => 'admin', 'iss' => JwtAccessToken::ISSUER, 'exp' => time() + 600), self::FOREIGN_SECRET, 'HS256', JwtAccessToken::keyId());
+        $handler = new TokenHandler($this->emThatThrows());
 
         $this->expectException(AuthenticationException::class);
-        $handler->getUserBadgeFrom($fremd);
+        $handler->getUserBadgeFrom($foreign);
     }
 
-    public function testEinJwtOhneSubWirdAbgewiesen(): void
+    public function testJwtWithoutSubIsRejected(): void
     {
-        $handler = new TokenHandler($this->emDerWirft());
+        $handler = new TokenHandler($this->emThatThrows());
 
         $this->expectException(AuthenticationException::class);
         $handler->getUserBadgeFrom($this->jwt(array()));
     }
 
     /**
-     * Ohne gesetztes Geheimnis wird abgewiesen, **nicht** übersprungen.
+     * Without a configured secret the JWT branch rejects, it does **not** skip.
      *
-     * Ein Zweig, der sich mangels Konfiguration selbst abschaltet, ist keine Prüfung.
+     * A branch that switches itself off for lack of configuration is not a check.
      */
-    public function testOhneGeheimnisWirdDerJwtZweigAbgewiesen(): void
+    public function testWithoutSecretTheJwtBranchRejects(): void
     {
         $token = $this->jwt(array('sub' => 'admin'));
 
@@ -329,141 +329,140 @@ class TokenHandlerTest extends TestCase
         $config->SECURITY_JWT_SECRET = null;
         Factory::getInstance()->setConfig($config);
 
-        $handler = new TokenHandler($this->emDerWirft());
+        $handler = new TokenHandler($this->emThatThrows());
 
         $this->expectException(AuthenticationException::class);
         $handler->getUserBadgeFrom($token);
     }
 
     /**
-     * Ein zu kurzes Geheimnis wird abgewiesen, nicht durchgewunken.
+     * A secret that is too short is rejected, not waved through.
      *
-     * php-jwt 7 verlangt für HS256 mindestens 32 Byte und wirft sonst eine `DomainException` —
-     * gefunden beim Schreiben dieser Tests. Die fängt der Handler mit allem anderen ab; ein
-     * Betreiber mit einem zu kurzen Geheimnis bekommt also kein halb funktionierendes System,
-     * sondern gar keines. Das ist die richtige Richtung: HS256 mit einem kurzen Geheimnis ist
-     * ratbar.
+     * php-jwt 7 requires at least 32 bytes for HS256 and throws a `DomainException` otherwise —
+     * discovered while writing these tests. The handler catches it along with everything else; an
+     * operator with a secret that is too short therefore does not get a half-working system, but
+     * none at all. That is the right direction: HS256 with a short secret is guessable.
      */
-    public function testEinZuKurzesGeheimnisWirdAbgewiesen(): void
+    public function testTooShortSecretIsRejected(): void
     {
         $token = $this->jwt(array('sub' => 'admin'));
 
         $config = new Config();
-        $config->SECURITY_JWT_SECRET = 'zu-kurz';
+        $config->SECURITY_JWT_SECRET = 'too-short';
         Factory::getInstance()->setConfig($config);
 
-        $handler = new TokenHandler($this->emDerWirft());
+        $handler = new TokenHandler($this->emThatThrows());
 
         $this->expectException(AuthenticationException::class);
         $handler->getUserBadgeFrom($token);
     }
 
     /**
-     * Ein fremder Ausgeber wird abgewiesen (013-003-0001).
+     * A foreign issuer is rejected (013-003-0001).
      *
-     * Die Bibliothek prüft Signatur und Ablauf, den `iss` nicht. Ohne die eigene Prüfung gälte
-     * hier jedes Token, das mit demselben Geheimnis signiert wurde — auch eines, das eine ganz
-     * andere Anwendung für einen ganz anderen Zweck ausgestellt hat.
+     * The library checks signature and expiry, not the `iss`. Without our own check, any token
+     * signed with the same secret would be valid here — including one that an entirely different
+     * application issued for an entirely different purpose.
      */
-    public function testEinTokenMitFremdemAusgeberWirdAbgewiesen(): void
+    public function testTokenWithForeignIssuerIsRejected(): void
     {
-        $fremd = JWT::encode(
-            array('sub' => 'admin', 'iss' => 'eine-andere-anwendung', 'exp' => time() + 600),
-            self::GEHEIMNIS,
+        $foreign = JWT::encode(
+            array('sub' => 'admin', 'iss' => 'another-application', 'exp' => time() + 600),
+            self::SECRET,
             'HS256',
             JwtAccessToken::keyId()
         );
-        $handler = new TokenHandler($this->emDerWirft());
+        $handler = new TokenHandler($this->emThatThrows());
 
         $this->expectException(AuthenticationException::class);
-        $handler->getUserBadgeFrom($fremd);
+        $handler->getUserBadgeFrom($foreign);
     }
 
-    public function testEinTokenOhneAusgeberWirdAbgewiesen(): void
+    public function testTokenWithoutIssuerIsRejected(): void
     {
-        $ohne = JWT::encode(array('sub' => 'admin', 'exp' => time() + 600), self::GEHEIMNIS, 'HS256', JwtAccessToken::keyId());
-        $handler = new TokenHandler($this->emDerWirft());
+        $withoutIssuer = JWT::encode(array('sub' => 'admin', 'exp' => time() + 600), self::SECRET, 'HS256', JwtAccessToken::keyId());
+        $handler = new TokenHandler($this->emThatThrows());
 
         $this->expectException(AuthenticationException::class);
-        $handler->getUserBadgeFrom($ohne);
+        $handler->getUserBadgeFrom($withoutIssuer);
     }
 
     /**
-     * **Ein Refresh-Token ist kein JwtAccessToken (013-003-0001).**
+     * **A refresh token is not a JwtAccessToken (013-003-0001).**
      *
-     * Es ist eine gewöhnliche Zeile in `pim_token`, und dieser Zweig nahm bis dahin jede Zeile
-     * an. Ein Refresh-Token gilt länger als ein Access-JWT — das ist sein Zweck —, und ohne
-     * diese Prüfung wäre es damit ein langlebiger Generalschlüssel für die ganze API.
+     * It is an ordinary row in `pim_token`, and until then this branch accepted any row. A refresh
+     * token lives longer than an access JWT — that is its purpose — and without this check it would
+     * be a long-lived master key for the entire API.
      */
-    public function testEinRefreshTokenOeffnetDieApiNicht(): void
+    public function testRefreshTokenDoesNotOpenTheApi(): void
     {
-        $zeile = $this->zeile($this->benutzer());
-        $zeile->setPurpose(Token::PURPOSE_REFRESH);
+        $row = $this->row($this->user());
+        $row->setPurpose(Token::PURPOSE_REFRESH);
 
-        $handler = new TokenHandler($this->em($zeile));
+        $handler = new TokenHandler($this->em($row));
 
         $this->expectException(AuthenticationException::class);
-        $handler->getUserBadgeFrom('ein-refresh-token');
+        $handler->getUserBadgeFrom('a-refresh-token');
     }
 
-    // ── Die Sperrliste (013-003-0003) ─────────────────────────────────────────────────
+    // ── The revocation list (013-003-0003) ─────────────────────────────────────────────
 
     /**
-     * Ein gesperrtes Token wird abgewiesen, **obwohl es noch gilt**.
+     * A revoked token is rejected **even though it is still valid**.
      *
-     * Das ist der ganze Zweck der Liste: Ein zustandsloses Token lässt sich sonst nicht
-     * zurückrufen, solange sein `exp` in der Zukunft liegt.
+     * That is the whole purpose of the list: otherwise a stateless token cannot be recalled as long
+     * as its `exp` lies in the future.
      */
-    public function testEinGesperrtesTokenWirdAbgewiesenObwohlEsNochGilt(): void
+    public function testRevokedTokenIsRejectedEvenThoughStillValid(): void
     {
-        $handler = new TokenHandler($this->emDerWirft());
+        $handler = new TokenHandler($this->emThatThrows());
         $token   = $this->jwt(array('sub' => 'admin'));
 
-        // Erst gilt es.
+        // At first it is valid.
         $this->assertSame('admin', $handler->getUserBadgeFrom($token)->getUserIdentifier());
 
-        $jti    = $handler->lastClaims()['jti'];
-        $sperre = new RevokedToken();
-        $sperre->setJti($jti);
-        $sperre->setExpiresAt(new \DateTime('+10 minutes'));
+        $jti        = $handler->lastClaims()['jti'];
+        $revocation = new RevokedToken();
+        $revocation->setJti($jti);
+        $revocation->setExpiresAt(new \DateTime('+10 minutes'));
 
-        $gesperrt = new TokenHandler($this->emDerWirft(array($sperre)));
+        $revoked = new TokenHandler($this->emThatThrows(array($revocation)));
 
         $this->expectException(AuthenticationException::class);
-        $gesperrt->getUserBadgeFrom($token);
+        $revoked->getUserBadgeFrom($token);
     }
 
-    public function testEineFremdeSperreTrifftDiesesTokenNicht(): void
+    public function testUnrelatedRevocationDoesNotAffectThisToken(): void
     {
-        $fremd = new RevokedToken();
-        $fremd->setJti('eine-ganz-andere-jti');
-        $fremd->setExpiresAt(new \DateTime('+10 minutes'));
+        $foreign = new RevokedToken();
+        $foreign->setJti('an-entirely-different-jti');
+        $foreign->setExpiresAt(new \DateTime('+10 minutes'));
 
-        $handler = new TokenHandler($this->emDerWirft(array($fremd)));
+        $handler = new TokenHandler($this->emThatThrows(array($foreign)));
 
         $this->assertSame('admin', $handler->getUserBadgeFrom($this->jwt(array('sub' => 'admin')))->getUserIdentifier());
     }
 
     /**
-     * Ohne `jti` liesse sich ein Token nicht sperren — also wird es gar nicht erst angenommen.
+     * Without a `jti` a token could not be revoked — so it is not accepted in the first place.
      */
-    public function testEinTokenOhneJtiWirdAbgewiesen(): void
+    public function testTokenWithoutJtiIsRejected(): void
     {
-        $ohneJti = JWT::encode(
+        $withoutJti = JWT::encode(
             array('sub' => 'admin', 'iss' => JwtAccessToken::ISSUER, 'exp' => time() + 600),
-            self::GEHEIMNIS,
+            self::SECRET,
             'HS256',
             JwtAccessToken::keyId()
         );
-        $handler = new TokenHandler($this->emDerWirft());
+        $handler = new TokenHandler($this->emThatThrows());
 
         $this->expectException(AuthenticationException::class);
-        $handler->getUserBadgeFrom($ohneJti);
+        $handler->getUserBadgeFrom($withoutJti);
     }
 
-    public function testDieClaimsBleibenFuerDasAbmeldenAbrufbar(): void
+    public function testClaimsRemainRetrievableForLogout(): void
     {
-        $handler = new TokenHandler($this->emDerWirft());
+        $handler = new TokenHandler($this->emThatThrows());
         $handler->getUserBadgeFrom($this->jwt(array('sub' => 'admin')));
 
         $claims = $handler->lastClaims();
@@ -473,66 +472,66 @@ class TokenHandlerTest extends TestCase
         $this->assertArrayHasKey('exp', $claims);
     }
 
-    public function testNachEinemOpaquenTokenGibtEsKeineClaims(): void
+    public function testAfterOpaqueTokenThereAreNoClaims(): void
     {
-        $handler = new TokenHandler($this->em($this->zeile($this->benutzer())));
-        $handler->getUserBadgeFrom('opaker-token');
+        $handler = new TokenHandler($this->em($this->row($this->user())));
+        $handler->getUserBadgeFrom('opaque-token');
 
         $this->assertNull($handler->lastClaims());
     }
 
-    // ── Die Verzweigung selbst ─────────────────────────────────────────────────────────
+    // ── The branching itself ───────────────────────────────────────────────────────────
 
     /**
-     * Der JOSE-Header entscheidet mit, nicht nur die zwei Punkte.
+     * The JOSE header has a say too, not just the two dots.
      *
-     * Ein opaquer Token, den ein Projekt über `addToken` selbst gewählt hat, darf Punkte
-     * enthalten — `pim_token.token` nimmt jede Zeichenkette. Entschiede allein die Form, landete
-     * er im JWT-Zweig und würde abgewiesen, obwohl er in der Datenbank steht.
+     * An opaque token that a project chose itself via `addToken` may contain dots —
+     * `pim_token.token` accepts any string. If the shape alone decided, it would end up in the JWT
+     * branch and be rejected, even though it is in the database.
      */
-    public function testEinOpaquerTokenMitPunktenLandetImOpaquenZweig(): void
+    public function testOpaqueTokenWithDotsEndsUpInOpaqueBranch(): void
     {
-        $benutzer = $this->benutzer();
-        $handler  = new TokenHandler($this->em($this->zeile($benutzer)));
+        $user    = $this->user();
+        $handler = new TokenHandler($this->em($this->row($user)));
 
-        $badge = $handler->getUserBadgeFrom('projekt.api.token');
+        $badge = $handler->getUserBadgeFrom('project.api.token');
 
         $this->assertSame('admin', $badge->getUserIdentifier());
-        $this->assertNotNull($handler->lastToken(), 'Er wurde in der Tabelle gesucht');
+        $this->assertNotNull($handler->lastToken(), 'It was looked up in the table');
     }
 
-    // ── Ununterscheidbar scheitern ─────────────────────────────────────────────────────
+    // ── Failing indistinguishably ──────────────────────────────────────────────────────
 
     /**
-     * **Beide Zweige scheitern mit derselben Ausnahme und derselben Meldung.**
+     * **Both branches fail with the same exception and the same message.**
      *
-     * Verschiedene Meldungen verraten, welche Tokenart erwartet wird, und damit, welche ein
-     * Angreifer bauen muss. Der Test hält die Antworten gegeneinander, statt sie einzeln gegen
-     * einen erwarteten Text zu prüfen — so fällt er auch dann um, wenn jemand *beide* ändert,
-     * aber nur eine davon.
+     * Different messages reveal which kind of token is expected, and thus which one an attacker
+     * has to build. The test holds the responses against each other instead of checking each one
+     * against an expected text — that way it also fails if someone changes *both*, but only one of
+     * them.
      */
-    public function testBeideZweigeScheiternUnunterscheidbar(): void
+    public function testBothBranchesFailIndistinguishably(): void
     {
-        $ausOpaquem = null;
+        $fromOpaque = null;
         try {
-            (new TokenHandler($this->em(null)))->getUserBadgeFrom('gibtesnicht');
+            (new TokenHandler($this->em(null)))->getUserBadgeFrom('doesnotexist');
         } catch (AuthenticationException $e) {
-            $ausOpaquem = $e;
+            $fromOpaque = $e;
         }
 
-        $ausJwt = null;
+        $fromJwt = null;
         try {
-            (new TokenHandler($this->emDerWirft()))->getUserBadgeFrom(
-                JWT::encode(array('sub' => 'admin', 'iss' => JwtAccessToken::ISSUER, 'exp' => time() + 600), self::FREMDES_GEHEIMNIS, 'HS256', JwtAccessToken::keyId())
+            (new TokenHandler($this->emThatThrows()))->getUserBadgeFrom(
+                JWT::encode(array('sub' => 'admin', 'iss' => JwtAccessToken::ISSUER, 'exp' => time() + 600), self::FOREIGN_SECRET, 'HS256', JwtAccessToken::keyId())
             );
         } catch (AuthenticationException $e) {
-            $ausJwt = $e;
+            $fromJwt = $e;
         }
 
-        $this->assertNotNull($ausOpaquem);
-        $this->assertNotNull($ausJwt);
-        $this->assertSame($ausOpaquem::class, $ausJwt::class, 'dieselbe Ausnahme');
-        $this->assertSame($ausOpaquem->getMessage(), $ausJwt->getMessage(), 'dieselbe Meldung');
-        $this->assertSame($ausOpaquem->getMessageKey(), $ausJwt->getMessageKey(), 'derselbe Meldungsschluessel');
+        $this->assertNotNull($fromOpaque);
+        $this->assertNotNull($fromJwt);
+        $this->assertSame($fromOpaque::class, $fromJwt::class, 'the same exception');
+        $this->assertSame($fromOpaque->getMessage(), $fromJwt->getMessage(), 'the same message');
+        $this->assertSame($fromOpaque->getMessageKey(), $fromJwt->getMessageKey(), 'the same message key');
     }
 }

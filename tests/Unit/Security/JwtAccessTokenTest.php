@@ -10,20 +10,20 @@ use Firebase\JWT\Key;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Der Claim-Satz und die Ausstellung (013-003-0001).
+ * The claim set and the issuing (013-003-0001).
  *
- * Bis zu diesem Task konnte der `TokenHandler` JWT prüfen, aber niemand stellte welche aus — es
- * gab also auch keinen Satz, gegen den man prüfen konnte. Diese Tests halten fest, was ein
- * ausgestelltes Token trägt, und vor allem, **was nicht**.
+ * Until this task the `TokenHandler` could verify JWTs, but nobody issued any — so there was no
+ * set to verify against either. These tests record what an issued token carries, and above
+ * all **what it does not**.
  */
 class JwtAccessTokenTest extends TestCase
 {
-    private const GEHEIMNIS = 'test-geheimnis-mit-mindestens-32-byte-laenge';
+    private const SECRET = 'test-secret-with-at-least-32-bytes-length';
 
     protected function setUp(): void
     {
         $config = new Config();
-        $config->SECURITY_JWT_SECRET = self::GEHEIMNIS;
+        $config->SECURITY_JWT_SECRET = self::SECRET;
         $config->SECURITY_JWT_TTL    = 900;
 
         Factory::getInstance()->setConfig($config);
@@ -34,113 +34,115 @@ class JwtAccessTokenTest extends TestCase
         Factory::getInstance()->setConfig(new Config());
     }
 
-    private function benutzer(string $alias = 'admin', bool $admin = false): User
+    private function user(string $alias = 'admin', bool $admin = false): User
     {
-        $benutzer = new User();
-        $benutzer->setAlias($alias);
-        $benutzer->setIsAdmin($admin);
+        $user = new User();
+        $user->setAlias($alias);
+        $user->setIsAdmin($admin);
 
-        return $benutzer;
+        return $user;
     }
 
     private function claims(string $token): array
     {
-        return (array) JWT::decode($token, new Key(self::GEHEIMNIS, JwtAccessToken::ALGORITHM));
+        return (array) JWT::decode($token, new Key(self::SECRET, JwtAccessToken::ALGORITHM));
     }
 
-    // ── Der Claim-Satz ─────────────────────────────────────────────────────────────────
+    // ── The claim set ──────────────────────────────────────────────────────────────────
 
-    public function testEinTokenTraegtGenauDieFuenfFestgelegtenClaims(): void
+    public function testATokenCarriesExactlyTheFiveDefinedClaims(): void
     {
-        $namen = array_keys($this->claims(JwtAccessToken::issue($this->benutzer())['token']));
-        sort($namen);
+        $names = array_keys($this->claims(JwtAccessToken::issue($this->user())['token']));
+        sort($names);
 
-        $erwartet = JwtAccessToken::CLAIMS;
-        sort($erwartet);
+        $expected = JwtAccessToken::CLAIMS;
+        sort($expected);
 
-        $this->assertSame($erwartet, $namen, 'Genau diese fuenf — ein sechster faellt hier auf');
+        $this->assertSame($expected, $names, 'Exactly these five — a sixth one is caught here');
     }
 
     /**
-     * **Der wichtigste Test dieser Datei.**
+     * **The most important test in this file.**
      *
-     * Rollen, Gruppen und Berechtigungen können sich ändern, während der Token gilt. Stünden sie
-     * darin, wirkte eine Rechteänderung erst nach dessen Ablauf — der klassische Fehler beim
-     * Umstieg auf zustandslose Tokens, und einer, der erst auffällt, wenn jemandem ein Recht
-     * entzogen wird und es nicht wirkt.
+     * Roles, groups and permissions can change while the token is valid. If they were in it, a
+     * change of rights would only take effect after it expires — the classic mistake when moving
+     * to stateless tokens, and one that only shows when someone's right is revoked and it does
+     * not take effect.
+     *
+     * The forbidden names deliberately include the German spellings `rolle` and `gruppe`.
      */
-    public function testKeinRechtUndKeineRolleStehtImToken(): void
+    public function testNoPermissionAndNoRoleIsInTheToken(): void
     {
-        $admin = $this->benutzer('chef', true);
+        $admin = $this->user('boss', true);
 
-        $roh = JwtAccessToken::issue($admin)['token'];
+        $raw = JwtAccessToken::issue($admin)['token'];
 
-        $this->assertStringNotContainsStringIgnoringCase('ROLE_', base64_decode(strtr(explode('.', $roh)[1], '-_', '+/')));
+        $this->assertStringNotContainsStringIgnoringCase('ROLE_', base64_decode(strtr(explode('.', $raw)[1], '-_', '+/')));
 
-        foreach (array('roles', 'rolle', 'group', 'gruppe', 'permissions', 'isAdmin') as $verboten) {
-            $this->assertArrayNotHasKey($verboten, $this->claims($roh), $verboten.' gehoert nicht ins Token');
+        foreach (array('roles', 'rolle', 'group', 'gruppe', 'permissions', 'isAdmin') as $forbidden) {
+            $this->assertArrayNotHasKey($forbidden, $this->claims($raw), $forbidden.' does not belong in the token');
         }
     }
 
-    public function testDieKennungStehtInSub(): void
+    public function testTheIdentifierIsInSub(): void
     {
-        $claims = $this->claims(JwtAccessToken::issue($this->benutzer('redakteur'))['token']);
+        $claims = $this->claims(JwtAccessToken::issue($this->user('editor'))['token']);
 
-        $this->assertSame('redakteur', $claims['sub']);
+        $this->assertSame('editor', $claims['sub']);
     }
 
-    public function testDerAusgeberStehtInIss(): void
+    public function testTheIssuerIsInIss(): void
     {
-        $claims = $this->claims(JwtAccessToken::issue($this->benutzer())['token']);
+        $claims = $this->claims(JwtAccessToken::issue($this->user())['token']);
 
         $this->assertSame(JwtAccessToken::ISSUER, $claims['iss']);
     }
 
     /**
-     * Die `jti` ist die Kennung dieses **einen** Tokens — die Handhabe für den Widerruf in
-     * `013-003-0003`. Zwei Tokens desselben Benutzers tragen verschiedene.
+     * The `jti` is the identifier of this **one** token — the handle for revocation in
+     * `013-003-0003`. Two tokens of the same user carry different ones.
      */
-    public function testJedesTokenTraegtEineEigeneJti(): void
+    public function testEveryTokenCarriesItsOwnJti(): void
     {
-        $benutzer = $this->benutzer();
+        $user = $this->user();
 
-        $eins = JwtAccessToken::issue($benutzer);
-        $zwei = JwtAccessToken::issue($benutzer);
+        $one = JwtAccessToken::issue($user);
+        $two = JwtAccessToken::issue($user);
 
-        $this->assertNotSame($eins['jti'], $zwei['jti']);
-        $this->assertSame($eins['jti'], $this->claims($eins['token'])['jti']);
+        $this->assertNotSame($one['jti'], $two['jti']);
+        $this->assertSame($one['jti'], $this->claims($one['token'])['jti']);
     }
 
-    // ── Lebensdauer ────────────────────────────────────────────────────────────────────
+    // ── Lifetime ───────────────────────────────────────────────────────────────────────
 
-    public function testDieLebensdauerKommtAusDerKonfiguration(): void
+    public function testTheLifetimeComesFromTheConfiguration(): void
     {
         $config = new Config();
-        $config->SECURITY_JWT_SECRET = self::GEHEIMNIS;
+        $config->SECURITY_JWT_SECRET = self::SECRET;
         $config->SECURITY_JWT_TTL    = 300;
         Factory::getInstance()->setConfig($config);
 
-        $zugang = JwtAccessToken::issue($this->benutzer());
+        $access = JwtAccessToken::issue($this->user());
 
-        $this->assertEqualsWithDelta(time() + 300, $zugang['exp'], 2);
+        $this->assertEqualsWithDelta(time() + 300, $access['exp'], 2);
     }
 
     /**
-     * Ein unsinniger Wert fällt auf die Vorgabe zurück, statt ein Token ohne Ablauf zu bauen.
+     * A nonsensical value falls back to the default instead of building a token without expiry.
      */
-    public function testEineUnsinnigeLebensdauerFaelltAufDieVorgabeZurueck(): void
+    public function testANonsensicalLifetimeFallsBackToTheDefault(): void
     {
         $config = new Config();
-        $config->SECURITY_JWT_SECRET = self::GEHEIMNIS;
+        $config->SECURITY_JWT_SECRET = self::SECRET;
         $config->SECURITY_JWT_TTL    = 0;
         Factory::getInstance()->setConfig($config);
 
         $this->assertSame(900, JwtAccessToken::ttl());
     }
 
-    // ── Ohne Geheimnis ─────────────────────────────────────────────────────────────────
+    // ── Without a secret ───────────────────────────────────────────────────────────────
 
-    public function testOhneGeheimnisIstNichtsEingerichtet(): void
+    public function testWithoutASecretNothingIsConfigured(): void
     {
         Factory::getInstance()->setConfig(new Config());
 
@@ -148,19 +150,18 @@ class JwtAccessTokenTest extends TestCase
     }
 
     /**
-     * Geworfen, nicht mit einem Ersatz weitergemacht.
+     * Thrown, not continued with a substitute.
      *
-     * Ein im Code hinterlegter Standardschlüssel wäre kein Schlüssel, und eine Anwendung, die
-     * stillschweigend etwas anderes tut als das Verlangte, ist schlimmer als eine, die
-     * stehenbleibt.
+     * A default key stored in the code would be no key, and an application that silently does
+     * something other than what was asked is worse than one that stops.
      */
-    public function testOhneGeheimnisWirdNichtAusgestellt(): void
+    public function testWithoutASecretNoTokenIsIssued(): void
     {
         Factory::getInstance()->setConfig(new Config());
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessageMatches('/SECURITY_JWT_SECRET/');
 
-        JwtAccessToken::issue($this->benutzer());
+        JwtAccessToken::issue($this->user());
     }
 }
