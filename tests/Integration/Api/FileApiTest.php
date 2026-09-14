@@ -201,8 +201,8 @@ class FileApiTest extends IntegrationTestCase
     /**
      * **The predicted case happened and is fixed** (`000-000-0019`).
      *
-     * Until then this test was called `testUploadFunktioniertUeberDenRohenFilesArrayPfad` and
-     * carried the warning that the upload accepted a raw `$_FILES` array instead of an
+     * Until then this test recorded that the upload works through the raw `$_FILES` array path
+     * and carried the warning that the upload accepted a raw `$_FILES` array instead of an
      * `UploadedFile`. That worked **by accident**: PHP 8.1 adds the key `full_path` to `$_FILES`,
      * the detection in HttpFoundation 3.4 (`FileBag::$fileKeys`)
      * compares the keys exactly, fails on it and passed the raw array through —

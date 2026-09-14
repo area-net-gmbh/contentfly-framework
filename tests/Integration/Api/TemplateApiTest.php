@@ -118,8 +118,8 @@ class TemplateApiTest extends IntegrationTestCase
     /**
      * **Inverted with `000-000-0017`, not deleted.**
      *
-     * The test was called `testDasJsonFeldDerVorlageHatKeinenTypUndFehltDamitImSchema()` and
-     * recorded that the field **silently** dropped out of the schema: no entry, no warning, no
+     * The test used to record that the JSON field of the template has no type and is therefore
+     * missing from the schema: the field **silently** dropped out of the schema: no entry, no warning, no
      * hint — although column and entity field existed. The cause was the missing `JsonType`;
      * the `TypeManager` did not know Doctrine's `json`.
      */
@@ -244,7 +244,7 @@ class TemplateApiTest extends IntegrationTestCase
     /**
      * **Inverted with `000-000-0017`, not deleted.**
      *
-     * The test was called `testDieSelectAnnotationPruefteNichtsWasSieAuflistet()`: the options
+     * The test used to record that the select annotation checked nothing it listed: the options
      * were in the schema, but nobody compared a write value against them — `"doesnotexist"`
      * was accepted and ended up in the column. The annotation merely supplied metadata, its
      * only consumer the deleted user interface.

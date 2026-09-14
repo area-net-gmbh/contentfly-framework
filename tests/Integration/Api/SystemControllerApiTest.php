@@ -217,7 +217,7 @@ class SystemControllerApiTest extends IntegrationTestCase
     /**
      * **Inverted with `000-000-0015`, not deleted.**
      *
-     * The test was called `testDoActionRuftSichSelbstAufUndWirdDeshalbNichtScharfGeprueft()`
+     * The test used to record that `doAction` calls itself and is therefore not checked for real,
      * and checked the **cause** instead of the effect: `doAction` is public, passed
      * `method_exists()` and sent the controller into endless recursion. With the default
      * limit it ended after ~0.2 s in a fatal error, **without** a limit not at all — the
@@ -293,8 +293,8 @@ class SystemControllerApiTest extends IntegrationTestCase
     /**
      * **Inverted with `000-000-0015`, not deleted.**
      *
-     * The test was called `testAddTokenSchreibtDenLogeintragMitEinemDeutschenModusStattDerKonstanten()`:
-     * `addToken` set `'Erstellt'`, `deleteToken` `'Gelöscht'`. `pim_log.mode` thus held two
+     * The test used to record that `addToken` writes the log entry with a German mode instead of
+     * the constant: `addToken` set `'Erstellt'`, `deleteToken` `'Gelöscht'`. `pim_log.mode` thus held two
      * vocabularies side by side, and whoever filtered by `Log::INSERTED` did not find the
      * token operations.
      *

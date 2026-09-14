@@ -166,8 +166,8 @@ PHP
     /**
      * **Inverted with `000-000-0011`, not deleted.**
      *
-     * The test was called `testGetPluginVerliertDenPluginNamenAusDerFehlermeldung()` and
-     * recorded the defect: the error path threw
+     * The test used to record the defect under a name saying that getPlugin() loses the plugin
+     * name from its error message (see 000-000-0011): the error path threw
      *
      *     throw new ContentflyException(Messages::contentfly_general_unknown_plugin, $key);
      *

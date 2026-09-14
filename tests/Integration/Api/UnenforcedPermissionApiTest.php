@@ -40,7 +40,7 @@ class UnenforcedPermissionApiTest extends IntegrationTestCase
     {
         // INVERTED WITH 013-001-0002, as the old test announced.
         //
-        // It was called `testDasMasterPasswortIstInDerVorlageNichtGesetzt` and asserted that the
+        // It asserted that the master password is not set in the template, i.e. that the
         // default value is `null` — "the back door is closed, but present". It is gone now:
         // `APP_MASTER_PASSWORD` exists neither in `Classes/Config.php` nor in the
         // `AuthController`.

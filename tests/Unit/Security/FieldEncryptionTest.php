@@ -111,8 +111,7 @@ class FieldEncryptionTest extends TestCase
      * THE PROOF THE WHOLE STORY IS ABOUT.
      *
      * INVERTED WITH 010-004-0002, and that is an announced change of behaviour. Before, this test
-     * was called `testEinManipulierterChiffretextFaelltHeuteNichtAuf` and guaranteed the opposite
-     * state: AES-256-CBC has no MAC, a flipped byte went through and yielded a different
+     * guaranteed the opposite state (its former name is recorded in 010-004-0002): AES-256-CBC has no MAC, a flipped byte went through and yielded a different
      * plaintext — one block of garbage, the rest intact. Measured with the plaintext this test
      * uses (then still in its German wording): bytes 20 and 40 went through, bytes 30 and 101
      * failed only on the padding.

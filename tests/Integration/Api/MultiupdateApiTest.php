@@ -12,10 +12,10 @@ use Tests\Integration\IntegrationTestCase;
  * ones processed before it stayed changed, the ones after it were never touched, and the
  * response was an error without saying how far it got.
  *
- * Since `000-000-0009` it is all or nothing. `testTeilfehlerLaesstDasVorherigeGeschrieben()`
- * became `testPartialFailureRollsBackTheWholeBatch()` and checks the opposite of what it
- * asserted before; `testDieAntwortNenntWederZeitstempelNochErgebnis()` became
- * `testResponseListsTimestampAndUpdatedObjects()`. Both were rewritten on purpose, not
+ * Since `000-000-0009` it is all or nothing. `testPartialFailureRollsBackTheWholeBatch()`
+ * checks the opposite of what it asserted before (that a partial failure leaves the earlier
+ * objects written); `testResponseListsTimestampAndUpdatedObjects()` used to assert that the
+ * response names neither timestamp nor result. The former names are in `000-000-0009`. Both were rewritten on purpose, not
  * deleted — the old assertion is in the history.
  */
 class MultiupdateApiTest extends IntegrationTestCase

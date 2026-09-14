@@ -33,9 +33,8 @@ use PHPUnit\Framework\TestCase;
  *
  * ── Exceptions check themselves ───────────────────────────────────────────────────────
  *
- * `EXCEPTIONS` names German text that is allowed to stay for now, each with a reason — mostly names
- * that a later story renames together with their class. An exception that no longer matches
- * anything makes the test fail, so the list shrinks as the renames land instead of rotting.
+ * `EXCEPTIONS` names German text that is allowed to stay, each with a reason. An exception that no
+ * longer matches anything makes the test fail, so the list cannot rot.
  */
 class EnglishOnlyTest extends TestCase
 {
@@ -47,7 +46,7 @@ class EnglishOnlyTest extends TestCase
         'custom',
         'phpunit.xml.dist',
         'lib/contentfly',
-        'tests/bootstrap.php',
+        'tests',
     );
 
     /** File extensions that are scanned inside directories. */
@@ -79,7 +78,12 @@ class EnglishOnlyTest extends TestCase
     private const VERB_PREFIXES = array('ist', 'sind', 'wird', 'gibt', 'kann', 'darf', 'muss', 'soll', 'braucht');
 
     /**
-     * German text allowed to stay for now: [path, exact text, reason].
+     * German text allowed to stay: [path, exact text, reason].
+     *
+     * Only three kinds remain, and each is permanent: data the legacy code wrote, deliberately
+     * German test input, and text a test matches against German files outside the scanned paths
+     * (the CI scripts in `tools/ci` and the internal docs in `an_project/docs`). A name that is
+     * merely waiting for a rename does not belong here — translate it instead.
      *
      * The text is removed from the file's lines before scanning. Every entry must still occur in
      * its file — see testEveryExceptionIsStillNeeded().
@@ -87,7 +91,22 @@ class EnglishOnlyTest extends TestCase
      * @var array<int,array{0:string,1:string,2:string}>
      */
     private const EXCEPTIONS = array(
+        // Legacy data: values the old code wrote, which existing installations still hold.
         array('lib/contentfly/Classes/Api.php', 'Gelöscht', 'legacy value stored by Contentfly 1.x in pim_log.mode; kept for existing data by decision of 2026-09-14'),
+        array('tests/Integration/Api/SystemControllerApiTest.php', 'Gelöscht', 'the same legacy pim_log.mode value, named where the test explains why old rows keep it'),
+        array('tests/Unit/Security/FieldEncryptionTest.php', 'Bestandswert aus dem alten Format', 'plaintext of the fixed ciphertext produced by the legacy CBC code; changing it would invalidate the vector'),
+        array('tests/Unit/Security/FieldEncryptionTest.php', 'ein-schluessel-fuer-den-test-32b', 'key the legacy ciphertext was encrypted with'),
+        array('tests/Unit/Security/FieldEncryptionTest.php', 'äöü', 'multi-byte characters are what the round trip is about'),
+        // Deliberately German test input.
+        array('tests/Unit/Security/JwtAccessTokenTest.php', 'gruppe', 'German claim names are on the list of forbidden claims on purpose'),
+        // Text matched against German files outside the scanned paths (tools/ci, an_project/docs).
+        array('tests/Unit/Ci/CiStepsTest.php', 'audit-ausnahmen-pruefen.sh', 'script name in tools/ci'),
+        array('tests/Unit/Ci/CiStepsTest.php', '$FEHLERLOG', 'variable name in tools/ci/audit-ausnahmen-pruefen.sh'),
+        array('tests/README.md', 'audit-ausnahmen-pruefen.sh', 'script name in tools/ci'),
+        array('tests/README.md', 'deprecations-pruefen.sh', 'script name in tools/ci'),
+        array('tests/Unit/Migration/MigrationGuideTest.php', '**%d Einträge in %d Abschnitten**', 'sentence the test reads from an_project/docs/migration.md'),
+        array('tests/Unit/Migration/RectorRuleTest.php', 'Entfallene Felder von', 'heading the test reads from an_project/docs/pim-annotationen-migration.md'),
+        array('tests/Unit/Migration/RectorRuleTest.php', 'Gebliebene Felder von', 'heading the test reads from an_project/docs/pim-annotationen-migration.md'),
     );
 
     public function testTheCheckedPathsContainNoGerman(): void

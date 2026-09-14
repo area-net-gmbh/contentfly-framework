@@ -3,8 +3,8 @@
 > **This suite is the acceptance basis for the kernel swap.** The kernel swap counts as
 > successful if the suite stays green **without any change to its substance**; adjusting a test
 > is a change in behaviour and needs a justification. What exactly that means — and what the
-> suite explicitly does **not** cover — is described in `an_project/docs/technical.md`, section
-> *Die Testsuite ist die Abnahmegrundlage*. Anyone changing a test here reads that first.
+> suite explicitly does **not** cover — is described in `an_project/docs/technical.md`, in the
+> section on the test suite as the acceptance basis. Anyone changing a test here reads that first.
 
 Two suites, deliberately kept separate:
 
@@ -190,7 +190,7 @@ the pipeline knows.
 **If a step silently stalls, that is a bug in the script, not in the tool.** Since
 `000-000-0029`, every step that redirects its output prints the last lines of its log on
 failure; how that works and why is described in `tools/ci/schritt.sh` and in
-`an_project/docs/deployment.md` under *Ein Schritt, der scheitert, sagt woran*.
+`an_project/docs/deployment.md` in the section on failing steps.
 
 ## The mail trap
 
