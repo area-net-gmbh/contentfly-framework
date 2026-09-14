@@ -1,7 +1,7 @@
 ---
 id: 014-001-0000
 title: Kernel, Routing, Metadaten und Einstiegspunkte auf Englisch
-status: in-progress
+status: review
 depends_on: []
 ---
 
