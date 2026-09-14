@@ -145,7 +145,7 @@ Migrationsleitfaden daraus, statt sie ein zweites Mal zu beschreiben.
 
 ### Voraussetzung
 
-Die Regel kommt **mit dem Paket**: `Areanet\PIM\Migration\EntfalleneAttributfelderRector` liegt
+Die Regel kommt **mit dem Paket**: `Areanet\PIM\Migration\RemovedAttributeFieldsRector` liegt
 in `areanet/contentfly`. Dazu braucht das Projekt Rector selbst, und zwar nur zum Entwickeln:
 
 ```sh
@@ -173,7 +173,7 @@ Annotation umgeschrieben hat. Ein Rector-Durchgang arbeitet auf dem Baum, den er
 hat.
 
 **Wer nur einmal läuft, hat einen kaputten Baum, nicht einen halb migrierten.** Dort steht dann
-`#[PIM\Config(label: 'Artikel')]`, und `Config::__construct()` hat kein `$label`:
+`#[PIM\Config(label: 'Article')]`, und `Config::__construct()` hat kein `$label`:
 
 ```
 Unknown named parameter $label
@@ -193,14 +193,14 @@ nicht fertig.
 | `@ORM\*` → Attribute, auch verschachtelt (`joinColumns={…}`) | `DoctrineSetList::ANNOTATIONS_TO_ATTRIBUTES` | `007-002-0002` |
 | Die 7 entfallenen `@PIM\*`-Annotationen werden gelöscht | `RemoveAnnotationRector` | `007-002-0003` |
 | Die gebliebenen `@PIM\*`-Annotationen werden Attribute | `AnnotationToAttributeRector` | `007-002-0003` |
-| Die 14 entfallenen `Config`-Felder und die 5 von `Checkbox`/`Radio` fallen | `EntfalleneAttributfelderRector` | `007-002-0004` |
+| Die 14 entfallenen `Config`-Felder und die 5 von `Checkbox`/`Radio` fallen | `RemovedAttributeFieldsRector` | `007-002-0004` |
 
 **Unabhängig vom Alias.** Ein Projekt darf `Areanet\PIM\Classes\Annotations` unter jedem Namen
 importieren; alle Regeln sind mit dem vollqualifizierten Klassennamen konfiguriert, und Rector
-löst ihn über die `use`-Anweisungen auf. Geprüft an einer eigenen Prüfstein-Datei, die `Anders`
-und `Abbildung` als Aliase benutzt.
+löst ihn über die `use`-Anweisungen auf. Geprüft an einer eigenen Prüfstein-Datei, die `Other`
+und `Mapping` als Aliase benutzt.
 
-**Die Importe bleiben, wie sie sind.** Aus `@Abbildung\Column` wird `#[Abbildung\Column]`, nicht
+**Die Importe bleiben, wie sie sind.** Aus `@Mapping\Column` wird `#[Mapping\Column]`, nicht
 `#[ORM\Column]`. Die Regel migriert Annotationen, sie räumt keine Importe um.
 
 **Ein zweiter Lauf gegen bereits umgestellte Entities tut nichts.** Geprüft gegen die 22

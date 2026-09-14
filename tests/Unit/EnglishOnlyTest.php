@@ -47,6 +47,7 @@ class EnglishOnlyTest extends TestCase
         'phpunit.xml.dist',
         'lib/contentfly',
         'tests',
+        'STRUCTURE.md',
     );
 
     /** File extensions that are scanned inside directories. */

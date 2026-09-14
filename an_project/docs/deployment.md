@@ -234,7 +234,7 @@ php -r "echo bin2hex(random_bytes(32));"
 
 ### Was im Token steht
 
-Fünf Claims, und die Liste steht in `Classes/Security/Zugangstoken::CLAIMS`:
+Fünf Claims, und die Liste steht in `Classes/Security/JwtAccessToken::CLAIMS`:
 
 | Claim | trägt |
 |---|---|

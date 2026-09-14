@@ -49,7 +49,7 @@ Optional: `ldap` (LDAP login provider), `apcu` or `memcached` (cache drivers).
 
 Development tooling (CI pipeline and scripts, static analysis and migration tool
 configuration) and the internal project documentation are not part of this delivery. You will
-notice this in three places:
+notice this in two places:
 
 1. **18 unit tests fail** because they read files that are not included. Section 14 lists them.
    They check the internal documentation, the CI scripts and the migration tool configuration,
@@ -57,9 +57,10 @@ notice this in three places:
 2. **Code comments and a few messages refer to internal documents**, mostly under
    `an_project/docs/…`, and to internal ticket numbers of the form `NNN-NNN-NNNN`. The same
    folder name appears in two exception messages (`Classes/Kernel/Start.php`,
-   `lib/contentfly/bootstrap.php`) and in `extra.hinweis` notes in both `composer.json` files.
-3. **Code comments in `lib/`, `bin/` and `tests/` are written in German**, and so are many
-   identifiers. Section 16 has a glossary.
+   `lib/contentfly/bootstrap.php`) and in the `extra.notes` of both `composer.json` files.
+
+The code itself — identifiers, messages, comments and test names — is written in English
+throughout. `tests/Unit/EnglishOnlyTest.php` keeps it that way.
 
 ---
 
@@ -93,9 +94,8 @@ notice this in three places:
 - **The entry points contain no path into the framework.** They load Composer's autoloader and
   name the project directory. `lib/contentfly` could equally be installed under
   `vendor/areanet/contentfly`.
-- `lib/contentfly/Classes/Kernel/Pfade.php` (*Pfade* = paths) is the single registry for these
-  locations: `projekt()`, `custom()`, `daten()` (= `data/`), `plugins()`, `paket()`
-  (= `lib/contentfly`).
+- `lib/contentfly/Classes/Kernel/Paths.php` is the single registry for these locations:
+  `project()`, `custom()`, `data()`, `plugins()`, `package()` (= `lib/contentfly`).
 
 ---
 
@@ -106,7 +106,7 @@ index.php
   └─ Start::web(projectDir)                     Classes/Kernel/Start.php
        ├─ checks: project dir exists, custom/config.php readable,
        │          no second vendor tree in custom/vendor
-       ├─ defines CONTENTFLY_PROJEKT
+       ├─ defines CONTENTFLY_PROJECT_DIR
        └─ require lib/contentfly/bootstrap-web.php
             ├─ require lib/contentfly/bootstrap.php
             │    ├─ load custom/config.php  → configuration
@@ -126,11 +126,11 @@ Details worth knowing:
 - **"Installed" is a state derived from configuration.** As long as `DB_HOST` in
   `custom/config.php` still holds the placeholder `$SET_DB_HOST`, `$app['is_installed']` is
   false. No database or ORM services are registered, and routed requests answer `503` with
-  the message `Contentfly ist nicht installiert …` ("Contentfly is not installed").
+  the message `Contentfly is not installed. Run the installation: …`.
 - **`Application`** (`Classes/Kernel/Application.php`) extends the container and wires Symfony's
   `HttpKernel`: `RouterListener` for matching, a custom `ControllerResolver` for
-  `"service:method"` controller strings, and `AbsicherungListener` (*Absicherung* = protection),
-  which runs a route's authentication callbacks on `kernel.controller`.
+  `"service:method"` controller strings, and `RouteSecurityListener`, which runs a route's
+  authentication callbacks on `kernel.controller`.
 - **Hooks:** `$app->before()` maps to `kernel.request` (main request only), `$app->after()` to
   `kernel.response`, `$app->error()` to `kernel.exception`. A `before` hook that returns a
   `Response` ends the request.
@@ -145,7 +145,7 @@ Details worth knowing:
 
 ```
 bin/console.php
-  └─ Start::konsole(projectDir)         defines APPCMS_CONSOLE
+  └─ Start::console(projectDir)         defines APPCMS_CONSOLE
        └─ require lib/contentfly/bootstrap.php     (not bootstrap-web.php)
   ├─ if installed: add Doctrine ORM/DBAL commands
   └─ $app['console']->run()
@@ -177,10 +177,10 @@ Doctrine's own `vendor/bin/doctrine` tool.
 
 | Directory / file | Purpose |
 |---|---|
-| `Kernel/` | Runtime core: `Start` (entry), `Pfade` (paths), `Container`, `Application`, `Console`, `Command` (base with `anwendung()` = application), `ControllerProviderInterface`, `ConsoleEvents` / `ConsoleInitEvent` |
-| `Kernel/Routing/` | `Routensammlung` (route collection builder), `Routeneintrag` (route entry), `AbsicherungListener` (runs per-route auth callbacks), `ControllerResolver` |
+| `Kernel/` | Runtime core: `Start` (entry), `Paths`, `Container`, `Application`, `Console`, `Command` (base class with `application()`), `ControllerProviderInterface`, `ConsoleEvents` / `ConsoleInitEvent` |
+| `Kernel/Routing/` | `RouteCollector` (builds a route collection), `RouteEntry` (one route), `RouteSecurityListener` (runs per-route auth callbacks), `ControllerResolver` |
 | `Controller/` | `BaseController` (gives controllers `$app` and the entity manager) |
-| `Controller/Provider/` | `BaseControllerProvider` (middleware and `anmelden()` = authenticate), `Route` |
+| `Controller/Provider/` | `BaseControllerProvider` (middleware and `authenticate()`), `Route` |
 | `Controller/Provider/Base/` | Route definitions: `Api…`, `Auth…`, `File…`, `System…ControllerProvider`, plus `CustomControllerProvider` for project routes |
 | `Api.php` | The generic data engine behind `/api/*`: read, list, tree, write, delete, query, sync and schema, including permission checks |
 | `Security/` | Authentication, tokens, throttling, login providers, field encryption (section 8) |
@@ -191,7 +191,7 @@ Doctrine's own `vendor/bin/doctrine` tool.
 | `Manager/` | Registries: `RouteManager`, `ConsoleManager`, `TypeManager`, `PluginManager` |
 | `Type.php`, `Type/`, `Types/` | Field type system (section 11) |
 | `Annotations/` | PHP attributes that select or configure field types: `Config`, `Select`, `Checkbox`, `Radio`, `ManyToMany`, `Permissions`, `I18nPermissions`, `Virtualjoin` |
-| `Metadaten/` | `Metadatenleser` — single point for reading entity attribute metadata |
+| `Metadata/` | `MetadataReader` — single point for reading entity attribute metadata |
 | `ORM/` | `EntityManagerFactory` (attribute drivers, proxies, caches), `Id/UuidGenerator`, quote strategy, the DQL function `FIND_IN_SET`, spatial `Point` type |
 | `Events/` | `LoadMetadata` — Doctrine listener that adds an index on `modified` |
 | `File/` | Storage backend (`Backend/FileSystem` → `data/files/`) and image processors (`Processing/Image` with GD, `Processing/ImageMagick`, `Processing/Standard`) |
@@ -267,28 +267,27 @@ All classes are in `lib/contentfly/Classes/Security/` unless noted.
 
 ### Where a token is read from
 
-`Tokenquellen` (*token sources*) checks, in this order, and the first non-empty value wins:
+`TokenSources` checks, in this order, and the first non-empty value wins:
 
 1. `Authorization: Bearer …`
 2. header `appcms-token`
 3. header `X-XSRF-TOKEN`
 4. query parameter `_token`
-5. body parameter `_token` (`RumpfExtractor`)
+5. body parameter `_token` (`BodyExtractor`)
 
 ### How a token is validated
 
-`Anmeldetreiber` (*authentication driver*) wraps Symfony's `AccessTokenAuthenticator` with:
+`TokenAuthenticator` wraps Symfony's `AccessTokenAuthenticator` with:
 
-- **`Tokenhandler`**, which decides by the token's shape:
+- **`TokenHandler`**, which decides by the token's shape:
   - **JWT** (three segments with a JSON header): verified with `SECURITY_JWT_SECRET` and an
     optional previous key selected by `kid`. Issuer `contentfly`, subject = user alias. It is
-    rejected if its `jti` is in the `RevokedToken` table. JWTs are issued by `Zugangstoken`
-    (*access token*).
+    rejected if its `jti` is in the `RevokedToken` table. JWTs are issued by `JwtAccessToken`.
   - **Opaque token**: looked up by its SHA-256 hash in `pim_token`. Expiry follows
     `APP_TOKEN_TIMEOUT` or the group's `tokenTimeout`, and is extended on use.
-- **`Benutzerlader`** (*user loader*): loads the user by alias and requires it to be active.
+- **`UserLoader`**: loads the user by alias and requires it to be active.
 
-`BaseControllerProvider::anmelden()` runs this driver for protected routes and sets
+`BaseControllerProvider::authenticate()` runs this authenticator for protected routes and sets
 `$app['auth.user']` and `$app['auth.token']`.
 
 ### Login, refresh, logout (`lib/contentfly/Controller/AuthController.php`)
@@ -298,29 +297,28 @@ All classes are in `lib/contentfly/Classes/Security/` unless noted.
   `tokenType=jwt`, the response contains a short-lived JWT plus a refresh token.
 - **Refresh** exchanges a valid refresh token for a new JWT and rotates the refresh token.
 - **Logout** deletes the opaque token and puts the JWT's `jti` on the revocation list.
-- **Throttling:** `Anmeldebremse` (*login throttle*, Symfony RateLimiter). It counts failed
+- **Throttling:** `LoginThrottle` (Symfony RateLimiter). It counts failed
   attempts per alias and per client IP, with increasing waiting times, and answers `429`
   with `Retry-After`.
-- **Client IP behind proxies:** `VertrauteProxies` (*trusted proxies*) applies
+- **Client IP behind proxies:** `TrustedProxies` applies
   `APP_TRUSTED_PROXIES` / `APP_TRUSTED_HEADERS`.
 
 ### Login providers (external identity systems)
 
-- A provider implements `Anmeldeprovider` with one method, `pruefen(Request): ?Fremdkennung`
-  (*check → external identity*). It verifies against the external system and never touches
-  the database.
+- A provider implements `LoginProvider` with one method,
+  `authenticate(Request): ?ExternalIdentity`. It verifies against the external system and never
+  touches the database.
 - Providers are registered **by name** in `custom/app.php` via
-  `$app['anmeldeanbieter']->eintragen('<name>', fn)` (`Anbieterverzeichnis`, *provider
-  registry*). A name that is not registered does not exist.
-- The framework creates or updates the user (`Benutzerbereitstellung`, *user provisioning*)
-  and maps groups (`Gruppenabbildung`, *group mapping*, configured in
-  `SECURITY_PROVIDER_GRUPPEN`).
+  `$app['loginProviders']->register('<name>', fn)` (`LoginProviderRegistry`). A name that is not
+  registered does not exist.
+- The framework creates or updates the user (`UserProvisioning`) and maps groups
+  (`GroupMapping`, configured in `SECURITY_PROVIDER_GROUPS`).
 - Shipped providers: `LdapProvider` (search, then bind) and `OidcProvider` (userinfo endpoint).
-  **Neither is registered by default.** The template registers only `BeispielProvider`
-  (*example provider*), which rejects every login unless the environment variable
-  `CONTENTFLY_BEISPIEL_PROVIDER` is set.
-- `Bestandspruefung` (*existence check*) is an optional second interface. It is used by the
-  command `appcms:provider:abgleich` to deactivate users that the external system no longer
+  **Neither is registered by default.** The template registers only `ExampleProvider`
+  (`custom/Classes/Authentication/`), which rejects every login unless the environment
+  variable `CONTENTFLY_EXAMPLE_PROVIDER` is set.
+- `UserExistenceCheck` is an optional second interface with `knowsIdentifier()`. It is used by
+  the command `appcms:provider:sync` to deactivate users that the external system no longer
   knows.
 
 ### Permissions
@@ -334,8 +332,8 @@ All classes are in `lib/contentfly/Classes/Security/` unless noted.
 
 ### Field encryption
 
-Fields marked `#[PIM\Config(encoded: true)]` are encrypted by `Feldverschluesselung` (*field
-encryption*, XChaCha20-Poly1305) with `SECURITY_CIPHER_KEY`. Legacy AES-256-CBC values remain
+Fields marked `#[PIM\Config(encoded: true)]` are encrypted by `FieldEncryption`
+(XChaCha20-Poly1305) with `SECURITY_CIPHER_KEY`. Legacy AES-256-CBC values remain
 readable; `appcms:security:reencrypt` converts them.
 
 ---
@@ -374,7 +372,7 @@ $app['consoleManager']->addCommand(new \Custom\Command\ExampleCommand());
 
 Keys a project can rely on:
 - **Always:** `is_installed`, `debug`, `database`, `mailer`, `routeManager`, `consoleManager`,
-  `request_stack`, `dispatcher`, `auth.user`, `orm.em` (null until installed), `anmeldeanbieter`.
+  `request_stack`, `dispatcher`, `auth.user`, `orm.em` (null until installed), `loginProviders`.
 - **Only when installed:** `db`, `dbs`.
 - **After login:** `auth.token`.
 
@@ -440,7 +438,7 @@ checks permissions.
 | HTTP | `APP_FORCE_SSL`, `APP_CS_POLICY`, `APP_ALLOW_*`, `APP_MAX_AGE`, `APP_HTTP_AUTH_USER` / `_PASS`, `APP_TRUSTED_PROXIES`, `APP_TRUSTED_HEADERS` |
 | Tokens | `APP_TOKEN_TIMEOUT`, `APP_CHECK_TOKEN_TIMEOUT`, `SECURITY_JWT_SECRET`, `SECURITY_JWT_TTL`, `SECURITY_JWT_KEY_ID`, `SECURITY_JWT_SECRET_PREVIOUS`, `SECURITY_JWT_KEY_ID_PREVIOUS` |
 | Encryption | `SECURITY_CIPHER_KEY` |
-| Login providers | `SECURITY_PROVIDER_GRUPPEN`, `SECURITY_LDAP_*`, `SECURITY_OIDC_*` |
+| Login providers | `SECURITY_PROVIDER_GROUPS`, `SECURITY_LDAP_*`, `SECURITY_OIDC_*` |
 | Files | `FILE_PROCESSORS`, `IMAGEMAGICK_EXECUTABLE` |
 
 ---
@@ -451,7 +449,7 @@ checks permissions.
 
 | Directory | Used for |
 |---|---|
-| `data/cache/` | Doctrine proxies (`doctrine/`), ORM query and metadata caches, login throttle state (`loginbremse/`), optional schema cache file |
+| `data/cache/` | Doctrine proxies (`doctrine/`), ORM query and metadata caches, login throttle state (`login-throttle/`), optional schema cache file |
 | `data/files/` | Uploaded files and generated image variants, one directory per file id |
 | `data/import/`, `data/temp/` | Placeholders; not used by the current code |
 
@@ -470,7 +468,7 @@ extending `Classes/Plugin.php`. The template registers none.
 | `appcms:setup` | Seeds base data: creates the user `admin`, or resets an existing one, with password `admin` and administrator rights; creates the thumbnail sizes |
 | `appcms:token:cleanup` | Removes expired tokens and obsolete revocation entries |
 | `appcms:security:reencrypt` | Re-encrypts legacy encrypted field values |
-| `appcms:provider:abgleich` | Deactivates provider users unknown to their external system |
+| `appcms:provider:sync` | Deactivates provider users unknown to their external system |
 | `orm:*`, `dbal:*` | Doctrine schema, cache and query commands, available once installed |
 | `custom:example:command:run` | Template command of the project; does nothing |
 
@@ -480,13 +478,13 @@ extending `Classes/Plugin.php`. The template registers none.
 
 | Path | Purpose |
 |---|---|
-| `tests/Unit/` | Suite `unit`, 251 tests. It needs no database and covers kernel, container, routing, security classes, managers and entities. |
+| `tests/Unit/` | Suite `unit`, 255 tests. It needs no database and covers kernel, container, routing, security classes, managers and entities. |
 | `tests/Integration/` | Suite `integration`. It drives a running, installed instance over HTTP and the console, and reads the database directly. |
 | `tests/Integration/IntegrationTestCase.php` | Base class: HTTP client, login helpers, database access, cleanup |
 | `tests/Fixtures/` | Input and expected output for the migration rule tests |
 | `tests/bootstrap.php` | Test bootstrap (autoloader, paths; does not start the application) |
 | `tests/router.php` | Router for PHP's built-in web server, so that files on disk are served like under Apache |
-| `tests/README.md` | Detailed instructions (German) |
+| `tests/README.md` | Detailed instructions |
 
 Integration tests **skip themselves** unless `CONTENTFLY_TEST_BASE_URL` is set. The other
 variables:
@@ -495,26 +493,31 @@ variables:
 |---|---|
 | `CONTENTFLY_TEST_ADMIN_PASS` | Admin password of the test instance |
 | `CONTENTFLY_TEST_MAIL_TRAP` | Directory of a fake `sendmail`, so tests never send real mail |
-| `CONTENTFLY_TEST_PROVIDER` | The value given to the server as `CONTENTFLY_BEISPIEL_PROVIDER` |
+| `CONTENTFLY_TEST_PROVIDER` | The value given to the server as `CONTENTFLY_EXAMPLE_PROVIDER` |
 | `CONTENTFLY_TEST_DB_HOST` / `_PORT` / `_NAME` / `_USER` / `_PASSWORD` | Test database (defaults match `docker-compose.yml`) |
-| `CONTENTFLY_TEST_PROJEKT` | Installation directory, if it is not this checkout |
+| `CONTENTFLY_TEST_PROJECT_DIR` | Installation directory, if it is not this checkout |
 
-With `CI` set, `UmgebungsWaechterTest` fails the run when the required variables are missing,
+With `CI` set, `EnvironmentGuardTest` fails the run when the required variables are missing,
 instead of letting every integration test skip.
 
 ### Tests that fail in this delivery
 
 These tests read files that are not included (section 2). Measured on a copy with exactly the
-delivered contents: **18 of 251 unit tests fail, all of them in these three classes.**
+delivered contents: **18 of 255 unit tests fail, all of them in these three classes.**
 
 | Test class | Reads |
 |---|---|
-| `Tests\Unit\Ci\CiSchritteTest` (4 tests) | CI shell scripts |
-| `Tests\Unit\Migration\MigrationsleitfadenTest` (3 tests) | Internal migration documentation |
-| `Tests\Unit\Migration\RectorRegelTest` (11 tests) | The Rector configuration file (10 tests) and internal documentation (1 test) |
+| `Tests\Unit\Ci\CiStepsTest` (4 tests) | CI shell scripts |
+| `Tests\Unit\Migration\MigrationGuideTest` (3 tests) | Internal migration documentation |
+| `Tests\Unit\Migration\RectorRuleTest` (11 of 19 tests) | The Rector configuration file (10 tests) and internal documentation (1 test) |
 
-In the integration suite, `Tests\Integration\ContainerSchluesselTest::testDieListenStimmenMitDemDevGuideUeberein`
+In the integration suite, `Tests\Integration\ContainerKeysTest::testTheListsMatchTheDevGuide`
 reads internal documentation as well.
+
+**The unit suite leaves two things behind in the project root.** Without its configuration
+file, Rector creates a default `rector.php` when `RectorRuleTest` runs, and `PluginManagerTest`
+leaves an empty `plugins/` directory. Neither is part of the delivery; delete both to return to
+the delivered state.
 
 ---
 
@@ -561,33 +564,3 @@ CONTENTFLY_TEST_ADMIN_PASS='<password>' \
 
 The full server setup used by the suite (mail trap, provider variable) is described in
 `tests/README.md`.
-
----
-
-## 16. Glossary of German identifiers
-
-| Identifier | Meaning |
-|---|---|
-| `Start::web()`, `Start::konsole()` | start web / start console |
-| `Pfade`, `projekt()`, `paket()`, `daten()` | paths, project, package, data |
-| `anwendung()` | application |
-| `Routensammlung`, `Routeneintrag` | route collection, route entry |
-| `AbsicherungListener` | protection (authentication) listener |
-| `anmelden()` | authenticate / log in |
-| `Anmeldetreiber` | authentication driver |
-| `Anmeldebremse` | login throttle |
-| `Anmeldeprovider`, `Anbieterverzeichnis`, `eintragen()` | login provider, provider registry, register |
-| `Tokenquellen` | token sources |
-| `RohkopfExtractor`, `RumpfExtractor` | raw header extractor, body extractor |
-| `Zugangstoken` | access token (JWT) |
-| `Benutzerlader`, `Benutzerbereitstellung` | user loader, user provisioning |
-| `Gruppenabbildung` | group mapping |
-| `Fremdkennung`, `kennung` | external identity, identifier |
-| `pruefen()` | check / verify |
-| `Bestandspruefung`, `kenntKennung()`, `abgleich` | existence check, knows identifier, reconciliation |
-| `VertrauteProxies` | trusted proxies |
-| `Feldverschluesselung` | field encryption |
-| `Metadatenleser` | metadata reader |
-| `ausKonfiguration()` | from configuration |
-| `Beispiel…` | example … |
-| `…Test::testDie…`, `…Wird…`, `…Ist…` | Test method names are German sentences describing the expected behaviour |

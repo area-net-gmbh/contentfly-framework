@@ -193,8 +193,8 @@ class WriteApiTest extends IntegrationTestCase
         );
 
         // Inverted with 000-000-0006: the same as for an id that never existed — before, the
-        // `headers` artefact with 200, now a 404. Until then the test was called
-        // testNachDemLoeschenLiefertSingleDasLeereHeadersArtefakt.
+        // `headers` artefact with 200, now a 404. Until then the test recorded that single
+        // returns the empty headers artefact after a delete.
         $this->assertSame(404, $status);
         $this->assertArrayNotHasKey('data', $single);
     }

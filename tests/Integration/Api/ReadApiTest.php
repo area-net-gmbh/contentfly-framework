@@ -109,8 +109,7 @@ class ReadApiTest extends IntegrationTestCase
 
     public function testUnknownIdReturns404(): void
     {
-        // Inverted with 000-000-0006. Previously this test was called
-        // testUnbekannteIdLiefert200MitLeeremHeadersObjekt and recorded that the endpoint
+        // Inverted with 000-000-0006. Previously this test recorded that the endpoint
         // responds with 200 and `data: {"headers": {}}` — the artefact of a JsonResponse
         // that Api::getSingle() returned as "not found" and singleAction() passed on as
         // payload.

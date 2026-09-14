@@ -202,8 +202,8 @@ class TemplateApiTest extends IntegrationTestCase
     /**
      * **Inverted with `000-000-0017`, not deleted.**
      *
-     * The test was called `testDasJsonFeldLaesstSichWederSchreibenNochLesen()` and recorded
-     * that `jsonExample` did not exist for the API: writing failed with
+     * The test used to record that the JSON field can be neither written nor read:
+     * `jsonExample` did not exist for the API. Writing failed with
      * `contentfly_general_unknown_property`, reading did not return the field. The cause was a
      * missing framework type — the `TypeManager` did not know Doctrine's `json`, and the field
      * **silently** dropped out of the schema.
@@ -380,8 +380,8 @@ class TemplateApiTest extends IntegrationTestCase
     public function testTheExampleCommandIsRegisteredAndCarriesTheCustomPrefix(): void
     {
         /*
-         * INVERTED WITH 009-004-0001. The test was called
-         * testDerBeispielCommandIstAbsichtlichNichtRegistriert and recorded a contradiction:
+         * INVERTED WITH 009-004-0001. The test used to record that the example command is
+         * deliberately not registered, and with that a contradiction:
          * the example extended Symfony\…\Command, but the ConsoleManager only accepts
          * CustomCommand descendants — so it lay around unused and showed a path the
          * framework does not offer. technical.md had listed this as an open decision since

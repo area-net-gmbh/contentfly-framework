@@ -74,9 +74,8 @@ class UnenforcedPermissionApiTest extends IntegrationTestCase
 
     public function testThePermissionsBlockListsOnlyTheThreeEnforcedRights(): void
     {
-        // Inverted with 000-000-0012. The test was called
-        // testDerPermissionsBlockDesSchemasFuehrtExportUndExtended and recorded five keys,
-        // two of which had no enforcement point.
+        // Inverted with 000-000-0012. The test used to record that the permissions block of the
+        // schema lists export and extended — five keys, two of which had no enforcement point.
         [$status, $raw] = $this->get('/api/schema', $this->token());
         $this->assertSame(200, $status);
 

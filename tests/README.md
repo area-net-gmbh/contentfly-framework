@@ -56,7 +56,7 @@ chmod +x "$TRAP/sendmail"
 #    nobody in — both correct, but then the corresponding tests have nothing to measure.
 APP_ENV=production APP_DEBUG=0 \
   SECURITY_JWT_SECRET=dev-only-jwt-secret-long-enough-32b \
-  CONTENTFLY_EXAMPLE_PROVIDER='extern-eins:dev-only-provider-secret:CN=Redaktion' \
+  CONTENTFLY_EXAMPLE_PROVIDER='external-one:dev-only-provider-secret:CN=Editorial' \
   php -d display_errors=Off -d log_errors=On -d sendmail_path="$TRAP/sendmail" \
       -S 127.0.0.1:8145 tests/router.php &
 
@@ -68,7 +68,7 @@ CONTENTFLY_TEST_BASE_URL=http://127.0.0.1:8145 \
 CONTENTFLY_TEST_ADMIN_PASS=dev-only-secret \
 CONTENTFLY_TEST_MAIL_TRAP="$TRAP" \
 CONTENTFLY_TEST_JWT_SECRET=dev-only-jwt-secret-long-enough-32b \
-CONTENTFLY_TEST_PROVIDER='extern-eins:dev-only-provider-secret:CN=Redaktion' \
+CONTENTFLY_TEST_PROVIDER='external-one:dev-only-provider-secret:CN=Editorial' \
   ./vendor/bin/phpunit
 
 # 5. Restore the template — step 1 wrote credentials into it

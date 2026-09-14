@@ -65,7 +65,7 @@ variables:
   # Speist den ExampleProvider aus 013-004-0004 — kennung:geheimnis:gruppe|gruppe.
   # Wegwerf-Werte fuer eine Wegwerf-Datenbank; ohne diese Variable laesst die Vorlage
   # niemanden herein, und genau das misst ein eigener Test.
-  CONTENTFLY_TEST_PROVIDER: "extern-eins:ci-only-provider-secret:CN=Redaktion"
+  CONTENTFLY_TEST_PROVIDER: "external-one:ci-only-provider-secret:CN=Editorial"
 
   GIT_DEPTH: "1"
 
