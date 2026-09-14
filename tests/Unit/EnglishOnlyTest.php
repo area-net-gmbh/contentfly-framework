@@ -81,13 +81,7 @@ class EnglishOnlyTest extends TestCase
      * @var array<int,array{0:string,1:string,2:string}>
      */
     private const EXCEPTIONS = array(
-        array('lib/contentfly/bootstrap.php', 'Anbieterverzeichnis', 'renamed in 014-002'),
         array('lib/contentfly/bootstrap.php', 'Anmeldebremse', 'renamed in 014-002'),
-        array('lib/contentfly/bootstrap.php', 'Benutzerbereitstellung', 'renamed in 014-002'),
-        array('lib/contentfly/bootstrap.php', 'Gruppenabbildung', 'renamed in 014-002'),
-        array('lib/contentfly/bootstrap.php', 'anmeldeanbieter', 'renamed in 014-002'),
-        array('lib/contentfly/bootstrap.php', 'benutzerbereitstellung', 'renamed in 014-002'),
-        array('lib/contentfly/bootstrap.php', 'gruppenabbildung', 'renamed in 014-002'),
         array('lib/contentfly/bootstrap.php', 'loginbremse', 'renamed in 014-002'),
         array('lib/contentfly/bootstrap.php', 'ProviderAbgleichCommand', 'renamed in 014-003'),
         array('lib/contentfly/bootstrap.php', 'EntityManagerFactory::erzeugen', 'renamed in 014-003'),

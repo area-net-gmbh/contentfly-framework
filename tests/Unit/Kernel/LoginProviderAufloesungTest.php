@@ -5,7 +5,7 @@ use Areanet\PIM\Controller\AuthController;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Wie ein Anmeldeprovider ausgewählt wird — **umgedreht mit `013-004-0001`, nicht gelöscht.**
+ * Wie ein LoginProvider ausgewählt wird — **umgedreht mit `013-004-0001`, nicht gelöscht.**
  *
  * Der Test hiess vorher dasselbe und prüfte etwas anderes: `AuthController::providerKlasse()`,
  * die einen Namen aus dem Request zu `Custom\Classes\<Name>` auflöste. Er entstand mit

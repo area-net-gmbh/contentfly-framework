@@ -1,7 +1,7 @@
 <?php
 namespace Tests\Unit\Security;
 
-use Areanet\PIM\Classes\Security\Fremdkennung;
+use Areanet\PIM\Classes\Security\ExternalIdentity;
 use Areanet\PIM\Classes\Security\LdapProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,7 +16,7 @@ use Symfony\Component\Ldap\LdapInterface;
  *
  * **Einschränkung, ausdrücklich:** Geprüft wird gegen einen `LdapInterface`-Doppelgänger, nicht
  * gegen ein laufendes Verzeichnis. Das misst die eigene Logik — Bind-Reihenfolge, Maskierung des
- * Filters, was in die `Fremdkennung` geht — und **nicht**, dass ein echter Bind gegen ein Active
+ * Filters, was in die `ExternalIdentity` geht — und **nicht**, dass ein echter Bind gegen ein Active
  * Directory funktioniert. So entschieden am 2026-09-11: Ein OpenLDAP-Dienst in der Testumgebung
  * stünde in keinem Verhältnis zu dem, was er zusätzlich belegte.
  */
@@ -29,8 +29,8 @@ class LdapProviderTest extends TestCase
     {
         return $abweichend + array(
             'base_dn'          => 'OU=Benutzer,DC=example,DC=invalid',
-            'filter'           => '(sAMAccountName={kennung})',
-            'gruppen_attribut' => 'memberOf',
+            'filter'           => '(sAMAccountName={identifier})',
+            'group_attribute' => 'memberOf',
             'search_dn'        => 'CN=dienst,DC=example,DC=invalid',
             'search_password'  => 'dienst-geheim',
         );
@@ -113,11 +113,11 @@ class LdapProviderTest extends TestCase
     {
         $provider = new LdapProvider($this->ldap(array($this->eintrag())), $this->einstellungen());
 
-        $fremd = $provider->pruefen($this->request());
+        $fremd = $provider->authenticate($this->request());
 
-        $this->assertInstanceOf(Fremdkennung::class, $fremd);
-        $this->assertSame('mmustermann', $fremd->kennung);
-        $this->assertSame(array('CN=Redaktion,DC=example,DC=invalid'), $fremd->gruppen);
+        $this->assertInstanceOf(ExternalIdentity::class, $fremd);
+        $this->assertSame('mmustermann', $fremd->identifier);
+        $this->assertSame(array('CN=Redaktion,DC=example,DC=invalid'), $fremd->groups);
     }
 
     /**
@@ -131,7 +131,7 @@ class LdapProviderTest extends TestCase
     public function testDerProviderBindetZweimalUndSuchtDazwischen(): void
     {
         $provider = new LdapProvider($this->ldap(array($this->eintrag())), $this->einstellungen());
-        $provider->pruefen($this->request());
+        $provider->authenticate($this->request());
 
         $this->assertSame('bind', $this->aufrufe[0][0]);
         $this->assertSame('CN=dienst,DC=example,DC=invalid', $this->aufrufe[0][1], 'Erst das Dienstkonto');
@@ -151,7 +151,7 @@ class LdapProviderTest extends TestCase
             $this->ldap(array($this->eintrag())),
             $this->einstellungen(array('search_dn' => null, 'search_password' => null))
         );
-        $provider->pruefen($this->request());
+        $provider->authenticate($this->request());
 
         $this->assertSame(array('bind', null, null), $this->aufrufe[0]);
     }
@@ -172,7 +172,7 @@ class LdapProviderTest extends TestCase
     {
         $provider = new LdapProvider($this->ldap(array($this->eintrag())), $this->einstellungen());
 
-        $this->assertNull($provider->pruefen($this->request('mmustermann', '')));
+        $this->assertNull($provider->authenticate($this->request('mmustermann', '')));
         $this->assertSame(array(), $this->aufrufe, 'Kein einziger Aufruf am Verzeichnis');
     }
 
@@ -180,8 +180,8 @@ class LdapProviderTest extends TestCase
     {
         $provider = new LdapProvider($this->ldap(array($this->eintrag())), $this->einstellungen());
 
-        $this->assertNull($provider->pruefen($this->request(null, 'geheim')));
-        $this->assertNull($provider->pruefen($this->request('   ', 'geheim')));
+        $this->assertNull($provider->authenticate($this->request(null, 'geheim')));
+        $this->assertNull($provider->authenticate($this->request('   ', 'geheim')));
         $this->assertSame(array(), $this->aufrufe);
     }
 
@@ -194,7 +194,7 @@ class LdapProviderTest extends TestCase
     public function testDieKennungWirdInDenFilterMaskiert(): void
     {
         $provider = new LdapProvider($this->ldap(array($this->eintrag())), $this->einstellungen());
-        $provider->pruefen($this->request('admin)(|(objectClass=*', 'geheim'));
+        $provider->authenticate($this->request('admin)(|(objectClass=*', 'geheim'));
 
         $filter = $this->aufrufe[1][2];
 
@@ -208,7 +208,7 @@ class LdapProviderTest extends TestCase
     {
         $provider = new LdapProvider($this->ldap(array()), $this->einstellungen());
 
-        $this->assertNull($provider->pruefen($this->request()));
+        $this->assertNull($provider->authenticate($this->request()));
     }
 
     /**
@@ -219,7 +219,7 @@ class LdapProviderTest extends TestCase
     {
         $provider = new LdapProvider($this->ldap(array($this->eintrag(), $this->eintrag())), $this->einstellungen());
 
-        $this->assertNull($provider->pruefen($this->request()));
+        $this->assertNull($provider->authenticate($this->request()));
     }
 
     public function testEinFalschesPasswortWirdAbgewiesen(): void
@@ -229,21 +229,21 @@ class LdapProviderTest extends TestCase
             array('CN=Max Mustermann,OU=Benutzer,DC=example,DC=invalid')
         );
 
-        $this->assertNull((new LdapProvider($ldap, $this->einstellungen()))->pruefen($this->request()));
+        $this->assertNull((new LdapProvider($ldap, $this->einstellungen()))->authenticate($this->request()));
     }
 
     public function testEinNichtErreichbaresVerzeichnisWirdAbgewiesen(): void
     {
         $provider = new LdapProvider($this->ldap(null), $this->einstellungen());
 
-        $this->assertNull($provider->pruefen($this->request()));
+        $this->assertNull($provider->authenticate($this->request()));
     }
 
     public function testEinAbgelehntesDienstkontoWirdAbgewiesen(): void
     {
         $ldap = $this->ldap(array($this->eintrag()), array('CN=dienst,DC=example,DC=invalid'));
 
-        $this->assertNull((new LdapProvider($ldap, $this->einstellungen()))->pruefen($this->request()));
+        $this->assertNull((new LdapProvider($ldap, $this->einstellungen()))->authenticate($this->request()));
     }
 
     // ── Gruppen ────────────────────────────────────────────────────────────────────────
@@ -252,15 +252,15 @@ class LdapProviderTest extends TestCase
     {
         $provider = new LdapProvider($this->ldap(array($this->eintrag(array()))), $this->einstellungen());
 
-        $fremd = $provider->pruefen($this->request());
+        $fremd = $provider->authenticate($this->request());
 
-        $this->assertInstanceOf(Fremdkennung::class, $fremd);
-        $this->assertSame(array(), $fremd->gruppen);
+        $this->assertInstanceOf(ExternalIdentity::class, $fremd);
+        $this->assertSame(array(), $fremd->groups);
     }
 
     /**
      * Was das Verzeichnis liefert, geht **unverändert** weiter. Abgebildet wird es von
-     * `Gruppenabbildung` (`013-004-0003`) — hier etwas umzuschreiben hiesse, die Abbildung an
+     * `GroupMapping` (`013-004-0003`) — hier etwas umzuschreiben hiesse, die Abbildung an
      * zwei Stellen zu haben.
      */
     public function testDieGruppenGehenUnveraendertWeiter(): void
@@ -268,6 +268,6 @@ class LdapProviderTest extends TestCase
         $roh = array('CN=Redaktion,OU=Gruppen,DC=example,DC=invalid', 'CN=Alle,DC=example,DC=invalid');
         $provider = new LdapProvider($this->ldap(array($this->eintrag(array('memberOf' => $roh)))), $this->einstellungen());
 
-        $this->assertSame($roh, $provider->pruefen($this->request())->gruppen);
+        $this->assertSame($roh, $provider->authenticate($this->request())->groups);
     }
 }

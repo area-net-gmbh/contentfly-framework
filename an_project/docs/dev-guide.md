@@ -65,7 +65,7 @@ hält beide Richtungen fest.
 | `dispatcher` | der `EventDispatcher` |
 | `auth.user` | der angemeldete Benutzer, **`null` solange niemand angemeldet ist** |
 | `orm.em` | der Doctrine-EntityManager, **`null` solange nicht installiert ist** |
-| `anmeldeanbieter` | das Verzeichnis der Anmeldeprovider (Story `013-004`) |
+| `loginProviders` | das Verzeichnis der Anmeldeprovider (Story `013-004`) |
 
 ### Erst wenn die Anwendung installiert ist
 
@@ -98,8 +98,8 @@ es ihn nie.
 ### Was **nicht** zugesichert ist
 
 Alles andere, was das Framework registriert, ist interne Verdrahtung: `dbs.options`, `auth`,
-`console`, `helper`, `loginbremse`, `tokenAuthenticator`, `benutzerbereitstellung`,
-`gruppenabbildung`, `tokenHandler`, `thumbnailSettings`, `schema`, `typeManager`,
+`console`, `helper`, `loginbremse`, `tokenAuthenticator`, `userProvisioning`,
+`groupMapping`, `tokenHandler`, `thumbnailSettings`, `schema`, `typeManager`,
 `pluginManager` — dazu `kernel`, `resolver` und `argument_resolver`, die aus
 `Classes/Kernel/Application` kommen und den HttpKernel verdrahten.
 

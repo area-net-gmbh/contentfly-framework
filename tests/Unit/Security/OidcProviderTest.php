@@ -1,7 +1,7 @@
 <?php
 namespace Tests\Unit\Security;
 
-use Areanet\PIM\Classes\Security\Fremdkennung;
+use Areanet\PIM\Classes\Security\ExternalIdentity;
 use Areanet\PIM\Classes\Security\OidcProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\Exception\TransportException;
@@ -18,7 +18,7 @@ use Symfony\Component\HttpFoundation\Request;
  * erzeugen kann. Der Userinfo-Weg braucht ein Gegenüber.
  *
  * Was dadurch **nicht** ungeprüft bleibt: dass die Anmeldung in dieselbe Token-Ausstellung
- * mündet wie der lokale Login. Das ist der Weg hinter `Anmeldeprovider`, und den misst
+ * mündet wie der lokale Login. Das ist der Weg hinter `LoginProvider`, und den misst
  * `AnmeldeproviderApiTest` end-to-end — ein Provider ist dort austauschbar, weil der Vertrag
  * genau eine Methode hat.
  */
@@ -30,9 +30,9 @@ class OidcProviderTest extends TestCase
     private function einstellungen(array $abweichend = array()): array
     {
         return $abweichend + array(
-            'endpunkt'      => 'https://idp.example.invalid/userinfo',
-            'kennung_claim' => 'sub',
-            'gruppen_claim' => 'groups',
+            'endpoint'      => 'https://idp.example.invalid/userinfo',
+            'identifier_claim' => 'sub',
+            'groups_claim' => 'groups',
         );
     }
 
@@ -78,16 +78,16 @@ class OidcProviderTest extends TestCase
             'groups' => array('redaktion', 'alle'),
         )));
 
-        $fremd = $provider->pruefen($this->request());
+        $fremd = $provider->authenticate($this->request());
 
-        $this->assertInstanceOf(Fremdkennung::class, $fremd);
-        $this->assertSame('8c1e-4f', $fremd->kennung);
-        $this->assertSame(array('redaktion', 'alle'), $fremd->gruppen);
+        $this->assertInstanceOf(ExternalIdentity::class, $fremd);
+        $this->assertSame('8c1e-4f', $fremd->identifier);
+        $this->assertSame(array('redaktion', 'alle'), $fremd->groups);
     }
 
     public function testDasTokenGehtAlsBearerAnDenEndpunkt(): void
     {
-        $this->provider($this->antwort(array('sub' => 'x')))->pruefen($this->request());
+        $this->provider($this->antwort(array('sub' => 'x')))->authenticate($this->request());
 
         $this->assertSame('GET', $this->anfrage['methode']);
         $this->assertSame('https://idp.example.invalid/userinfo', $this->anfrage['url']);
@@ -102,7 +102,7 @@ class OidcProviderTest extends TestCase
     {
         $provider = $this->provider($this->antwort(array('sub' => 'x')));
 
-        $this->assertNotNull($provider->pruefen($this->request('pass')));
+        $this->assertNotNull($provider->authenticate($this->request('pass')));
     }
 
     /**
@@ -113,17 +113,17 @@ class OidcProviderTest extends TestCase
     {
         $provider = $this->provider(
             $this->antwort(array('sub' => 'x', 'roles' => array('admin'))),
-            array('gruppen_claim' => 'roles')
+            array('groups_claim' => 'roles')
         );
 
-        $this->assertSame(array('admin'), $provider->pruefen($this->request())->gruppen);
+        $this->assertSame(array('admin'), $provider->authenticate($this->request())->groups);
     }
 
     public function testEineAntwortOhneGruppenIstInOrdnung(): void
     {
         $provider = $this->provider($this->antwort(array('sub' => 'x')));
 
-        $this->assertSame(array(), $provider->pruefen($this->request())->gruppen);
+        $this->assertSame(array(), $provider->authenticate($this->request())->groups);
     }
 
     // ── Abweisungen, alle gleich ───────────────────────────────────────────────────────
@@ -132,7 +132,7 @@ class OidcProviderTest extends TestCase
     {
         $provider = $this->provider($this->antwort(array('error' => 'invalid_token'), 401));
 
-        $this->assertNull($provider->pruefen($this->request()));
+        $this->assertNull($provider->authenticate($this->request()));
     }
 
     /**
@@ -144,28 +144,28 @@ class OidcProviderTest extends TestCase
     {
         $provider = $this->provider($this->antwort(array('email' => 'm@example.invalid')));
 
-        $this->assertNull($provider->pruefen($this->request()));
+        $this->assertNull($provider->authenticate($this->request()));
     }
 
     public function testEineLeereKennungWirdAbgewiesen(): void
     {
         $provider = $this->provider($this->antwort(array('sub' => '   ')));
 
-        $this->assertNull($provider->pruefen($this->request()));
+        $this->assertNull($provider->authenticate($this->request()));
     }
 
     public function testEinNichtErreichbarerProviderWirdAbgewiesen(): void
     {
         $provider = $this->provider(new TransportException('Zeitueberschreitung'));
 
-        $this->assertNull($provider->pruefen($this->request()));
+        $this->assertNull($provider->authenticate($this->request()));
     }
 
     public function testOhneTokenWirdNichtGefragt(): void
     {
         $provider = $this->provider($this->antwort(array('sub' => 'x')));
 
-        $this->assertNull($provider->pruefen($this->request('accessToken', null)));
+        $this->assertNull($provider->authenticate($this->request('accessToken', null)));
         $this->assertSame(array(), $this->anfrage, 'Kein Aufruf am Endpunkt');
     }
 
@@ -177,9 +177,9 @@ class OidcProviderTest extends TestCase
      */
     public function testOhneEndpunktWirdNichtGefragt(): void
     {
-        $provider = $this->provider($this->antwort(array('sub' => 'x')), array('endpunkt' => ''));
+        $provider = $this->provider($this->antwort(array('sub' => 'x')), array('endpoint' => ''));
 
-        $this->assertNull($provider->pruefen($this->request()));
+        $this->assertNull($provider->authenticate($this->request()));
         $this->assertSame(array(), $this->anfrage);
     }
 }

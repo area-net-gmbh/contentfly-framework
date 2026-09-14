@@ -1,9 +1,9 @@
 <?php
 namespace Custom\Classes\Anmeldung;
 
-use Areanet\PIM\Classes\Security\Anmeldeprovider;
-use Areanet\PIM\Classes\Security\Bestandspruefung;
-use Areanet\PIM\Classes\Security\Fremdkennung;
+use Areanet\PIM\Classes\Security\LoginProvider;
+use Areanet\PIM\Classes\Security\UserExistenceCheck;
+use Areanet\PIM\Classes\Security\ExternalIdentity;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
@@ -17,8 +17,8 @@ use Symfony\Component\HttpFoundation\Request;
  *
  * ── What a real project changes here ──────────────────────────────────────────────────
  *
- * `pruefen()`. In a real project this is where the call to LDAP, SAML, OIDC or whatever
- * the external system is goes. It returns a `Fremdkennung` carrying the identifier **in the
+ * `authenticate()`. In a real project this is where the call to LDAP, SAML, OIDC or whatever
+ * the external system is goes. It returns a `ExternalIdentity` carrying the identifier **in the
  * external system** — not the Contentfly alias — and whatever groups the external system reports.
  *
  * ── What it should not touch ──────────────────────────────────────────────────────────
@@ -28,7 +28,7 @@ use Symfony\Component\HttpFoundation\Request;
  * does not reach the caller. An LDAP error including the server name in the response is exactly
  * what happened until `013-004-0001`.
  *
- * And the mapping to Contentfly groups: that belongs in `SECURITY_PROVIDER_GRUPPEN`, not
+ * And the mapping to Contentfly groups: that belongs in `SECURITY_PROVIDER_GROUPS`, not
  * here. A provider reports what the external system reports.
  *
  * ── Why this template lets nobody in ──────────────────────────────────────────────────
@@ -41,11 +41,11 @@ use Symfony\Component\HttpFoundation\Request;
  * placeholder for an external system, not a recommendation: secrets in an environment variable
  * are fine for a test and not for production.
  */
-final class BeispielProvider implements Anmeldeprovider, Bestandspruefung
+final class BeispielProvider implements LoginProvider, UserExistenceCheck
 {
     public const UMGEBUNGSVARIABLE = 'CONTENTFLY_BEISPIEL_PROVIDER';
 
-    public function pruefen(Request $request): ?Fremdkennung
+    public function authenticate(Request $request): ?ExternalIdentity
     {
         $daten    = $request->request->all();
         $kennung  = $daten['alias'] ?? null;
@@ -69,7 +69,7 @@ final class BeispielProvider implements Anmeldeprovider, Bestandspruefung
                 return null;
             }
 
-            return new Fremdkennung($eintrag['kennung'], $eintrag['gruppen']);
+            return new ExternalIdentity($eintrag['kennung'], $eintrag['gruppen']);
         }
 
         return null;
@@ -78,7 +78,7 @@ final class BeispielProvider implements Anmeldeprovider, Bestandspruefung
     /**
      * Does the "external system" still know this identifier? (`013-005-0002`)
      *
-     * The template implements `Bestandspruefung` because it **can**: its list lives in
+     * The template implements `UserExistenceCheck` because it **can**: its list lives in
      * the environment, and looking it up needs no secret. A real provider cannot always
      * do that — an OIDC provider, for instance, verifies a token the client brings along and has
      * no means without it. Then this interface is left out, and `appcms:provider:abgleich`
@@ -88,7 +88,7 @@ final class BeispielProvider implements Anmeldeprovider, Bestandspruefung
      * difference is decisive: if a missing configuration were read as `false`, the first
      * sync after a forgotten environment entry would lock out every user.
      */
-    public function kenntKennung(string $kennung): ?bool
+    public function knowsIdentifier(string $kennung): ?bool
     {
         $roh = $_ENV[self::UMGEBUNGSVARIABLE] ?? getenv(self::UMGEBUNGSVARIABLE) ?: '';
 

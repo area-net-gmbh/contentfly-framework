@@ -1,8 +1,8 @@
 <?php
 namespace Tests\Unit\Security;
 
-use Areanet\PIM\Classes\Security\Benutzerbereitstellung;
-use Areanet\PIM\Classes\Security\Fremdkennung;
+use Areanet\PIM\Classes\Security\UserProvisioning;
+use Areanet\PIM\Classes\Security\ExternalIdentity;
 use Areanet\PIM\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
@@ -15,12 +15,12 @@ use PHPUnit\Framework\TestCase;
  * Passwort war der Benutzername. Entschärft war das allein durch den Riegel „nur über
  * LoginManager authorisierbar"; jeder Pfad, der ihn umging, war eine triviale Kontoübernahme.
  */
-class BenutzerbereitstellungTest extends TestCase
+class UserProvisioningTest extends TestCase
 {
     /** @var list<object> */
     private array $persistiert = array();
 
-    private function bereitstellung(?User $vorhanden): Benutzerbereitstellung
+    private function bereitstellung(?User $vorhanden): UserProvisioning
     {
         $this->persistiert = array();
 
@@ -33,7 +33,7 @@ class BenutzerbereitstellungTest extends TestCase
             $this->persistiert[] = $objekt;
         });
 
-        return new Benutzerbereitstellung($em);
+        return new UserProvisioning($em);
     }
 
     // ── Anlegen ────────────────────────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ class BenutzerbereitstellungTest extends TestCase
      */
     public function testEinNeuerBenutzerHatEinGesperrtesPasswort(): void
     {
-        $benutzer = $this->bereitstellung(null)->findenOderAnlegen('ldap', new Fremdkennung('mmustermann'));
+        $benutzer = $this->bereitstellung(null)->findOrCreate('ldap', new ExternalIdentity('mmustermann'));
 
         $this->assertTrue($benutzer->istPasswortGesperrt());
         $this->assertSame(User::PASSWORT_GESPERRT, $benutzer->getPass());
@@ -55,7 +55,7 @@ class BenutzerbereitstellungTest extends TestCase
      */
     public function testDerBenutzernameTaugtNichtAlsPasswort(): void
     {
-        $benutzer = $this->bereitstellung(null)->findenOderAnlegen('ldap', new Fremdkennung('mmustermann'));
+        $benutzer = $this->bereitstellung(null)->findOrCreate('ldap', new ExternalIdentity('mmustermann'));
 
         $this->assertFalse($benutzer->isPass('mmustermann'));
         $this->assertFalse($benutzer->isPass($benutzer->getAlias()));
@@ -68,7 +68,7 @@ class BenutzerbereitstellungTest extends TestCase
      */
     public function testKennungUndHerkunftStehenLesbarInEigenenFeldern(): void
     {
-        $benutzer = $this->bereitstellung(null)->findenOderAnlegen('ldap', new Fremdkennung('mmustermann'));
+        $benutzer = $this->bereitstellung(null)->findOrCreate('ldap', new ExternalIdentity('mmustermann'));
 
         $this->assertSame('mmustermann', $benutzer->getExternalId());
         $this->assertSame('ldap', $benutzer->getLoginManager());
@@ -83,8 +83,8 @@ class BenutzerbereitstellungTest extends TestCase
      */
     public function testZweiProviderMitDerselbenKennungErgebenZweiKonten(): void
     {
-        $einer  = $this->bereitstellung(null)->findenOderAnlegen('ldap', new Fremdkennung('mueller'));
-        $andere = $this->bereitstellung(null)->findenOderAnlegen('saml', new Fremdkennung('mueller'));
+        $einer  = $this->bereitstellung(null)->findOrCreate('ldap', new ExternalIdentity('mueller'));
+        $andere = $this->bereitstellung(null)->findOrCreate('saml', new ExternalIdentity('mueller'));
 
         $this->assertNotSame($einer->getAlias(), $andere->getAlias());
         $this->assertSame('ldap:mueller', $einer->getAlias());
@@ -93,7 +93,7 @@ class BenutzerbereitstellungTest extends TestCase
 
     public function testEinNeuerBenutzerBekommtKeineAdminrechte(): void
     {
-        $benutzer = $this->bereitstellung(null)->findenOderAnlegen('ldap', new Fremdkennung('mmustermann'));
+        $benutzer = $this->bereitstellung(null)->findOrCreate('ldap', new ExternalIdentity('mmustermann'));
 
         $this->assertFalse((bool) $benutzer->getIsAdmin());
         $this->assertTrue((bool) $benutzer->getIsActive());
@@ -108,7 +108,7 @@ class BenutzerbereitstellungTest extends TestCase
         $vorhanden->setExternalId('mmustermann');
         $vorhanden->setLoginManager('ldap');
 
-        $gefunden = $this->bereitstellung($vorhanden)->findenOderAnlegen('ldap', new Fremdkennung('mmustermann'));
+        $gefunden = $this->bereitstellung($vorhanden)->findOrCreate('ldap', new ExternalIdentity('mmustermann'));
 
         $this->assertSame($vorhanden, $gefunden);
         $this->assertSame(array(), $this->persistiert, 'Nichts angelegt');
@@ -126,7 +126,7 @@ class BenutzerbereitstellungTest extends TestCase
         $vorhanden->setAlias('ldap:chef');
         $vorhanden->setPass('ein-echtes-passwort');
 
-        $gefunden = $this->bereitstellung($vorhanden)->findenOderAnlegen('ldap', new Fremdkennung('chef'));
+        $gefunden = $this->bereitstellung($vorhanden)->findOrCreate('ldap', new ExternalIdentity('chef'));
 
         $this->assertFalse($gefunden->istPasswortGesperrt());
         $this->assertTrue($gefunden->isPass('ein-echtes-passwort'));
@@ -142,7 +142,7 @@ class BenutzerbereitstellungTest extends TestCase
      */
     public function testEinGesperrtesPasswortWirdNichtUmgeschluesselt(): void
     {
-        $benutzer = $this->bereitstellung(null)->findenOderAnlegen('ldap', new Fremdkennung('mmustermann'));
+        $benutzer = $this->bereitstellung(null)->findOrCreate('ldap', new ExternalIdentity('mmustermann'));
 
         $this->assertFalse($benutzer->brauchtNeuenHash());
     }
