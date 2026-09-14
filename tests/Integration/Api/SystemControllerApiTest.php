@@ -554,7 +554,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         //
         // NACHGEZOGEN MIT 013-002-0004: Der traege Loeschzweig stand bis dahin in
         // BaseControllerProvider::checkToken(). Die Methode ist entfallen; der Zweig steht
-        // unveraendert in Classes/Security/Tokenhandler.php.
+        // unveraendert in Classes/Security/TokenHandler.php.
         //
         // Befund, notiert in 000-000-0015. Story 013-003 (JWT und Widerruf) loest das Problem
         // vermutlich ohnehin auf; bis dahin ist es festgehalten.
@@ -580,8 +580,8 @@ class SystemControllerApiTest extends IntegrationTestCase
         $this->assertNull($gefunden['referrer'],
             'Ohne Referrer — deshalb unterliegt er dem Timeout und taucht nicht in listTokens auf');
 
-        $quelle = file_get_contents(CONTENTFLY_PROJECT_DIR.'/lib/contentfly/Classes/Security/Tokenhandler.php');
-        $this->assertStringContainsString('$this->em->remove($zeile);', $quelle,
+        $quelle = file_get_contents(CONTENTFLY_PROJECT_DIR.'/lib/contentfly/Classes/Security/TokenHandler.php');
+        $this->assertStringContainsString('$this->em->remove($row);', $quelle,
             'Entfernt wird nur im opaquen Zweig — also nur, wenn der Token erneut vorgezeigt wird');
     }
 

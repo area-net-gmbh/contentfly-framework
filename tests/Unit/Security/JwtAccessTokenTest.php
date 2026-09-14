@@ -3,7 +3,7 @@ namespace Tests\Unit\Security;
 
 use Areanet\PIM\Classes\Config;
 use Areanet\PIM\Classes\Config\Factory;
-use Areanet\PIM\Classes\Security\Zugangstoken;
+use Areanet\PIM\Classes\Security\JwtAccessToken;
 use Areanet\PIM\Entity\User;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
@@ -12,11 +12,11 @@ use PHPUnit\Framework\TestCase;
 /**
  * Der Claim-Satz und die Ausstellung (013-003-0001).
  *
- * Bis zu diesem Task konnte der `Tokenhandler` JWT prüfen, aber niemand stellte welche aus — es
+ * Bis zu diesem Task konnte der `TokenHandler` JWT prüfen, aber niemand stellte welche aus — es
  * gab also auch keinen Satz, gegen den man prüfen konnte. Diese Tests halten fest, was ein
  * ausgestelltes Token trägt, und vor allem, **was nicht**.
  */
-class ZugangstokenTest extends TestCase
+class JwtAccessTokenTest extends TestCase
 {
     private const GEHEIMNIS = 'test-geheimnis-mit-mindestens-32-byte-laenge';
 
@@ -45,17 +45,17 @@ class ZugangstokenTest extends TestCase
 
     private function claims(string $token): array
     {
-        return (array) JWT::decode($token, new Key(self::GEHEIMNIS, Zugangstoken::VERFAHREN));
+        return (array) JWT::decode($token, new Key(self::GEHEIMNIS, JwtAccessToken::ALGORITHM));
     }
 
     // ── Der Claim-Satz ─────────────────────────────────────────────────────────────────
 
     public function testEinTokenTraegtGenauDieFuenfFestgelegtenClaims(): void
     {
-        $namen = array_keys($this->claims(Zugangstoken::ausstellen($this->benutzer())['token']));
+        $namen = array_keys($this->claims(JwtAccessToken::issue($this->benutzer())['token']));
         sort($namen);
 
-        $erwartet = Zugangstoken::CLAIMS;
+        $erwartet = JwtAccessToken::CLAIMS;
         sort($erwartet);
 
         $this->assertSame($erwartet, $namen, 'Genau diese fuenf — ein sechster faellt hier auf');
@@ -73,7 +73,7 @@ class ZugangstokenTest extends TestCase
     {
         $admin = $this->benutzer('chef', true);
 
-        $roh = Zugangstoken::ausstellen($admin)['token'];
+        $roh = JwtAccessToken::issue($admin)['token'];
 
         $this->assertStringNotContainsStringIgnoringCase('ROLE_', base64_decode(strtr(explode('.', $roh)[1], '-_', '+/')));
 
@@ -84,16 +84,16 @@ class ZugangstokenTest extends TestCase
 
     public function testDieKennungStehtInSub(): void
     {
-        $claims = $this->claims(Zugangstoken::ausstellen($this->benutzer('redakteur'))['token']);
+        $claims = $this->claims(JwtAccessToken::issue($this->benutzer('redakteur'))['token']);
 
         $this->assertSame('redakteur', $claims['sub']);
     }
 
     public function testDerAusgeberStehtInIss(): void
     {
-        $claims = $this->claims(Zugangstoken::ausstellen($this->benutzer())['token']);
+        $claims = $this->claims(JwtAccessToken::issue($this->benutzer())['token']);
 
-        $this->assertSame(Zugangstoken::AUSGEBER, $claims['iss']);
+        $this->assertSame(JwtAccessToken::ISSUER, $claims['iss']);
     }
 
     /**
@@ -104,8 +104,8 @@ class ZugangstokenTest extends TestCase
     {
         $benutzer = $this->benutzer();
 
-        $eins = Zugangstoken::ausstellen($benutzer);
-        $zwei = Zugangstoken::ausstellen($benutzer);
+        $eins = JwtAccessToken::issue($benutzer);
+        $zwei = JwtAccessToken::issue($benutzer);
 
         $this->assertNotSame($eins['jti'], $zwei['jti']);
         $this->assertSame($eins['jti'], $this->claims($eins['token'])['jti']);
@@ -120,7 +120,7 @@ class ZugangstokenTest extends TestCase
         $config->SECURITY_JWT_TTL    = 300;
         Factory::getInstance()->setConfig($config);
 
-        $zugang = Zugangstoken::ausstellen($this->benutzer());
+        $zugang = JwtAccessToken::issue($this->benutzer());
 
         $this->assertEqualsWithDelta(time() + 300, $zugang['exp'], 2);
     }
@@ -135,7 +135,7 @@ class ZugangstokenTest extends TestCase
         $config->SECURITY_JWT_TTL    = 0;
         Factory::getInstance()->setConfig($config);
 
-        $this->assertSame(900, Zugangstoken::lebensdauer());
+        $this->assertSame(900, JwtAccessToken::ttl());
     }
 
     // ── Ohne Geheimnis ─────────────────────────────────────────────────────────────────
@@ -144,7 +144,7 @@ class ZugangstokenTest extends TestCase
     {
         Factory::getInstance()->setConfig(new Config());
 
-        $this->assertFalse(Zugangstoken::eingerichtet());
+        $this->assertFalse(JwtAccessToken::isConfigured());
     }
 
     /**
@@ -161,6 +161,6 @@ class ZugangstokenTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessageMatches('/SECURITY_JWT_SECRET/');
 
-        Zugangstoken::ausstellen($this->benutzer());
+        JwtAccessToken::issue($this->benutzer());
     }
 }

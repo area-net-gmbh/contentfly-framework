@@ -1,7 +1,7 @@
 <?php
 namespace Tests\Unit\Security;
 
-use Areanet\PIM\Classes\Security\Benutzerlader;
+use Areanet\PIM\Classes\Security\UserLoader;
 use Areanet\PIM\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
@@ -9,15 +9,15 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Security\Core\Exception\UserNotFoundException;
 
 /**
- * Der Benutzerlader (013-002-0001).
+ * Der UserLoader (013-002-0001).
  *
  * Er ist der Gegenpart zum TokenHandler: Der liefert eine Kennung, dieser macht daraus einen
  * Benutzer. Geprüft wird gegen einen Repository-Doppelgänger — die Abfrage selbst ist eine Zeile
  * Doctrine, das Verhalten drumherum ist der Punkt.
  */
-class BenutzerladerTest extends TestCase
+class UserLoaderTest extends TestCase
 {
-    private function lader(?User $gefunden): Benutzerlader
+    private function lader(?User $gefunden): UserLoader
     {
         $repository = $this->createMock(EntityRepository::class);
         $repository->method('findOneBy')->willReturn($gefunden);
@@ -25,7 +25,7 @@ class BenutzerladerTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($repository);
 
-        return new Benutzerlader($em);
+        return new UserLoader($em);
     }
 
     private function benutzer(string $alias, bool $aktiv = true): User

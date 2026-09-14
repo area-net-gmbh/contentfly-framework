@@ -3,8 +3,8 @@ namespace Tests\Unit\Security;
 
 use Areanet\PIM\Classes\Config;
 use Areanet\PIM\Classes\Config\Factory;
-use Areanet\PIM\Classes\Security\Tokenhandler;
-use Areanet\PIM\Classes\Security\Zugangstoken;
+use Areanet\PIM\Classes\Security\TokenHandler;
+use Areanet\PIM\Classes\Security\JwtAccessToken;
 use Areanet\PIM\Entity\Group;
 use Areanet\PIM\Entity\RevokedToken;
 use Areanet\PIM\Entity\Token;
@@ -21,7 +21,7 @@ use Symfony\Component\Security\Core\Exception\AuthenticationException;
  * Symfony erlaubt genau einen `token_handler` je Firewall und bringt keine Verkettung mit. Die
  * Verzweigung ist deshalb eigener Code — und damit etwas, das geprüft gehört.
  */
-class TokenhandlerTest extends TestCase
+class TokenHandlerTest extends TestCase
 {
     private const GEHEIMNIS = 'test-geheimnis-nur-fuer-diesen-lauf';
 
@@ -139,7 +139,7 @@ class TokenhandlerTest extends TestCase
     {
         return JWT::encode(
             $claims + array(
-                'iss' => Zugangstoken::AUSGEBER,
+                'iss' => JwtAccessToken::ISSUER,
                 'exp' => time() + 600,
                 'jti' => bin2hex(random_bytes(16)),
             ),
@@ -147,7 +147,7 @@ class TokenhandlerTest extends TestCase
             'HS256',
             // Die Kennung ist seit 013-003-0004 Pflicht: `JWT::decode()` waehlt den Schluessel
             // danach, und ein Token ohne `kid` wird abgewiesen.
-            Zugangstoken::kennung()
+            JwtAccessToken::keyId()
         );
     }
 
@@ -156,7 +156,7 @@ class TokenhandlerTest extends TestCase
     public function testEinOpaquerTokenLiefertSeinenBenutzer(): void
     {
         $benutzer = $this->benutzer();
-        $handler  = new Tokenhandler($this->em($this->zeile($benutzer)));
+        $handler  = new TokenHandler($this->em($this->zeile($benutzer)));
 
         $badge = $handler->getUserBadgeFrom('irgendein-opaker-token');
 
@@ -166,7 +166,7 @@ class TokenhandlerTest extends TestCase
 
     public function testEinUnbekannterOpaquerTokenWirdAbgewiesen(): void
     {
-        $handler = new Tokenhandler($this->em(null));
+        $handler = new TokenHandler($this->em(null));
 
         $this->expectException(AuthenticationException::class);
         $handler->getUserBadgeFrom('gibtesnicht');
@@ -174,7 +174,7 @@ class TokenhandlerTest extends TestCase
 
     public function testEinGesperrterBenutzerWirdAbgewiesen(): void
     {
-        $handler = new Tokenhandler($this->em($this->zeile($this->benutzer('gesperrt', false))));
+        $handler = new TokenHandler($this->em($this->zeile($this->benutzer('gesperrt', false))));
 
         $this->expectException(AuthenticationException::class);
         $handler->getUserBadgeFrom('irgendein-opaker-token');
@@ -183,7 +183,7 @@ class TokenhandlerTest extends TestCase
     public function testEinAbgelaufenerTokenWirdAbgewiesen(): void
     {
         $alt     = new \DateTime('-1 day');
-        $handler = new Tokenhandler($this->em($this->zeile($this->benutzer(), $alt)));
+        $handler = new TokenHandler($this->em($this->zeile($this->benutzer(), $alt)));
 
         $this->expectException(AuthenticationException::class);
         $handler->getUserBadgeFrom('abgelaufen');
@@ -195,7 +195,7 @@ class TokenhandlerTest extends TestCase
     public function testEinReferrerTokenVerfaelltNicht(): void
     {
         $alt      = new \DateTime('-1 year');
-        $handler  = new Tokenhandler($this->em($this->zeile($this->benutzer(), $alt, 'https://example.invalid')));
+        $handler  = new TokenHandler($this->em($this->zeile($this->benutzer(), $alt, 'https://example.invalid')));
 
         $this->assertSame('admin', $handler->getUserBadgeFrom('api-token')->getUserIdentifier());
     }
@@ -211,7 +211,7 @@ class TokenhandlerTest extends TestCase
         $benutzer = $this->benutzer();
         $benutzer->setGroup($gruppe);
 
-        $handler = new Tokenhandler($this->em($this->zeile($benutzer, new \DateTime('-2 minutes'))));
+        $handler = new TokenHandler($this->em($this->zeile($benutzer, new \DateTime('-2 minutes'))));
 
         $this->expectException(AuthenticationException::class);
         $handler->getUserBadgeFrom('opaker-token');
@@ -224,7 +224,7 @@ class TokenhandlerTest extends TestCase
     {
         $zeile   = $this->zeile($this->benutzer(), new \DateTime('-10 minutes'));
         $vorher  = $zeile->getModified()->getTimestamp();
-        $handler = new Tokenhandler($this->em($zeile, 1));
+        $handler = new TokenHandler($this->em($zeile, 1));
 
         $handler->getUserBadgeFrom('opaker-token');
 
@@ -234,18 +234,18 @@ class TokenhandlerTest extends TestCase
     public function testDerAufgeloesteTokenBleibtAbrufbar(): void
     {
         $zeile   = $this->zeile($this->benutzer());
-        $handler = new Tokenhandler($this->em($zeile));
+        $handler = new TokenHandler($this->em($zeile));
 
         $handler->getUserBadgeFrom('opaker-token');
 
-        $this->assertSame($zeile, $handler->letzterToken(), '$app[\'auth.token\'] braucht die Zeile');
+        $this->assertSame($zeile, $handler->lastToken(), '$app[\'auth.token\'] braucht die Zeile');
     }
 
     // ── Der JWT-Zweig ──────────────────────────────────────────────────────────────────
 
     public function testEinJwtLiefertSeinenBenutzer(): void
     {
-        $handler = new Tokenhandler($this->emDerWirft());
+        $handler = new TokenHandler($this->emDerWirft());
 
         $badge = $handler->getUserBadgeFrom($this->jwt(array('sub' => 'admin')));
 
@@ -260,20 +260,20 @@ class TokenhandlerTest extends TestCase
      */
     public function testDerJwtZweigFasstDieTokentabelleNichtAn(): void
     {
-        $handler = new Tokenhandler($this->emDerWirft());
+        $handler = new TokenHandler($this->emDerWirft());
 
         $handler->getUserBadgeFrom($this->jwt(array('sub' => 'admin')));
 
-        $this->assertNull($handler->letzterToken(), 'Im JWT-Zweig gibt es keine Zeile');
+        $this->assertNull($handler->lastToken(), 'Im JWT-Zweig gibt es keine Zeile');
     }
 
     /**
-     * Das Badge kommt **ohne** eigenen Lader zurück — den Benutzer holt der `Benutzerlader`,
+     * Das Badge kommt **ohne** eigenen Lader zurück — den Benutzer holt der `UserLoader`,
      * den der Authenticator kennt.
      */
     public function testDasJwtBadgeUeberlaesstDasLadenDemBenutzerlader(): void
     {
-        $handler = new Tokenhandler($this->emDerWirft());
+        $handler = new TokenHandler($this->emDerWirft());
 
         $badge = $handler->getUserBadgeFrom($this->jwt(array('sub' => 'admin')));
 
@@ -282,8 +282,8 @@ class TokenhandlerTest extends TestCase
 
     public function testEinAbgelaufenesJwtWirdAbgewiesen(): void
     {
-        $abgelaufen = JWT::encode(array('sub' => 'admin', 'iss' => Zugangstoken::AUSGEBER, 'exp' => time() - 10), self::GEHEIMNIS, 'HS256', Zugangstoken::kennung());
-        $handler    = new Tokenhandler($this->emDerWirft());
+        $abgelaufen = JWT::encode(array('sub' => 'admin', 'iss' => JwtAccessToken::ISSUER, 'exp' => time() - 10), self::GEHEIMNIS, 'HS256', JwtAccessToken::keyId());
+        $handler    = new TokenHandler($this->emDerWirft());
 
         $this->expectException(AuthenticationException::class);
         $handler->getUserBadgeFrom($abgelaufen);
@@ -293,7 +293,7 @@ class TokenhandlerTest extends TestCase
     {
         $echt        = $this->jwt(array('sub' => 'admin'));
         $manipuliert = substr($echt, 0, -3).'aaa';
-        $handler     = new Tokenhandler($this->emDerWirft());
+        $handler     = new TokenHandler($this->emDerWirft());
 
         $this->expectException(AuthenticationException::class);
         $handler->getUserBadgeFrom($manipuliert);
@@ -301,8 +301,8 @@ class TokenhandlerTest extends TestCase
 
     public function testEinJwtMitFremdemGeheimnisWirdAbgewiesen(): void
     {
-        $fremd   = JWT::encode(array('sub' => 'admin', 'iss' => Zugangstoken::AUSGEBER, 'exp' => time() + 600), self::FREMDES_GEHEIMNIS, 'HS256', Zugangstoken::kennung());
-        $handler = new Tokenhandler($this->emDerWirft());
+        $fremd   = JWT::encode(array('sub' => 'admin', 'iss' => JwtAccessToken::ISSUER, 'exp' => time() + 600), self::FREMDES_GEHEIMNIS, 'HS256', JwtAccessToken::keyId());
+        $handler = new TokenHandler($this->emDerWirft());
 
         $this->expectException(AuthenticationException::class);
         $handler->getUserBadgeFrom($fremd);
@@ -310,7 +310,7 @@ class TokenhandlerTest extends TestCase
 
     public function testEinJwtOhneSubWirdAbgewiesen(): void
     {
-        $handler = new Tokenhandler($this->emDerWirft());
+        $handler = new TokenHandler($this->emDerWirft());
 
         $this->expectException(AuthenticationException::class);
         $handler->getUserBadgeFrom($this->jwt(array()));
@@ -329,7 +329,7 @@ class TokenhandlerTest extends TestCase
         $config->SECURITY_JWT_SECRET = null;
         Factory::getInstance()->setConfig($config);
 
-        $handler = new Tokenhandler($this->emDerWirft());
+        $handler = new TokenHandler($this->emDerWirft());
 
         $this->expectException(AuthenticationException::class);
         $handler->getUserBadgeFrom($token);
@@ -352,7 +352,7 @@ class TokenhandlerTest extends TestCase
         $config->SECURITY_JWT_SECRET = 'zu-kurz';
         Factory::getInstance()->setConfig($config);
 
-        $handler = new Tokenhandler($this->emDerWirft());
+        $handler = new TokenHandler($this->emDerWirft());
 
         $this->expectException(AuthenticationException::class);
         $handler->getUserBadgeFrom($token);
@@ -371,9 +371,9 @@ class TokenhandlerTest extends TestCase
             array('sub' => 'admin', 'iss' => 'eine-andere-anwendung', 'exp' => time() + 600),
             self::GEHEIMNIS,
             'HS256',
-            Zugangstoken::kennung()
+            JwtAccessToken::keyId()
         );
-        $handler = new Tokenhandler($this->emDerWirft());
+        $handler = new TokenHandler($this->emDerWirft());
 
         $this->expectException(AuthenticationException::class);
         $handler->getUserBadgeFrom($fremd);
@@ -381,15 +381,15 @@ class TokenhandlerTest extends TestCase
 
     public function testEinTokenOhneAusgeberWirdAbgewiesen(): void
     {
-        $ohne = JWT::encode(array('sub' => 'admin', 'exp' => time() + 600), self::GEHEIMNIS, 'HS256', Zugangstoken::kennung());
-        $handler = new Tokenhandler($this->emDerWirft());
+        $ohne = JWT::encode(array('sub' => 'admin', 'exp' => time() + 600), self::GEHEIMNIS, 'HS256', JwtAccessToken::keyId());
+        $handler = new TokenHandler($this->emDerWirft());
 
         $this->expectException(AuthenticationException::class);
         $handler->getUserBadgeFrom($ohne);
     }
 
     /**
-     * **Ein Refresh-Token ist kein Zugangstoken (013-003-0001).**
+     * **Ein Refresh-Token ist kein JwtAccessToken (013-003-0001).**
      *
      * Es ist eine gewöhnliche Zeile in `pim_token`, und dieser Zweig nahm bis dahin jede Zeile
      * an. Ein Refresh-Token gilt länger als ein Access-JWT — das ist sein Zweck —, und ohne
@@ -400,7 +400,7 @@ class TokenhandlerTest extends TestCase
         $zeile = $this->zeile($this->benutzer());
         $zeile->setPurpose(Token::ZWECK_REFRESH);
 
-        $handler = new Tokenhandler($this->em($zeile));
+        $handler = new TokenHandler($this->em($zeile));
 
         $this->expectException(AuthenticationException::class);
         $handler->getUserBadgeFrom('ein-refresh-token');
@@ -416,18 +416,18 @@ class TokenhandlerTest extends TestCase
      */
     public function testEinGesperrtesTokenWirdAbgewiesenObwohlEsNochGilt(): void
     {
-        $handler = new Tokenhandler($this->emDerWirft());
+        $handler = new TokenHandler($this->emDerWirft());
         $token   = $this->jwt(array('sub' => 'admin'));
 
         // Erst gilt es.
         $this->assertSame('admin', $handler->getUserBadgeFrom($token)->getUserIdentifier());
 
-        $jti    = $handler->letzteClaims()['jti'];
+        $jti    = $handler->lastClaims()['jti'];
         $sperre = new RevokedToken();
         $sperre->setJti($jti);
         $sperre->setExpiresAt(new \DateTime('+10 minutes'));
 
-        $gesperrt = new Tokenhandler($this->emDerWirft(array($sperre)));
+        $gesperrt = new TokenHandler($this->emDerWirft(array($sperre)));
 
         $this->expectException(AuthenticationException::class);
         $gesperrt->getUserBadgeFrom($token);
@@ -439,7 +439,7 @@ class TokenhandlerTest extends TestCase
         $fremd->setJti('eine-ganz-andere-jti');
         $fremd->setExpiresAt(new \DateTime('+10 minutes'));
 
-        $handler = new Tokenhandler($this->emDerWirft(array($fremd)));
+        $handler = new TokenHandler($this->emDerWirft(array($fremd)));
 
         $this->assertSame('admin', $handler->getUserBadgeFrom($this->jwt(array('sub' => 'admin')))->getUserIdentifier());
     }
@@ -450,12 +450,12 @@ class TokenhandlerTest extends TestCase
     public function testEinTokenOhneJtiWirdAbgewiesen(): void
     {
         $ohneJti = JWT::encode(
-            array('sub' => 'admin', 'iss' => Zugangstoken::AUSGEBER, 'exp' => time() + 600),
+            array('sub' => 'admin', 'iss' => JwtAccessToken::ISSUER, 'exp' => time() + 600),
             self::GEHEIMNIS,
             'HS256',
-            Zugangstoken::kennung()
+            JwtAccessToken::keyId()
         );
-        $handler = new Tokenhandler($this->emDerWirft());
+        $handler = new TokenHandler($this->emDerWirft());
 
         $this->expectException(AuthenticationException::class);
         $handler->getUserBadgeFrom($ohneJti);
@@ -463,10 +463,10 @@ class TokenhandlerTest extends TestCase
 
     public function testDieClaimsBleibenFuerDasAbmeldenAbrufbar(): void
     {
-        $handler = new Tokenhandler($this->emDerWirft());
+        $handler = new TokenHandler($this->emDerWirft());
         $handler->getUserBadgeFrom($this->jwt(array('sub' => 'admin')));
 
-        $claims = $handler->letzteClaims();
+        $claims = $handler->lastClaims();
 
         $this->assertIsArray($claims);
         $this->assertArrayHasKey('jti', $claims);
@@ -475,10 +475,10 @@ class TokenhandlerTest extends TestCase
 
     public function testNachEinemOpaquenTokenGibtEsKeineClaims(): void
     {
-        $handler = new Tokenhandler($this->em($this->zeile($this->benutzer())));
+        $handler = new TokenHandler($this->em($this->zeile($this->benutzer())));
         $handler->getUserBadgeFrom('opaker-token');
 
-        $this->assertNull($handler->letzteClaims());
+        $this->assertNull($handler->lastClaims());
     }
 
     // ── Die Verzweigung selbst ─────────────────────────────────────────────────────────
@@ -493,12 +493,12 @@ class TokenhandlerTest extends TestCase
     public function testEinOpaquerTokenMitPunktenLandetImOpaquenZweig(): void
     {
         $benutzer = $this->benutzer();
-        $handler  = new Tokenhandler($this->em($this->zeile($benutzer)));
+        $handler  = new TokenHandler($this->em($this->zeile($benutzer)));
 
         $badge = $handler->getUserBadgeFrom('projekt.api.token');
 
         $this->assertSame('admin', $badge->getUserIdentifier());
-        $this->assertNotNull($handler->letzterToken(), 'Er wurde in der Tabelle gesucht');
+        $this->assertNotNull($handler->lastToken(), 'Er wurde in der Tabelle gesucht');
     }
 
     // ── Ununterscheidbar scheitern ─────────────────────────────────────────────────────
@@ -515,15 +515,15 @@ class TokenhandlerTest extends TestCase
     {
         $ausOpaquem = null;
         try {
-            (new Tokenhandler($this->em(null)))->getUserBadgeFrom('gibtesnicht');
+            (new TokenHandler($this->em(null)))->getUserBadgeFrom('gibtesnicht');
         } catch (AuthenticationException $e) {
             $ausOpaquem = $e;
         }
 
         $ausJwt = null;
         try {
-            (new Tokenhandler($this->emDerWirft()))->getUserBadgeFrom(
-                JWT::encode(array('sub' => 'admin', 'iss' => Zugangstoken::AUSGEBER, 'exp' => time() + 600), self::FREMDES_GEHEIMNIS, 'HS256', Zugangstoken::kennung())
+            (new TokenHandler($this->emDerWirft()))->getUserBadgeFrom(
+                JWT::encode(array('sub' => 'admin', 'iss' => JwtAccessToken::ISSUER, 'exp' => time() + 600), self::FREMDES_GEHEIMNIS, 'HS256', JwtAccessToken::keyId())
             );
         } catch (AuthenticationException $e) {
             $ausJwt = $e;

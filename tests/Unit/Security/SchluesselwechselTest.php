@@ -3,8 +3,8 @@ namespace Tests\Unit\Security;
 
 use Areanet\PIM\Classes\Config;
 use Areanet\PIM\Classes\Config\Factory;
-use Areanet\PIM\Classes\Security\Tokenhandler;
-use Areanet\PIM\Classes\Security\Zugangstoken;
+use Areanet\PIM\Classes\Security\TokenHandler;
+use Areanet\PIM\Classes\Security\JwtAccessToken;
 use Areanet\PIM\Entity\RevokedToken;
 use Areanet\PIM\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
@@ -75,7 +75,7 @@ class SchluesselwechselTest extends TestCase
     private function gilt(string $token): bool
     {
         try {
-            (new Tokenhandler($this->em()))->getUserBadgeFrom($token);
+            (new TokenHandler($this->em()))->getUserBadgeFrom($token);
 
             return true;
         } catch (AuthenticationException) {
@@ -92,7 +92,7 @@ class SchluesselwechselTest extends TestCase
     {
         // 1. Vorher: ein Schlüssel, ein Token.
         $this->konfigurieren(array('SECURITY_JWT_SECRET' => self::ALT, 'SECURITY_JWT_KEY_ID' => 'k1'));
-        $altesToken = Zugangstoken::ausstellen($this->benutzer())['token'];
+        $altesToken = JwtAccessToken::issue($this->benutzer())['token'];
 
         $this->assertTrue($this->gilt($altesToken));
 
@@ -106,7 +106,7 @@ class SchluesselwechselTest extends TestCase
 
         $this->assertTrue($this->gilt($altesToken), 'Niemand muss sich neu anmelden');
 
-        $neuesToken = Zugangstoken::ausstellen($this->benutzer())['token'];
+        $neuesToken = JwtAccessToken::issue($this->benutzer())['token'];
         $this->assertTrue($this->gilt($neuesToken));
         $this->assertSame('k2', $this->kopf($neuesToken)['kid'], 'Signiert wird mit dem neuen');
 
@@ -121,7 +121,7 @@ class SchluesselwechselTest extends TestCase
     {
         $this->konfigurieren(array('SECURITY_JWT_SECRET' => self::NEU, 'SECURITY_JWT_KEY_ID' => 'schluessel-2026-09'));
 
-        $kopf = $this->kopf(Zugangstoken::ausstellen($this->benutzer())['token']);
+        $kopf = $this->kopf(JwtAccessToken::issue($this->benutzer())['token']);
 
         $this->assertSame('schluessel-2026-09', $kopf['kid']);
     }
@@ -132,7 +132,7 @@ class SchluesselwechselTest extends TestCase
     public function testEineUnbekannteKennungWirdAbgewiesen(): void
     {
         $this->konfigurieren(array('SECURITY_JWT_SECRET' => self::ALT, 'SECURITY_JWT_KEY_ID' => 'k1'));
-        $token = Zugangstoken::ausstellen($this->benutzer())['token'];
+        $token = JwtAccessToken::issue($this->benutzer())['token'];
 
         // Derselbe Schlüssel, aber die Anwendung kennt die Kennung k1 nicht mehr.
         $this->konfigurieren(array('SECURITY_JWT_SECRET' => self::ALT, 'SECURITY_JWT_KEY_ID' => 'k9'));
@@ -159,9 +159,9 @@ class SchluesselwechselTest extends TestCase
         ));
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessageMatches('/unterscheiden/');
+        $this->expectExceptionMessageMatches('/must differ/');
 
-        Zugangstoken::pruefschluessel();
+        JwtAccessToken::verificationKeys();
     }
 
     public function testEinVorherigerSchluesselOhneKennungWirdAbgewiesen(): void
@@ -175,7 +175,7 @@ class SchluesselwechselTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessageMatches('/SECURITY_JWT_KEY_ID_PREVIOUS/');
 
-        Zugangstoken::pruefschluessel();
+        JwtAccessToken::verificationKeys();
     }
 
     /**
@@ -187,7 +187,7 @@ class SchluesselwechselTest extends TestCase
     public function testEineFehlkonfigurationSchlaegtDurchStattAbzuweisen(): void
     {
         $this->konfigurieren(array('SECURITY_JWT_SECRET' => self::ALT, 'SECURITY_JWT_KEY_ID' => 'k1'));
-        $token = Zugangstoken::ausstellen($this->benutzer())['token'];
+        $token = JwtAccessToken::issue($this->benutzer())['token'];
 
         $this->konfigurieren(array(
             'SECURITY_JWT_SECRET'          => self::NEU,
@@ -198,7 +198,7 @@ class SchluesselwechselTest extends TestCase
 
         $this->expectException(\RuntimeException::class);
 
-        (new Tokenhandler($this->em()))->getUserBadgeFrom($token);
+        (new TokenHandler($this->em()))->getUserBadgeFrom($token);
     }
 
     /** @return array<string, mixed> */

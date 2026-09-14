@@ -1,7 +1,7 @@
 <?php
 namespace Tests\Unit\Security;
 
-use Areanet\PIM\Classes\Security\Tokenquellen;
+use Areanet\PIM\Classes\Security\TokenSources;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -14,7 +14,7 @@ use Symfony\Component\HttpFoundation\Request;
  *
  * Je Quelle ein Test — und einer für die Reihenfolge, denn die ist nicht die, die man vermutet.
  */
-class TokenquellenTest extends TestCase
+class TokenSourcesTest extends TestCase
 {
     /** @param array<string,string> $kopfzeilen */
     private function request(array $kopfzeilen = array(), array $query = array(), array $rumpf = array()): Request
@@ -29,7 +29,7 @@ class TokenquellenTest extends TestCase
 
     private function lesen(Request $request): ?string
     {
-        return Tokenquellen::kette()->extractAccessToken($request);
+        return TokenSources::chain()->extractAccessToken($request);
     }
 
     // ── Die fünf Quellen ───────────────────────────────────────────────────────────────
