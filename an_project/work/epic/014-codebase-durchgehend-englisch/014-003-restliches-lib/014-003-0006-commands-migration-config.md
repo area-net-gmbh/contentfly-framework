@@ -1,7 +1,7 @@
 ---
 id: 014-003-0006
 title: Commands, Migration, Config und Manifest auf Englisch
-status: review
+status: done
 depends_on: [014-003-0005]
 ---
 

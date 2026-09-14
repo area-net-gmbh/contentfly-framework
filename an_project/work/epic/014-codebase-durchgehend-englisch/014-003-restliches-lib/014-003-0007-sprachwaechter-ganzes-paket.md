@@ -1,7 +1,7 @@
 ---
 id: 014-003-0007
 title: Sprachwächter auf das ganze Framework-Paket
-status: review
+status: done
 depends_on: [014-003-0006]
 ---
 
