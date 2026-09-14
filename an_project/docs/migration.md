@@ -114,7 +114,7 @@ einmal gegangen worden, an einem Projekt ohne eine Zeile Frameworkcode.
 
 **Drei Dinge, die dabei umfallen und die man einzeln merkt:**
 
-- `ROOT_DIR` gibt es nicht mehr; der Einstiegspunkt setzt `CONTENTFLY_PROJEKT`.
+- `ROOT_DIR` gibt es nicht mehr; der Einstiegspunkt setzt `CONTENTFLY_PROJECT_DIR`.
 - Der Einstiegspunkt lädt den Autoloader und ruft `Start` — nicht mehr umgekehrt.
 - Ein liegengebliebenes `custom/vendor/` **bricht den Start ab**. Das ist Absicht: still
   übergangen sähe es aus wie etwas, das benutzt wird.
@@ -200,7 +200,7 @@ anfassen.**
 1. **`APP_MASTER_PASSWORD` entfernen.** Es gibt den Schalter nicht mehr, und ein Projekt, das
    ihn setzt, bekommt keine Warnung — nur keinen Zugang mehr darüber.
 2. **Mit dem Ende aller Sitzungen rechnen.** Bestehende Token verfallen mit dem Update.
-3. **Hinter einem Proxy `APP_TRUSTED_PROXIES` setzen.** Sonst trifft die Anmeldebremse den
+3. **Hinter einem Proxy `APP_TRUSTED_PROXIES` setzen.** Sonst trifft `LoginThrottle` den
    Proxy statt den Angreifer.
 4. **Einen eigenen `LoginManager` auf den Provider-Vertrag umstellen** — die Klasse gibt es
    nicht mehr.

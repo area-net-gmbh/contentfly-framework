@@ -501,7 +501,7 @@ gelesen hat, liest ihn jetzt falsch.
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —
 auch eines, das die Vorlage unverändert übernommen hat, denn `index.php` gehört ihm.
 
-### `ROOT_DIR` gibt es nicht mehr — der Einstiegspunkt setzt `CONTENTFLY_PROJEKT`
+### `ROOT_DIR` gibt es nicht mehr — der Einstiegspunkt setzt `CONTENTFLY_PROJECT_DIR`
 **Seit `007-001-0002` (2026-09-11).**
 
 `lib/contentfly/bootstrap.php` definierte die Konstante `ROOT_DIR` und rechnete sie aus der
@@ -523,7 +523,7 @@ eingebunden wird:
 
 ```php
 // index.php
-define('CONTENTFLY_PROJEKT', __DIR__);
+define('CONTENTFLY_PROJECT_DIR', __DIR__);
 require_once __DIR__.'/lib/contentfly/bootstrap-web.php';
 ```
 
@@ -535,9 +535,9 @@ Datei.
 
 | Zweck | vorher | nachher |
 |---|---|---|
-| Verzeichnis des **Projekts** | `ROOT_DIR` | `Areanet\PIM\Classes\Kernel\Pfade::projekt()` |
-| `custom/`, `data/`, `plugins/` darunter | `ROOT_DIR.'/data'` | `Pfade::daten()`, `Pfade::custom()`, `Pfade::plugins()` |
-| Verzeichnis des **Frameworks** | `ROOT_DIR` — dasselbe | `Pfade::paket()` |
+| Verzeichnis des **Projekts** | `ROOT_DIR` | `Areanet\PIM\Classes\Kernel\Paths::project()` |
+| `custom/`, `data/`, `plugins/` darunter | `ROOT_DIR.'/data'` | `Paths::data()`, `Paths::custom()`, `Paths::plugins()` |
+| Verzeichnis des **Frameworks** | `ROOT_DIR` — dasselbe | `Paths::package()` |
 
 **Die letzte Zeile ist die eigentliche Änderung.** Projekt und Framework waren dieselbe
 Konstante, weil sie dasselbe Verzeichnis waren. Sobald das Framework als Paket kommt, sind es
@@ -565,12 +565,12 @@ require_once __DIR__ . '/vendor/autoload.php';
 ```php
 // bin/console.php und bin/cli-config.php
 require_once dirname(__DIR__) . '/vendor/autoload.php';
-$app = \Areanet\PIM\Classes\Kernel\Start::konsole(dirname(__DIR__));
+$app = \Areanet\PIM\Classes\Kernel\Start::console(dirname(__DIR__));
 ```
 
 **Damit steht in keinem Einstiegspunkt mehr ein Pfad in den Frameworkcode.** Das ist der Zweck:
 Ob Contentfly unter `lib/` im Projekt liegt oder unter `vendor/areanet/contentfly/`, sieht die
-Datei nicht mehr. `APPCMS_CONSOLE` setzt `Start::konsole()` selbst.
+Datei nicht mehr. `APPCMS_CONSOLE` setzt `Start::console()` selbst.
 
 `lib/contentfly/bootstrap.php` direkt einzubinden bricht ab, mit einer Meldung, die auf `Start`
 zeigt.
@@ -672,7 +672,7 @@ ist unverändert und durch die Suite aus Epic `008` abgedeckt:
 | `$app['schlüssel']` — lesen und setzen | Faule Factory mit `$app` als Argument, wie bei Pimple. Zugesichertes API — **seit `007-003` mit fester Schlüsselliste**, siehe `an_project/docs/dev-guide.md`. |
 | `$app['routeManager']->mount(…)->post(…)->get(…)` | Der Weg, auf dem ein Projekt Routen registriert. Auch das `isSecure`-Flag. |
 | `$app->before()`, `->after()`, `->error()` samt Priorität | Höhere Priorität zuerst, Vorgabe −8, bei gleicher Priorität die frühere Registrierung. |
-| `$app->mount($prefix, $sammlung)` | |
+| `$app->mount($prefix, $collection)` | |
 | `$app->extend($id, $callable)` | Wirft weiterhin, wenn der Dienst schon ausgelesen wurde — siehe unten zum Ausnahmetyp. |
 | `$app['dbs']`, `$app['db']`, `$app['orm.em']`, `$app['mailer']` | |
 | `CustomCommand` und der `custom:`-Präfix | |
@@ -686,7 +686,7 @@ Die Methode war an `Knp\Command\Command` geerbt und ist mit
 `knplabs/console-service-provider` aus dem Baum gefallen. Ein Projekt-Command, der sie ruft,
 bekommt einen `Error`.
 
-*Was zu tun ist:* `anwendung()` rufen. Sie liefert dasselbe Objekt und heisst so, weil der alte
+*Was zu tun ist:* `application()` rufen. Sie liefert dasselbe Objekt und heisst so, weil der alte
 Name beim neuen Kernel das Falsche beschreibt.
 
 ### Ein Projekt-Command muss die Signaturen von Console 7 treffen
@@ -728,10 +728,10 @@ Fehlerhandler in `000-000-0006` gestorben.
 **Seit `009-002-0003` (2026-09-09).**
 
 Silex' `ControllerCollection` gibt es nicht. Ersatz ist
-`Areanet\PIM\Classes\Kernel\Routing\Routensammlung` mit genau `get()`, `post()` und
+`Areanet\PIM\Classes\Kernel\Routing\RouteCollector` mit genau `get()`, `post()` und
 `match()` — mehr hat kein Aufrufer im Baum benutzt.
 
-*Was zu tun ist:* `new Routensammlung()` statt `$app['controllers_factory']`. Wer mehr als die
+*Was zu tun ist:* `new RouteCollector()` statt `$app['controllers_factory']`. Wer mehr als die
 drei Methoden braucht, baut die `RouteCollection` selbst; `mount()` nimmt beides.
 
 ### Ein eigener Controller-Provider: andere Schnittstelle, Rückgabetyp, und `connect()` wird gerufen
@@ -745,7 +745,7 @@ Drei Änderungen an einer Stelle:
    Implementierung, den Parametertyp zu **erweitern**, nicht ihn zu ersetzen — solange ein
    Provider Silex' Schnittstelle implementiert, muss er Silex nennen.
 2. `connect()` hat jetzt einen Rückgabetyp: `Symfony\Component\Routing\RouteCollection`.
-   Bewusst nicht `Routensammlung`, damit ein Projekt seine Routen auch anders bauen kann.
+   Bewusst nicht `RouteCollector`, damit ein Projekt seine Routen auch anders bauen kann.
 3. **`mount()` ruft `connect()` nicht mehr selbst.** Silex erkannte einen Provider an seiner
    Schnittstelle; hier übergibt der Aufrufer die fertige Sammlung.
 
@@ -1080,7 +1080,7 @@ verwendbare Token stehen, und sie entsprechend behandeln.
 
 Sie zeigten auf `api.controller:loginAction` und `:logoutAction` — Methoden, die es im
 `ApiController` nicht gibt und in diesem Baum nie gab. **Erreicht haben sie den Router
-ohnehin nie:** `Routensammlung` zählt ihre Routen je Provider durch, `/api/login` hiess
+ohnehin nie:** `RouteCollector` zählt ihre Routen je Provider durch, `/api/login` hiess
 `login_0` und wurde beim Mounten von `/auth/login` gleichen Namens verdrängt. Gemessen: 30
 registrierte Routen, 29 in der Sammlung.
 
@@ -1095,7 +1095,7 @@ jedem unbekannten Pfad. Die funktionierenden Routen sind `/auth/login` und `/aut
 
 `Application::mount()` stellt den Routennamen den normalisierten Mountpunkt voran, aus
 `login_0` wird `auth_login_0`. Nötig, weil `RouteCollection::addCollection()` beim Namen
-überschreibt und `Routensammlung` je Provider bei null zu zählen beginnt — zwei Provider,
+überschreibt und `RouteCollector` je Provider bei null zu zählen beginnt — zwei Provider,
 deren erste Route denselben Pfad trägt, frassen einander auf.
 
 **Das betrifft auch eigene Provider.** Ein Projekt, das über `custom/app.php` mountet, verlor
@@ -1121,13 +1121,13 @@ Mal zum Laufen.
 ### `BaseControllerProvider::checkToken()` gibt es nicht mehr
 **Seit `013-002-0004` (2026-09-10).**
 
-An seiner Stelle steht `anmelden()`, mit derselben Signatur und derselben Wirkung: ein `bool`,
+An seiner Stelle steht `authenticate()`, mit derselben Signatur und derselben Wirkung: ein `bool`,
 und im Erfolgsfall stehen `$app['auth.user']` und `$app['auth.token']` wie bisher. Darunter
 arbeitet Symfonys `access_token`-Authenticator statt eines eigenen Rumpfes.
 
 *Was zu tun ist:* Ein Projekt, das einen eigenen Controller-Provider von
 `BaseControllerProvider` ableitet und in dessen `$checkAuth`-Closure `$this->checkToken(...)`
-ruft, ersetzt den Aufruf durch `$this->anmelden(...)`. Mehr nicht — Argumente und Rückgabe sind
+ruft, ersetzt den Aufruf durch `$this->authenticate(...)`. Mehr nicht — Argumente und Rückgabe sind
 gleich geblieben.
 
 ### `LOGIN_PATH` und `isAuthRequiredForPath()` sind entfallen
@@ -1151,13 +1151,13 @@ sie wird nur nie gerufen, und das war schon vorher so. Wer sie **aufruft**, beko
 
 `BaseControllerProvider::TOKEN_HEADER_KEY`, `TOKEN_HEADER_KEY_ALT` und `TOKEN_REQUEST_KEY`
 standen dort, weil `checkToken()` sie las. Die Werte stehen jetzt in
-`Areanet\PIM\Classes\Security\Tokenquellen`, zusammen mit dem Code, der sie benutzt.
+`Areanet\PIM\Classes\Security\TokenSources`, zusammen mit dem Code, der sie benutzt.
 
 Sie stehen zu lassen wäre schlimmer gewesen als sie zu entfernen: Drei öffentliche Konstanten,
 die nichts mehr steuern, sehen beim nächsten Lesen aus wie die Stelle, an der man die
-Tokenquellen ändert.
+Quellen eines Tokens ändert.
 
-*Was zu tun ist:* Wer sie gelesen hat, liest sie aus `Tokenquellen` — `HEADER_ALT`,
+*Was zu tun ist:* Wer sie gelesen hat, liest sie aus `TokenSources` — `HEADER_ALT`,
 `HEADER_ALT_XSRF`, `PARAMETER_ALT`.
 
 ### `Authorization: Bearer` wird jetzt angenommen
@@ -1211,11 +1211,11 @@ in Einklang bringen.
 **Seit `013-003` (2026-09-10).**
 
 `pim_token.purpose` (nullable) unterscheidet ein Refresh-Token von einem gewöhnlichen
-Zugangstoken. `pim_revoked_token` nimmt die `jti` widerrufener Access-JWT auf, bis diese ohnehin
+Login-Token. `pim_revoked_token` nimmt die `jti` widerrufener Access-JWT auf, bis diese ohnehin
 ablaufen.
 
 **Warum die Spalte sein muss:** Ein Refresh-Token ist eine `pim_token`-Zeile, und der opaque
-Zweig nahm bis dahin jede Zeile als Zugangstoken an. Ein Refresh-Token gilt länger als ein
+Zweig nahm bis dahin jede Zeile als Login-Token an. Ein Refresh-Token gilt länger als ein
 Access-JWT — das ist sein Zweck —, und ohne die Trennung wäre es ein langlebiger
 Generalschlüssel für die ganze API gewesen.
 
@@ -1242,7 +1242,7 @@ Tauscht ein Refresh-Token gegen ein frisches Access-JWT und **ersetzt dabei das 
 Ein zweiter Gebrauch desselben Refresh-Tokens wird abgewiesen.
 
 Der Endpunkt hängt nicht hinter der Anmeldung — er wird ja gerade dann gebraucht, wenn das
-Access-JWT abgelaufen ist — prüft dafür selbst und unterliegt der Anmeldebremse (pro Adresse).
+Access-JWT abgelaufen ist — prüft dafür selbst und unterliegt dem `LoginThrottle` (pro Adresse).
 
 *Was zu tun ist:* Ein Client, der JWT benutzt, muss den Rückgabewert `refreshToken` bei jedem
 Refresh **ersetzen**. Wer den alten weiterverwendet, fliegt beim zweiten Mal heraus.
@@ -1285,41 +1285,41 @@ Benutzername und Passwort anmeldet, ist von diesem Abschnitt nicht berührt.
 ### `Areanet\PIM\Classes\Manager\LoginManager` gibt es nicht mehr
 **Seit `013-004-0002` (2026-09-10).**
 
-An seine Stelle tritt das Interface `Areanet\PIM\Classes\Security\Anmeldeprovider` mit **einer**
+An seine Stelle tritt das Interface `Areanet\PIM\Classes\Security\LoginProvider` mit **einer**
 Pflichtmethode. Der Unterschied ist nicht nur der Name:
 
 | alt | neu |
 |---|---|
-| `auth()` liefert eine fertige `User`-Entity | `pruefen(Request): ?Fremdkennung` liefert, was das Fremdsystem sagt |
+| `auth()` liefert eine fertige `User`-Entity | `authenticate(Request): ?ExternalIdentity` liefert, was das Fremdsystem sagt |
 | Der Provider ruft `createManagedUser()` und schreibt in die Datenbank | Der Provider fasst die Datenbank **nicht** an |
 | Klasse wird über den Request-Parameter ausgewählt | Der Parameter benennt einen Eintrag aus `custom/app.php` |
-| Gruppe und Adminflag als Argumente je Aufruf | `SECURITY_PROVIDER_GRUPPEN`, an einer Stelle |
+| Gruppe und Adminflag als Argumente je Aufruf | `SECURITY_PROVIDER_GROUPS`, an einer Stelle |
 
 *Der Weg vom alten Manager zum neuen Vertrag, Schritt für Schritt:*
 
 1. **Die Klasse umhängen.** `extends LoginManager` wird zu
-   `implements Areanet\PIM\Classes\Security\Anmeldeprovider`. Der Konstruktor mit `$app` und
-   `$request` entfällt; ein Provider bekommt den Request als Argument von `pruefen()`.
-2. **`auth()` zu `pruefen()` machen.** Was bisher am Ende `createManagedUser(...)` rief, gibt
-   jetzt `new Fremdkennung($kennungImFremdsystem, $gruppenAusDemFremdsystem)` zurück. Wer
+   `implements Areanet\PIM\Classes\Security\LoginProvider`. Der Konstruktor mit `$app` und
+   `$request` entfällt; ein Provider bekommt den Request als Argument von `authenticate()`.
+2. **`auth()` zu `authenticate()` machen.** Was bisher am Ende `createManagedUser(...)` rief, gibt
+   jetzt `new ExternalIdentity($identifierInExternalSystem, $groupsFromExternalSystem)` zurück. Wer
    niemanden erkannt hat, gibt `null` zurück — eine Ausnahme führt zum selben Ergebnis, ihre
    Meldung erreicht den Aufrufer aber nicht mehr.
-3. **Die Kennung nicht mehr verfremden.** In die `Fremdkennung` gehört die Kennung, wie das
+3. **Die Kennung nicht mehr verfremden.** In die `ExternalIdentity` gehört die Kennung, wie das
    Fremdsystem sie führt. Alias, Präfix und Eindeutigkeit macht das Framework.
-4. **Gruppen und Adminflag aus dem Code nehmen** und in `SECURITY_PROVIDER_GRUPPEN` eintragen —
-   je Anbietername `gruppen`, `admin` und `vorgabe`.
-5. **Den Provider registrieren:** `$app['anmeldeanbieter']->eintragen('<name>', fn () => new …)`
+4. **Gruppen und Adminflag aus dem Code nehmen** und in `SECURITY_PROVIDER_GROUPS` eintragen —
+   je Providername `groups`, `admin` und `default`.
+5. **Den Provider registrieren:** `$app['loginProviders']->register('<name>', fn () => new …)`
    in `custom/app.php`. Dieser `<name>` ist ab jetzt der Wert, den ein Client als `loginManager`
    schickt.
 6. **Die Clients umstellen:** Sie schicken den Namen statt des Klassennamens.
 
-`custom/Classes/Anmeldung/BeispielProvider.php` führt alles davon an einem lauffähigen Beispiel
+`custom/Classes/Authentication/ExampleProvider.php` führt alles davon an einem lauffähigen Beispiel
 vor.
 
 ### Der Request-Parameter `loginManager` wählt keine Klasse mehr aus
 **Seit `013-004-0001` (2026-09-10).**
 
-Er benennt einen Eintrag im `Anbieterverzeichnis`. Ein Klassenname steht dort nicht und wird
+Er benennt einen Eintrag in der `LoginProviderRegistry`. Ein Klassenname steht dort nicht und wird
 abgewiesen — wie jeder andere unbekannte Name, und **ohne** auf die Passwortprüfung
 zurückzufallen.
 
@@ -1353,7 +1353,7 @@ Das ist verlustfrei: Diese Konten sollen sich ohnehin nur über ihr Fremdsystem 
 **Seit `013-004-0002` (2026-09-10).**
 
 `externalId` (nullable) nimmt die Kennung des Fremdsystems auf; eine Unique-Bedingung
-`uniq_user_fremdkennung` steht über `loginManager` und `externalId`. Dieselbe Eindeutigkeit, die
+`uniq_user_external_identity` steht über `loginManager` und `externalId`. Dieselbe Eindeutigkeit, die
 vorher aus dem MD5-Präfix im Alias kam — nur lesbar.
 
 *Was zu tun ist:* Schema abgleichen. Bestehende Zeilen bekommen `externalId = NULL` und
@@ -1363,7 +1363,7 @@ verhalten sich unverändert.
 **Seit `013-004` (2026-09-10).**
 
 Konten, die `createManagedUser()` angelegt hat, tragen einen Alias der Form
-`<md5-des-klassennamens>-<kennung>`, `loginManager` mit dem **Klassennamen** und `externalId`
+`<md5-des-klassennamens>-<identifier>`, `loginManager` mit dem **Klassennamen** und `externalId`
 leer. Das Framework schreibt sie **nicht** um, und zwar aus drei Gründen:
 
 1. **Die Zuordnung ist nicht rückrechenbar.** Aus `3f2a…-mueller` lässt sich die alte Klasse nur
@@ -1429,9 +1429,9 @@ composer require symfony/ldap
 # und ext-ldap ins PHP-Image
 ```
 
-Ohne das Paket wirft `LdapProvider::ausKonfiguration()` mit genau diesem Hinweis.
+Ohne das Paket wirft `LdapProvider::fromConfig()` mit genau diesem Hinweis.
 
-### `appcms:provider:abgleich` ist neu
+### `appcms:provider:sync` ist neu
 **Seit `013-005-0002` (2026-09-11).**
 
 Sperrt Benutzer, die ihr Fremdsystem nicht mehr kennt (`isActive = false`). Ohne ihn behält ein
