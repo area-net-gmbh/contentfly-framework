@@ -2,6 +2,10 @@
 
 # Changelog
 
+## 2026-09-15
+- 000-000-0032 → in-progress
+- 000-000-0032 → review: **`SyncApiTest` stellt die gemeinsame Sekunde her, statt auf sie zu hoffen.** Ein `SELECT NOW()`, gebunden an beide Log-Zeilen; `logRow()` nimmt dafür einen optionalen Zeitstempel. Zusicherung und API-Prüfung unverändert. Die übrigen 19 `NOW()`-Stellen unter `tests/` sind durchgesehen und unkritisch (zweimal im selben Statement, feste Werte oder bewusst nur die Auflösung). Verifiziert: 1500 Läufe, 0 Fehlschläge; volle Suite 528 Tests grün, Deprecation-Gate 0.
+
 ## 2026-09-09
 - 013-000-0000 → in-progress
 - 013-001-0000 → in-progress

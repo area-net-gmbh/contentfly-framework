@@ -128,8 +128,15 @@ class SyncApiTest extends IntegrationTestCase
         $first  = 'synca-'.bin2hex(random_bytes(6));
         $second = 'syncb-'.bin2hex(random_bytes(6));
 
-        $this->logRow('synclog-'.bin2hex(random_bytes(6)), 'PIM\\Tag', $first);
-        $this->logRow('synclog-'.bin2hex(random_bytes(6)), 'PIM\\Tag', $second);
+        // THE SHARED SECOND IS ESTABLISHED, NOT HOPED FOR (000-000-0032). Both rows used to get
+        // their own NOW() in two separate INSERTs. If a second boundary fell between them, the
+        // first row carried the second before, dropped out of the result, and the test turned
+        // red with nothing wrong in the framework — measured at 2 of 1500 pairs. One value from
+        // the database clock, bound to both rows, is exactly the state the test is named after.
+        $sameSecond = (string) $this->pdo()->query('SELECT NOW()')->fetchColumn();
+
+        $this->logRow('synclog-'.bin2hex(random_bytes(6)), 'PIM\\Tag', $first, $sameSecond);
+        $this->logRow('synclog-'.bin2hex(random_bytes(6)), 'PIM\\Tag', $second, $sameSecond);
 
         // The timestamp a client would remember after this pass: the one of the last reported
         // row. Both rows carry it.
@@ -144,15 +151,19 @@ class SyncApiTest extends IntegrationTestCase
         $this->assertContains($first, $ids, 'And the other one from the same second — otherwise it would be lost forever');
     }
 
-    private function logRow(string $logId, string $entityName, string $modelId): void
+    private function logRow(string $logId, string $entityName, string $modelId, ?string $created = null): void
     {
         // Bound parameters instead of inserted strings: the entity name carries a backslash,
         // and that does not reliably survive any of the three escaping levels.
+        //
+        // Without $created the database clock decides, as before. COALESCE keeps that in SQL, so
+        // both cases run through the same statement.
         $this->pdo()->prepare(
             'INSERT INTO pim_log (id, model_id, model_name, mode, created, modified, views, isIntern)
-             VALUES (:id, :modelId, :modelName, :mode, NOW(), NOW(), 0, 0)'
+             VALUES (:id, :modelId, :modelName, :mode, COALESCE(:created, NOW()), COALESCE(:created2, NOW()), 0, 0)'
         )->execute(array(
             'id' => $logId, 'modelId' => $modelId, 'modelName' => $entityName, 'mode' => 'DEL',
+            'created' => $created, 'created2' => $created,
         ));
 
         $this->deleteAfterTest('pim_log', $logId);
