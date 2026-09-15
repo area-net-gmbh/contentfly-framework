@@ -1,7 +1,7 @@
 ---
 id: 000-000-0030
 title: referrer-Tokens — der Client wählt den Schlüssel, und er läuft nie ab
-status: review
+status: done
 depends_on: []
 ---
 
