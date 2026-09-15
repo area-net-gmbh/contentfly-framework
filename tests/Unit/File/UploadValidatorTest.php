@@ -135,4 +135,76 @@ class UploadValidatorTest extends TestCase
 
         return new UploadedFile($path, $name, $type, null, true);
     }
+
+    // ── The size limit (000-000-0042) ──────────────────────────────────────────────────
+
+    public function testWithoutALimitALargeFileIsAccepted(): void
+    {
+        $result = (new UploadValidator())->validate($this->uploadedFileOfSize('report.txt', 3 * 1024 * 1024));
+
+        $this->assertSame('report.txt', $result['name']);
+    }
+
+    public function testAFileOverTheLimitIsRejectedWith413AndTheLimitAsValue(): void
+    {
+        $this->configure('FILE_MAX_UPLOAD_SIZE', 1024);
+
+        (new UploadValidator())->validate($this->uploadedFileOfSize('exact.txt', 1024));
+
+        try {
+            (new UploadValidator())->validate($this->uploadedFileOfSize('large.txt', 1025));
+            $this->fail('A file one byte over the limit was accepted');
+        } catch (ContentflyException $e) {
+            $this->assertSame(413, $e->getCode());
+            $this->assertSame('contentfly_file_too_large', $e->getMessage());
+            $this->assertSame(1024, $e->getValue());
+        }
+    }
+
+    public function testTheLimitFromTheEnvironmentIsANumericString(): void
+    {
+        $this->configure('FILE_MAX_UPLOAD_SIZE', '1024');
+
+        $this->expectExceptionCode(413);
+        (new UploadValidator())->validate($this->uploadedFileOfSize('large.txt', 2048));
+    }
+
+    public function testAnInvalidLimitIsAConfigurationErrorNotNoLimit(): void
+    {
+        $this->configure('FILE_MAX_UPLOAD_SIZE', '20MB');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('FILE_MAX_UPLOAD_SIZE must be a positive number of bytes or null');
+        (new UploadValidator())->validate($this->uploadedFileOfSize('small.txt', 10));
+    }
+
+    public function testPhpsOwnLimitIsReportedAs413NotAsAMissingFile(): void
+    {
+        $file = new UploadedFile('/nonexistent', 'huge.bin', 'application/octet-stream', UPLOAD_ERR_INI_SIZE, true);
+
+        try {
+            (new UploadValidator())->validate($file);
+            $this->fail('An upload over upload_max_filesize was not rejected');
+        } catch (ContentflyException $e) {
+            $this->assertSame(413, $e->getCode());
+            $this->assertSame('contentfly_file_too_large', $e->getMessage());
+        }
+    }
+
+    private function configure(string $key, mixed $value): void
+    {
+        $config       = new Config();
+        $config->$key = $value;
+        Factory::getInstance()->setConfig($config);
+    }
+
+    private function uploadedFileOfSize(string $name, int $bytes): UploadedFile
+    {
+        $path = tempnam(sys_get_temp_dir(), 'cf-size-');
+        file_put_contents($path, str_repeat('a', $bytes));
+        $this->temporary[] = $path;
+
+        return new UploadedFile($path, $name, 'text/plain', null, true);
+    }
+
 }

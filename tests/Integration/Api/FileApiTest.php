@@ -260,6 +260,66 @@ class FileApiTest extends IntegrationTestCase
         yield 'server configuration'          => array('.htaccess');
     }
 
+    // ── The size limit (000-000-0042) ──────────────────────────────────────────────────
+
+    /**
+     * The limit the test server runs with — tools/ci/prepare-test-environment.sh passes it as
+     * APP_FILE_MAX_UPLOAD_SIZE. 1 MiB, below PHP's default upload_max_filesize of 2M, so the
+     * application's check is what answers and not the server's.
+     */
+    private const TEST_SERVER_MAX_UPLOAD_SIZE = 1048576;
+
+    public function testAnUploadOverTheLimitIsRejectedAndLeavesNothingBehind(): void
+    {
+        $token      = $this->token();
+        $rowsBefore = (int) $this->pdo()->query('SELECT COUNT(*) FROM pim_file')->fetchColumn();
+        $dirsBefore = $this->fileDirectories();
+
+        [$status, $body] = $this->uploadWithStatus('large.txt', str_repeat('a', self::TEST_SERVER_MAX_UPLOAD_SIZE + 1), $token);
+
+        $this->assertSame(413, $status, 'One byte over FILE_MAX_UPLOAD_SIZE');
+        $this->assertSame('contentfly_file_too_large', $body['message'] ?? null);
+        $this->assertSame(self::TEST_SERVER_MAX_UPLOAD_SIZE, $body['message_value'] ?? null, 'The limit is named');
+        $this->assertSame($rowsBefore, (int) $this->pdo()->query('SELECT COUNT(*) FROM pim_file')->fetchColumn(), 'No row in pim_file');
+        $this->assertSame($dirsBefore, $this->fileDirectories(), 'No directory under data/files/');
+    }
+
+    public function testAnUploadAtTheLimitIsStored(): void
+    {
+        [$status, $body] = $this->uploadWithStatus('exact.txt', str_repeat('a', self::TEST_SERVER_MAX_UPLOAD_SIZE), $this->token());
+
+        $this->assertSame(200, $status, json_encode($body));
+        $this->cleanUpUploadedFile($body['data']['id'] ?? null);
+    }
+
+    public function testAnUploadOverPhpsOwnLimitIs413NotAMissingFile(): void
+    {
+        $phpLimit = $this->bytes((string) ini_get('upload_max_filesize'));
+        $postLimit = $this->bytes((string) ini_get('post_max_size'));
+
+        // Same PHP binary as the test server; the upload must pass post_max_size to reach $_FILES.
+        if ($phpLimit === 0 || $phpLimit + 4096 >= $postLimit) {
+            $this->markTestSkipped('upload_max_filesize is not below post_max_size on this PHP.');
+        }
+
+        [$status, $body] = $this->uploadWithStatus('huge.bin', str_repeat('a', $phpLimit + 1024), $this->token());
+
+        $this->assertSame(413, $status, 'PHP rejected the file; before 000-000-0042 this answered 400 missing params');
+        $this->assertSame('contentfly_file_too_large', $body['message'] ?? null);
+    }
+
+    private function bytes(string $iniValue): int
+    {
+        $value = (int) $iniValue;
+
+        return match (strtolower(substr(trim($iniValue), -1))) {
+            'g'     => $value * 1024 ** 3,
+            'm'     => $value * 1024 ** 2,
+            'k'     => $value * 1024,
+            default => $value,
+        };
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────────────────────
 
     private function upload(string $name, string $content, ?string $token): array

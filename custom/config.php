@@ -138,6 +138,15 @@ $configDefault->APP_ENABLE_SCHEMA_CACHE = false;
 $configDefault->APP_ALLOW_ORIGIN = $_ENV['APP_ALLOW_ORIGIN'] ?? getenv('APP_ALLOW_ORIGIN') ?: null;
 
 /*
+ * FILE_MAX_UPLOAD_SIZE — the largest upload in bytes; larger files are rejected with 413 before
+ * anything is stored (000-000-0042). Without a value only PHP's upload_max_filesize applies, which
+ * belongs to the server and must be at least as large.
+ *
+ *     APP_FILE_MAX_UPLOAD_SIZE=20971520   # 20 MB
+ */
+$configDefault->FILE_MAX_UPLOAD_SIZE = $_ENV['APP_FILE_MAX_UPLOAD_SIZE'] ?? getenv('APP_FILE_MAX_UPLOAD_SIZE') ?: null;
+
+/*
  * APP_TRUSTED_PROXIES — which proxies the application sits behind. Default: none.
  *
  * Only set this if a reverse proxy or load balancer sits in front. Without it the

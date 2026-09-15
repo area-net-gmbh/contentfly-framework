@@ -56,10 +56,13 @@ chmod +x "$TRAP/sendmail"
 #    nobody in — both correct, but then the corresponding tests have nothing to measure.
 #    APP_ALLOW_ORIGIN is the one CORS origin the server allows (000-000-0039); CorsApiTest
 #    checks that it is named and a foreign one is not.
+#    APP_FILE_MAX_UPLOAD_SIZE is 1 MiB, below PHP's default upload_max_filesize of 2M, so FileApiTest
+#    reaches the application's limit and not the server's (000-000-0042).
 APP_ENV=production APP_DEBUG=0 \
   SECURITY_JWT_SECRET=dev-only-jwt-secret-long-enough-32b \
   CONTENTFLY_EXAMPLE_PROVIDER='external-one:dev-only-provider-secret:CN=Editorial' \
   APP_ALLOW_ORIGIN=https://allowed.example \
+  APP_FILE_MAX_UPLOAD_SIZE=1048576 \
   php -d display_errors=Off -d log_errors=On -d sendmail_path="$TRAP/sendmail" \
       -S 127.0.0.1:8145 tests/router.php &
 
