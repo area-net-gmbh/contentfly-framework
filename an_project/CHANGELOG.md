@@ -13,6 +13,9 @@
 - 000-000-0031 → in-progress
 - 000-000-0031 → review: **`setMetadataFor()` war wirkungslos, der Deckel auf `doctrine/persistence` ist gefallen.** Gemessen an drei frischen Installationen (master · ohne Aufruf auf 3.4.5 · ohne Aufruf auf 4.2.0): jedes Mal dieselben 15 Tabellen mit `modified_index`, Schema-Dump byte-gleich. Die Zeile ist gelöscht, eine eigene `ClassMetadataFactory` war nicht nötig. Manifest `^3.4 || ^4`, Lock 4.2.0; `LoadMetadataTest` sichert ab, dass der Aufruf nicht zurückkommt (gegen master rot). Gates: Deprecation 0, PHPStan ohne Fehler, Audit 0 (im `composer:2`-Image, lokales Composer zu alt). Volle Suite 528 grün, nachdem der Kopf von `migration.md` auf 101 Einträge gezogen ist. Bruchstelle in `breaking-changes.md`.
 - 000-000-0031 → done (merged into master)
+- 000-000-0025 → in-progress
+- 000-000-0025 → review: **`BaseI18nTree` bleibt, der Elternknoten hat dieselbe Sprache**, entschieden auf Grundlage des Befunds, dass `JoinType`, `getTree()` und `getTree2()` den Baum schon immer so lesen. `treeParent` trägt `parent_id → id` und `parent_lang → lang`; `orm:validate-schema` ist in beiden Hälften grün. Beim Anlegen einer Übersetzung wird ein kopierter i18n-Join jetzt an die geschriebene Sprache gebunden (ohne Test, weil keine Entity von `BaseI18nTree` erbt). Neuer `SchemaValidationTest` (gegen master rot). Datenbankvergleich: nur `pim_i18n_tree` (Spalte, Index, Fremdschlüssel). Migrationsweg an einer Datenbank im alten Schema mit Waise durchgespielt und in `breaking-changes.md` beschrieben; Entscheidung in `architecture.md`. Suite 529 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
+- 000-000-0025 → done (merged into master)
 
 ## 2026-09-09
 - 013-000-0000 → in-progress
