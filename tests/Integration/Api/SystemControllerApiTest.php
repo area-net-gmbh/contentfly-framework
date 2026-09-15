@@ -327,26 +327,108 @@ class SystemControllerApiTest extends IntegrationTestCase
         $this->assertSame(hash('sha256', $value), $entry['model_label']);
     }
 
-    public function testAddTokenRequiresReferrerTokenAndUser(): void
+    /**
+     * **Renamed with `000-000-0030`: `token` is no longer required.** It used to be called
+     * `…RequiresReferrerTokenAndUser`. Referrer and user still are — what is missing without them
+     * cannot be generated.
+     */
+    public function testAddTokenRequiresReferrerAndUser(): void
     {
         $this->token();
 
         $before = $this->pdo()->query('SELECT COUNT(*) FROM pim_token')->fetchColumn();
 
         [$withoutAnything] = $this->systemDo('addToken');
-        [$withoutUser]     = $this->systemDo('addToken', array('referrer' => 'https://x.example', 'token' => 'incomplete'));
+        [$withoutUser]     = $this->systemDo('addToken', array('referrer' => 'https://x.example', 'token' => 'test-'.bin2hex(random_bytes(16))));
+        [$withoutReferrer] = $this->systemDo('addToken', array('user' => $this->adminId()));
 
         $this->assertSame(500, $withoutAnything);
         $this->assertSame(500, $withoutUser);
+        $this->assertSame(500, $withoutReferrer);
         $this->assertSame($before, $this->pdo()->query('SELECT COUNT(*) FROM pim_token')->fetchColumn(),
             'An incomplete call leaves nothing behind');
     }
 
+    /**
+     * Finding A-5, part 1 (`000-000-0030`): the caller no longer decides alone how strong the key is.
+     *
+     * Until then `token=test` was accepted — and the table stores an unsalted SHA-256, which for
+     * `test` is reversed offline in seconds. A supplied token now has to clear a floor, and a weak
+     * one is **rejected**, not silently replaced: a caller that knows its value beforehand must
+     * learn that it was not taken.
+     */
+    public function testAddTokenRejectsAWeakToken(): void
+    {
+        $this->token();
+
+        $before = $this->pdo()->query('SELECT COUNT(*) FROM pim_token')->fetchColumn();
+
+        $weak = array(
+            'test'                  => 'short',
+            str_repeat('a', 64)     => 'long, but one character',
+            str_repeat('abcd', 16)  => 'long, but four characters',
+            'test-'.bin2hex(random_bytes(8)) => 'random, but 21 characters',
+        );
+
+        foreach ($weak as $value => $why) {
+            [$status, $body] = $this->systemDo('addToken', array(
+                'referrer' => 'https://weak.example',
+                'token'    => (string) $value,
+                'user'     => $this->adminId(),
+            ));
+
+            $this->assertSame(400, $status, "Rejected as a client error ($why)");
+            $this->assertStringContainsString('too weak', $body['message'] ?? '', "The response says why ($why)");
+        }
+
+        $this->assertSame($before, $this->pdo()->query('SELECT COUNT(*) FROM pim_token')->fetchColumn(),
+            'A rejected token leaves no row behind');
+    }
+
+    /**
+     * Finding A-5, the safe way (`000-000-0030`): without `token` the framework generates the value.
+     *
+     * It is the same one `generateToken` returns — 64 random bytes as hex — and the response carries
+     * it exactly once. The test presents it afterwards: a value that is only stored but does not
+     * open the API would be a key without a lock.
+     */
+    public function testAddTokenWithoutTokenGeneratesOneThatOpensTheApi(): void
+    {
+        [$status, $body] = $this->systemDo('addToken', array(
+            'referrer' => 'https://generated.example',
+            'user'     => $this->adminId(),
+        ));
+
+        $this->assertSame(200, $status);
+
+        $id    = (string) $body['message']['id'];
+        $value = $body['message']['token'];
+
+        $this->deleteAfterTest('pim_token', $id);
+        $log = $this->pdo()->prepare('SELECT id FROM pim_log WHERE model_name = :n AND model_id = :i');
+        $log->execute(array('n' => 'PIM\\Token', 'i' => $id));
+        foreach ($log->fetchAll(\PDO::FETCH_COLUMN) as $logId) {
+            $this->deleteAfterTest('pim_log', (string) $logId);
+        }
+
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{128}$/', $value,
+            'Generated like generateToken: 64 random bytes as hex');
+
+        $row = $this->pdo()->prepare('SELECT token FROM pim_token WHERE id = :id');
+        $row->execute(array('id' => $id));
+        $this->assertSame(hash('sha256', $value), $row->fetchColumn(), 'Stored as its hash, as every token');
+
+        [$apiStatus] = $this->get('/api/schema', $value);
+        $this->assertSame(200, $apiStatus, 'The generated API token opens the API');
+    }
+
     public function testAddTokenRejectsUnknownUser(): void
     {
+        // A token that clears the floor from 000-000-0030 — this test is about the user. With the
+        // 21 characters it used to send, the call now ends at the token, before the user lookup.
         [$status] = $this->systemDo('addToken', array(
             'referrer' => 'https://x.example',
-            'token'    => 'test-'.bin2hex(random_bytes(8)),
+            'token'    => 'test-'.bin2hex(random_bytes(16)),
             'user'     => 'this-user-does-not-exist',
         ));
 
