@@ -127,6 +127,17 @@ $configDefault->APP_ENABLE_SCHEMA_CACHE = false;
 // $configDefault->WEB_ROOT             = '/subdirectory/';
 
 /*
+ * APP_ALLOW_ORIGIN — the origins a browser client may call the API from (000-000-0039).
+ *
+ * Without an entry no foreign origin is allowed. A web app on another domain, or an Ionic/Capacitor
+ * app (origin `capacitor://localhost` on iOS, `http://localhost` on Android), has to be listed —
+ * exact values, comma-separated. `*` allows any origin, but without credentials.
+ *
+ *     APP_ALLOW_ORIGIN=https://app.example.com,capacitor://localhost,http://localhost
+ */
+$configDefault->APP_ALLOW_ORIGIN = $_ENV['APP_ALLOW_ORIGIN'] ?? getenv('APP_ALLOW_ORIGIN') ?: null;
+
+/*
  * APP_TRUSTED_PROXIES — which proxies the application sits behind. Default: none.
  *
  * Only set this if a reverse proxy or load balancer sits in front. Without it the
