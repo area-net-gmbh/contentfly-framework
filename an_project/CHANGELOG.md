@@ -93,6 +93,7 @@
 - 000-000-0043 → done (merged into master)
 - 000-000-0042 → in-progress
 - 000-000-0042 → review: **`FILE_MAX_UPLOAD_SIZE` ist zurück, optional im Framework.** `UploadValidator` weist grössere Dateien vor jedem Schreiben mit `413 contentfly_file_too_large` ab (Grenze als Wert); ein Upload über PHPs `upload_max_filesize` antwortet ebenfalls `413` statt `400 missing params`. Vorlage liest `APP_FILE_MAX_UPLOAD_SIZE`, Testserver mit 1 MiB. Fünf Unit- und drei Integrationstests (keine Zeile, kein Verzeichnis), Gegenprobe rot. Register unter Konfiguration, `migration.md` auf 113. Suite 601 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
+- 000-000-0042 → done (merged into master)
 
 ## 2026-09-09
 - 013-000-0000 → in-progress
