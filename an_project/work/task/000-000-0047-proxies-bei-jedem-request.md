@@ -1,7 +1,7 @@
 ---
 id: 000-000-0047
 title: Doctrine-Proxies werden bei jedem Request neu geschrieben
-status: review
+status: done
 depends_on: []
 ---
 

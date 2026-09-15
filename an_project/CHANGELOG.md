@@ -71,6 +71,7 @@
 - 000-000-0047 refined: **Framework-Befund F-8 aus dem Handtest von `007-005-0004` („Listen laden langsamer“), gemessen.** `(bool) APP_AUTOGENERATE_PROXIES` mit Vorgabe `true` ist `AUTOGENERATE_ALWAYS`: zehn UFP-Aufrufe 540 ms gegen 382 ms unter 1.x, ohne Neuerzeugung 330 ms; parallele Schreibzugriffe scheiterten mit `Operation not permitted`. Entschieden: Vorgabe `FILE_NOT_EXISTS_OR_CHANGED`, Konstanten konfigurierbar, `true`/`false` unverändert.
 - 000-000-0047 → in-progress
 - 000-000-0047 → review: **Proxies werden nur noch geschrieben, wenn sie fehlen oder ihre Entity sich geändert hat.** `Classes\ORM\ProxyGeneration` ersetzt den `(bool)`-Cast (Bootstrap und `appcms:install`); Vorgabe `FILE_NOT_EXISTS_OR_CHANGED`, `true`/`false` unverändert, Doctrines Konstanten konfigurierbar, alles andere abgewiesen. `ProxyGenerationTest` und `ProxyGenerationModeTest`, Gegenprobe rot. Register unter Konfiguration, `migration.md` auf 110. Am UFP-Probe-Backend alle 164 Aufrufe 5069 ms gegen 7224 ms unter 1.x (vorher langsamer als 1.x), Paralleltest ohne Schreibfehler. Suite 577 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
+- 000-000-0047 → done (merged into master)
 
 ## 2026-09-09
 - 013-000-0000 → in-progress
