@@ -16,6 +16,27 @@ nichts ändern.
 
 ## Konfiguration
 
+### `FILE_MAX_UPLOAD_SIZE` ist neu — und ein Upload über PHPs Grenze antwortet `413`
+**Seit `000-000-0042` (2026-09-15).**
+
+**Die Grenze der Anwendung für Uploads, in Bytes, optional.** Ist sie gesetzt, weist
+`Classes\File\UploadValidator` eine grössere Datei mit `413` und `contentfly_file_too_large` ab, bevor
+etwas geschrieben wird; `message_value` nennt die Grenze. Ohne Wert gilt wie bisher nur PHPs
+`upload_max_filesize` — eine Einstellung des Servers, nicht der Anwendung. Die Vorlage liest den Wert aus
+`APP_FILE_MAX_UPLOAD_SIZE`.
+
+**Bestandsprojekte kennen den Schlüssel** — als Patch an ihrer Framework-Kopie. Das Bestandsprojekt UFP
+(`007-005-0003`) setzte `FILE_MAX_UPLOAD_SIZE = 20971520` mit derselben Meldung und demselben Status; mit
+`lib/` war die Prüfung weg, und der Schlüssel wurde nirgends mehr gelesen.
+
+**Eine Änderung am Draht dazu:** Scheitert ein Upload schon an `upload_max_filesize`, antwortete das
+Framework `400 contentfly_general_missing_params` — PHP legt dann keine Datei an. Jetzt `413
+contentfly_file_too_large` mit PHPs Grenze als `message_value`.
+
+*Was zu tun ist:* Wer den Schlüssel aus einem Patch hatte, lässt ihn stehen — er wirkt wieder. PHPs
+`upload_max_filesize` und `post_max_size` müssen mindestens so gross sein, sonst greift die Grenze des
+Servers zuerst. Ein Client, der auf `400` bei zu grossen Dateien geprüft hat, prüft auf `413`.
+
 ### `APP_AUTOGENERATE_PROXIES`: Proxies werden nur noch bei Bedarf geschrieben
 **Seit `000-000-0047` (2026-09-15).**
 

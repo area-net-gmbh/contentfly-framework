@@ -148,9 +148,13 @@ echo "→ Testserver auf $ADRESSE"
 # APP_ALLOW_ORIGIN (000-000-0039): Ohne Eintrag erlaubt die Anwendung keine fremde Herkunft.
 # CorsApiTest misst beide Seiten — eine eingetragene Herkunft bekommt sich selbst zurueck, eine
 # fremde nichts — und braucht dafuer genau einen bekannten Eintrag.
+#
+# APP_FILE_MAX_UPLOAD_SIZE (000-000-0042): 1 MiB, unter PHPs Vorgabe upload_max_filesize=2M, damit
+# FileApiTest die Grenze der Anwendung trifft und nicht die des Servers. Der Test kennt denselben Wert.
 APP_ENV=production APP_DEBUG=0 SECURITY_JWT_SECRET="$CONTENTFLY_TEST_JWT_SECRET" \
     CONTENTFLY_EXAMPLE_PROVIDER="$CONTENTFLY_TEST_PROVIDER" \
-    APP_ALLOW_ORIGIN="$CONTENTFLY_TEST_ALLOWED_ORIGIN" php \
+    APP_ALLOW_ORIGIN="$CONTENTFLY_TEST_ALLOWED_ORIGIN" \
+    APP_FILE_MAX_UPLOAD_SIZE=1048576 php \
     -d display_errors=Off \
     -d log_errors=On \
     -d sendmail_path="$CONTENTFLY_TEST_MAIL_TRAP/sendmail" \

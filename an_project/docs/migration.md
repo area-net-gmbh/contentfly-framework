@@ -4,7 +4,7 @@
 
 **Dieser Leitfaden ist der Weg. `an_project/docs/breaking-changes.md` ist das Register.**
 
-Das Register hat **112 Einträge in 14 Abschnitten** (Stand 2026-09-15) und ist nach Epic und
+Das Register hat **113 Einträge in 14 Abschnitten** (Stand 2026-09-15) und ist nach Epic und
 Story geordnet — also danach, *wann wir etwas geändert haben*. Das ist die richtige Ordnung zum
 Nachschlagen und die falsche zum Arbeiten. Hier steht die andere: **was ein Projekt tut, und in
 welcher Reihenfolge.**
@@ -248,7 +248,7 @@ aus `custom/config.php` in vier Gruppen: von Contentfly 2 deklariert, aus dem Fr
 **Projekt-Patch** (in der alten Kopie erst nach dem Import hinzugekommen — sein Verhalten ist mit `lib/`
 weg) und eigene Schlüssel des Projekts. Die dritte Gruppe übersieht, wer nur das Register liest; bei UFP
 waren es vier (`APP_ROLES_STAFF`, `APP_ROLES_PARTICIPANT`, `APP_PARTICIPANT_DELETE_ENTITIES`,
-`FILE_MAX_UPLOAD_SIZE`). **Eigene Schlüssel sind erlaubt** (`000-000-0040`, UFP hatte 35); die Vorlage rät
+`FILE_MAX_UPLOAD_SIZE`) — den letzten kennt Contentfly 2 seit `000-000-0042` selbst. **Eigene Schlüssel sind erlaubt** (`000-000-0040`, UFP hatte 35); die Vorlage rät
 zu einem Präfix.
 
 **Die `FRONTEND_*`-Felder stehen an zwei Stellen, und das ist keine Doppelung:** Das Register
