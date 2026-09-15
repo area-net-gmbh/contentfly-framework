@@ -4,7 +4,7 @@
 
 **Dieser Leitfaden ist der Weg. `an_project/docs/breaking-changes.md` ist das Register.**
 
-Das Register hat **111 Einträge in 14 Abschnitten** (Stand 2026-09-15) und ist nach Epic und
+Das Register hat **112 Einträge in 14 Abschnitten** (Stand 2026-09-15) und ist nach Epic und
 Story geordnet — also danach, *wann wir etwas geändert haben*. Das ist die richtige Ordnung zum
 Nachschlagen und die falsche zum Arbeiten. Hier steht die andere: **was ein Projekt tut, und in
 welcher Reihenfolge.**
@@ -222,7 +222,9 @@ php bin/console.php orm:schema-tool:update --force      # erst danach
 Bei UFP hat das Lesen Datenverlust verhindert: Geplant waren `DROP` für die Spalten der nicht migrierten
 Traits (Phase 3) und für `pim_file.path` — ohne diese Spalte sind die Dateien aus 1.x unter
 `data/files/JJJJ/MM/<id>/` nicht mehr erreichbar (offen im Framework: `000-000-0041`). Ein Projekt, das die
-Tabelle `pim_navItem` umbenannt hat, sieht dort `DROP` und `CREATE` (`000-000-0043`). **Jede `DROP`-Zeile
+Tabelle `pim_navItem` umbenannt hat — oder deren Dump von einem Server mit anderem
+`lower_case_table_names` stammt —, sieht dort `DROP` und `CREATE`; der Register-Eintrag unter *Doctrine
+ORM 3* nennt das `RENAME TABLE` davor. **Jede `DROP`-Zeile
 ist entweder erklärt oder ein Grund, anzuhalten.**
 
 **Fertig, wenn:** `orm:validate-schema` für Mapping und Datenbank `[OK]` meldet und keine `DROP`-Zeile

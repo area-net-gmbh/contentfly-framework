@@ -85,7 +85,7 @@ Jeder Befund, der nicht das Projekt, sondern das Framework betrifft, ist ein eig
 | `000-000-0040` | eigene Config-Schlüssel zerstören die Antwort | done |
 | `000-000-0041` | Dateiablage aus 1.x nach der Migration unerreichbar | **offen** |
 | `000-000-0042` | kein Upload-Grössenlimit | **offen** |
-| `000-000-0043` | Tabellenname `pim_navItem` | **offen** |
+| `000-000-0043` | Tabellenname `pim_navItem` | done |
 | `000-000-0044` | Roh-SQL liefert Zahlen statt Strings | done |
 | `000-000-0045` | kein Haken nach dem Login | done |
 | `000-000-0046` | Spalte ohne Typ zerstört die Debug-Antwort | done |

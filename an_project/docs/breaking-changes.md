@@ -1774,6 +1774,40 @@ minimal gebautes PHP braucht sie nachinstalliert.
 
 ## Doctrine ORM 3 (Story `010-003`)
 
+### `pim_navItem` heisst so — wer die Tabelle umbenannt hat, benennt sie vor dem Schema-Update zurück
+**Seit `000-000-0043` (2026-09-15).**
+
+**Kein Bruch, aber eine Falle, die Daten kostet.** `Entity\NavItem` liegt in `pim_navItem`, als einzige
+Tabelle des Frameworks in CamelCase. Das bleibt so (entschieden mit `000-000-0043`): Ein Umbenennen
+zwänge jedes Projekt mit Navigationsdaten zu einem Schritt, damit wenige es nicht mehr müssen.
+
+Getroffen sind Projekte, deren Tabelle **anders heisst**:
+
+- **selbst umbenannt**, wie das Bestandsprojekt UFP (`pim_nav_item`, `007-005-0003`);
+- **über einen Dump gewandert.** MySQL mit `lower_case_table_names=1` (Windows) oder `2` (macOS) speichert
+  `pim_navitem`. Ein Dump von dort auf einem Linux-Server (`0`) trifft `pim_navItem` nicht mehr.
+
+Dann plant das Schema-Update, gemessen an einer Installation mit einer Zeile Navigation:
+
+```
+CREATE TABLE `pim_navItem` (…);
+…
+DROP TABLE pim_nav_item;
+```
+
+Die Zeilen sind danach weg. Auf den Servern selbst ist der Name kein Problem: Mit
+`lower_case_table_names=0` und `=1` meldet `orm:validate-schema` nach einer frischen Installation `[OK]`
+(gemessen, MySQL 8.0).
+
+*Was zu tun ist:* **Vor** dem Schema-Update in Phase 4 nachsehen (`SHOW TABLES LIKE 'pim_nav%'`) und eine
+anders benannte Tabelle zurückbenennen:
+
+```sql
+RENAME TABLE pim_nav_item TO pim_navItem;   -- bzw. pim_navitem
+```
+
+Danach meldet `--dump-sql` für die Navigation nichts mehr, und die Zeilen sind erhalten (gemessen).
+
 ### Der Metadaten-Cache muss vor dem Upgrade geleert werden
 **Seit `010-003-0002` (2026-09-10).**
 
