@@ -144,7 +144,9 @@ class TreeApiTest extends IntegrationTestCase
         $this->assertIsString($root['created'],
             'tree2 returns the date as an SQL string, not as a group of four');
         $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $root['created']);
-        $this->assertSame(1, $root['isActive'], 'Boolean values come through as integers');
+        // A string, as on Contentfly 1.x under PHP 7.4 (000-000-0044). Characterised as the integer 1
+        // in 008-001-0003 — that was PHP 8.1's pdo_mysql, not the framework's contract.
+        $this->assertSame('1', $root['isActive'], 'Boolean values come through as the raw column string');
     }
 
     public function testTree2ReturnsAllScalarFields(): void
