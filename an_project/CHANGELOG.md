@@ -22,6 +22,8 @@
 - 000-000-0036 task created: "Letzte Verweise auf die entfernte Oberfläche (contentfly-ui)"
 - 000-000-0037 task created: "Importe auf Klassen, die es nicht gibt"
 - 000-000-0036, 000-000-0037 refined: **Beide mit gemessenem Umfang statt Vermutung.** 0036: fünf Stellen per `git grep` — zwei ausführbare in `build.xml` (`bower` gegen ein Verzeichnis, das es nicht gibt; `mkdir` für eine Oberfläche), AngularJS in der README-Stack-Liste, die Migrationszeile 1.5→1.6, die inzwischen falsche Aussage in `architecture.md`; die übrigen Altlasten in `build.xml` ausdrücklich ausgenommen. 0037: aus einem bekannten Import wurden beim Scan aller `use`-Importe gegen den Autoloader **fünf in vier Dateien** (`Api.php` zweimal, `Factory.php`, `SystemController.php`, `bootstrap-web.php`); ungenutzte Importe auf existierende Klassen ausgenommen; ein Wächter-Test ist Kriterium.
+- 000-000-0037 → in-progress
+- 000-000-0037 → review: **Kein Import zeigt mehr ins Leere.** `Api.php` importiert `Doctrine\Persistence\Mapping\MappingException` und `Doctrine\ORM\Exception\ORMException`; die toten Importe in `Factory.php`, `SystemController.php` und `bootstrap-web.php` sind entfernt. Neuer Wächter `DeadImportTest` liest `use` mit dem Tokenizer und prüft gegen den Autoloader. Zwei Lücken des ersten Entwurfs hat der echte Baum gezeigt: ungenutzte Namensraum-Aliase (jetzt über die PSR-4-Präfixe geprüft) und ein Closure-`use` auf Skriptebene in `bootstrap-web.php`; beide stehen in der Gegenprobe. Gegen master rot. Suite 536 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
 
 ## 2026-09-09
 - 013-000-0000 → in-progress
