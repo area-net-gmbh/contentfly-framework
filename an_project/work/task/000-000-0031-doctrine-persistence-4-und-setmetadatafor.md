@@ -1,7 +1,7 @@
 ---
 id: 000-000-0031
 title: doctrine/persistence 4 — setMetadataFor() ist dort deprecated
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -46,13 +46,57 @@ Trifft es nicht zu, verlangt Persistence 4 eine eigene `ClassMetadataFactory`, u
 Frage, ob der Listener überhaupt der richtige Ort für den Index bleibt.
 
 ## Acceptance criteria
-- [ ] Es ist gemessen, ob `setMetadataFor()` überhaupt etwas bewirkt — nicht geschlossen, sondern an einer frischen Installation gezählt.
-- [ ] Der Deckel `doctrine/persistence: ^3.4` ist gefallen, oder er steht mit einer neuen Begründung da, die nicht „noch nicht angefasst" lautet.
-- [ ] `an_project/docs/breaking-changes.md` sagt, was ein Bestandsprojekt davon merkt — auch wenn die Antwort „nichts" ist.
-- [ ] Die drei Gates bleiben grün: 0 Deprecations bei 0 Ausnahmen, PHPStan `[OK] No errors`, `composer audit --locked` ohne Advisories.
-- [ ] Die volle Suite bleibt grün, und der `modified_index` hängt nachweislich an denselben Tabellen wie vorher.
+- [x] Es ist gemessen, ob `setMetadataFor()` überhaupt etwas bewirkt — nicht geschlossen, sondern an einer frischen Installation gezählt.
+- [x] Der Deckel `doctrine/persistence: ^3.4` ist gefallen, oder er steht mit einer neuen Begründung da, die nicht „noch nicht angefasst" lautet.
+- [x] `an_project/docs/breaking-changes.md` sagt, was ein Bestandsprojekt davon merkt — auch wenn die Antwort „nichts" ist.
+- [x] Die drei Gates bleiben grün: 0 Deprecations bei 0 Ausnahmen, PHPStan `[OK] No errors`, `composer audit --locked` ohne Advisories.
+- [x] Die volle Suite bleibt grün, und der `modified_index` hängt nachweislich an denselben Tabellen wie vorher.
 
 ## Verification
 `composer update doctrine/persistence` ohne Deckel, dann PHPStan und das Deprecation-Gate.
 Danach `appcms:install` und die Indizes zählen — vorher gegen nachher, so wie in `000-000-0028`.
 Volle Suite.
+
+## Ergebnis
+
+**Die Vermutung trifft zu, und sie ist gemessen:** `setMetadataFor()` bewirkte nichts. Der
+Listener bekommt vom Event genau die `ClassMetadata`-Instanz, die die Factory aufbaut und danach
+selbst ablegt; `ClassMetadataBuilder::addIndex()` ändert sie in place. Der ganze Sprung ist damit
+eine gelöschte Zeile, keine eigene `ClassMetadataFactory`.
+
+**Die Messung, vorher gegen nachher, je an einer frischen `appcms:install`:**
+
+| Stand | Tabellen mit `modified_index` | Schema-Dump |
+|---|---|---|
+| master (Persistence 3.4.5, mit Aufruf) | 15 | Referenz |
+| ohne Aufruf, Persistence 3.4.5 | 15, dieselben | byte-gleich |
+| ohne Aufruf, Persistence 4.2.0 | 15, dieselben | byte-gleich |
+
+`orm:validate-schema`: Datenbank in sync. Der Mapping-Teil meldet weiter nur den bekannten Fehler
+aus `000-000-0025`.
+
+**Der Deckel ist gefallen.** `lib/contentfly/composer.json` erlaubt `^3.4 || ^4`, der Lock steht
+auf 4.2.0. Die Zeile bleibt im Manifest, obwohl `doctrine/orm` das Paket ohnehin zieht: Das
+Framework benutzt `Doctrine\Persistence\Mapping\Driver\MappingDriverChain` direkt. Beide Majors
+sind erlaubt, weil beide gelaufen sind. Der Hinweis im `extra` des Manifests ist neu geschrieben.
+
+**Damit er nicht zurückkommt:** `LoadMetadataTest` erwartet jetzt bei jedem Fall, dass
+`setMetadataFor()` **nie** gerufen wird. Gegenprobe mit dem Listener von master: rot
+(„was not expected to be called"). Die dadurch verwaisten Variablen `$em` und `$className` sind
+entfernt; im Listener steht, warum nichts zurückgeschrieben wird.
+
+**Die drei Gates:**
+
+- Deprecation-Gate: 0 Zeilen bei 0 Ausnahmen.
+- PHPStan: `[OK] No errors`.
+- `composer audit --locked`: 0 Advisories, keine Ausnahmen. Lokal im Image `composer:2`
+  (Composer 2.10.2) gefahren, weil das lokale Composer 2.6.6 für den Schalter `--abandoned` zu
+  alt ist. `tools/ci/audit.sh` bricht dort mit genau dieser Meldung ab.
+
+**Volle Suite:** `Tests: 528, Assertions: 1701, Skipped: 3`. Der erste volle Lauf war rot, und
+zwar an `MigrationGuideTest`: Der neue Eintrag in `breaking-changes.md` machte 101 Einträge, der
+Kopf von `migration.md` sagte 100. Die Zahl ist nachgezogen.
+
+**Am Rand gesehen, nicht angefasst:** `Classes/Api.php` importiert
+`Doctrine\Common\Persistence\Mapping\MappingException`, einen Namensraum, den es seit
+Persistence 2.0 nicht mehr gibt. Ein `use` allein lädt nichts, deshalb fällt es nicht auf.

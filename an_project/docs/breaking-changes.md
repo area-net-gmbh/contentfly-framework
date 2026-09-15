@@ -654,6 +654,25 @@ jetzt im Projekt. Es wird nur von `custom/config.php` benutzt — nachgezählt: 
 nachgezogen: Schritt 2 („benutzt die ausgelieferte Vorlage es?") führt jetzt zum Projekt und
 nicht mehr zum Framework.
 
+### `doctrine/persistence` darf 4 sein
+**Seit `000-000-0031` (2026-09-15).**
+
+Das Paketmanifest erlaubt jetzt `^3.4 || ^4`; der Lock steht auf **4.2.0**. Der Deckel auf `^3.4`
+aus `007-001-0004` bestand nur, weil `Classes/Events/LoadMetadata` die in 4.2 deprecated Methode
+`AbstractClassMetadataFactory::setMetadataFor()` rief. Der Aufruf war wirkungslos und ist
+entfernt: An einer frischen Installation tragen ohne ihn dieselben 15 Tabellen den
+`modified_index`, und der Schema-Dump ist byte-gleich.
+
+**Ein Projekt merkt davon nichts am Schema und nichts an der API.** Es merkt es nur, wenn es
+selbst etwas aus `doctrine/persistence` benutzt:
+
+- Wer `setMetadataFor()` selbst ruft, bekommt unter 4.2 eine Deprecation.
+- Composer kann beim nächsten `composer update` auf 4.x heben. Wer das nicht will, deckelt im
+  eigenen Manifest.
+
+*Was zu tun ist:* Nichts, solange das Projekt `doctrine/persistence` nicht direkt benutzt.
+Sonst die eigenen Aufrufe gegen die Deprecation-Liste von Persistence 4 prüfen.
+
 ---
 
 ## Kernel (Epic `009`)

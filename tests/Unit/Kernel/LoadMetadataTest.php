@@ -33,6 +33,11 @@ class LoadMetadataTest extends TestCase
 
         $factory = $this->createMock(ClassMetadataFactory::class);
 
+        // 000-000-0031: The listener changes the metadata in place and never writes it back.
+        // setMetadataFor() is deprecated since doctrine/persistence 4.2, and the call was measured
+        // to do nothing. Every test in this class checks along the way that it does not return.
+        $factory->expects($this->never())->method('setMetadataFor');
+
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getMetadataFactory')->willReturn($factory);
 

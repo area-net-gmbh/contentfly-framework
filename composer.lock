@@ -12,12 +12,12 @@
             "dist": {
                 "type": "path",
                 "url": "lib/contentfly",
-                "reference": "fbad944824b9ae9ac714fec1c479c5ecc9ce2abf"
+                "reference": "41f862b123b4b1d8aecb5534a3ed57a078109666"
             },
             "require": {
                 "doctrine/dbal": "^3.10",
                 "doctrine/orm": "^3",
-                "doctrine/persistence": "^3.4",
+                "doctrine/persistence": "^3.4 || ^4",
                 "ext-openssl": "*",
                 "ext-sodium": "*",
                 "firebase/php-jwt": "^7.0",
@@ -72,16 +72,16 @@
                     "  2. doctrine/orm is at ^3 and therefore effectively at 3.7. The jump from ORM 2 came",
                     "     with epic 010: since then the entities carry PHP attributes instead of",
                     "     annotations, and doctrine/annotations is out of the tree.",
-                    "  3. doctrine/persistence is at ^3.4, and that is a CAP with a date.",
-                    "     The package is transitive (doctrine/orm pulls it in); it was not listed here as",
-                    "     long as a lock pinned the version. When the manifests were split (007-001-0004)",
-                    "     it was resolved anew, and it jumped from 3.4.5 to 4.2.0 — unasked.",
-                    "     Persistence 4.2 marks AbstractClassMetadataFactory::setMetadataFor() as",
-                    "     deprecated; Classes/Events/LoadMetadata calls exactly that method, and the",
-                    "     deprecation gate turned red because of it.",
-                    "     The jump is a task of its own and not the side effect of a manifest split: it",
-                    "     requires a dedicated ClassMetadataFactory. Until then the cap stays — and it is",
-                    "     named here so that nobody takes it for a forgotten line.",
+                    "  3. doctrine/persistence is at ^3.4 || ^4 — the cap from 007-001-0004 has fallen",
+                    "     (000-000-0031). It is listed although doctrine/orm pulls it in: the framework",
+                    "     uses Doctrine\\Persistence\\Mapping\\Driver\\MappingDriverChain directly.",
+                    "     Persistence 4.2 deprecated AbstractClassMetadataFactory::setMetadataFor(), and",
+                    "     Classes/Events/LoadMetadata called it. Measured on a fresh installation, the",
+                    "     call did nothing: the listener changes the metadata in place, and the factory",
+                    "     stores that same instance itself. Without it the same 15 tables carry",
+                    "     modified_index and the schema dump is identical — so the line went, and no",
+                    "     custom ClassMetadataFactory was needed. Both majors are allowed because both",
+                    "     were run: 3.4.5 before the jump, 4.x after it.",
                     "  4. doctrine/dbal is at ^3.10. The LOWER bound is forced: symfony/http-foundation",
                     "     7.4 declares a conflict with doctrine/dbal <3.6. The UPPER bound is a decision —",
                     "     ORM 3.7 requires ^3.8.2 || ^4, so DBAL 4 would be allowed. Whoever wants it",
@@ -835,34 +835,32 @@
         },
         {
             "name": "doctrine/persistence",
-            "version": "3.4.5",
+            "version": "4.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/doctrine/persistence.git",
-                "reference": "703a29d8597336fb75f42eeabcdf3f2863156ca8"
+                "reference": "49ab73e0d3e2ac8d1f5ecda3dd8acd5503781e8b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/persistence/zipball/703a29d8597336fb75f42eeabcdf3f2863156ca8",
-                "reference": "703a29d8597336fb75f42eeabcdf3f2863156ca8",
+                "url": "https://api.github.com/repos/doctrine/persistence/zipball/49ab73e0d3e2ac8d1f5ecda3dd8acd5503781e8b",
+                "reference": "49ab73e0d3e2ac8d1f5ecda3dd8acd5503781e8b",
                 "shasum": ""
             },
             "require": {
+                "doctrine/deprecations": "^1",
                 "doctrine/event-manager": "^1 || ^2",
-                "php": "^7.2 || ^8.0",
+                "php": "^8.1",
                 "psr/cache": "^1.0 || ^2.0 || ^3.0"
             },
-            "conflict": {
-                "doctrine/common": "<2.10"
-            },
             "require-dev": {
-                "doctrine/coding-standard": "^12 || ^14",
-                "doctrine/common": "^3.0",
-                "phpstan/phpstan": "^1 || 2.1.30",
-                "phpstan/phpstan-phpunit": "^1 || ^2",
-                "phpstan/phpstan-strict-rules": "^1 || ^2",
-                "phpunit/phpunit": "^8.5.38 || ^9.5",
-                "symfony/cache": "^4.4 || ^5.4 || ^6.0 || ^7.0"
+                "doctrine/coding-standard": "^14",
+                "phpstan/phpstan": "2.1.30",
+                "phpstan/phpstan-phpunit": "^2",
+                "phpstan/phpstan-strict-rules": "^2",
+                "phpunit/phpunit": "^10.5.58 || ^12",
+                "symfony/cache": "^4.4 || ^5.4 || ^6.0 || ^7.0 || ^8.0",
+                "symfony/finder": "^4.4 || ^5.4 || ^6.0 || ^7.0 || ^8.0"
             },
             "type": "library",
             "autoload": {
@@ -911,7 +909,7 @@
             ],
             "support": {
                 "issues": "https://github.com/doctrine/persistence/issues",
-                "source": "https://github.com/doctrine/persistence/tree/3.4.5"
+                "source": "https://github.com/doctrine/persistence/tree/4.2.0"
             },
             "funding": [
                 {
@@ -927,7 +925,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-06-13T19:29:35+00:00"
+            "time": "2026-04-26T12:12:52+00:00"
         },
         {
             "name": "firebase/php-jwt",

@@ -2,6 +2,10 @@
 
 # Changelog
 
+## 2026-09-15
+- 000-000-0031 → in-progress
+- 000-000-0031 → review: **`setMetadataFor()` war wirkungslos, der Deckel auf `doctrine/persistence` ist gefallen.** Gemessen an drei frischen Installationen (master · ohne Aufruf auf 3.4.5 · ohne Aufruf auf 4.2.0): jedes Mal dieselben 15 Tabellen mit `modified_index`, Schema-Dump byte-gleich. Die Zeile ist gelöscht, eine eigene `ClassMetadataFactory` war nicht nötig. Manifest `^3.4 || ^4`, Lock 4.2.0; `LoadMetadataTest` sichert ab, dass der Aufruf nicht zurückkommt (gegen master rot). Gates: Deprecation 0, PHPStan ohne Fehler, Audit 0 (im `composer:2`-Image, lokales Composer zu alt). Volle Suite 528 grün, nachdem der Kopf von `migration.md` auf 101 Einträge gezogen ist. Bruchstelle in `breaking-changes.md`.
+
 ## 2026-09-09
 - 013-000-0000 → in-progress
 - 013-001-0000 → in-progress
