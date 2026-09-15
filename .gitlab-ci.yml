@@ -67,6 +67,10 @@ variables:
   # niemanden herein, und genau das misst ein eigener Test.
   CONTENTFLY_TEST_PROVIDER: "external-one:ci-only-provider-secret:CN=Editorial"
 
+  # Die eine erlaubte CORS-Herkunft des Testservers (000-000-0039). Ein erfundener Name: Die
+  # Suite schickt ihn als Origin-Header, kein Browser ruft ihn auf.
+  CONTENTFLY_TEST_ALLOWED_ORIGIN: "https://allowed.example"
+
   GIT_DEPTH: "1"
 
 # ── Prüfungen, die keine Umgebung brauchen ─────────────────────────────────────────────

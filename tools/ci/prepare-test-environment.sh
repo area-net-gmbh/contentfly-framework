@@ -16,6 +16,7 @@
 #   CONTENTFLY_TEST_ADMIN_PASS     Passwort des Admin-Benutzers
 #   CONTENTFLY_TEST_JWT_SECRET     Signaturgeheimnis fuer die JWT-Tests (mind. 32 Byte)#   CONTENTFLY_TEST_PROVIDER       Liste fuer den ExampleProvider (013-004-0004),
 #                                  Format kennung:geheimnis:gruppe|gruppe, mehrere per Komma
+#   CONTENTFLY_TEST_ALLOWED_ORIGIN Erlaubte CORS-Herkunft fuer den Testserver (000-000-0039)
 
 set -eu
 
@@ -30,7 +31,7 @@ fehlt() {
 for name in CONTENTFLY_TEST_DB_HOST CONTENTFLY_TEST_DB_PORT CONTENTFLY_TEST_DB_NAME \
             CONTENTFLY_TEST_DB_USER CONTENTFLY_TEST_DB_PASSWORD \
             CONTENTFLY_TEST_BASE_URL CONTENTFLY_TEST_MAIL_TRAP CONTENTFLY_TEST_ADMIN_PASS \
-            CONTENTFLY_TEST_JWT_SECRET CONTENTFLY_TEST_PROVIDER; do
+            CONTENTFLY_TEST_JWT_SECRET CONTENTFLY_TEST_PROVIDER CONTENTFLY_TEST_ALLOWED_ORIGIN; do
     eval "wert=\${$name:-}"
     [ -n "$wert" ] || fehlt "$name"
 done
@@ -143,8 +144,13 @@ echo "→ Testserver auf $ADRESSE"
 # CONTENTFLY_EXAMPLE_PROVIDER speist die Vorlage aus 013-004-0004. Ohne sie laesst sie
 # NIEMANDEN herein — was ein eigener Test misst; hier bekommt sie einen Wert, damit der andere
 # Test die Anmeldung ueber einen Provider end-to-end durchspielen kann.
+#
+# APP_ALLOW_ORIGIN (000-000-0039): Ohne Eintrag erlaubt die Anwendung keine fremde Herkunft.
+# CorsApiTest misst beide Seiten — eine eingetragene Herkunft bekommt sich selbst zurueck, eine
+# fremde nichts — und braucht dafuer genau einen bekannten Eintrag.
 APP_ENV=production APP_DEBUG=0 SECURITY_JWT_SECRET="$CONTENTFLY_TEST_JWT_SECRET" \
-    CONTENTFLY_EXAMPLE_PROVIDER="$CONTENTFLY_TEST_PROVIDER" php \
+    CONTENTFLY_EXAMPLE_PROVIDER="$CONTENTFLY_TEST_PROVIDER" \
+    APP_ALLOW_ORIGIN="$CONTENTFLY_TEST_ALLOWED_ORIGIN" php \
     -d display_errors=Off \
     -d log_errors=On \
     -d sendmail_path="$CONTENTFLY_TEST_MAIL_TRAP/sendmail" \

@@ -55,6 +55,37 @@ Benennung ist ein Erbe, kein Hinweis auf ihren Zweck.
 *Was zu tun ist:* Die acht Zeilen aus `custom/config.php` entfernen; sie werden nicht mehr
 gelesen.
 
+### CORS erlaubt nur noch eingetragene Herkünfte — `APP_ALLOW_ORIGIN`
+**Seit `000-000-0039` (2026-09-15).**
+
+Die Anwendung setzte `Access-Control-Allow-Origin` auf den `Origin` **jeder** Anfrage, dazu
+`Access-Control-Allow-Credentials: true`. Gemessen: `Origin: https://evil.example` kam als erlaubte
+Herkunft zurück. Jede fremde Seite durfte im Browser eines angemeldeten Benutzers Anfragen mit dessen
+Credentials stellen und die Antwort lesen. `APP_ALLOW_ORIGIN` war deklariert und wurde nie gelesen.
+
+**Was sich ändert:**
+
+- **Ohne Eintrag gibt es kein `Access-Control-Allow-Origin`** und kein
+  `Access-Control-Allow-Credentials` — auch nicht im OPTIONS-Preflight. Ein Browser-Client auf
+  einer anderen Herkunft bekommt keine lesbare Antwort mehr.
+- **`APP_ALLOW_ORIGIN`** nimmt die erlaubten Herkünfte, exakt (Schema, Host, Port), als Array oder
+  kommagetrennt. Nur eine davon wird zurückgegeben, mit Credentials. Die Vorlage liest den Wert aus
+  der Umgebungsvariable `APP_ALLOW_ORIGIN`.
+- **`*`** erlaubt jede Herkunft, aber ohne Credentials — Browser lehnen die Kombination ohnehin ab.
+- Jede Antwort trägt **`Vary: Origin`**.
+
+*Was zu tun ist:* **Jede Herkunft eintragen, von der ein Browser-Client die API aufruft** — eine
+Web-App auf eigener Domain, und bei Ionic/Capacitor die App selbst (`capacitor://localhost` unter
+iOS, `http://localhost` unter Android; beim Entwickeln zusätzlich `http://localhost:8100`):
+
+```sh
+APP_ALLOW_ORIGIN=https://app.example.com,capacitor://localhost,http://localhost
+```
+
+Ohne diesen Eintrag meldet die Browser-Konsole des Clients einen CORS-Fehler, obwohl der Server mit
+`200` antwortet. Server-zu-Server-Aufrufe und native HTTP-Clients sind nicht betroffen: CORS ist eine
+Regel des Browsers.
+
 ### Das Framework erzwingt `display_errors=Off` in Produktion
 **Seit `000-000-0018` (2026-09-09).**
 
@@ -177,6 +208,37 @@ fällt sie sofort auf.
 *Was zu tun ist:* Nach dem Umstieg einmal ins Log sehen. Wer eine solche Warnung findet, hat ein
 Feld, das die API noch nie kannte — `json` ist mit dieser Version dazugekommen, für andere Typen
 braucht es einen eigenen `Type`.
+
+### `/file/upload` weist ausführbare Dateien mit `415` ab
+**Seit `000-000-0038` (2026-09-15).**
+
+Ein Upload behielt die Endung, die der Client schickte, und `data/files/` wird direkt vom Webserver
+ausgeliefert. Eine hochgeladene `.php`-Datei wurde beim Abruf **ausgeführt** — gemessen an einer
+frischen Installation. Jeder mit einem gültigen Token konnte das auslösen.
+
+**Was sich ändert:**
+
+- **Abgewiesen mit `415`** (`contentfly_file_invalid_type`) wird jeder Name, der in irgendeinem
+  Punkt-Segment eine ausführbare Endung trägt (`.php`, `.phtml`, `.phar`, `.pht`, `.cgi`, …, auch
+  `shell.php.jpg`), und jeder Server-Konfigurationsname (`.htaccess`, `.user.ini`, …). Es entstehen
+  weder Datei noch Zeile. Die Liste ist Code, nicht Konfiguration.
+- **Der gespeicherte Name wird vom Framework gebildet:** kleingeschrieben, Sonderzeichen und
+  Leerzeichen zu `-`, keine Pfadbestandteile, **die Endung kleingeschrieben**. Aus
+  `Report (2026).TXT` wird `report-2026.txt`; vorher wurden Sonderzeichen entfernt und die Endung
+  behielt ihre Schreibweise (`report-2026.TXT`). Ein Client, der den gespeicherten Namen aus dem
+  Upload-Namen vorhersagt, liest ihn aus der Antwort.
+- **`FILE_ALLOWED_TYPES` ist neu und optional.** Gesetzt, gilt eine Whitelist: Die Endung muss
+  darin stehen, und der aus dem **Inhalt** ermittelte Typ (ext-fileinfo) muss passen. Ohne Eintrag
+  bleibt alles erlaubt, was die Sperrliste passiert.
+- **Ein Datensatz aus der Zeit davor** mit ausführbarem Namen wird beim erneuten Hochladen
+  umbenannt, die alte Datei entfernt; `/file/overwrite` lehnt ihn mit `415` ab.
+- `FileController::sanitizeFileName()` (protected) ist entfallen; die Namensbildung liegt in
+  `Classes/File/UploadValidator`.
+
+*Was zu tun ist:* **Den Bestand prüfen** — `SELECT id, name FROM pim_file WHERE name REGEXP
+'\\.(php[0-9s]?|phtml?|phar|pht|inc|shtml?|stm|pl|pm|py|rb|cgi|fcgi|sh|bash|zsh|jspx?|aspx?|ashx|asmx|cfml?|htaccess|htpasswd)(\\.|$)'` —
+und gefundene Dateien unter `data/files/<id>/` löschen oder umbenennen. Wer nur bestimmte
+Dateitypen braucht, setzt `FILE_ALLOWED_TYPES` in `custom/config.php`.
 
 ### `POST /api/mail` entfällt ersatzlos
 **Seit `000-000-0016` (2026-09-09).**
