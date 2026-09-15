@@ -61,6 +61,7 @@
 - 000-000-0045 refined: **Framework-Befund F-7 aus `007-005-0004`.** Die sechs LoginManager von UFP setzen beim Login Felder und liefern `tempData`; die App liest bei jedem Login `res.data.role`. Der Provider-Vertrag hält Provider von der Datenbank fern, einen Haken nach dem Login gibt es nicht. Entschieden: Event `pim.auth.after.login`.
 - 000-000-0045 → in-progress
 - 000-000-0045 → review: **Nach einem erfolgreichen Login löst das Framework `pim.auth.after.login` aus** — auf Passwort- und Provider-Weg, vor dem Token, nie bei Ablehnung; Parameter `user`, `request`, `provider`, `identity`, `app`. Vorlage `custom/app.php` mit lauffähigem Listener über `$app->on()` (der erste Entwurf mit `$app['dispatcher']` brach die Konsole). Neuer `LoginEventApiTest` (4 Fälle, ohne `dispatch()` drei rot). Register: Schritt 5 im LoginManager-Abschnitt plus Eintrag, `migration.md` auf 108. Am UFP-Probe-Backend: sechs Manager als Provider mit `completeLogin()`, alle fünf Login-Wege mit `data` wie beim alten Backend. Suite 569 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
+- 000-000-0045 → done (merged into master)
 
 ## 2026-09-09
 - 013-000-0000 → in-progress
