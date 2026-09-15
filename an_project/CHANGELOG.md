@@ -70,6 +70,9 @@
 - 000-000-0045 → in-progress
 - 000-000-0045 → review: **Nach einem erfolgreichen Login löst das Framework `pim.auth.after.login` aus** — auf Passwort- und Provider-Weg, vor dem Token, nie bei Ablehnung; Parameter `user`, `request`, `provider`, `identity`, `app`. Vorlage `custom/app.php` mit lauffähigem Listener über `$app->on()` (der erste Entwurf mit `$app['dispatcher']` brach die Konsole). Neuer `LoginEventApiTest` (4 Fälle, ohne `dispatch()` drei rot). Register: Schritt 5 im LoginManager-Abschnitt plus Eintrag, `migration.md` auf 108. Am UFP-Probe-Backend: sechs Manager als Provider mit `completeLogin()`, alle fünf Login-Wege mit `data` wie beim alten Backend. Suite 569 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
 - 000-000-0045 → done (merged into master)
+- 000-000-0046 → in-progress
+- 000-000-0046 → review: **Binärspalten fallen ohne Warnung aus dem Schema, unbekannte Typen warnen weiter.** `Classes\Type\UntypedColumn::report()` als Weiche, `Api.php` ruft sie. Neuer `UntypedColumnTest` (3 Fälle, beide Gegenproben rot). Register-Eintrag unter API, `migration.md` auf 109. Am UFP-Probe-Backend keine Warnung mehr im Antworttext; die Aufzeichnung läuft erstmals vollständig: 164 von 164, 103 identisch. Suite 572 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
+- 000-000-0046 → done (merged into master)
 
 ## 2026-09-09
 - 013-000-0000 → in-progress
