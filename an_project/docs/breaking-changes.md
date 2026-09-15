@@ -1753,6 +1753,25 @@ weiterhin, nur deprecated.
 *Was zu tun ist:* Eigene DBAL-Aufrufe gegen die Upgrade-Notizen von DBAL 3 lesen. Die
 Deprecations fallen im Gate auf, bevor sie in DBAL 4 zu Fehlern werden.
 
+### Zahlen aus Roh-SQL bleiben Strings — auch unter PHP 8.1+
+**Seit `000-000-0044` (2026-09-15).**
+
+**Kein Bruch, sondern einer, der abgefangen ist** — erwähnenswert, weil er ohne das Framework jedes
+Bestandsprojekt still träfe. Seit PHP 8.1 gibt `pdo_mysql` bei emulierten Prepared Statements, die
+DBAL benutzt, Ganz- und Fliesskommazahlen als `int`/`float` zurück. Auf PHP 7.4 kam `"0"`, auf 8.3
+käme `0`. Gemessen am Bestandsprojekt UFP (`007-005-0004`): Dessen Frontend vergleicht an rund 50
+Stellen strikt mit `'1'`/`'0'` — keiner dieser Vergleiche wirft, alle würden nur falsch.
+
+Beide Verbindungen, `$app['db']` und `$app['database']`, setzen deshalb
+`PDO::ATTR_STRINGIFY_FETCHES` (`Classes\Database\ConnectionDefaults`). Eine Antwort aus Roh-SQL hat
+dieselben JSON-Typen wie unter Contentfly 1.x — auch `/api/tree2`, das die Rohwerte der Spalten
+durchreicht (`"isActive":"1"`). **Entities sind nicht betroffen:** Doctrine wandelt
+über den gemappten Typ, ein `integer`-Feld bleibt `int`, ein `boolean`-Feld `bool`.
+
+*Was zu tun ist:* Nichts. Wer eine **eigene** Verbindung mit `DriverManager` öffnet, setzt
+`'driverOptions' => ConnectionDefaults::driverOptions()`, sonst gilt dort das Verhalten von PHP 8.1.
+Wer native Typen will, wandelt im eigenen Code.
+
 ### Neue Ids sind UUID v4 statt v1
 **Seit `009-005-0002` (2026-09-09).**
 
