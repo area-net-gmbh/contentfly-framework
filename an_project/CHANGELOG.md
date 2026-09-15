@@ -25,6 +25,9 @@
 - 000-000-0036 → in-progress
 - 000-000-0036 → review: **Keine ausführbaren Verweise mehr auf die entfernte Oberfläche.** `build.xml` ohne Target `bower` und ohne die fünf `mkdir custom/Frontend/contentfly-ui/…`; README ohne AngularJS im Stack, die Migrationszeile 1.5→1.6 mit „mit Epic `012` ersatzlos entfallen"; `architecture.md` ohne die überholte Aussage zum Rest auf der Platte. `git grep` 10 → 3 Treffer (nur Geschichte und Plan). Suite 534 grün, nach Neustart des Datenbank-Containers.
 - 000-000-0036 → done (merged into master)
+- 000-000-0037 → in-progress
+- 000-000-0037 → review: **Kein Import zeigt mehr ins Leere.** `Api.php` importiert `Doctrine\Persistence\Mapping\MappingException` und `Doctrine\ORM\Exception\ORMException`; die toten Importe in `Factory.php`, `SystemController.php` und `bootstrap-web.php` sind entfernt. Neuer Wächter `DeadImportTest` liest `use` mit dem Tokenizer und prüft gegen den Autoloader. Zwei Lücken des ersten Entwurfs hat der echte Baum gezeigt: ungenutzte Namensraum-Aliase (jetzt über die PSR-4-Präfixe geprüft) und ein Closure-`use` auf Skriptebene in `bootstrap-web.php`; beide stehen in der Gegenprobe. Gegen master rot. Suite 536 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
+- 000-000-0037 → done (merged into master)
 
 ## 2026-09-09
 - 013-000-0000 → in-progress
