@@ -209,6 +209,22 @@ fällt sie sofort auf.
 Feld, das die API noch nie kannte — `json` ist mit dieser Version dazugekommen, für andere Typen
 braucht es einen eigenen `Type`.
 
+### Binärspalten fallen ohne Warnung aus dem Schema
+**Seit `000-000-0046` (2026-09-15).**
+
+Die Warnung aus dem Eintrag davor gilt weiter — außer für `blob` und `binary`. JSON kann keine
+beliebigen Bytes tragen; so eine Spalte ist Datenhaltung des Servers (ein Embedding-Vektor, ein
+Hash), kein Feld der API. Sie fehlt im Schema wie bisher, nur ohne Meldung
+(`Classes\Type\UntypedColumn`).
+
+**Warum das nicht kosmetisch ist:** Mit `APP_DEBUG` setzt der Bootstrap `display_errors=1`, und die
+Warnung stand als HTML **vor** dem JSON jeder Antwort, die das Schema baut — beim Bestandsprojekt UFP
+(`007-005-0004`, `AI\VectorDocument::embedding`) vor jedem Login. Auf Instanzen ohne Debug landete
+sie nur im Log.
+
+*Was zu tun ist:* Nichts. Ein anderer unbekannter Spaltentyp meldet sich weiterhin — und steht mit
+`APP_DEBUG` weiterhin in der Antwort, bis er einen `Type` bekommt.
+
 ### `/file/upload` weist ausführbare Dateien mit `415` ab
 **Seit `000-000-0038` (2026-09-15).**
 
