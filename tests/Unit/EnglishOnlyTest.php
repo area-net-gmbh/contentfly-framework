@@ -73,6 +73,12 @@ class EnglishOnlyTest extends TestCase
         'anwendung', 'absicherung', 'keinesilex', 'paketmanifest', 'letzt', 'kette',
         'hashen', 'zweck', 'klartext', 'brauchtneu', 'passwort', 'sperren', 'faellt',
         'zugriff', 'verweiger', 'gestattet',
+        // Nouns and verb stems that name things in code. Added with 000-000-0048: `$verbindung` in
+        // bin/console.php passed the guard, because none of the lists above knew the word — every
+        // project that copied the entry point from the template took the name along (007-005-0003).
+        'verbindung', 'anfrage', 'antwort', 'ergebnis', 'zaehler', 'benachrichtig', 'nachricht',
+        'aktualisier', 'loesch', 'speicher', 'abfrage', 'eingabe', 'ausgabe', 'datenbank', 'tabelle',
+        'spalte', 'inhalt', 'zeitpunkt', 'bestaetig', 'einstellung', 'berechtig', 'hochlad',
     );
 
     /** German verbs that start a camelCase identifier such as `istRefreshToken()`. */
@@ -179,6 +185,8 @@ class EnglishOnlyTest extends TestCase
         $this->assertNotNull($this->germanIn('if ($row->istRefreshToken()) {'), 'a German verb prefix in camelCase');
         $this->assertNotNull($this->germanIn('$token->getKlartext();'), 'a German word inside a getter');
         $this->assertNotNull($this->germanIn("throw new AccessDeniedHttpException('Zugriff verweigert');"), 'a German message without a listed word');
+        $this->assertNotNull($this->germanIn('    $verbindung   = new SingleConnectionProvider($app[\'db\']);'),
+            'a German noun as a variable name — the line from bin/console.php that passed until 000-000-0048');
 
         $this->assertNull($this->germanIn('// The container does not know "%s".'), 'an English message');
         $this->assertNull($this->germanIn('public function routes(): RouteCollection'), 'an English identifier');

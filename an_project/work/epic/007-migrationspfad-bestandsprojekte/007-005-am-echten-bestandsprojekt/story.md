@@ -90,7 +90,7 @@ Jeder Befund, der nicht das Projekt, sondern das Framework betrifft, ist ein eig
 | `000-000-0045` | kein Haken nach dem Login | done |
 | `000-000-0046` | Spalte ohne Typ zerstört die Debug-Antwort | done |
 | `000-000-0047` | Proxies bei jedem Request | done |
-| `000-000-0048` | deutscher Variablenname in `bin/console.php` | **offen** |
+| `000-000-0048` | deutscher Variablenname in `bin/console.php` | done |
 
 Die offenen hängen nicht an dieser Story: Der Leitfaden nennt `0041` und `0043` in Phase 4 als Stellen,
 an denen ein Projekt heute anhalten muss.
