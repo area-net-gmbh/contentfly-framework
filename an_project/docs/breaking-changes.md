@@ -1063,6 +1063,33 @@ Das Feld bleibt stehen, weil es die Zeile eindeutig benennt und weil, wer einen 
 Hand hält, ihn selbst hashen und so seinen Eintrag finden kann. Ein Client, der den Wert
 versehentlich als Token vorzeigt, bekommt `401` — er fällt zu, nicht auf.
 
+### `addToken` weist einen schwachen Token ab und erzeugt einen, wenn keiner kommt
+**Seit `000-000-0030` (2026-09-15).**
+
+`addToken` nahm `token` aus dem Request, wie es kam; nur ein leerer Wert wurde abgewiesen.
+`token=test` wurde angelegt. In `pim_token` steht ein ungesalzener SHA-256, und der ist für `test`
+in Sekunden zurückgerechnet (Befund A-5).
+
+**Was sich ändert:**
+
+- **`token` ist optional.** Fehlt es, erzeugt das Framework den Wert (64 Zufallsbytes als Hex,
+  wie `generateToken`). Die Antwort trägt ihn genau einmal, wie bisher.
+- **Ein mitgeschickter Token braucht mindestens 32 Zeichen, davon mindestens 10 verschiedene.**
+  Sonst antwortet `addToken` mit **`400`** und legt nichts an. Vorher wurde er angenommen (`200`).
+- Fehlen `referrer` oder `user`, bleibt es bei `500`; die Meldung heisst jetzt
+  `Invalid referrer and/or user`.
+- **Bestehende API-Tokens bleiben gültig,** auch schwache: Die Tabelle kennt nur Hashes, ihre
+  Stärke lässt sich im Nachhinein nicht prüfen.
+
+**Bewusst unverändert, mit Begründung im Code:** API-Tokens verfallen weiter nicht
+(`TokenHandler::timeoutApplies()`), und das Vorzeigen eines Tokens wird nicht gebremst
+(`TokenHandler::fromDatabase()`).
+
+*Was zu tun ist:* Wer beim Anlegen einen eigenen Wert mitschickt, prüft ihn gegen die Grenze, oder
+lässt `token` weg und übernimmt den erzeugten Wert aus der Antwort. **Bestehende API-Tokens, die
+von Hand gewählt wurden, neu anlegen** (erst anlegen, im Fremdsystem eintragen, dann den alten
+mit `deleteToken` entfernen). Wer sie behält, behält ein Risiko, das kein Update beseitigen kann.
+
 ### `pim_log.model_label` trägt bei Token-Vorgängen den Hash
 **Seit `013-001-0004` (2026-09-10).**
 

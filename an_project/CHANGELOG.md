@@ -2,6 +2,10 @@
 
 # Changelog
 
+## 2026-09-15
+- 000-000-0030 → in-progress
+- 000-000-0030 → review: **Befund A-5 aufgelöst: `addToken` erzeugt den Token selbst, wenn keiner kommt, und weist einen schwachen ab.** Untergrenze 32 Zeichen mit 10 verschiedenen, sonst `400` ohne Zeile; im Code als Untergrenze benannt, nicht als Zufallsnachweis. Ablauffrist und Bremse beim Vorzeigen begründet verworfen, vermerkt an `TokenHandler::timeoutApplies()` und `fromDatabase()`. Gemessen mit Server-Neustart: master nimmt `token=test` mit 200 an, der Branch antwortet 400. Zwei neue Tests (gegen master rot), zwei bestehende nachgezogen. Suite 530 grün, PHPStan ohne Fehler, Deprecation-Gate 0. A-5 in `technical.md` durchgestrichen, Bruchstelle in `breaking-changes.md`.
+
 ## 2026-09-09
 - 013-000-0000 → in-progress
 - 013-001-0000 → in-progress
