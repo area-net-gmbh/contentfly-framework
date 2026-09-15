@@ -1,7 +1,7 @@
 ---
 id: 007-005-0000
 title: Am echten Bestandsprojekt durchspielen
-status: todo
+status: in-progress
 depends_on: [007-004-0000]
 ---
 

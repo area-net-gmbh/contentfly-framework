@@ -55,6 +55,12 @@ parameters:
     bootstrapFiles:
         - tests/bootstrap.php
 
+    # Das Inventar-Werkzeug fuer Bestandsprojekte (007-005-0001) liegt unter tools/ und damit
+    # ausserhalb der analysierten Pfade; sein Test ruft seine Funktionen. Nur einlesen, nicht
+    # analysieren — tools/ insgesamt in die Analyse zu ziehen waere eine eigene Entscheidung.
+    scanFiles:
+        - tools/migration/inventory.php
+
     # ── Die benannte Ausnahmeliste (009-003-0003) ────────────────────────────────────
     #
     # Jeder Eintrag nennt, was ihn aufloest. Ohne benanntes Epic ist es keine Ausnahme,
