@@ -225,6 +225,41 @@ class FileApiTest extends IntegrationTestCase
         $this->assertSame(1024, $response['data']['size'] ?? null, 'The size comes from the client\'s declaration');
     }
 
+    // ── What must never be stored (000-000-0038) ───────────────────────────────────────
+
+    /**
+     * The measurement from the task, as a test.
+     *
+     * Until 000-000-0038 this upload was stored as `data/files/<id>/probe-upload.php`, and requesting
+     * it answered `EXECUTED-42`. The test does not request anything: it checks that the file never
+     * reaches the disk and no row reaches the table — a file that is not there cannot be executed.
+     *
+     * @dataProvider executableNames
+     */
+    public function testAnExecutableUploadIsRejectedAndLeavesNothingBehind(string $name): void
+    {
+        $this->token();
+
+        $rowsBefore  = (int) $this->pdo()->query('SELECT COUNT(*) FROM pim_file')->fetchColumn();
+        $dirsBefore  = $this->fileDirectories();
+
+        [$status, $body] = $this->uploadWithStatus($name, '<?php echo "EXECUTED-" . (6*7);', $this->token());
+
+        $this->assertSame(415, $status, "$name is rejected as an unsupported type");
+        $this->assertSame('contentfly_file_invalid_type', $body['message'] ?? null);
+        $this->assertSame($rowsBefore, (int) $this->pdo()->query('SELECT COUNT(*) FROM pim_file')->fetchColumn(),
+            'No row in pim_file');
+        $this->assertSame($dirsBefore, $this->fileDirectories(), 'No directory under data/files/');
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function executableNames(): iterable
+    {
+        yield 'the name from the measurement' => array('probe-upload.php');
+        yield 'php hidden in a middle segment' => array('shell.php.jpg');
+        yield 'server configuration'          => array('.htaccess');
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────────────────────
 
     private function upload(string $name, string $content, ?string $token): array
@@ -248,6 +283,44 @@ class FileApiTest extends IntegrationTestCase
         $this->cleanUpUploadedFile($result['data']['id'] ?? null);
 
         return $result;
+    }
+
+    /**
+     * Like upload(), but with the status code — a rejection is only a rejection with its code.
+     *
+     * @return array{0:int,1:array}
+     */
+    private function uploadWithStatus(string $name, string $content, ?string $token): array
+    {
+        $tmp = tempnam(sys_get_temp_dir(), 'cf-test-');
+        file_put_contents($tmp, $content);
+
+        $ch = curl_init(self::$baseUrl.'/file/upload');
+        curl_setopt_array($ch, array(
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POSTFIELDS     => array('file' => new \CURLFile($tmp, 'text/plain', $name)),
+            CURLOPT_HTTPHEADER     => $token ? array('appcms-token: '.$token) : array(),
+        ));
+        $response = curl_exec($ch);
+        $status   = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        unlink($tmp);
+
+        $result = json_decode((string) $response, true) ?: array();
+
+        $this->cleanUpUploadedFile($result['data']['id'] ?? null);
+
+        return array($status, $result);
+    }
+
+    /** @return list<string> */
+    private function fileDirectories(): array
+    {
+        $entries = array_values(array_diff((array) scandir(self::dataDir().'/files'), array('.', '..', '.gitkeep')));
+        sort($entries);
+
+        return $entries;
     }
 
     /**
