@@ -28,6 +28,13 @@
 - 000-000-0037 → in-progress
 - 000-000-0037 → review: **Kein Import zeigt mehr ins Leere.** `Api.php` importiert `Doctrine\Persistence\Mapping\MappingException` und `Doctrine\ORM\Exception\ORMException`; die toten Importe in `Factory.php`, `SystemController.php` und `bootstrap-web.php` sind entfernt. Neuer Wächter `DeadImportTest` liest `use` mit dem Tokenizer und prüft gegen den Autoloader. Zwei Lücken des ersten Entwurfs hat der echte Baum gezeigt: ungenutzte Namensraum-Aliase (jetzt über die PSR-4-Präfixe geprüft) und ein Closure-`use` auf Skriptebene in `bootstrap-web.php`; beide stehen in der Gegenprobe. Gegen master rot. Suite 536 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
 - 000-000-0037 → done (merged into master)
+- 007-005-0000 → todo (war blocked): **Der Block ist gelöst** — Bestandsprojekt UFP ist benannt und lokal zugänglich (Contentfly 1.6.0 auf PHP 7.4, sechs eigene LoginManager mit OAuth 2.0, Oberfläche ungenutzt, Daten ohne Personenbezug). Projektfakten und Arbeitsweise (nur an einer Kopie, Framework per `path` aus diesem Repo, erst messen, jede Hürde einsortiert) in der Story festgehalten.
+- 007-005-0001 task created: "Kopie bereitstellen und Bestandsaufnahme"
+- 007-005-0002 task created: "Das Ist-Verhalten des alten Projekts aufzeichnen"
+- 007-005-0003 task created: "Phasen 1 bis 5 am Projekt durchspielen"
+- 007-005-0004 task created: "Phasen 6 bis 9 am Projekt durchspielen"
+- 007-005-0005 task created: "Rückfluss in Leitfaden, Werkzeuge und Framework"
+- 007-005-0001…0005 refined: **Geschnitten am ersten Start der Anwendung und am Massstab.** `0001` erhebt per Werkzeug, was das Projekt vom Framework benutzt, und ordnet die 76 abweichenden Dateien der mitgebrachten Framework-Kopie ein (Projekt-Patch oder Versionsstand); `0002` zeichnet das Ist-Verhalten aus Sicht der App auf; `0003` bis zum ersten Start, `0004` Code, Anmeldung, API-Vergleich, Daten; `0005` Rückfluss und die Entscheidung zu den sieben Codepfaden. Offene Frage in `0002`: ob der OAuth-Fluss lokal durchspielbar ist.
 
 ## 2026-09-09
 - 013-000-0000 → in-progress
