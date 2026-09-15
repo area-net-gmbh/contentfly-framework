@@ -327,6 +327,22 @@ beim Client an. In den beiden anderen Zweigen hiess das Feld schon immer `status
 
 *Was zu tun ist:* `status` lesen statt `0`.
 
+### Ein Fehler beim Start antwortet mit JSON statt mit leerem Rumpf
+**Seit `000-000-0024` (2026-09-15).**
+
+Eine Ausnahme, die fällt, bevor der Kernel steht — ein unerfüllbarer `APP_CACHE_DRIVER`, eine
+fehlende `custom/config.php` —, erreichte keinen Fehlerhandler. Die Antwort war **HTTP 500 mit
+0 Byte**; die Meldung stand nur im Serverlog.
+
+Jetzt fängt `Kernel\Start::web()` sie ab und antwortet im Format der übrigen Fehlerantworten:
+`message`, `type`, `status`, bei `APP_DEBUG` zusätzlich `debug` mit Datei, Zeile und Trace. Ohne
+`APP_DEBUG` ersetzt die Antwort Projekt- und Paketverzeichnis durch `<project>` bzw. `<package>`.
+Die Meldung steht weiterhin im Serverlog, dort mit vollen Pfaden. Die Konsole ist unverändert:
+Dort endet ein Startfehler wie bisher mit der Ausnahme auf `stderr`.
+
+*Was zu tun ist:* Nichts. Wer die leere 500 als Zeichen für eine Fehlkonfiguration ausgewertet
+hat, liest jetzt `message`.
+
 ### Die Dateiauslieferung leitet auf einen Pfad ab `WEB_ROOT` um
 **Seit `000-000-0006` (2026-09-09).**
 
