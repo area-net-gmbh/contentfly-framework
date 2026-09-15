@@ -30,7 +30,7 @@ if ($app['is_installed']) {
      * The same applies to the ORM commands with the EntityManagerProvider; the HelperSet there
      * still exists but is deprecated, and two ways side by side would be one too many.
      */
-    $verbindung   = new SingleConnectionProvider($app['db']);
+    $connection   = new SingleConnectionProvider($app['db']);
     $entityManager = new SingleManagerProvider($app['orm.em']);
 
     $app['console']->addCommands(array(
@@ -60,8 +60,8 @@ if ($app['is_installed']) {
         // ImportCommand was removed from DBAL 3 without replacement (009-005-0003). It read an
         // SQL file; whoever needs that uses the mysql client. Removed rather than commented
         // out: a commented-out command looks like something that is coming back.
-        new \Doctrine\DBAL\Tools\Console\Command\ReservedWordsCommand($verbindung),
-        new \Doctrine\DBAL\Tools\Console\Command\RunSqlCommand($verbindung)
+        new \Doctrine\DBAL\Tools\Console\Command\ReservedWordsCommand($connection),
+        new \Doctrine\DBAL\Tools\Console\Command\RunSqlCommand($connection)
     ));
 }
 
