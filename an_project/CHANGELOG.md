@@ -28,6 +28,14 @@
 - 000-000-0037 → in-progress
 - 000-000-0037 → review: **Kein Import zeigt mehr ins Leere.** `Api.php` importiert `Doctrine\Persistence\Mapping\MappingException` und `Doctrine\ORM\Exception\ORMException`; die toten Importe in `Factory.php`, `SystemController.php` und `bootstrap-web.php` sind entfernt. Neuer Wächter `DeadImportTest` liest `use` mit dem Tokenizer und prüft gegen den Autoloader. Zwei Lücken des ersten Entwurfs hat der echte Baum gezeigt: ungenutzte Namensraum-Aliase (jetzt über die PSR-4-Präfixe geprüft) und ein Closure-`use` auf Skriptebene in `bootstrap-web.php`; beide stehen in der Gegenprobe. Gegen master rot. Suite 536 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
 - 000-000-0037 → done (merged into master)
+- 000-000-0040 task created: "Config — eigene Schlüssel eines Projekts zerstören die Antwort"
+- 000-000-0041 task created: "Dateiablage — Dateien aus Contentfly 1.x sind nach der Migration unerreichbar"
+- 000-000-0042 task created: "Upload — das Framework kennt kein Größenlimit"
+- 000-000-0043 task created: "Tabellenname pim_navItem — CamelCase gegen lower_case_table_names"
+- 000-000-0040…0043 refined: **Die Framework-Befunde F-1 bis F-4 aus `007-005-0003`, je mit Messung am UFP-Probe-Backend.** 0040 zuerst: 35 eigene Config-Schlüssel erzeugen ab PHP 8.2 Deprecations, die vor `display_errors` im Antworttext landen (entschieden: `#[\AllowDynamicProperties]`). 0041: 1.x-Dateiordner `JJJJ/MM/<id>` gegen 2.0 `<id>`, `pim_file.path` fällt still weg. 0042: kein Upload-Limit. 0043: einzige CamelCase-Tabelle `pim_navItem`.
+- 000-000-0040 → in-progress
+- 000-000-0040 → review: **Eigene Konfigurationsschlüssel erzeugen keine Deprecation mehr.** `Classes\Config` trägt `#[\AllowDynamicProperties]` mit Begründung; die Vorlage sagt, dass eigene Schlüssel erlaubt sind (Präfix `CUSTOM_`). `ProjectKeysTest` gegen `E_DEPRECATED`, gegen master rot. Am UFP-Probe-Backend ohne `display_errors=Off`: `/api/v2/core/config` jetzt `application/json` statt `text/html` mit 35 Meldungen. Suite 563 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
+- 000-000-0040 → done (merged into master)
 - 000-000-0038 task created: "Upload — eine hochgeladene PHP-Datei wird ausgeführt"
 - 000-000-0039 task created: "CORS — jede Herkunft wird mit Credentials zurückgespiegelt"
 - 000-000-0038, 000-000-0039 refined: **Zwei Sicherheitslücken aus der Bestandsaufnahme `007-005-0001`, beide gemessen.** Ein Upload `probe-upload.php` wird gespeichert und beim Abruf ausgeführt (`EXECUTED-42`); CORS spiegelt `https://evil.example` mit Credentials, `APP_ALLOW_ORIGIN` wird nie gelesen. Beide liegen im Security-Prüfstand `v2.0.0-pre-security-2026-09-14`. Entschieden: Upload mit Sperrliste immer und optionaler Whitelist; CORS nur für eingetragene Herkünfte, ohne Eintrag keine. Vorgezogen vor `007-005-0002`.
