@@ -55,6 +55,37 @@ Benennung ist ein Erbe, kein Hinweis auf ihren Zweck.
 *Was zu tun ist:* Die acht Zeilen aus `custom/config.php` entfernen; sie werden nicht mehr
 gelesen.
 
+### CORS erlaubt nur noch eingetragene Herkünfte — `APP_ALLOW_ORIGIN`
+**Seit `000-000-0039` (2026-09-15).**
+
+Die Anwendung setzte `Access-Control-Allow-Origin` auf den `Origin` **jeder** Anfrage, dazu
+`Access-Control-Allow-Credentials: true`. Gemessen: `Origin: https://evil.example` kam als erlaubte
+Herkunft zurück. Jede fremde Seite durfte im Browser eines angemeldeten Benutzers Anfragen mit dessen
+Credentials stellen und die Antwort lesen. `APP_ALLOW_ORIGIN` war deklariert und wurde nie gelesen.
+
+**Was sich ändert:**
+
+- **Ohne Eintrag gibt es kein `Access-Control-Allow-Origin`** und kein
+  `Access-Control-Allow-Credentials` — auch nicht im OPTIONS-Preflight. Ein Browser-Client auf
+  einer anderen Herkunft bekommt keine lesbare Antwort mehr.
+- **`APP_ALLOW_ORIGIN`** nimmt die erlaubten Herkünfte, exakt (Schema, Host, Port), als Array oder
+  kommagetrennt. Nur eine davon wird zurückgegeben, mit Credentials. Die Vorlage liest den Wert aus
+  der Umgebungsvariable `APP_ALLOW_ORIGIN`.
+- **`*`** erlaubt jede Herkunft, aber ohne Credentials — Browser lehnen die Kombination ohnehin ab.
+- Jede Antwort trägt **`Vary: Origin`**.
+
+*Was zu tun ist:* **Jede Herkunft eintragen, von der ein Browser-Client die API aufruft** — eine
+Web-App auf eigener Domain, und bei Ionic/Capacitor die App selbst (`capacitor://localhost` unter
+iOS, `http://localhost` unter Android; beim Entwickeln zusätzlich `http://localhost:8100`):
+
+```sh
+APP_ALLOW_ORIGIN=https://app.example.com,capacitor://localhost,http://localhost
+```
+
+Ohne diesen Eintrag meldet die Browser-Konsole des Clients einen CORS-Fehler, obwohl der Server mit
+`200` antwortet. Server-zu-Server-Aufrufe und native HTTP-Clients sind nicht betroffen: CORS ist eine
+Regel des Browsers.
+
 ### Das Framework erzwingt `display_errors=Off` in Produktion
 **Seit `000-000-0018` (2026-09-09).**
 

@@ -54,21 +54,25 @@ chmod +x "$TRAP/sendmail"
 #    suite: the first lets it issue JWTs (013-003), the second feeds the provider
 #    template (013-004). Without them the login issues no JWT and the template lets
 #    nobody in — both correct, but then the corresponding tests have nothing to measure.
+#    APP_ALLOW_ORIGIN is the one CORS origin the server allows (000-000-0039); CorsApiTest
+#    checks that it is named and a foreign one is not.
 APP_ENV=production APP_DEBUG=0 \
   SECURITY_JWT_SECRET=dev-only-jwt-secret-long-enough-32b \
   CONTENTFLY_EXAMPLE_PROVIDER='external-one:dev-only-provider-secret:CN=Editorial' \
+  APP_ALLOW_ORIGIN=https://allowed.example \
   php -d display_errors=Off -d log_errors=On -d sendmail_path="$TRAP/sendmail" \
       -S 127.0.0.1:8145 tests/router.php &
 
 # 4. Suite against this instance
 #
-#    The CONTENTFLY_TEST_* values for JWT and provider must match those above: the suite
-#    presents what the server expects.
+#    The CONTENTFLY_TEST_* values for JWT, provider and origin must match those above: the
+#    suite presents what the server expects.
 CONTENTFLY_TEST_BASE_URL=http://127.0.0.1:8145 \
 CONTENTFLY_TEST_ADMIN_PASS=dev-only-secret \
 CONTENTFLY_TEST_MAIL_TRAP="$TRAP" \
 CONTENTFLY_TEST_JWT_SECRET=dev-only-jwt-secret-long-enough-32b \
 CONTENTFLY_TEST_PROVIDER='external-one:dev-only-provider-secret:CN=Editorial' \
+CONTENTFLY_TEST_ALLOWED_ORIGIN=https://allowed.example \
   ./vendor/bin/phpunit
 
 # 5. Restore the template — step 1 wrote credentials into it
