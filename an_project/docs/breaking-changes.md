@@ -893,6 +893,48 @@ Attributklasse muss autoladbar sein. Unter `Custom\` (auf `custom/`) und `Plugin
 *Was zu tun ist:* Die eigene `getAnnotationFile()` kann weg. Sicherstellen, dass eigene
 Attributklassen über PSR-4 gefunden werden.
 
+### `BaseI18nTree`: Der Elternknoten trägt seine Sprache mit — neue Spalte `parent_lang`
+**Seit `000-000-0025` (2026-09-15).**
+
+`BaseI18nTree` hat einen zusammengesetzten Schlüssel (`id`, `lang`), die Beziehung `treeParent`
+hatte aber nur die Join-Spalte `parent_id`. `orm:validate-schema` meldete das als Mapping-Fehler.
+Jetzt zeigt ein Knoten über `parent_id` **und** `parent_lang` auf seinen Elternknoten, und zwar
+auf den **in derselben Sprache**. So hat das Framework den Baum schon immer gelesen
+(`Api::getTree()` verlangt `parent.lang = :lang`). Begründung: `an_project/docs/architecture.md`,
+*Key decisions*, 2026-09-15.
+
+**Was sich ändert:**
+
+- `pim_i18n_tree` bekommt die Spalte `parent_lang`; Index und Fremdschlüssel gehen über
+  `(parent_id, parent_lang)`.
+- Beim Anlegen einer Übersetzung übernimmt die API einen universellen Join auf eine
+  i18n-Entity jetzt in der **geschriebenen** Sprache, nicht in der Hauptsprache.
+- **Eine Übersetzung kann erst unter einen Elternknoten, wenn es dessen Übersetzung gibt.** Der
+  Fremdschlüssel verlangt die Zeile `(parent_id, lang)`. Vorher liess sich ein solcher Knoten
+  anlegen, erschien in `getTree()` aber ohnehin nicht, weil die Abfrage den Elternknoten in
+  derselben Sprache sucht.
+
+*Was zu tun ist* — nur, wenn das Projekt von `BaseI18nTree` erbt. Im Framework und in der Vorlage
+tut das niemand. Durchgespielt an einer Datenbank im alten Schema:
+
+1. **Waisen suchen**, also Knoten, deren Elternknoten in ihrer Sprache fehlt:
+   ```sql
+   SELECT c.id, c.lang, c.parent_id
+   FROM pim_i18n_tree c
+   LEFT JOIN pim_i18n_tree p ON p.id = c.parent_id AND p.lang = c.lang
+   WHERE c.parent_id IS NOT NULL AND p.id IS NULL;
+   ```
+   Für jede Zeile entscheiden: die Übersetzung des Elternknotens anlegen, oder `parent_id` auf
+   `NULL` setzen. Schritt 3 scheitert sonst genau an diesen Zeilen am Fremdschlüssel.
+2. **Schema nachziehen:** `php bin/console.php orm:schema-tool:update --dump-sql` zeigt fünf
+   Statements, alle an `pim_i18n_tree` (alten Fremdschlüssel und Index entfernen, Spalte anlegen,
+   neuen Fremdschlüssel und Index anlegen). Danach mit `--force` ausführen.
+3. **Die Sprache eintragen:**
+   ```sql
+   UPDATE pim_i18n_tree SET parent_lang = lang WHERE parent_id IS NOT NULL;
+   ```
+4. `php bin/console.php orm:validate-schema` meldet beide Hälften grün.
+
 ### `APP_CACHE_DRIVER = 'apc'` gibt es nicht mehr
 **Seit `010-002-0002` (2026-09-10).**
 

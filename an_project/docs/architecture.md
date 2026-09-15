@@ -21,6 +21,55 @@
 
 <!-- Entscheidung · erwogene Alternativen · warum diese. -->
 
+### 2026-09-15 — `BaseI18nTree` bleibt; ein Elternknoten hat dieselbe Sprache
+
+**Entscheidung.** `BaseI18nTree` und `BaseI18nSortable` bleiben im Framework. Die Beziehung
+`treeParent` zeigt auf den Elternknoten **in derselben Sprache** und trägt dafür eine Join-Spalte je
+Schlüsselspalte: `parent_id → id` und `parent_lang → lang`. `orm:validate-schema` ist damit in
+beiden Hälften grün, zum ersten Mal, seit der Befund in `009-005` aufkam (`000-000-0025`).
+
+#### Warum dieselbe Sprache
+
+Die Frage stand nirgends geschrieben, aber das Framework hat sie an drei Stellen längst
+beantwortet:
+
+| Stelle | was sie tut |
+|---|---|
+| `JoinType::toDatabase()` | referenziert ein i18n-Ziel über `id` **und die Sprache des geschriebenen Objekts** |
+| `Api::getTree()` | verbindet `treeParent` mit `parent.lang = :lang`, der Sprache der gelisteten Kinder |
+| `Api::getTree2()` | verbindet `pim_i18n_tree` über `t.lang = e.lang` und baut die Hierarchie innerhalb einer Sprache |
+
+Ein Kind, dessen Elternknoten in einer anderen Sprache läge, hätte keiner dieser Wege je
+gefunden. Die Entscheidung erfindet also keine Semantik, sie schreibt die vorhandene ins Mapping.
+
+Einen Pfad gab es, der davon abwich: Beim Anlegen einer Übersetzung kopierte die API universelle
+Felder vom Hauptsprachen-Objekt, also auch dessen Elternknoten **in der Hauptsprache**. Mit nur
+`parent_id` fiel das nicht auf. Dieser Pfad bindet jetzt ebenfalls an die geschriebene Sprache.
+
+#### Erwogene Alternative: `BaseI18nTree` und `BaseI18nSortable` ersatzlos streichen
+
+Dafür sprach: Im Framework und in der Vorlage erbt niemand von der Klasse, und die Absicht lässt
+sich an keinem Nutzer prüfen.
+
+**Verworfen, weil die Klasse nicht allein steht.** `Api` hat eigene i18n-Zweige für Bäume in
+`getTree()`, `getTree2()` und `getCount()`, `LoadMetadata` nimmt sie aus. Das Streichen hätte eine
+Funktion entfernt, die ein Bestandsprojekt nutzen kann, und dafür eine Bruchstelle ohne
+Nachfolger erzeugt. Die Reparatur dagegen kostet eine Spalte in einer Tabelle, die im Framework
+leer ist.
+
+#### Was es kostet
+
+- **Eine Schemaänderung** an `pim_i18n_tree`: Spalte `parent_lang`, Index und Fremdschlüssel über
+  beide Spalten. Der Datenbankvergleich einer frischen Installation zeigt genau das und sonst
+  nichts.
+- **Eine Übersetzung kann nur unter einen Elternknoten, dessen Übersetzung existiert.** Der
+  Fremdschlüssel erzwingt jetzt, was die Lesewege schon voraussetzten.
+- **Ein Bestandsprojekt mit eigener Unterklasse migriert.** Der Weg ist durchgespielt und steht in
+  `an_project/docs/breaking-changes.md`.
+
+`lang` selbst kann nicht zugleich Join-Spalte sein: Es ist ein Identifier-Feld, und Doctrine lehnt
+eine doppelt gemappte Spalte ab.
+
 ### 2026-09-11 — Der `$app[...]`-Zugriff bleibt, mit fester Schlüsselliste
 
 **Entscheidung.** Der `ArrayAccess`-Zugriff auf den Container — `$app['orm.em']`,
