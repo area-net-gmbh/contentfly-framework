@@ -89,3 +89,9 @@ in der `unit`-Suite. **Gegenprobe:** Mit `Start.php` von master sind alle drei r
 
 **Verifiziert:** volle Suite `Tests: 531, Assertions: 1719, Skipped: 3`, PHPStan `[OK] No errors`,
 Deprecation-Gate 0 Zeilen. Die Bruchstelle steht in `an_project/docs/breaking-changes.md`.
+
+**Nachtrag, eigener Commit:** Die volle Suite lief vor dem Eintrag in `breaking-changes.md`. Mit
+ihm wird `MigrationGuideTest` rot, weil das Register 101 Einträge hat und der Kopf von
+`an_project/docs/migration.md` 100 nennt. Aufgefallen beim nächsten Task (`000-000-0031`), der
+dieselbe Zahl nachziehen musste. Die Zahl ist nachgezogen; volle Suite danach
+`Tests: 531, Assertions: 1719, Skipped: 3`, Deprecation-Gate 0.
