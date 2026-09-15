@@ -208,6 +208,13 @@ $configDefault->SECURITY_JWT_SECRET     = $_ENV['SECURITY_JWT_SECRET'] ?? getenv
 // $configDefault->SECURITY_JWT_SECRET_PREVIOUS = $_ENV['SECURITY_JWT_SECRET_PREVIOUS'] ?? getenv('SECURITY_JWT_SECRET_PREVIOUS') ?: null;
 // $configDefault->SECURITY_JWT_KEY_ID_PREVIOUS = $_ENV['SECURITY_JWT_KEY_ID_PREVIOUS'] ?? getenv('SECURITY_JWT_KEY_ID_PREVIOUS') ?: null;
 
+/*
+ * Project-own keys are allowed (000-000-0040): anything this project needs — SMTP, OAuth endpoints,
+ * frontend URLs — can be set on $configDefault and read with Adapter::getConfig()->KEY. Prefix them
+ * (e.g. CUSTOM_) so they cannot be mistaken for, or later collide with, a framework key.
+ */
+// $configDefault->CUSTOM_FRONTEND_URL = $_ENV['CUSTOM_FRONTEND_URL'] ?? getenv('CUSTOM_FRONTEND_URL') ?: null;
+
 $configFactory->setConfig($configDefault);
 
 /*

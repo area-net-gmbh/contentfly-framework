@@ -1,7 +1,7 @@
 ---
 id: 000-000-0040
 title: Config — eigene Schlüssel eines Projekts zerstören die Antwort
-status: todo
+status: done
 depends_on: []
 ---
 
@@ -24,12 +24,38 @@ Dazu macht es jedes Deprecation-Gate eines Projekts rot.
 Unterklasse mit 35 Deklarationen je Projekt wäre ein Leitfaden-Schritt, der nichts schützt.
 
 ## Acceptance criteria
-- [ ] `Classes\Config` trägt `#[\AllowDynamicProperties]`, mit Begründung im Code.
-- [ ] Ein Test setzt einen nicht deklarierten Schlüssel und hält fest, dass keine Deprecation entsteht — und dass `Adapter::getConfig()` ihn zurückgibt.
-- [ ] Die Vorlage `custom/config.php` zeigt, dass eigene Schlüssel erlaubt sind.
-- [ ] Am UFP-Probe-Backend (`007-005`) antwortet `/api/v2/core/config` ohne `display_errors=Off` mit `application/json`.
-- [ ] Volle Suite, PHPStan, Deprecation-Gate grün.
+- [x] `Classes\Config` trägt `#[\AllowDynamicProperties]`, mit Begründung im Code.
+- [x] Ein Test setzt einen nicht deklarierten Schlüssel und hält fest, dass keine Deprecation entsteht — und dass `Adapter::getConfig()` ihn zurückgibt.
+- [x] Die Vorlage `custom/config.php` zeigt, dass eigene Schlüssel erlaubt sind.
+- [x] Am UFP-Probe-Backend (`007-005`) antwortet `/api/v2/core/config` ohne `display_errors=Off` mit `application/json`.
+- [x] Volle Suite, PHPStan, Deprecation-Gate grün.
 
 ## Verification
 Test gegen `E_DEPRECATED` mit eigenem Fehler-Handler. Probe-Container ohne die Probe-`ini` neu
 starten und `/api/v2/core/config` abrufen.
+
+## Ergebnis
+
+**`Classes\Config` trägt `#[\AllowDynamicProperties]`**, und die Begründung steht an der Klasse:
+warum eine Deprecation hier die Antwort zerstört statt nur das Log zu füllen, und warum eine
+Unterklasse je Projekt verworfen ist — sie schützt nichts, denn ein Schlüssel, den ein Projekt selbst
+setzt und selbst liest, kann mit keinem des Frameworks kollidieren, und ein Tippfehler in einem
+Framework-Schlüssel fiele durch die Deklaration der Projekt-Schlüssel ebenso wenig auf.
+
+**Vorlage:** `custom/config.php` sagt jetzt, dass eigene Schlüssel erlaubt sind, und rät zu einem
+Präfix (`CUSTOM_`), mit auskommentiertem Beispiel. `tools/check-template-config.sh` bleibt grün.
+
+**Test** `tests/Unit/Config/ProjectKeysTest.php`: setzt einen nicht deklarierten Schlüssel unter
+einem Fehler-Handler für `E_DEPRECATED` — keine Meldung, und `Adapter::getConfig()` liefert den Wert;
+dazu, dass das Attribut an der Klasse steht. **Gegenprobe** mit `Config` von master: beide rot.
+
+**Gemessen am UFP-Probe-Backend** (bindet das Framework-Repo direkt ein): Die Probe-Einstellung
+`display_errors=Off` entfernt, Container neu gestartet (`display_errors=1`) —
+`GET /api/v2/core/config` antwortet `200 application/json` mit sauberem JSON, **0** `Deprecated` in
+der Antwort und im Log. Vorher: `text/html` mit 35 Meldungen.
+
+**Verifiziert:** volle Suite `Tests: 563, Assertions: 1814, Skipped: 3`, PHPStan `[OK] No errors`,
+Deprecation-Gate 0.
+
+**Nicht in `breaking-changes.md`:** Die Änderung nimmt keinem Projekt etwas weg, sie gibt zurück, was
+vor PHP 8.2 selbstverständlich war.
