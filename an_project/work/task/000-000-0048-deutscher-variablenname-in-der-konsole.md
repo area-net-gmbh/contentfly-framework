@@ -1,7 +1,7 @@
 ---
 id: 000-000-0048
 title: Deutscher Variablenname in bin/console.php, den der Sprachwächter nicht sieht
-status: review
+status: done
 depends_on: []
 ---
 

@@ -87,6 +87,7 @@
 - 007-005-0001, 007-005-0002, 007-005-0003, 007-005-0004, 007-005-0005 → done (mit der Story)
 - 000-000-0048 → in-progress
 - 000-000-0048 → review: **Der Sprachwächter erkennt deutsche Fachwörter in Bezeichnern.** 22 neue Stämme in `EnglishOnlyTest` (u. a. `verbindung`, `aktualisier`), Detektor-Test mit der Zeile, die durchkam. Gefunden und umbenannt: `$verbindung` in `bin/console.php` und in `ApiController::multiupdateAction()`, dort auch `$aktualisiert`. Gegenprobe mit altem `bin/console.php` rot. Suite 593 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
+- 000-000-0048 → done (merged into master)
 
 ## 2026-09-09
 - 013-000-0000 → in-progress
