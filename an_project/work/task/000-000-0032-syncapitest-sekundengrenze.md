@@ -1,7 +1,7 @@
 ---
 id: 000-000-0032
 title: SyncApiTest stellt die Sekunde nicht her, die er im Namen führt
-status: todo
+status: done
 depends_on: []
 ---
 
@@ -52,12 +52,41 @@ Er kostet jedes Mal die Frage „ist das echt?", und beim dritten Mal beantworte
 Test muss die gemeinsame Sekunde **herstellen**, statt auf sie zu hoffen.
 
 ## Acceptance criteria
-- [ ] Beide Zeilen tragen nachweislich denselben Zeitstempel — hergestellt, nicht erhofft.
-- [ ] Die Zusicherung des Tests ist unverändert: Ein Client, der sich den Zeitstempel der zweiten Löschung merkt, bekommt beide.
-- [ ] Der Test prüft weiterhin das Verhalten der API und nicht das seiner eigenen Vorbereitung.
-- [ ] Andere Tests, die `NOW()` zweimal aufrufen und eine gemeinsame Sekunde annehmen, sind gesucht und entweder mitgezogen oder als unkritisch benannt.
-- [ ] Die volle Suite bleibt grün.
+- [x] Beide Zeilen tragen nachweislich denselben Zeitstempel — hergestellt, nicht erhofft.
+- [x] Die Zusicherung des Tests ist unverändert: Ein Client, der sich den Zeitstempel der zweiten Löschung merkt, bekommt beide.
+- [x] Der Test prüft weiterhin das Verhalten der API und nicht das seiner eigenen Vorbereitung.
+- [x] Andere Tests, die `NOW()` zweimal aufrufen und eine gemeinsame Sekunde annehmen, sind gesucht und entweder mitgezogen oder als unkritisch benannt.
+- [x] Die volle Suite bleibt grün.
 
 ## Verification
 Den geänderten Test 1500-mal gegen dieselbe Datenbank fahren — kein Fehlschlag. Zum Vergleich
 die Messung von oben: Mit `NOW()` fielen 2 von 1500 Paaren auseinander.
+
+## Ergebnis
+
+**Die gemeinsame Sekunde wird hergestellt statt erhofft.** Der Test holt einmal `SELECT NOW()`
+aus der Datenbank und bindet diesen einen Wert an beide Zeilen. Die Datenbankuhr bleibt die
+Quelle, wie vorher; es fällt nur die Lücke zwischen zwei Aufrufen weg. `logRow()` nimmt dafür
+einen optionalen Zeitstempel, ohne ihn entscheidet weiter `NOW()` (`COALESCE` im selben
+Statement). Die beiden anderen Aufrufer sind unverändert.
+
+**Die Zusicherung ist dieselbe:** Ein Client, der sich den Zeitstempel der zweiten Löschung merkt,
+bekommt über `/api/deleted` beide. Geprüft wird weiterhin nur die Antwort der API. Eine
+zusätzliche Assertion auf die Vorbereitung gibt es bewusst nicht: Beide Zeilen tragen den
+Zeitstempel durch Konstruktion, weil es ein und derselbe gebundene Wert ist.
+
+**Andere Tests mit `NOW()` — gesucht, keiner mitzuziehen.** 19 Fundstellen unter `tests/`:
+
+- Alle `INSERT … NOW(), NOW()` rufen die Funktion **zweimal im selben Statement** auf. MySQL
+  wertet `NOW()` einmal pro Statement aus; `created` und `modified` sind dort immer gleich.
+  Unkritisch.
+- `UpdateReplaceApiTest::testBothUpdateModified` setzt `modified` auf einen festen Wert aus dem
+  Jahr 2000 und vergleicht dagegen. Unkritisch.
+- `LogSideEffectApiTest::testLogRowTimestampHasOnlySecondResolution` prüft ausdrücklich die
+  Auflösung, nicht die Gleichheit zweier Aufrufe — derselbe Fehler war dort schon früher
+  aufgefallen und behoben.
+- `AuthApiTest` nutzt `NOW()` nur als Grenze beim Aufräumen. Unkritisch.
+
+**Verifiziert:** Der geänderte Test 1500-mal hintereinander gegen dieselbe Datenbank —
+**0 Fehlschläge** (Vergleich: mit zwei `NOW()` fielen 2 von 1500 Paaren auseinander). Volle
+Suite `Tests: 528, Assertions: 1697, Skipped: 3`, Deprecation-Gate 0 Zeilen.
