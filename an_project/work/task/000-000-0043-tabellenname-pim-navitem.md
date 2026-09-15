@@ -1,7 +1,7 @@
 ---
 id: 000-000-0043
 title: Tabellenname pim_navItem — CamelCase gegen lower_case_table_names
-status: review
+status: done
 depends_on: []
 ---
 

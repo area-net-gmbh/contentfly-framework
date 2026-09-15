@@ -90,6 +90,7 @@
 - 000-000-0048 → done (merged into master)
 - 000-000-0043 → in-progress
 - 000-000-0043 → review: **`pim_navItem` bleibt; wer die Tabelle anders heissen hat, benennt sie vor dem Schema-Update zurück.** Gemessen: frische Installation mit `lower_case_table_names=0` und `=1` ohne Diff; eine umbenannte Tabelle (`pim_nav_item`, wie UFP) plant `DROP TABLE` samt Daten, nach `RENAME TABLE` kein Diff und die Zeile erhalten. Register-Eintrag unter Doctrine ORM 3 (auch für Dumps zwischen Servern mit verschiedenem `lower_case_table_names`), Phase 4 verweist darauf, `migration.md` auf 112.
+- 000-000-0043 → done (merged into master)
 
 ## 2026-09-09
 - 013-000-0000 → in-progress
