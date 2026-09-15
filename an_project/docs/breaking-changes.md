@@ -178,6 +178,37 @@ fällt sie sofort auf.
 Feld, das die API noch nie kannte — `json` ist mit dieser Version dazugekommen, für andere Typen
 braucht es einen eigenen `Type`.
 
+### `/file/upload` weist ausführbare Dateien mit `415` ab
+**Seit `000-000-0038` (2026-09-15).**
+
+Ein Upload behielt die Endung, die der Client schickte, und `data/files/` wird direkt vom Webserver
+ausgeliefert. Eine hochgeladene `.php`-Datei wurde beim Abruf **ausgeführt** — gemessen an einer
+frischen Installation. Jeder mit einem gültigen Token konnte das auslösen.
+
+**Was sich ändert:**
+
+- **Abgewiesen mit `415`** (`contentfly_file_invalid_type`) wird jeder Name, der in irgendeinem
+  Punkt-Segment eine ausführbare Endung trägt (`.php`, `.phtml`, `.phar`, `.pht`, `.cgi`, …, auch
+  `shell.php.jpg`), und jeder Server-Konfigurationsname (`.htaccess`, `.user.ini`, …). Es entstehen
+  weder Datei noch Zeile. Die Liste ist Code, nicht Konfiguration.
+- **Der gespeicherte Name wird vom Framework gebildet:** kleingeschrieben, Sonderzeichen und
+  Leerzeichen zu `-`, keine Pfadbestandteile, **die Endung kleingeschrieben**. Aus
+  `Report (2026).TXT` wird `report-2026.txt`; vorher wurden Sonderzeichen entfernt und die Endung
+  behielt ihre Schreibweise (`report-2026.TXT`). Ein Client, der den gespeicherten Namen aus dem
+  Upload-Namen vorhersagt, liest ihn aus der Antwort.
+- **`FILE_ALLOWED_TYPES` ist neu und optional.** Gesetzt, gilt eine Whitelist: Die Endung muss
+  darin stehen, und der aus dem **Inhalt** ermittelte Typ (ext-fileinfo) muss passen. Ohne Eintrag
+  bleibt alles erlaubt, was die Sperrliste passiert.
+- **Ein Datensatz aus der Zeit davor** mit ausführbarem Namen wird beim erneuten Hochladen
+  umbenannt, die alte Datei entfernt; `/file/overwrite` lehnt ihn mit `415` ab.
+- `FileController::sanitizeFileName()` (protected) ist entfallen; die Namensbildung liegt in
+  `Classes/File/UploadValidator`.
+
+*Was zu tun ist:* **Den Bestand prüfen** — `SELECT id, name FROM pim_file WHERE name REGEXP
+'\\.(php[0-9s]?|phtml?|phar|pht|inc|shtml?|stm|pl|pm|py|rb|cgi|fcgi|sh|bash|zsh|jspx?|aspx?|ashx|asmx|cfml?|htaccess|htpasswd)(\\.|$)'` —
+und gefundene Dateien unter `data/files/<id>/` löschen oder umbenennen. Wer nur bestimmte
+Dateitypen braucht, setzt `FILE_ALLOWED_TYPES` in `custom/config.php`.
+
 ### `POST /api/mail` entfällt ersatzlos
 **Seit `000-000-0016` (2026-09-09).**
 
