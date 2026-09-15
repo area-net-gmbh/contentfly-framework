@@ -1,7 +1,7 @@
 ---
 id: 000-000-0039
 title: CORS — jede Herkunft wird mit Credentials zurückgespiegelt
-status: review
+status: done
 depends_on: []
 ---
 
