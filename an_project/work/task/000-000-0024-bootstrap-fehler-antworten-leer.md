@@ -1,7 +1,7 @@
 ---
 id: 000-000-0024
 title: Ein Fehler im Bootstrap antwortet mit einer leeren 500
-status: review
+status: done
 depends_on: []
 ---
 
