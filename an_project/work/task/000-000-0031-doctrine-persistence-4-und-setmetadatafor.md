@@ -1,7 +1,7 @@
 ---
 id: 000-000-0031
 title: doctrine/persistence 4 — setMetadataFor() ist dort deprecated
-status: review
+status: done
 depends_on: []
 ---
 
