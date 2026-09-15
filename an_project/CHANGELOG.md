@@ -57,6 +57,11 @@
 - 000-000-0044 → in-progress
 - 000-000-0044 → review: **Zahlen aus Roh-SQL kommen wieder als String, wie unter Contentfly 1.x.** `Classes\Database\ConnectionDefaults` setzt `PDO::ATTR_STRINGIFY_FETCHES` für `$app['db']`, `$app['database']` und die Install-Verbindung. Neuer `RawSqlTypesTest` (beide Verbindungen, direkt und prepared; Hydrierung bleibt `bool`/`int`), gegen den Stand ohne Attribut rot. `TreeApiTest` hielt für `/api/tree2` das PHP-8-Verhalten `1` fest, jetzt `'1'` mit Begründung. Register-Eintrag unter Doctrine, Kopf von `migration.md` auf 107. Am UFP-Probe-Backend `cms-all-frontend`/`cms-view` wieder identisch mit dem alten Backend. Suite 565 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
 - 000-000-0044 → done (merged into master)
+- 000-000-0045 task created: "Kein Haken nach dem Login — Projektdaten und tempData"
+- 000-000-0045 refined: **Framework-Befund F-7 aus `007-005-0004`.** Die sechs LoginManager von UFP setzen beim Login Felder und liefern `tempData`; die App liest bei jedem Login `res.data.role`. Der Provider-Vertrag hält Provider von der Datenbank fern, einen Haken nach dem Login gibt es nicht. Entschieden: Event `pim.auth.after.login`.
+- 000-000-0045 → in-progress
+- 000-000-0045 → review: **Nach einem erfolgreichen Login löst das Framework `pim.auth.after.login` aus** — auf Passwort- und Provider-Weg, vor dem Token, nie bei Ablehnung; Parameter `user`, `request`, `provider`, `identity`, `app`. Vorlage `custom/app.php` mit lauffähigem Listener über `$app->on()` (der erste Entwurf mit `$app['dispatcher']` brach die Konsole). Neuer `LoginEventApiTest` (4 Fälle, ohne `dispatch()` drei rot). Register: Schritt 5 im LoginManager-Abschnitt plus Eintrag, `migration.md` auf 108. Am UFP-Probe-Backend: sechs Manager als Provider mit `completeLogin()`, alle fünf Login-Wege mit `data` wie beim alten Backend. Suite 569 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
+- 000-000-0045 → done (merged into master)
 
 ## 2026-09-09
 - 013-000-0000 → in-progress

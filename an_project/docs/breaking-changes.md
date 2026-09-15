@@ -1474,10 +1474,14 @@ Pflichtmethode. Der Unterschied ist nicht nur der Name:
    Fremdsystem sie führt. Alias, Präfix und Eindeutigkeit macht das Framework.
 4. **Gruppen und Adminflag aus dem Code nehmen** und in `SECURITY_PROVIDER_GROUPS` eintragen —
    je Providername `groups`, `admin` und `default`.
-5. **Den Provider registrieren:** `$app['loginProviders']->register('<name>', fn () => new …)`
+5. **Was der Manager darüber hinaus tat, in einen Listener auf `pim.auth.after.login`.** Felder am
+   Benutzer setzen, `tempData` für den Client — das gehört nicht in den Provider, sondern dorthin.
+   Werte, die nur der Provider kennt (etwa ein Token des Fremdsystems), gibt er in
+   `ExternalIdentity::$attributes` mit. Eintrag weiter unten.
+6. **Den Provider registrieren:** `$app['loginProviders']->register('<name>', fn () => new …)`
    in `custom/app.php`. Dieser `<name>` ist ab jetzt der Wert, den ein Client als `loginManager`
    schickt.
-6. **Die Clients umstellen:** Sie schicken den Namen statt des Klassennamens.
+7. **Die Clients umstellen:** Sie schicken den Namen statt des Klassennamens.
 
 `custom/Classes/Authentication/ExampleProvider.php` führt alles davon an einem lauffähigen Beispiel
 vor.
@@ -1492,8 +1496,37 @@ zurückzufallen.
 Der Parametername bleibt `loginManager`: Bestandsclients schicken ihn so, und ihn umzubenennen
 wäre ein Bruch am Draht ohne Gewinn. Wenn er umbenannt wird, dann mit dem Rest der Migration.
 
-*Was zu tun ist:* Schritt 5 und 6 oben. Solange nichts registriert ist, ist jeder
+*Was zu tun ist:* Schritt 6 und 7 oben. Solange nichts registriert ist, ist jeder
 `loginManager`-Wert unbekannt und die Anmeldung darüber scheitert.
+
+### Nach einem erfolgreichen Login löst das Framework `pim.auth.after.login` aus
+**Seit `000-000-0045` (2026-09-15).**
+
+**Kein Bruch, sondern der Ort für das, was der Provider-Vertrag nicht abdeckt.** Ein alter
+`LoginManager` prüfte nicht nur, er setzte oft auch Felder am Benutzer und gab dem Client über
+`tempData` zusätzliche Daten mit. Beim Bestandsprojekt UFP (`007-005-0004`) liest die App bei jedem
+Login `data.role` — ohne diesen Haken bräche die Anmeldung im Client.
+
+Das Event kommt auf dem Passwort-Weg und auf jedem Provider-Weg, **nach** Prüfung, Anlage,
+Gruppenzuordnung und Aktiv-Prüfung und **vor** dem Ausstellen des Tokens. Ein abgelehnter Login löst
+es nicht aus. Parameter: `user`, `request`, `provider` (Name oder `null`), `identity`
+(`ExternalIdentity` oder `null`), `app`.
+
+Was ein Listener als `tempData` setzt, steht als `data` in der Antwort — auch mit `tokenType=jwt`.
+Änderungen am Benutzer werden mit dem Token gespeichert; ein eigenes `flush()` ist nicht nötig.
+
+*Was zu tun ist:* Nur wer einen Manager mit solchen Zusätzen umstellt:
+
+```php
+$app->on('pim.auth.after.login', function (\Areanet\PIM\Classes\Event $event) {
+    $user = $event->getParam('user');
+    $user->setTempData(array('group' => $user->getGroup()?->getName()));
+});
+```
+
+**`$app->on()`, nicht `$app['dispatcher']->addListener()`** — wer den Dispatcher in `custom/app.php`
+liest, friert ihn ein, und jedes spätere `extend()` wirft (`ConsoleManager`). Die Vorlage
+`custom/app.php`, Abschnitt 6, zeigt ein lauffähiges Beispiel.
 
 ### Ein über ein Fremdsystem angelegter Benutzer hat kein Passwort mehr
 **Seit `013-004-0002` (2026-09-10).**

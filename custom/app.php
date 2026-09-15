@@ -162,3 +162,35 @@ $app['loginProviders']->register('example', function () {
 //   $app['loginProviders']->register('my-sso', function () use ($app) {
 //       return new \Custom\Classes\Authentication\MySsoProvider($app);
 //   });
+
+/* -----------------------------------------------------------------------------------------
+ * 6. After a successful login — the event `pim.auth.after.login` (000-000-0045).
+ *
+ *    A provider only verifies. What an old LoginManager did on top of that — set fields on the
+ *    user, hand the client extra data — belongs in a listener on this event. It fires for the
+ *    password path and for every provider, after the check and before the token is issued, and
+ *    never for a rejected login.
+ *
+ *    Params: `user` (the Areanet\PIM\Entity\User), `request`, `provider` (the registered name, or
+ *    null for the password path), `identity` (the ExternalIdentity from the provider, or null)
+ *    and `app`.
+ *
+ *    Whatever the listener sets as `tempData` arrives as `data` in the login response. Changes to
+ *    the user are written together with the token — no flush of your own needed.
+ *
+ *    Register it with `$app->on()`, not `$app['dispatcher']->addListener()`: reading the
+ *    dispatcher here freezes it, and every later `extend()` — the ConsoleManager's among them —
+ *    throws.
+ *
+ *    The example below tells the client which way the user came in and which groups the
+ *    external system reported. It really runs; tests/Integration/Api/LoginEventApiTest.php
+ *    checks it.
+ * --------------------------------------------------------------------------------------- */
+$app->on('pim.auth.after.login', function (\Areanet\PIM\Classes\Event $event) {
+    $identity = $event->getParam('identity');
+
+    $event->getParam('user')->setTempData(array(
+        'loginProvider'  => $event->getParam('provider'),
+        'externalGroups' => $identity ? $identity->groups : array(),
+    ));
+});
