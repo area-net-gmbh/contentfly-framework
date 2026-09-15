@@ -16,6 +16,22 @@ nichts ändern.
 
 ## Konfiguration
 
+### `APP_AUTOGENERATE_PROXIES`: Proxies werden nur noch bei Bedarf geschrieben
+**Seit `000-000-0047` (2026-09-15).**
+
+Der Schalter wurde bisher auf `bool` reduziert, und seine Vorgabe `true` hiess für Doctrine
+`AUTOGENERATE_ALWAYS`: **Jeder Request schrieb die Proxy-Klassen neu.** Gemessen am Bestandsprojekt UFP
+(`007-005-0004`): zehn Listen- und Auswertungsaufrufe 540 ms statt 382 ms unter Contentfly 1.x, ohne
+die Neuerzeugung 330 ms. Parallele Requests schrieben dieselbe Datei und scheiterten gelegentlich daran.
+
+Die Vorgabe ist jetzt `ProxyFactory::AUTOGENERATE_FILE_NOT_EXISTS_OR_CHANGED` — geschrieben wird, wenn
+ein Proxy fehlt oder seine Entity-Datei sich geändert hat. Der Schalter nimmt Doctrines Konstanten an;
+`true` bleibt „bei jedem Request“, `false` bleibt „nie“. Jeder andere Wert bricht den Start mit einer
+Meldung ab (`Classes\ORM\ProxyGeneration`).
+
+*Was zu tun ist:* Nichts, wenn das Projekt den Schalter nicht setzt. Wer `true` gesetzt hat, streicht die
+Zeile. Wer `false` setzt, erzeugt die Proxies beim Deployment mit `orm:generate-proxies`.
+
 ### `USE_SCSS_COMPILER` und `BASE_SCSS_FILE` entfallen
 **Seit `006-001-0001` (2026-09-08).**
 
