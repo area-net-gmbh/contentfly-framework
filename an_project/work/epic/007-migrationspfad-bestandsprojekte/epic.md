@@ -127,7 +127,7 @@ Dieses Epic liefert Weg, Werkzeuge und Doku.
 - [x] 007-002-0000 — Die Rector-Regel für das Entity-Verzeichnis
 - [x] 007-003-0000 — Die $app[...]-Bridge festlegen
 - [x] 007-004-0000 — Der Migrationsleitfaden
-- [ ] 007-005-0000 — Am echten Bestandsprojekt durchspielen (**blocked**)
+- [x] 007-005-0000 — Am echten Bestandsprojekt durchspielen
 
 `007-001` bis `007-003` hängen nicht voneinander ab und können in beliebiger Reihenfolge laufen.
 `007-004` beschreibt, was sie entschieden haben, und kommt danach. `007-005` ist die Probe auf

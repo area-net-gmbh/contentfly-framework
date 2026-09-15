@@ -1,7 +1,7 @@
 ---
 id: 007-005-0001
 title: Kopie bereitstellen und Bestandsaufnahme
-status: review
+status: done
 depends_on: []
 ---
 

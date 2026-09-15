@@ -1,7 +1,7 @@
 ---
 id: 007-005-0000
 title: Am echten Bestandsprojekt durchspielen
-status: in-progress
+status: done
 depends_on: [007-004-0000]
 ---
 
@@ -62,11 +62,11 @@ statt. Hier wird der Weg geprüft, nicht das Projekt umgestellt.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 007-005-0001 — Kopie bereitstellen und Bestandsaufnahme
-- [ ] 007-005-0002 — Das Ist-Verhalten des alten Projekts aufzeichnen
-- [ ] 007-005-0003 — Phasen 1 bis 5 am Projekt durchspielen
-- [ ] 007-005-0004 — Phasen 6 bis 9 am Projekt durchspielen
-- [ ] 007-005-0005 — Rückfluss in Leitfaden, Werkzeuge und Framework
+- [x] 007-005-0001 — Kopie bereitstellen und Bestandsaufnahme
+- [x] 007-005-0002 — Das Ist-Verhalten des alten Projekts aufzeichnen
+- [x] 007-005-0003 — Phasen 1 bis 5 am Projekt durchspielen
+- [x] 007-005-0004 — Phasen 6 bis 9 am Projekt durchspielen
+- [x] 007-005-0005 — Rückfluss in Leitfaden, Werkzeuge und Framework
 
 `0001` misst, bevor etwas geändert wird, und entscheidet, ob `0003`/`0004` das ganze Projekt
 oder einen Ausschnitt nehmen. `0002` hält fest, was die App heute bekommt, und ist der Massstab

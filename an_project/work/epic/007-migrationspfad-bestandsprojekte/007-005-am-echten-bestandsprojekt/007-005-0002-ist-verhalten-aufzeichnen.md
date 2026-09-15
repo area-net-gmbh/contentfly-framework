@@ -1,7 +1,7 @@
 ---
 id: 007-005-0002
 title: Das Ist-Verhalten des alten Projekts aufzeichnen
-status: review
+status: done
 depends_on: [007-005-0001]
 ---
 

@@ -82,6 +82,9 @@
 - 007-005-0005 → in-progress
 - 000-000-0048 task created: "Deutscher Variablenname in bin/console.php, den der Sprachwächter nicht sieht"
 - 007-005-0005 → review: **Der Rückfluss aus UFP ist drin.** Leitfaden: L-1…L-16 in `migration.md` (neuer Abschnitt *Woran dieser Leitfaden erprobt ist*, Phase 1 mit Inventar, Framework-Patches und Aufzeichnung, Phase 4 `--dump-sql` als Pflicht, Phase 6 DBAL-Werkzeug, Phase 7 Provider-Erfahrungen und Rollensperre, Phase 8 Vergleich ohne Debug), Register 111 Einträge (neu `$app['twig']`, berichtigt `redirect()`, ergänzt DBAL, Sitzungen, Altbestände, `AssociationOverrides`), `pim-annotationen-migration.md` §7 um Traits, Importe, Klammern. Werkzeuge: `inventory.php` meldet Traits ohne Importe, unausgeglichene Klammern, Projekt-Patch-Schlüssel (über Git-Historie), DBAL-2-Muster und `Request::get()`; `lib/` ohne PHP ist keine Kopie; neues `dbal3-statements.php` (erzeugt am UFP-Code genau den geprüften Umbau); `record-api.php` benennt `429`. Sieben Codepfade entschieden (zwei entfernt, fünf Kandidaten). Framework-Befunde in der Story gelistet, neu `000-000-0048`. Inventar vorher/nachher im Ergebnis. Suite 593 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
+- 007-005-0000 → review: alle fünf Tasks auf review — Bestandsaufnahme, Aufzeichnung, Phasen 1–5 und 6–9 am Bestandsprojekt UFP, Rückfluss in Leitfaden, Register und Werkzeuge.
+- 007-005-0000 → done (merged into master)
+- 007-005-0001, 007-005-0002, 007-005-0003, 007-005-0004, 007-005-0005 → done (mit der Story)
 
 ## 2026-09-09
 - 013-000-0000 → in-progress
