@@ -1,7 +1,7 @@
 ---
 id: 000-000-0025
 title: BaseI18nTree — die Beziehung passt nicht zum zusammengesetzten Schlüssel
-status: review
+status: done
 depends_on: []
 ---
 
@@ -40,7 +40,7 @@ falsche Reihenfolge. Erst die Frage beantworten, dann bauen.
       `BaseI18nTree` und `BaseI18nSortable` ersatzlos entfallen.
 - [x] Bei „behalten": Die Beziehung trägt eine Join-Spalte je Schlüsselspalte, und
       `orm:validate-schema` meldet keinen Mapping-Fehler mehr.
-- [ ] ~~Bei „entfallen": Die Klassen und die Tabelle `pim_i18n_tree` sind weg, und der Wegfall
+- [x] ~~Bei „entfallen": Die Klassen und die Tabelle `pim_i18n_tree` sind weg, und der Wegfall
       steht als Bruchstelle in `an_project/docs/breaking-changes.md`.~~ Entfällt, gewählt ist „behalten".
 - [x] Die Entscheidung steht in `an_project/docs/architecture.md` unter *Key decisions* — sie
       betrifft das Datenmodell, nicht nur eine Datei.

@@ -5,6 +5,7 @@
 ## 2026-09-15
 - 000-000-0025 → in-progress
 - 000-000-0025 → review: **`BaseI18nTree` bleibt, der Elternknoten hat dieselbe Sprache**, entschieden auf Grundlage des Befunds, dass `JoinType`, `getTree()` und `getTree2()` den Baum schon immer so lesen. `treeParent` trägt `parent_id → id` und `parent_lang → lang`; `orm:validate-schema` ist in beiden Hälften grün. Beim Anlegen einer Übersetzung wird ein kopierter i18n-Join jetzt an die geschriebene Sprache gebunden (ohne Test, weil keine Entity von `BaseI18nTree` erbt). Neuer `SchemaValidationTest` (gegen master rot). Datenbankvergleich: nur `pim_i18n_tree` (Spalte, Index, Fremdschlüssel). Migrationsweg an einer Datenbank im alten Schema mit Waise durchgespielt und in `breaking-changes.md` beschrieben; Entscheidung in `architecture.md`. Suite 529 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
+- 000-000-0025 → done (merged into master)
 
 ## 2026-09-09
 - 013-000-0000 → in-progress
