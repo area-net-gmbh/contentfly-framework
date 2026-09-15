@@ -1,7 +1,7 @@
 ---
 id: 000-000-0046
 title: Spalte ohne Contentfly-Typ zerstört im Debug-Modus die Antwort
-status: review
+status: done
 depends_on: []
 ---
 
