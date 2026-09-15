@@ -4,7 +4,7 @@
     <property environment="env"/>
 
     <!-- BUILD -->
-    <target name="main" depends="file-checks,directories,files,composer,bower" unless="appIsBuilded"/>
+    <target name="main" depends="file-checks,directories,files,composer" unless="appIsBuilded"/>
 
     <target name="file-checks">
         <available file="custom/app.php"  property="appIsBuilded"/>
@@ -16,11 +16,6 @@
         <mkdir dir="custom/Command"/>
         <mkdir dir="custom/Controller"/>
         <mkdir dir="custom/Entity"/>
-        <mkdir dir="custom/Frontend/contentfly-ui/img"/>
-        <mkdir dir="custom/Frontend/contentfly-ui/scripts/controllers"/>
-        <mkdir dir="custom/Frontend/contentfly-ui/styles"/>
-        <mkdir dir="custom/Frontend/contentfly-ui/types"/>
-        <mkdir dir="custom/Frontend/contentfly-ui/views/blocks"/>
         <mkdir dir="custom/Traits"/>
         <mkdir dir="custom/Views"/>
         <mkdir dir="data/cache"/>
@@ -73,13 +68,6 @@ define('CUSTOM_VERSION', '0.0.0');
             <arg value="install" />
             <arg value="--prefer-dist" />
             <arg value="--no-progress" />
-        </exec>
-    </target>
-
-    <target name="bower" description="Bower-Abhängigkeiten werden installiert..." >
-        <exec executable="bower" dir="lib/contentfly-ui/assets/">
-            <arg value="install" />
-            <arg value="--production" />
         </exec>
     </target>
 

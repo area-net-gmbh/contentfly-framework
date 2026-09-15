@@ -22,6 +22,8 @@
 - 000-000-0036 task created: "Letzte Verweise auf die entfernte Oberfläche (contentfly-ui)"
 - 000-000-0037 task created: "Importe auf Klassen, die es nicht gibt"
 - 000-000-0036, 000-000-0037 refined: **Beide mit gemessenem Umfang statt Vermutung.** 0036: fünf Stellen per `git grep` — zwei ausführbare in `build.xml` (`bower` gegen ein Verzeichnis, das es nicht gibt; `mkdir` für eine Oberfläche), AngularJS in der README-Stack-Liste, die Migrationszeile 1.5→1.6, die inzwischen falsche Aussage in `architecture.md`; die übrigen Altlasten in `build.xml` ausdrücklich ausgenommen. 0037: aus einem bekannten Import wurden beim Scan aller `use`-Importe gegen den Autoloader **fünf in vier Dateien** (`Api.php` zweimal, `Factory.php`, `SystemController.php`, `bootstrap-web.php`); ungenutzte Importe auf existierende Klassen ausgenommen; ein Wächter-Test ist Kriterium.
+- 000-000-0036 → in-progress
+- 000-000-0036 → review: **Keine ausführbaren Verweise mehr auf die entfernte Oberfläche.** `build.xml` ohne Target `bower` und ohne die fünf `mkdir custom/Frontend/contentfly-ui/…`; README ohne AngularJS im Stack, die Migrationszeile 1.5→1.6 mit „mit Epic `012` ersatzlos entfallen"; `architecture.md` ohne die überholte Aussage zum Rest auf der Platte. `git grep` 10 → 3 Treffer (nur Geschichte und Plan). Suite 534 grün, nach Neustart des Datenbank-Containers.
 
 ## 2026-09-09
 - 013-000-0000 → in-progress

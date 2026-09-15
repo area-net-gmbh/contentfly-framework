@@ -1,7 +1,7 @@
 ---
 id: 000-000-0036
 title: Letzte Verweise auf die entfernte Oberfläche (contentfly-ui)
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -31,12 +31,35 @@ bleibt stehen.
 wird, ist eine eigene Frage. Hier fallen nur die Oberflächen-Reste.
 
 ## Acceptance criteria
-- [ ] `build.xml` enthält kein `contentfly-ui` und kein `bower` mehr; `main` hängt nicht mehr an einem entfernten Target.
-- [ ] `README.md` nennt AngularJS nicht mehr als Teil des Stacks, und die Zeile im Abschnitt „Migration 1.5 auf 1.6" sagt, dass `lib/contentfly-ui` mit Epic `012` entfallen ist.
-- [ ] `architecture.md` beschreibt `lib/` ohne den Rest auf der Platte.
-- [ ] `git grep 'contentfly-ui\|PIM-UI'` trifft ausserhalb von Backlog, Changelog und Abhängigkeiten-Inventar nur noch die beiden Plan-Aussagen in `tech-stack.md` und `project-description.md` sowie die korrigierte README-Zeile.
-- [ ] `build.xml` ist wohlgeformtes XML, und die volle Suite bleibt grün.
+- [x] `build.xml` enthält kein `contentfly-ui` und kein `bower` mehr; `main` hängt nicht mehr an einem entfernten Target.
+- [x] `README.md` nennt AngularJS nicht mehr als Teil des Stacks, und die Zeile im Abschnitt „Migration 1.5 auf 1.6" sagt, dass `lib/contentfly-ui` mit Epic `012` entfallen ist.
+- [x] `architecture.md` beschreibt `lib/` ohne den Rest auf der Platte.
+- [x] `git grep 'contentfly-ui\|PIM-UI'` trifft ausserhalb von Backlog, Changelog und Abhängigkeiten-Inventar nur noch die beiden Plan-Aussagen in `tech-stack.md` und `project-description.md` sowie die korrigierte README-Zeile.
+- [x] `build.xml` ist wohlgeformtes XML, und die volle Suite bleibt grün.
 
 ## Verification
 `git grep -n 'contentfly-ui\|PIM-UI\|bower\|AngularJS'` vorher und nachher. `php -r` mit
 `simplexml_load_file('build.xml')` auf Wohlgeformtheit. Volle Suite.
+
+## Ergebnis
+
+**Die fünf Stellen sind nachgezogen:**
+
+- `build.xml`: Target `bower` entfernt, `main` hängt nicht mehr daran, die fünf
+  `mkdir custom/Frontend/contentfly-ui/…` sind weg. Wohlgeformt (`simplexml_load_file` liefert
+  ein Objekt).
+- `README.md`: AngularJS aus der Stack-Liste gestrichen. Die Zeile im Abschnitt „Migration 1.5 auf
+  1.6" bleibt als Geschichte stehen und trägt den Zusatz „mit Epic `012` ersatzlos entfallen".
+- `architecture.md`: Die Zeile zu `lib/` sagt nur noch „der Frameworkcode". Die Aussage über den
+  Rest auf der Platte stimmte nicht mehr.
+
+**`git grep 'contentfly-ui\|PIM-UI'`** ausserhalb von Backlog, Changelog und
+Abhängigkeiten-Inventar: vorher 10 Treffer in fünf Dateien, nachher 3 — die korrigierte
+README-Zeile und die beiden Plan-Aussagen in `tech-stack.md` und `project-description.md`.
+
+**Nicht angefasst:** `.gitignore` trägt `npm-debug.log` mit dem Kommentar „aus bower_components".
+Die Regel nennt keinen Pfad zur Oberfläche und schadet nicht; ihr Kommentar ist Geschichte.
+
+**Verifiziert:** volle Suite `Tests: 534, Assertions: 1746, Skipped: 3`. Der erste Lauf war rot
+(254 Fehler und Fehlschläge), weil der Datenbank-Container nicht mehr lief; der
+Umgebungswächter meldete genau das. Nach `docker compose up -d` und neuer Installation grün.

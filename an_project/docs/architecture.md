@@ -147,7 +147,7 @@ Alle 26 versionierten Top-Level-Einträge, Stand 2026-09-11. Kein Eintrag bleibt
 
 | Eintrag | wohin | warum |
 |---|---|---|
-| `lib/` | **Paket** | der Frameworkcode; `lib/contentfly-ui/` liegt unversioniert als Rest aus `012` noch auf der Platte und fällt mit |
+| `lib/` | **Paket** | der Frameworkcode |
 | `index.php` | Projekt | Einstiegspunkt, gehört dem, der ausliefert |
 | `bin/` | Projekt | `console.php` und `cli-config.php`, aus demselben Grund |
 | `custom/` | Projekt | Projektcode und Konfiguration; bleibt die Vorlage |

@@ -32,7 +32,6 @@ Mit dem CMS können serverseitig beliebige Inhalte gespeichert und verwaltet wer
   EventDispatcher, Routing, Console. Den Container stellt Contentfly selbst
   (`Areanet\PIM\Classes\Kernel\Container`).
 - [Doctrine](http://www.doctrine-project.org/) als ORM für die Datenhaltung
-- [AngularJS](https://angularjs.org/) für die Oberfläche
 
 > Bis Epic `009` lief hier [Silex 2](http://silex.sensiolabs.org/) als Microframework. Silex ist
 > seit 2018 EOL und deckelte Symfony auf 4.4; der Kernel ist getauscht, die Schnittstelle für
@@ -53,7 +52,7 @@ Angepasste Ordnerstruktur und Betrieb in Unterordnern z.B. www.domain.de/content
 ### Geänderte Ordner- und Dateistruktur
 
 * *appcms/areanet/PIM* => *lib/contentfly*
-* *appcms/areanet/PIM-UI* => *lib/contentfly-ui*
+* *appcms/areanet/PIM-UI* => *lib/contentfly-ui* (mit Epic `012` ersatzlos entfallen)
 * *appcms/vendor* => *vendor*
 * *appcms/bootstrap.php* => *lib/contentfly/bootstrap.php*
 * *appcms/bootstrap-web.php* => *lib/contentfly/bootstrap-web.php*
