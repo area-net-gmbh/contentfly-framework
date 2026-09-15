@@ -1,7 +1,7 @@
 ---
 id: 000-000-0040
 title: Config — eigene Schlüssel eines Projekts zerstören die Antwort
-status: review
+status: done
 depends_on: []
 ---
 
