@@ -111,6 +111,121 @@ PHP);
         $this->assertSame(array(), $report['untriggered_paths']['encoded']);
     }
 
+    /**
+     * The three hurdles of UFP phases 3 and 5 that the first version did not report (007-005-0005).
+     */
+    public function testItReportsTraitsUnbalancedAnnotationsAndDbal2Statements(): void
+    {
+        mkdir($this->scratch . '/custom/Traits', 0777, true);
+
+        // Mapping in a trait, without the import: Rector skips it, Doctrine ignores it.
+        $this->write('custom/Traits/User.php', <<<'PHP'
+<?php
+namespace Custom\Traits;
+
+trait User
+{
+    /**
+     * @ORM\Column(type="json", nullable=true)
+     * @PIM\Config(label="Fields (dynamic)")
+     */
+    protected $dynamicFields;
+}
+PHP);
+
+        // Mapping in a trait with both imports — reported, but not as missing.
+        $this->write('custom/Traits/Group.php', <<<'PHP'
+<?php
+namespace Custom\Traits;
+
+use Doctrine\ORM\Mapping as ORM;
+
+trait Group
+{
+    #[ORM\Column(type: 'string', nullable: true)]
+    protected $role;
+}
+PHP);
+
+        $this->write('custom/Entity/Shop/Order.php', <<<'PHP'
+<?php
+namespace Custom\Entity\Shop;
+
+class Order extends Base
+{
+    /**
+     * @ORM\Column(type="string", nullable=true))
+     * @PIM\Config(excludeFromSync=true)
+     */
+    protected $number;
+
+    public function totals($dbal)
+    {
+        $statement = $dbal->prepare('SELECT 1');
+        $statement->execute();
+        $rows = $statement->fetchAll();
+        $one  = $statement->fetch();
+
+        return $request->get('x');
+    }
+}
+PHP);
+
+        $report = inventory($this->scratch);
+
+        $this->assertSame(array(
+            array('file' => 'custom/Traits/Group.php', 'trait' => 'Group', 'orm_annotations' => 0, 'orm_attributes' => 1, 'missing_imports' => array()),
+            array('file' => 'custom/Traits/User.php', 'trait' => 'User', 'orm_annotations' => 1, 'orm_attributes' => 0,
+                  'missing_imports' => array('Doctrine\ORM\Mapping as ORM', 'Areanet\PIM\Classes\Annotations as PIM')),
+        ), $report['entity_traits']);
+        $this->assertSame(array('custom/Entity/Shop/Order.php:6'), $report['unbalanced_annotations'],
+            'The docblock with the extra bracket, by its first line; the brackets inside the quoted label of User.php are not counted');
+        $this->assertSame(array('custom/Entity/Shop/Order.php' => 2), $report['dbal2_statements']);
+        $this->assertSame(array('custom/Entity/Shop/Order.php' => 1), $report['request_get']);
+    }
+
+    public function testALibDirectoryWithoutPhpIsNoFrameworkCopy(): void
+    {
+        mkdir($this->scratch . '/lib/contentfly', 0777, true);
+        $this->write('lib/contentfly/.DS_Store', 'x');
+
+        $this->assertSame(array('present' => false, 'leftover' => array('.DS_Store')), inventory($this->scratch)['framework_copy']);
+    }
+
+    /**
+     * Configuration keys against the framework — and the keys a project added to its own copy, which
+     * only the copy's git history can tell apart from keys the framework removed (L-6).
+     */
+    public function testConfigurationKeysAreClassifiedIncludingProjectPatches(): void
+    {
+        mkdir($this->scratch . '/lib/contentfly/Classes', 0777, true);
+        $this->write('lib/contentfly/Classes/Config.php', "<?php\nclass Config {\n    public \$APP_DEBUG = false;\n    public \$APP_MASTER_PASSWORD = null;\n}\n");
+
+        $git = fn (string $args) => shell_exec('git -C ' . escapeshellarg($this->scratch) . ' -c user.name=t -c user.email=t@example.invalid ' . $args . ' 2>&1');
+        $git('init -q');
+        $git('add lib');
+        $git('commit -q -m import');
+
+        $this->write('lib/contentfly/Classes/Config.php', "<?php\nclass Config {\n    public \$APP_DEBUG = false;\n    public \$APP_MASTER_PASSWORD = null;\n    public \$APP_ROLES_STAFF = array();\n}\n");
+        $git('commit -q -am patch');
+
+        $this->write('custom/config.php', <<<'PHP'
+<?php
+$configDefault->APP_DEBUG           = true;
+$configDefault->APP_MASTER_PASSWORD = 'x';
+$configDefault->APP_ROLES_STAFF     = array('user');
+$configLive->CUSTOM_SMTP_HOST       = 'smtp.example.invalid';
+if ($configLive->APP_DEBUG == true) {}
+PHP);
+
+        $this->assertSame(array(
+            'framework' => array('APP_DEBUG'),
+            'removed'   => array('APP_MASTER_PASSWORD'),
+            'patch'     => array('APP_ROLES_STAFF'),
+            'project'   => array('CUSTOM_SMTP_HOST'),
+        ), inventory($this->scratch)['config_keys'], 'A comparison (==) is not an assignment');
+    }
+
     public function testTheRemovedAnnotationListMatchesRector(): void
     {
         $rector = (string) file_get_contents(CONTENTFLY_PROJECT_DIR . '/rector.php');

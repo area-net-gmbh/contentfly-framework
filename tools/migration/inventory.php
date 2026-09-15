@@ -19,6 +19,13 @@
  * ── What it does not do ───────────────────────────────────────────────────────────────────
  *
  * It changes nothing, runs no project code and connects to no database. Git is only read.
+ *
+ * ── Added after the first real migration (007-005-0005) ──────────────────────────────────
+ *
+ * The run on UFP found what the first version did not ask: entity traits Rector skips, an
+ * annotation whose unbalanced bracket turns the rest of the docblock into text, configuration keys
+ * that came from the project's own patches to its framework copy, and the DBAL 2 statement idiom
+ * that made up most of phase 6.
  */
 
 namespace Contentfly\Tools\Migration;
@@ -98,6 +105,11 @@ function inventory(string $dir): array
         'container_keys' => containerKeys($dir, $project),
         'silex_references' => grepFiles($dir, $project, '/\bSilex\\\\|\bPimple\\\\/'),
         'untriggered_paths' => untriggeredPaths($dir, $project),
+        'entity_traits'  => entityTraits($dir, $project),
+        'unbalanced_annotations' => unbalancedAnnotations($dir, $project),
+        'config_keys'    => configKeys($dir),
+        'dbal2_statements' => grepFiles($dir, $project, '/\$\w+->(?:fetchAll|fetch|fetchColumn)\(\s*\)/'),
+        'request_get'    => grepFiles($dir, $project, '/\$request->get\(/'),
     );
 }
 
@@ -150,6 +162,11 @@ function frameworkCopy(string $dir): array
 
     if (!is_dir($copy)) {
         return array('present' => false);
+    }
+
+    // A directory with no PHP left in it — `.DS_Store` after deleting the copy — is no copy (W-1).
+    if (count(phpFiles($copy)) === 0) {
+        return array('present' => false, 'leftover' => array_values(array_diff(scandir($copy), array('.', '..'))));
     }
 
     $version = null;
@@ -332,6 +349,146 @@ function untriggeredPaths(string $dir, array $files): array
     return $result;
 }
 
+/**
+ * Traits that carry Doctrine mapping (W-2).
+ *
+ * Rector over `Entity/` does not reach a trait in `Traits/`, and a trait without
+ * `use Doctrine\ORM\Mapping as ORM;` is skipped silently even when it is in the path. ORM 3 then
+ * does not see its columns, and the schema update plans to drop them. The same missing import turns an
+ * attribute `#[ORM\Column]` into a class that does not exist — PHP does not complain, Doctrine ignores it.
+ *
+ * @return list<array{file:string,trait:string,orm_annotations:int,orm_attributes:int,missing_imports:list<string>}>
+ */
+function entityTraits(string $dir, array $files): array
+{
+    $found = array();
+
+    foreach ($files as $file) {
+        $source = (string) file_get_contents($file);
+        if (!preg_match('/^\s*trait\s+(\w+)/m', code($file), $m)) {
+            continue;
+        }
+
+        $docblocks   = docblocks($source);
+        $annotations = preg_match_all('/@ORM\\\\\w+/', $docblocks);
+        $attributes  = preg_match_all('/#\[ORM\\\\\w+/', $source);
+
+        if (!$annotations && !$attributes) {
+            continue;
+        }
+
+        $missing = array();
+        if (!preg_match('/^\s*use\s+\\\\?Doctrine\\\\ORM\\\\Mapping\s+as\s+ORM\s*;/m', $source)) {
+            $missing[] = 'Doctrine\ORM\Mapping as ORM';
+        }
+        if (preg_match('/@PIM\\\\|#\[PIM\\\\/', $source) && !preg_match('/^\s*use\s+\\\\?Areanet\\\\PIM\\\\Classes\\\\Annotations\s+as\s+PIM\s*;/m', $source)) {
+            $missing[] = 'Areanet\PIM\Classes\Annotations as PIM';
+        }
+
+        $found[] = array('file' => relative($dir, $file), 'trait' => $m[1], 'orm_annotations' => $annotations,
+                         'orm_attributes' => $attributes, 'missing_imports' => $missing);
+    }
+
+    return $found;
+}
+
+/**
+ * Docblocks whose `@ORM`/`@PIM` annotations do not close their brackets (W-2).
+ *
+ * `@ORM\Column(type="string", nullable=true))` made Rector read everything after it as text, and the
+ * next `@PIM\Config` became a comment. For `label` that cost nothing; for `excludeFromSync` a setting
+ * would have been lost without a message.
+ *
+ * @return list<string> file:line of the docblock
+ */
+function unbalancedAnnotations(string $dir, array $files): array
+{
+    $found = array();
+
+    foreach ($files as $file) {
+        foreach (\PhpToken::tokenize((string) file_get_contents($file)) as $token) {
+            if (!$token->is(T_DOC_COMMENT) || !preg_match('/@(?:ORM|PIM)\\\\/', $token->text)) {
+                continue;
+            }
+
+            $withoutStrings = preg_replace('/"(?:[^"\\\\]|\\\\.)*"/s', '""', $token->text);
+            if (substr_count($withoutStrings, '(') !== substr_count($withoutStrings, ')')) {
+                $found[] = relative($dir, $file) . ':' . $token->line;
+            }
+        }
+    }
+
+    return $found;
+}
+
+/**
+ * The keys `custom/config.php` sets, each placed against the framework (W-2, L-6).
+ *
+ * - `framework`: declared by Contentfly 2 (`Classes\Config` of the framework this tool ships with).
+ * - `removed`:   declared by the project's old copy as imported, but not by Contentfly 2.
+ * - `patch`:     declared by the old copy only since the project changed it — a project patch whose
+ *                 behaviour went away with `lib/`. Without git history both land in `old_copy_only`.
+ * - `project`:   declared nowhere — the project's own key, allowed since 000-000-0040.
+ *
+ * Comparing the configuration with the guide alone misses the `patch` keys; UFP had four.
+ *
+ * @return array<string,list<string>>
+ */
+function configKeys(string $dir): array
+{
+    $file = $dir . '/custom/config.php';
+    if (!is_file($file)) {
+        return array();
+    }
+
+    preg_match_all('/\$\w+->([A-Z][A-Z0-9_]*)\s*=(?!=)/', code($file), $m);
+    $keys = array_values(array_unique($m[1]));
+    sort($keys);
+
+    $new     = declaredConfigKeys((string) @file_get_contents(dirname(__DIR__, 2) . '/lib/contentfly/Classes/Config.php'));
+    $oldPath = $dir . '/lib/contentfly/Classes/Config.php';
+    $old     = is_file($oldPath) ? declaredConfigKeys((string) file_get_contents($oldPath)) : array();
+    $import  = null;
+
+    $history = frameworkCopy($dir)['history'] ?? null;
+    if ($history !== null) {
+        $top  = trim((string) shell_exec('git -C ' . escapeshellarg($dir) . ' rev-parse --show-toplevel 2>/dev/null'));
+        $path = relative($top, realpath($oldPath) ?: $oldPath);
+        $import = declaredConfigKeys((string) shell_exec(
+            'git -C ' . escapeshellarg($top) . ' show ' . escapeshellarg($history['import_commit'] . ':' . $path) . ' 2>/dev/null'
+        ));
+    }
+
+    $result = array('framework' => array(), 'removed' => array(), 'patch' => array(), 'old_copy_only' => array(), 'project' => array());
+    foreach ($keys as $key) {
+        if (in_array($key, $new, true)) {
+            $result['framework'][] = $key;
+        } elseif (in_array($key, $old, true)) {
+            $class = $import === null ? 'old_copy_only' : (in_array($key, $import, true) ? 'removed' : 'patch');
+            $result[$class][] = $key;
+        } else {
+            $result['project'][] = $key;
+        }
+    }
+
+    return array_filter($result);
+}
+
+/** @return list<string> */
+function declaredConfigKeys(string $source): array
+{
+    preg_match_all('/^\s*(?:public|var)\s+\$([A-Z][A-Z0-9_]*)\b/m', $source, $m);
+
+    return $m[1];
+}
+
+function docblocks(string $source): string
+{
+    return implode("\n", array_map(static fn ($t) => $t->text, array_filter(
+        \PhpToken::tokenize($source), static fn ($t) => $t->is(T_DOC_COMMENT)
+    )));
+}
+
 function render(array $r): string
 {
     $out = array('Contentfly migration inventory', str_repeat('=', 30), 'Directory: ' . $r['directory'], '');
@@ -339,7 +496,9 @@ function render(array $r): string
     $copy = $r['framework_copy'];
     $out[] = '## Framework copy (lib/contentfly)';
     if (!$copy['present']) {
-        $out[] = 'none — the framework is not copied into this project';
+        $out[] = isset($copy['leftover'])
+            ? 'none — lib/contentfly exists but holds no PHP files (' . (implode(', ', $copy['leftover']) ?: 'empty') . ')'
+            : 'none — the framework is not copied into this project';
     } else {
         $out[] = sprintf('version %s, %d PHP files', $copy['version'] ?? 'unknown', $copy['files']);
         if (isset($copy['history'])) {
@@ -399,6 +558,36 @@ function render(array $r): string
     $out[] = '## Code paths without a trigger in the framework (epic 007)';
     foreach ($r['untriggered_paths'] as $name => $hits) {
         $out[] = sprintf('  %s: %s', $name, $hits ? implode(', ', array_map(static fn ($f, $c) => "$f ($c)", array_keys($hits), $hits)) : 'not used');
+    }
+
+    $out[] = '';
+    $out[] = sprintf('## Traits with Doctrine mapping: %d', count($r['entity_traits']));
+    foreach ($r['entity_traits'] as $t) {
+        $out[] = sprintf('  - %s (%s): @ORM annotations %d, #[ORM attributes %d%s', $t['trait'], $t['file'],
+            $t['orm_annotations'], $t['orm_attributes'],
+            $t['missing_imports'] ? ' — MISSING IMPORT: ' . implode(', ', $t['missing_imports']) . ' (Rector skips it, Doctrine ignores it)' : '');
+    }
+
+    $out[] = '';
+    $out[] = sprintf('## Annotations with unbalanced brackets: %d', count($r['unbalanced_annotations']));
+    foreach ($r['unbalanced_annotations'] as $where) {
+        $out[] = '  - ' . $where . ' (fix before Rector: the rest of the docblock would be read as text)';
+    }
+
+    $out[] = '';
+    $out[] = '## Configuration keys set in custom/config.php';
+    $labels = array('framework' => 'declared by Contentfly 2', 'removed' => 'removed from the framework',
+                    'patch' => 'PROJECT PATCH to the old copy — its behaviour is gone with lib/',
+                    'old_copy_only' => 'only in the old copy (removed or project patch; no git history)',
+                    'project' => 'project keys');
+    foreach ($r['config_keys'] as $class => $keys) {
+        $out[] = sprintf('  %s (%d): %s', $labels[$class], count($keys), implode(', ', $keys));
+    }
+
+    foreach (array('dbal2_statements' => 'DBAL 2 statement fetches (phase 6, see tools/migration/dbal3-statements.php)',
+                   'request_get' => 'Request::get() calls (deprecated in Symfony 7.4)') as $key => $title) {
+        $out[] = '';
+        $out[] = sprintf('## %s: %d in %d files', $title, array_sum($r[$key]), count($r[$key]));
     }
 
     return implode("\n", $out) . "\n";

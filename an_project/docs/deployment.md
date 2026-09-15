@@ -192,7 +192,7 @@ warten will, bis jeder Datensatz einmal angefasst wurde, lässt den Befehl laufe
    was er täte, und fasst nichts an.
 3. **Echter Lauf:** derselbe Befehl ohne `--dry-run`. `--batch` setzt die Stapelgrösse, Vorgabe
    500 Zeilen.
-4. **Zweiter Trockenlauf** als Prüfung: Er muss `0 umgeschlüsselt` melden.
+4. **Zweiter Trockenlauf** als Prüfung: Er muss `0 re-encrypted` melden.
 
 **Ein abgebrochener Lauf ist kein Schaden.** Jeder Stapel ist eine Transaktion, beide Formate
 bleiben lesbar, und der Befehl überspringt, was schon umgestellt ist — ein erneuter Start macht

@@ -61,6 +61,7 @@ parameters:
     scanFiles:
         - tools/migration/inventory.php
         - tools/migration/record-api.php
+        - tools/migration/dbal3-statements.php
 
     # ── Die benannte Ausnahmeliste (009-003-0003) ────────────────────────────────────
     #

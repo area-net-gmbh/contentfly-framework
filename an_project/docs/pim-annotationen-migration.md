@@ -221,6 +221,23 @@ die Konfiguration eines Projekts umschreibt, richtet mehr Schaden an, als sie er
 4. **Was nicht unter `Entity/` liegt.** Trägt Projektcode `@PIM`-Angaben an anderer Stelle, muss
    der Pfad im Aufruf erweitert werden. Die Regel sucht nicht von selbst.
 
+   **Der häufigste Fall sind Traits.** Beim Bestandsprojekt UFP (`007-005-0003`) lagen 20
+   Spalten in `custom/Traits/User.php` und `Group.php`, eingebunden in `PIM\User` und `PIM\Group`.
+   Ein Lauf nur über `Entity/` liess sie auf Annotationen; ORM 3 sah die Spalten nicht, und das
+   Schema-Update plante `DROP role`, `DROP dynamicFields`, `DROP consentFormAccepted`.
+5. **Ohne Importe weicht Rector still aus.** Eine Datei, die `@ORM\Column` schreibt, aber
+   `use Doctrine\ORM\Mapping as ORM;` nicht importiert, lässt die Regel unverändert — ohne Meldung.
+   In Entities fällt das selten auf, in Traits ist es die Regel. Die Importe vorher ergänzen
+   (`use Doctrine\ORM\Mapping as ORM;`, `use Areanet\PIM\Classes\Annotations as PIM;`).
+6. **Eine unausgeglichene Klammer macht den Rest des Docblocks zu Text.** Aus
+   `@ORM\Column(type="string", nullable=true))` liest Rector alles Folgende als Kommentar; das nächste
+   `@PIM\Config` ging bei UFP so verloren. Bei `label` folgenlos, bei `excludeFromSync` wäre eine
+   Einstellung still verschwunden. Die Klammer vor dem Lauf korrigieren.
+
+**Punkte 4 bis 6 meldet das Inventar** (`php tools/migration/inventory.php <backend>`): Traits mit
+Doctrine-Mapping samt fehlender Importe, und Docblocks mit unausgeglichenen Klammern, je mit Datei und
+Zeile. Bei UFP: zwei Traits ohne Importe, drei Klammern.
+
 ### Was sie auch nicht tut, und das ist Absicht
 
 - **`targetEntity` bleibt eine Zeichenkette** und wird nicht `::class`. Bei `@ORM\ManyToMany`

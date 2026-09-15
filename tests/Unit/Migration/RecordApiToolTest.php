@@ -113,6 +113,28 @@ class RecordApiToolTest extends TestCase
         $this->assertSame(array(), $result['differing']);
     }
 
+    public function testASessionWhoseLoginIsThrottledSaysSo(): void
+    {
+        $baseUrl  = $this->startServer();
+        $scenario = array(
+            'baseUrl'  => $baseUrl,
+            'sessions' => array(
+                'throttled' => array('login' => array('path' => '/login', 'json' => array('pass' => 'throttled'))),
+                'wrong'     => array('login' => array('path' => '/login', 'json' => array('pass' => 'wrong'))),
+            ),
+            'requests' => array(
+                array('name' => 'as throttled', 'method' => 'POST', 'path' => '/private', 'session' => 'throttled'),
+                array('name' => 'as wrong', 'method' => 'POST', 'path' => '/private', 'session' => 'wrong'),
+            ),
+        );
+
+        $summary = record($scenario, array(), $this->scratch . '/throttled');
+
+        $this->assertStringContainsString('login throttled (429)', $summary['as throttled'],
+            'A throttled login is named, not reported as a missing token only');
+        $this->assertStringContainsString('login answered 200 without a token', $summary['as wrong']);
+    }
+
     public function testAChangedAnswerIsReportedWithItsPath(): void
     {
         foreach (array('a' => 'Access denied', 'b' => 'Invalid token.') as $dir => $message) {
@@ -135,6 +157,7 @@ header('Content-Type: application/json');
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $body = json_decode((string) file_get_contents('php://input'), true) ?: array();
 if ($path === '/login') {
+    if (($body['pass'] ?? '') === 'throttled') { http_response_code(429); echo json_encode(array('message' => 'Too many login attempts.')); return; }
     echo json_encode(($body['pass'] ?? '') === 'right' ? array('token' => 'token-of-admin') : array('message' => 'no'));
 } elseif ($path === '/public') {
     echo json_encode(array('ok' => true));

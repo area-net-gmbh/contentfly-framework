@@ -72,3 +72,25 @@ statt. Hier wird der Weg geprüft, nicht das Projekt umgestellt.
 oder einen Ausschnitt nehmen. `0002` hält fest, was die App heute bekommt, und ist der Massstab
 für `0004`. `0003` und `0004` sind die beiden Hälften des Leitfadens, getrennt am ersten Start.
 `0005` sorgt dafür, dass das nächste Projekt nicht dasselbe lernen muss.
+
+## Framework-Befunde aus dieser Story
+
+Jeder Befund, der nicht das Projekt, sondern das Framework betrifft, ist ein eigener Task
+(Stand 2026-09-15):
+
+| Task | Befund | Status |
+|---|---|---|
+| `000-000-0038` | Upload führt PHP aus | done |
+| `000-000-0039` | CORS spiegelt jede Herkunft | done |
+| `000-000-0040` | eigene Config-Schlüssel zerstören die Antwort | done |
+| `000-000-0041` | Dateiablage aus 1.x nach der Migration unerreichbar | **offen** |
+| `000-000-0042` | kein Upload-Grössenlimit | **offen** |
+| `000-000-0043` | Tabellenname `pim_navItem` | **offen** |
+| `000-000-0044` | Roh-SQL liefert Zahlen statt Strings | done |
+| `000-000-0045` | kein Haken nach dem Login | done |
+| `000-000-0046` | Spalte ohne Typ zerstört die Debug-Antwort | done |
+| `000-000-0047` | Proxies bei jedem Request | done |
+| `000-000-0048` | deutscher Variablenname in `bin/console.php` | **offen** |
+
+Die offenen hängen nicht an dieser Story: Der Leitfaden nennt `0041` und `0043` in Phase 4 als Stellen,
+an denen ein Projekt heute anhalten muss.

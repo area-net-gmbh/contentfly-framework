@@ -113,6 +113,7 @@ function record(array $scenario, array $vars, string $outDir): array
     $volatile    = array_map('strtolower', (array) ($scenario['volatile'] ?? array()));
     $sessions    = substitute((array) ($scenario['sessions'] ?? array()), $vars);
     $tokens      = array();
+    $failures    = array();
     $summary     = array();
 
     foreach ((array) ($scenario['requests'] ?? array()) as $request) {
@@ -122,11 +123,14 @@ function record(array $scenario, array $vars, string $outDir): array
 
         if ($session !== null) {
             if (!array_key_exists($session, $tokens)) {
-                $tokens[$session] = sessionToken((array) ($sessions[$session] ?? array()), $baseUrl);
+                $failure            = null;
+                $tokens[$session]   = sessionToken((array) ($sessions[$session] ?? array()), $baseUrl, $failure);
+                $failures[$session] = $failure;
             }
 
             if ($tokens[$session] === null) {
-                $summary[$name] = 'skipped: no token for session ' . $session;
+                $summary[$name] = 'skipped: no token for session ' . $session
+                    . ($failures[$session] !== null ? ' — ' . $failures[$session] : '');
                 continue;
             }
 
@@ -174,14 +178,25 @@ function record(array $scenario, array $vars, string $outDir): array
     return $summary;
 }
 
-/** Logs in for a session, or takes a token given directly. Null when no token could be obtained. */
-function sessionToken(array $session, string $baseUrl): ?string
+/**
+ * Logs in for a session, or takes a token given directly. Null when no token could be obtained; then
+ * `$failure` says why.
+ *
+ * A 429 is named as what it is. Contentfly 2 throttles failed logins per address (013-001-0003), and a
+ * recording run right after other scripts that failed logins from the same machine silently lost every
+ * session — the summary only said "no token" (007-005-0004).
+ */
+function sessionToken(array $session, string $baseUrl, ?string &$failure = null): ?string
 {
+    $failure = null;
+
     if (isset($session['token']) && is_string($session['token']) && $session['token'] !== '') {
         return $session['token'];
     }
 
     if (!isset($session['login'])) {
+        $failure = 'the session has neither a token nor a login';
+
         return null;
     }
 
@@ -194,7 +209,15 @@ function sessionToken(array $session, string $baseUrl): ?string
         $value = is_array($value) && array_key_exists($key, $value) ? $value[$key] : null;
     }
 
-    return is_string($value) && $value !== '' ? $value : null;
+    if (is_string($value) && $value !== '') {
+        return $value;
+    }
+
+    $failure = $response['status'] === 429
+        ? 'login throttled (429): too many failed logins from this address, wait for the window to pass'
+        : sprintf('login answered %d without a token at "%s"', $response['status'], $session['tokenPath'] ?? 'token');
+
+    return null;
 }
 
 /** @return array{status:int,contentType:string,body:string} */
