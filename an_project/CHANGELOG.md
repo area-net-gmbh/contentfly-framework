@@ -52,6 +52,11 @@
 - 007-005-0004 task created: "Phasen 6 bis 9 am Projekt durchspielen"
 - 007-005-0005 task created: "Rückfluss in Leitfaden, Werkzeuge und Framework"
 - 007-005-0001…0005 refined: **Geschnitten am ersten Start der Anwendung und am Massstab.** `0001` erhebt per Werkzeug, was das Projekt vom Framework benutzt, und ordnet die 76 abweichenden Dateien der mitgebrachten Framework-Kopie ein (Projekt-Patch oder Versionsstand); `0002` zeichnet das Ist-Verhalten aus Sicht der App auf; `0003` bis zum ersten Start, `0004` Code, Anmeldung, API-Vergleich, Daten; `0005` Rückfluss und die Entscheidung zu den sieben Codepfaden. Offene Frage in `0002`: ob der OAuth-Fluss lokal durchspielbar ist.
+- 000-000-0044 task created: "Roh-SQL liefert unter PHP 8.1+ Zahlen statt Strings"
+- 000-000-0044 refined: **Framework-Befund F-6 aus `007-005-0004`, gemessen am UFP-Probe-Backend.** `pdo_mysql` liefert ab PHP 8.1 Zahlen als `int` — dieselbe Zeile `"0"` auf 7.4, `0` auf 8.3, `"0"` mit `ATTR_STRINGIFY_FETCHES`; das UFP-Frontend vergleicht an rund 50 Stellen strikt mit `'1'`/`'0'`. Entschieden: Das Framework stellt Strings wieder her.
+- 000-000-0044 → in-progress
+- 000-000-0044 → review: **Zahlen aus Roh-SQL kommen wieder als String, wie unter Contentfly 1.x.** `Classes\Database\ConnectionDefaults` setzt `PDO::ATTR_STRINGIFY_FETCHES` für `$app['db']`, `$app['database']` und die Install-Verbindung. Neuer `RawSqlTypesTest` (beide Verbindungen, direkt und prepared; Hydrierung bleibt `bool`/`int`), gegen den Stand ohne Attribut rot. `TreeApiTest` hielt für `/api/tree2` das PHP-8-Verhalten `1` fest, jetzt `'1'` mit Begründung. Register-Eintrag unter Doctrine, Kopf von `migration.md` auf 107. Am UFP-Probe-Backend `cms-all-frontend`/`cms-view` wieder identisch mit dem alten Backend. Suite 565 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
+- 000-000-0044 → done (merged into master)
 
 ## 2026-09-09
 - 013-000-0000 → in-progress
