@@ -1,7 +1,7 @@
 ---
 id: 000-000-0038
 title: Upload — eine hochgeladene PHP-Datei wird ausgeführt
-status: review
+status: done
 depends_on: []
 ---
 
