@@ -10,6 +10,9 @@
 - 000-000-0024 → review: **Ein Fehler vor dem Kernel antwortet mit JSON statt mit 0 Byte.** `Kernel\Start::web()` fängt jede Ausnahme aus `prepare()` und Bootstrap, schreibt sie weiter ins Log und antwortet mit `message`/`type`/`status`, bei `APP_DEBUG` mit `debug` (Datei, Zeile, Trace). Ohne Debug werden Projekt- und Paketverzeichnis in der Antwort durch Platzhalter ersetzt; `APP_DEBUG` kommt aus der Umgebung, wenn die Konfiguration nie geladen wurde (`Config\Factory::hasConfig()`). Unter `cli` wird weitergeworfen, die Konsole ist unberührt. Neuer `StartupFailureResponseTest` mit eigenem eingebautem Server prüft Status **und** Rumpf in drei Fällen; mit `Start.php` von master alle drei rot. Volle Suite 531 grün, PHPStan ohne Fehler, Deprecation-Gate 0. Bruchstelle in `breaking-changes.md`.
 - 000-000-0024 nachgezogen: Der Eintrag in `breaking-changes.md` machte `MigrationGuideTest` rot (101 Einträge, der Kopf von `migration.md` sagte 100), weil die volle Suite vor dem Doku-Eintrag gelaufen war. Zahl nachgezogen, Suite 531 grün.
 - 000-000-0024 → done (merged into master)
+- 000-000-0031 → in-progress
+- 000-000-0031 → review: **`setMetadataFor()` war wirkungslos, der Deckel auf `doctrine/persistence` ist gefallen.** Gemessen an drei frischen Installationen (master · ohne Aufruf auf 3.4.5 · ohne Aufruf auf 4.2.0): jedes Mal dieselben 15 Tabellen mit `modified_index`, Schema-Dump byte-gleich. Die Zeile ist gelöscht, eine eigene `ClassMetadataFactory` war nicht nötig. Manifest `^3.4 || ^4`, Lock 4.2.0; `LoadMetadataTest` sichert ab, dass der Aufruf nicht zurückkommt (gegen master rot). Gates: Deprecation 0, PHPStan ohne Fehler, Audit 0 (im `composer:2`-Image, lokales Composer zu alt). Volle Suite 528 grün, nachdem der Kopf von `migration.md` auf 101 Einträge gezogen ist. Bruchstelle in `breaking-changes.md`.
+- 000-000-0031 → done (merged into master)
 
 ## 2026-09-09
 - 013-000-0000 → in-progress
