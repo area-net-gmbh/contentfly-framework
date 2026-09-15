@@ -863,6 +863,29 @@ Silex' `ControllerCollection` gibt es nicht. Ersatz ist
 *Was zu tun ist:* `new RouteCollector()` statt `$app['controllers_factory']`. Wer mehr als die
 drei Methoden braucht, baut die `RouteCollection` selbst; `mount()` nimmt beides.
 
+### `$app['twig']` gibt es nicht mehr
+**Seit `012-002-0003` (2026-09-04).**
+
+Twig war die Template-Engine der PIM-Oberfläche und ist mit ihr gegangen — mit `twig/twig` aus dem
+Manifest und der Registrierung aus dem Bootstrap. Ein Projekt, das Twig **selbst** benutzt, merkt es
+erst am ersten Aufruf: Beim Bestandsprojekt UFP (`007-005-0004`) rendern fünf Mail-Vorlagen über
+`$app['twig']`, und der Container antwortet `The container does not know "twig"`.
+
+*Was zu tun ist:* Twig als eigene Abhängigkeit aufnehmen und in `custom/app.php` registrieren — mit dem
+Pfad, den das Framework früher setzte:
+
+```php
+// composer require twig/twig:^3
+$app['twig'] = function ($app) {
+    return new \Twig\Environment(
+        new \Twig\Loader\FilesystemLoader(__DIR__ . '/Views/'),
+        array('strict_variables' => false)
+    );
+};
+```
+
+Die Vorlagen von UFP rendern unter Twig 3 bis auf ein Leerzeichen gleich wie unter Twig 2.
+
 ### Ein eigener Controller-Provider: andere Schnittstelle, Rückgabetyp, und `connect()` wird gerufen
 **Seit `009-001-0003` und `009-002-0003` (2026-09-09).**
 
@@ -903,13 +926,16 @@ Ausserdem sind die **Ausnahmetypen** andere: Ein unbekannter Schlüssel ergibt
 *Was zu tun ist:* Auf die fünf Methoden verzichten; `catch (FrozenServiceException)` auf
 `\RuntimeException` umstellen.
 
-### `$app->redirect()` und `$app->stream()` sind entfallen
-**Seit `009-001-0004` (2026-09-09).**
+### `$app->stream()` ist entfallen — `$app->redirect()` und `$app->json()` sind geblieben
+**Seit `009-001-0004` (2026-09-09), berichtigt mit `007-005-0005`.**
 
-Silex' Rümpfe lauteten wörtlich `return new RedirectResponse(...)` beziehungsweise
-`return new StreamedResponse(...)`.
+Silex' Rumpf lautete wörtlich `return new StreamedResponse(...)`. **Dieser Eintrag nannte bis
+`007-005-0005` auch `redirect()` entfallen** — die Methode ist aber mit `009-002-0002` in die eigene
+`Application` zurückgekommen, zusammen mit `json()`. Das Bestandsprojekt UFP ruft `$app->redirect()`
+13-mal auf, und es läuft.
 
-*Was zu tun ist:* Genau diese beiden Klassen direkt zurückgeben.
+*Was zu tun ist:* Statt `$app->stream()` eine `StreamedResponse` direkt zurückgeben. `redirect()` und
+`json()` bleiben, wie sie sind.
 
 ### `Classes\Event` erbt von den Event-Contracts
 **Seit `009-002-0004` (2026-09-09).**
@@ -1221,6 +1247,13 @@ Klartext zu lesen — und ein Backup von gestern enthält sie ohnehin.
 leere Tabelle sagt deutlicher, was passiert ist, als eine voller Einträge, die niemanden mehr
 einlassen. Referrer-Tokens danach über `POST /system/do` mit `addToken` neu anlegen — mit
 **neuen** Werten, denn die alten standen im Klartext in Datenbank und Protokoll.
+
+**Projektcode, der Tokens selbst nachschlägt, bricht mit.** Wer `pim_token.token` liest oder mit
+`findOneBy(array('token' => $token))` sucht, findet einen Hash statt des Tokens — oder nichts. Beim
+Bestandsprojekt UFP (`007-005-0004`) leitete der OAuth-Controller nach dem Login mit dem gespeicherten
+Wert weiter; die App hätte einen Hash als Token vorgezeigt und `401` bekommen. Das Token im Klartext
+steht nur einmal zur Verfügung: im Feld `token` der Login-Antwort. Nachschlagen geht über
+`Areanet\PIM\Entity\Token::hash($token)`.
 
 ### `listTokens` liefert den Hash, nicht den Token
 **Seit `013-001-0004` (2026-09-10).**
@@ -1621,7 +1654,23 @@ Die 34 ist kein Zufall: 32 Zeichen MD5 plus der Bindestrich. **Vorher eine Siche
 und danach nachsehen, dass jeder Benutzer sich noch anmelden kann — wer den Schritt auslässt,
 bekommt beim nächsten Login schlicht ein zweites Konto, was ärgerlich, aber nicht gefährlich ist.
 
-Wie ein Projekt diesen Schritt gebündelt bekommt, entscheidet Epic `007`.
+**Am Bestandsprojekt erprobt (`007-005-0004`), mit drei Ergänzungen:**
+
+- **Lokale Passwortkonten, die ein Manager markiert hat, haben kein MD5-Präfix.** Ein Manager, der das
+  Passwort gegen `pim_user` prüfte und dabei `loginManager` setzte, sperrt diese Konten für den
+  Passwort-Weg. Das SQL oben schneidet ihnen 33 Zeichen ab. Für sie gilt entweder `loginManager = NULL`
+  (und der Client schickt keinen `loginManager` mehr) oder ein Provider, der das Passwort selbst prüft —
+  dann `externalId = alias`, Alias und Passwort bleiben, und der Rehash auf Argon2id entfällt auf diesem Weg.
+- **Wer den Provider unter dem bisherigen Kurznamen registriert** (`StandardLoginManager`, ohne
+  Namensraum), braucht Schritt 7 nicht: Die Registry vergleicht ohne Gross- und Kleinschreibung, und
+  Bestandsclients schickten den Namen ohnehin so.
+- **Ein Provider darf zum Prüfen Projektdaten lesen** — eine Umfrage, einen Share-Link, ein
+  Passwort. Schreiben tut er nicht; das gehört in den Listener auf `pim.auth.after.login`.
+  `SECURITY_PROVIDER_GROUPS` ordnet Gruppen über ihren **Namen** zu; wer Gruppen im Projekt über eine
+  Rolle findet, setzt die Gruppe im Listener.
+
+Die Umstellung von UFP steht als Beispiel in dessen Projekt-Branch `migration/contentfly-2`
+(`migration/contentfly-2/migration_login_providers.sql`, `custom/Classes/*LoginManager.php`).
 
 ## Authentifizierung, Teil 5 — LDAP und OIDC (Story `013-005`)
 
@@ -1760,6 +1809,18 @@ Im Framework traf das `Entity\Log` (die Felder `id`, `users`, `created`, `userCr
 die Abweichung stehen — `BaseI18n` behält so seinen `#[ORM\Id]` mit
 `#[ORM\GeneratedValue('NONE')]`, ohne die Spalte noch einmal zu beschreiben.
 
+**Achtung bei geerbten Beziehungen, die absichtlich anders deklariert sind.** Beim Bestandsprojekt UFP
+(`007-005-0003`) wiederholten 16 Entities `userCreated` mit `onDelete: 'CASCADE'`. Die Deklaration zu
+streichen hätte das Löschverhalten **still** auf das geerbte zurückgesetzt. Der Weg ist
+`#[ORM\AssociationOverrides]` an der Klasse:
+
+```php
+#[ORM\AssociationOverrides([
+    new ORM\AssociationOverride(name: 'userCreated',
+        joinColumns: [new ORM\JoinColumn(name: 'usercreated_id', onDelete: 'CASCADE')]),
+])]
+```
+
 ### `pim_log.created` bekommt einen Vorgabewert
 **Seit `010-003-0002` (2026-09-10).**
 
@@ -1815,8 +1876,19 @@ Was ein Projekt trifft, das die Verbindung direkt benutzt: `fetchAll()` ist entf
 `Connection::exec()`, `QueryBuilder::execute()` und `executeQuery()->rowCount()` gibt es
 weiterhin, nur deprecated.
 
-*Was zu tun ist:* Eigene DBAL-Aufrufe gegen die Upgrade-Notizen von DBAL 3 lesen. Die
-Deprecations fallen im Gate auf, bevor sie in DBAL 4 zu Fehlern werden.
+**Das häufigste Muster eines Projekts ist genau das entfernte.** `prepare()`, `bindValue()`,
+`execute()`, dann `fetchAll()` oder `fetch()` **auf dem Statement** — beim Bestandsprojekt UFP
+(`007-005-0004`) 362 Stellen in 39 Dateien, der grösste Block der Codemigration. In DBAL 3 gibt
+`execute()` ein `Result` zurück, und nur das holt Zeilen. Rectors DBAL-Satz hilft hier nicht: Er benennt
+`Statement::fetchAll()` in `fetchAllAssociative()` um, das ein Statement auch in DBAL 3 nicht hat.
+
+*Was zu tun ist:* Das Muster mit `tools/migration/dbal3-statements.php` umbauen — erst ohne,
+dann mit `--write`. Das Werkzeug macht aus `execute()` + Fetch ein `executeQuery()` mit
+`fetchAllAssociative()`/`fetchAssociative()` auf dem Result (DBAL 2 holte assoziativ, die Zeilen behalten
+ihre Form), aus einem `execute()` ohne Fetch ein `executeStatement()`, und lässt stehen und meldet, was
+es nicht eindeutig entscheiden kann. Am UFP-Code erzeugt es genau den geprüften Stand. Übrige eigene
+DBAL-Aufrufe gegen die Upgrade-Notizen von DBAL 3 lesen; die Deprecations fallen im Gate auf, bevor sie in
+DBAL 4 zu Fehlern werden.
 
 ### Zahlen aus Roh-SQL bleiben Strings — auch unter PHP 8.1+
 **Seit `000-000-0044` (2026-09-15).**

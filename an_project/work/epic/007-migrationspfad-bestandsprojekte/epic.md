@@ -97,6 +97,26 @@ Erfolgskriterium „am echten Fall verifiziert".
 Für `canExport` und `getExtended` läuft die Entscheidung separat über `000-000-0012`; sie hängen
 nicht an einem Bestandsprojekt, weil ihr Konsument nachweislich gelöscht ist.
 
+**Entschieden mit `007-005-0005` (2026-09-15)**, am Bestandsprojekt UFP. Beleg: das Inventar-Werkzeug
+über den alten Stand (`007-005-0001`) und erneut über den migrierten Stand (`007-005-0005`) — beide Male
+„not used“ für alle sieben Muster.
+
+| Funktion | vom Projekt benutzt? | Entscheidung |
+|---|---|---|
+| `@PIM\Config(i18n_universal)` | nein | **Kandidat zum Entfernen** |
+| `I18nPermission` samt `Group::lang*` | nein | **Kandidat zum Entfernen** — gemeinsam mit `i18n_universal`, beide hängen an `BaseI18n` |
+| `@PIM\Config(encoded)` | nein | **Kandidat zum Entfernen** — mit dem Vorbehalt, dass `010-004` es neu gebaut hat; das Entfernen verwirft diese Arbeit und gehört deshalb in einen eigenen Entscheid |
+| OneJoin-Kaskade beim Löschen | nein | **Kandidat zum Entfernen** |
+| Schreibprüfung in `MultijoinType` (`acceptFrom`) | nein | **Kandidat zum Entfernen** |
+| `canExport` | nein | **entfernt** mit `000-000-0012` |
+| `getExtended` | nein | **entfernt** mit `000-000-0012` |
+
+**Ein Projekt ist ein Datenpunkt, keine Statistik.** „Kandidat“ heisst deshalb: Der Leitfaden nennt diese
+Pfade nicht als Migrationsschritt, die Vorbedingungs-Tests aus Epic `008` bleiben und schlagen an, sobald
+ein Projekt einen davon benutzt — und entfernt wird erst mit einem eigenen Ticket, das mindestens ein
+weiteres Bestandsprojekt prüft oder das Entfernen als bewusst in Kauf genommenen Bruch ins Register
+schreibt.
+
 ## Abgrenzung
 Die Migration eines konkreten Kundenprojekts findet in dessen eigenem Repo statt, nicht hier.
 Dieses Epic liefert Weg, Werkzeuge und Doku.
@@ -107,7 +127,7 @@ Dieses Epic liefert Weg, Werkzeuge und Doku.
 - [x] 007-002-0000 — Die Rector-Regel für das Entity-Verzeichnis
 - [x] 007-003-0000 — Die $app[...]-Bridge festlegen
 - [x] 007-004-0000 — Der Migrationsleitfaden
-- [ ] 007-005-0000 — Am echten Bestandsprojekt durchspielen (**blocked**)
+- [x] 007-005-0000 — Am echten Bestandsprojekt durchspielen
 
 `007-001` bis `007-003` hängen nicht voneinander ab und können in beliebiger Reihenfolge laufen.
 `007-004` beschreibt, was sie entschieden haben, und kommt danach. `007-005` ist die Probe auf
