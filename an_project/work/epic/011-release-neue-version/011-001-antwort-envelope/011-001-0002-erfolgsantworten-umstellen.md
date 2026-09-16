@@ -1,7 +1,7 @@
 ---
 id: 011-001-0002
 title: Erfolgsantworten auf data/errors/meta umstellen
-status: review
+status: done
 depends_on: [011-001-0001]
 ---
 

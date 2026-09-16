@@ -1,7 +1,7 @@
 ---
 id: 011-001-0001
 title: Bestandsaufnahme der Antwortformen und Geltungsbereich des Envelopes
-status: review
+status: done
 depends_on: []
 ---
 

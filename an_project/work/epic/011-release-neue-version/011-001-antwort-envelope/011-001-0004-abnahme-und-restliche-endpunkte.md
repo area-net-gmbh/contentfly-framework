@@ -1,7 +1,7 @@
 ---
 id: 011-001-0004
 title: Restliche Endpunkte und Abnahme des Envelopes
-status: review
+status: done
 depends_on: [011-001-0003]
 ---
 
