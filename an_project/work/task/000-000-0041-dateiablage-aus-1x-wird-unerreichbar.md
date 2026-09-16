@@ -1,7 +1,7 @@
 ---
 id: 000-000-0041
 title: Dateiablage — Dateien aus Contentfly 1.x sind nach der Migration unerreichbar
-status: review
+status: done
 depends_on: []
 ---
 

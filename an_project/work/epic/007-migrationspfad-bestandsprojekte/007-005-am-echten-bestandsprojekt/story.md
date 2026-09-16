@@ -83,7 +83,7 @@ Jeder Befund, der nicht das Projekt, sondern das Framework betrifft, ist ein eig
 | `000-000-0038` | Upload führt PHP aus | done |
 | `000-000-0039` | CORS spiegelt jede Herkunft | done |
 | `000-000-0040` | eigene Config-Schlüssel zerstören die Antwort | done |
-| `000-000-0041` | Dateiablage aus 1.x nach der Migration unerreichbar | **offen** |
+| `000-000-0041` | Dateiablage aus 1.x nach der Migration unerreichbar | done |
 | `000-000-0042` | kein Upload-Grössenlimit | done |
 | `000-000-0043` | Tabellenname `pim_navItem` | done |
 | `000-000-0044` | Roh-SQL liefert Zahlen statt Strings | done |
@@ -92,5 +92,5 @@ Jeder Befund, der nicht das Projekt, sondern das Framework betrifft, ist ein eig
 | `000-000-0047` | Proxies bei jedem Request | done |
 | `000-000-0048` | deutscher Variablenname in `bin/console.php` | done |
 
-Die offenen hängen nicht an dieser Story: Der Leitfaden nennt `0041` und `0043` in Phase 4 als Stellen,
-an denen ein Projekt heute anhalten muss.
+Alle erledigt (Stand 2026-09-16). Aus der Messung zu `0041` kam ein weiterer Befund hinzu:
+`000-000-0049` — alte ORM-2-Proxies unter `data/cache/doctrine` werden seit `0047` geladen statt ersetzt.

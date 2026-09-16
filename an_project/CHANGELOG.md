@@ -96,6 +96,7 @@
 - 000-000-0042 → done (merged into master)
 - 000-000-0041 → in-progress
 - 000-000-0041 → review: **`appcms:files:relocate` zieht Dateien aus dem 1.6-Layout `data/files/JJJJ/MM/<id>/` nach `data/files/<id>/` — vor dem Schema-Update.** Liest die Datenbank nur, verschiebt Ordner samt Thumbnails, räumt geleerte Datumsordner weg, meldet fehlende Ordner, Konflikte und fremde Pfade; `--dry-run`; ohne Spalte nichts zu tun. `RelocateFilesCommandTest` (3 Fälle). Gemessen an UFP: 27 verschoben, 14 fehlten schon, zweiter Lauf 27 am Platz, Bestandsdatei byte-gleich ausgeliefert. Register unter Entity-Layer, Phase 4 nennt den Schritt, `migration.md` auf 114. Nebenbefunde: alte ORM-2-Proxies unter `data/cache/doctrine` werden seit `000-000-0047` geladen statt ersetzt (`500`); UFP-`data/.htaccess` mit `php_admin_flag` gibt für jede Datei `500`, alt wie neu. Suite 604 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
+- 000-000-0041 → done (merged into master)
 
 ## 2026-09-09
 - 013-000-0000 → in-progress
