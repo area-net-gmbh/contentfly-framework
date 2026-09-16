@@ -86,7 +86,8 @@ class QueryApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/api/query', array('select' => 'id', 'from' => 'PIM\\Tag'), $token);
 
         $this->assertNotSame(200, $status, 'Without apiQueryEnabled the endpoint is locked');
-        $this->assertArrayNotHasKey('data', $body, 'No data flows');
+        // 011-001-0003: `data` is present and null instead of missing — the stronger statement.
+        $this->assertErrorEnvelope($body);
     }
 
     public function testQueryWithoutSelectIsRejected(): void
@@ -108,7 +109,7 @@ class QueryApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/api/query', array('select' => 'id', 'from' => 'PIM\\Tag'));
 
         $this->assertSame(401, $status, 'Since the stack switch (006-002-0003) the intended code — Symfony 4.4 fixes 000-000-0006 here');
-        $this->assertArrayNotHasKey('data', $body);
+        $this->assertErrorEnvelope($body); // 011-001-0003: `data` is present and null
     }
 
     // ── /api/translations ──────────────────────────────────────────────────────────────
@@ -132,7 +133,7 @@ class QueryApiTest extends IntegrationTestCase
 
         $this->assertSame(401, $status,
             'Since 006-002-0003 the intended code — Symfony 4.4 fixes 000-000-0006 here');
-        $this->assertArrayNotHasKey('data', $body);
+        $this->assertErrorEnvelope($body); // 011-001-0003: `data` is present and null
     }
 
     public function testAppLanguagesIsEmptyInTheTemplate(): void

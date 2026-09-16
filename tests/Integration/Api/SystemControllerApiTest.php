@@ -181,7 +181,9 @@ class SystemControllerApiTest extends IntegrationTestCase
         [$status, $body] = $this->systemDo('noSuchMethod');
 
         $this->assertSame(500, $status);
-        $this->assertSame('Method noSuchMethod is not available.', $body['message'] ?? null,
+        // 011-001-0003: a bare \Exception has no Messages key, so `code` is null and the text
+        // stands in `detail` — the field meant for a human.
+        $this->assertSame('Method noSuchMethod is not available.', $this->assertErrorEnvelope($body, null)['detail'],
             'The exception message now reaches the client as JSON');
     }
 
@@ -219,7 +221,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         // The difference to before is in the message: it now comes from doAction, not from
         // a type check deep in the base class.
         [, $body] = $this->postJson('/system/do', array('method' => 'setEM'), $this->token());
-        $this->assertSame('Method setEM is not available.', $body['message'] ?? null);
+        $this->assertSame('Method setEM is not available.', $this->assertErrorEnvelope($body)['detail']); // 011-001-0003
     }
 
     /**
@@ -243,8 +245,8 @@ class SystemControllerApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/system/do', array('method' => 'doAction'), $this->token());
 
         $this->assertSame(500, $status);
-        $this->assertSame('Method doAction is not available.', $body['message'] ?? null,
-            'Rejected instead of calling itself');
+        $this->assertSame('Method doAction is not available.', $this->assertErrorEnvelope($body)['detail'],
+            'Rejected instead of calling itself'); // 011-001-0003
     }
 
     // ── C: The token management ────────────────────────────────────────────────────────
@@ -386,7 +388,8 @@ class SystemControllerApiTest extends IntegrationTestCase
             ));
 
             $this->assertSame(400, $status, "Rejected as a client error ($why)");
-            $this->assertStringContainsString('too weak', $body['message'] ?? '', "The response says why ($why)");
+            $this->assertStringContainsString('too weak', $this->assertErrorEnvelope($body)['detail'], // 011-001-0003
+                "The response says why ($why)");
         }
 
         $this->assertSame($before, $this->pdo()->query('SELECT COUNT(*) FROM pim_token')->fetchColumn(),
@@ -556,7 +559,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         );
 
         $this->assertSame(500, $status);
-        $this->assertSame('Invalid token', $body['message'] ?? null);
+        $this->assertSame('Invalid token', $this->assertErrorEnvelope($body)['detail']); // 011-001-0003
     }
 
     public function testLoginTokenOfTestRunSurvivesTokenMethods(): void

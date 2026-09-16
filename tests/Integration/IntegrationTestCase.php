@@ -339,6 +339,40 @@ abstract class IntegrationTestCase extends TestCase
     }
 
     /**
+     * Checks the envelope of an ERROR and returns its first entry (`011-001-0003`).
+     *
+     * The counterpart to assertEnvelope(). It replaces two assertions that stood all over the
+     * suite: `assertArrayNotHasKey('data', $body)` — "no data flows" — and the reading of
+     * `$body['message']`. The first one no longer holds and did not mean what it said: `data` is
+     * ALWAYS there now, and on an error it is `null`. That is the stronger statement, because an
+     * absent key and a key holding a payload are only distinguishable if you know that the key
+     * could be absent at all.
+     *
+     * @param array<string,mixed> $body the decoded response
+     * @param string|null $code the expected `code` — null when the test does not care
+     * @return array<string,mixed> the first entry of `errors`
+     */
+    protected function assertErrorEnvelope(array $body, ?string $code = null): array
+    {
+        $this->assertSame(array('data', 'errors', 'meta'), array_keys($body),
+            'An error carries the same three keys as a success');
+        $this->assertNull($body['data'], 'On an error no data flows — the key is there and empty');
+        $this->assertIsArray($body['errors']);
+        $this->assertNotEmpty($body['errors'], 'An error names at least one fault');
+
+        $entry = $body['errors'][0];
+
+        $this->assertSame(array('code', 'detail', 'type', 'context'), array_keys($entry),
+            'Four fixed keys — which of them are filled no longer depends on the exception class');
+
+        if ($code !== null) {
+            $this->assertSame($code, $entry['code']);
+        }
+
+        return $entry;
+    }
+
+    /**
      * Registers a row for cleanup. tearDown() removes it even if the test fails — otherwise a red
      * test taints the following ones.
      */

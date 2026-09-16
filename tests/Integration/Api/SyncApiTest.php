@@ -64,7 +64,8 @@ class SyncApiTest extends IntegrationTestCase
 
         $this->assertSame(401, $status,
             'Since 006-002-0003 the intended code — Symfony 4.4 fixes 000-000-0006 here');
-        $this->assertArrayNotHasKey('data', $body, 'Without a token no data flows');
+        // 011-001-0003: `data` is present and null instead of missing — the stronger statement.
+        $this->assertErrorEnvelope($body);
     }
 
     // ── /api/deleted ───────────────────────────────────────────────────────────────────
@@ -176,7 +177,7 @@ class SyncApiTest extends IntegrationTestCase
 
         $this->assertSame(401, $status,
             'Since 006-002-0003 the intended code — Symfony 4.4 fixes 000-000-0006 here');
-        $this->assertArrayNotHasKey('data', $body);
+        $this->assertErrorEnvelope($body); // 011-001-0003: `data` is present and null
     }
 
     // ── /api/count ─────────────────────────────────────────────────────────────────────
@@ -212,7 +213,7 @@ class SyncApiTest extends IntegrationTestCase
 
         $this->assertSame(401, $status,
             'Since 006-002-0003 the intended code — Symfony 4.4 fixes 000-000-0006 here');
-        $this->assertArrayNotHasKey('data', $body);
+        $this->assertErrorEnvelope($body); // 011-001-0003: `data` is present and null
     }
 
     // ── excludeFromSync ────────────────────────────────────────────────────────────────

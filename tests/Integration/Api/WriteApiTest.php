@@ -207,7 +207,7 @@ class WriteApiTest extends IntegrationTestCase
         // `headers` artefact with 200, now a 404. Until then the test recorded that single
         // returns the empty headers artefact after a delete.
         $this->assertSame(404, $status);
-        $this->assertArrayNotHasKey('data', $single);
+        $this->assertErrorEnvelope($single); // 011-001-0003: `data` is present and null
     }
 
     public function testDeleteWithUnknownIdIsRejected(): void

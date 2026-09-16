@@ -63,6 +63,8 @@ class LoginEventApiTest extends IntegrationTestCase
     {
         [$status, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => 'wrong'));
         $this->assertSame(401, $status);
+        // NOT the envelope, and that is the current state: a rejected login is answered by
+        // AuthController itself, not by the error handler — `/auth/*` moves with 011-001-0004.
         $this->assertArrayNotHasKey('data', $body, 'Wrong password: no listener output');
 
         $entry = $this->providerEntry();
@@ -74,7 +76,7 @@ class LoginEventApiTest extends IntegrationTestCase
         $this->removeProvisionedUser($entry['identifier']);
 
         $this->assertSame(401, $status);
-        $this->assertArrayNotHasKey('data', $body, 'Provider rejected: no listener output');
+        $this->assertArrayNotHasKey('data', $body, 'Provider rejected: no listener output'); // see above
     }
 
     /** @return array{identifier: string, secret: string, groups: list<string>} */

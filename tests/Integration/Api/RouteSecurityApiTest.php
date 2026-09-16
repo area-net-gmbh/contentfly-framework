@@ -24,7 +24,8 @@ class RouteSecurityApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'));
 
         $this->assertSame(401, $status, 'Since the stack switch (006-002-0003) the intended code — Symfony 4.4 fixes 000-000-0006 here');
-        $this->assertArrayNotHasKey('data', $body, 'What matters: no data flows');
+        // 011-001-0003: `data` is present and null instead of missing — the stronger statement.
+        $this->assertErrorEnvelope($body);
     }
 
     /**
@@ -75,7 +76,8 @@ class RouteSecurityApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\DoesNotExist'), $this->token());
 
         $this->assertSame(404, $status);
-        $this->assertSame('contentfly_general_unknown_entity', $body['message']);
+        // 011-001-0003: the message key is now `errors[0].code`.
+        $this->assertErrorEnvelope($body, 'contentfly_general_unknown_entity');
     }
 
     // ── isSecure = false ───────────────────────────────────────────────────────────────

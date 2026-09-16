@@ -4,7 +4,7 @@
 
 **Dieser Leitfaden ist der Weg. `an_project/docs/breaking-changes.md` ist das Register.**
 
-Das Register hat **115 Einträge in 14 Abschnitten** (Stand 2026-09-16) und ist nach Epic und
+Das Register hat **116 Einträge in 14 Abschnitten** (Stand 2026-09-16) und ist nach Epic und
 Story geordnet — also danach, *wann wir etwas geändert haben*. Das ist die richtige Ordnung zum
 Nachschlagen und die falsche zum Arbeiten. Hier steht die andere: **was ein Projekt tut, und in
 welcher Reihenfolge.**
@@ -378,7 +378,8 @@ wird, was Produktion ausliefert.
 eine Aufzeichnung direkt danach bekommt `429`, und `record-api.php` meldet die Sitzung als gedrosselt.
 
 **Die Statuscodes, die sich geändert haben, zuerst:** 404 bei unbekannter Id, 405 statt 302 auf
-unbekannten Pfaden, 409 bei einer `unique`-Verletzung, 429 bei zu vielen Anmeldeversuchen.
+unbekannten Pfaden, 409 bei einer `unique`-Verletzung, 429 bei zu vielen Anmeldeversuchen. Sie
+stehen ab jetzt **nur noch** in der HTTP-Antwort — `status` ist aus dem Fehlerrumpf verschwunden.
 
 **Und die Formänderungen:** Der `frontend`-Block schrumpft, in `/api/config` fällt er ganz weg;
 `export` und `extended` verschwinden aus dem `permissions`-Block.
@@ -393,6 +394,13 @@ Zusatzschlüssel wandern nach `meta`. Umzubauen sind `insert`, `delete`, `update
 **Ein Client, der nichts davon tut, merkt das an `insert`.** Dort ist `body.id` weg; die Id steht
 im Objekt. Das ist die Stelle, an der ein nicht angepasster Client still das Falsche tut, statt
 einen Fehler zu bekommen — also die erste, die zu prüfen ist.
+
+**Die Fehlerantworten tragen dieselbe Hülle.** `data: null`, `errors` als Liste, `meta` wie beim
+Erfolg — ein Client wertet Erfolg und Fehler mit demselben Leser aus und schaut danach auf
+`errors`. Die Zuordnung Feld für Feld steht im Register-Eintrag *Jede Fehlerantwort hat dieselbe
+Form wie eine Erfolgsantwort*; die kürzeste Fassung:
+`message` → `errors[0].code` (verzweigen) bzw. `errors[0].detail` (anzeigen), `message_value` →
+`errors[0].context.value`, `debug` → `meta.debug`, `status` ersatzlos.
 
 **`/auth/*`, `/file/*` und `/system/do`** ziehen im selben Release nach.
 

@@ -113,7 +113,7 @@ class TreeApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/api/tree', array('entity' => 'PIM\\Folder'));
 
         $this->assertSame(401, $status, 'Since the stack switch (006-002-0003) the intended code — Symfony 4.4 fixes 000-000-0006 here');
-        $this->assertArrayNotHasKey('data', $body);
+        $this->assertErrorEnvelope($body); // 011-001-0003: `data` is present and null
     }
 
     // ── /api/tree2 ─────────────────────────────────────────────────────────────────────
@@ -181,6 +181,6 @@ class TreeApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/api/tree2', array('entity' => 'PIM\\Folder'));
 
         $this->assertSame(401, $status, 'Since the stack switch (006-002-0003) the intended code — Symfony 4.4 fixes 000-000-0006 here');
-        $this->assertArrayNotHasKey('data', $body);
+        $this->assertErrorEnvelope($body); // 011-001-0003: `data` is present and null
     }
 }

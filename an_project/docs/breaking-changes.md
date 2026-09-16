@@ -433,14 +433,19 @@ API; im Debug-Modus weiterhin die Ausnahme im Klartext. Zugleich kommt der Statu
 *Was zu tun ist:* Nichts, sofern der Client kein HTML erwartet. Ein Browser, der auf die
 Umleitung gebaut hat, findet unter `/` ohnehin nichts mehr.
 
-### Der Statuscode steht im Fehlerrumpf unter `status`
-**Seit `000-000-0006` (2026-09-09).**
+### Der Statuscode steht nicht mehr im Fehlerrumpf
+**Seit `011-001-0003` (2026-09-16).** Ersetzt die Zwischenstufe aus `000-000-0006`.
 
-Für alles, was weder `ContentflyException` noch `ContentflyI18NException` ist — also für jeden
-PHP-Fehler — stand der Code als **schlüsselloser** Eintrag im Rumpf und kam deshalb als `"0"`
-beim Client an. In den beiden anderen Zweigen hiess das Feld schon immer `status`.
+`000-000-0006` hat das Feld `status` in Ordnung gebracht: Für alles, was weder
+`ContentflyException` noch `ContentflyI18NException` war — also für jeden PHP-Fehler — stand der
+Code als **schlüsselloser** Eintrag im Rumpf und kam als `"0"` beim Client an.
 
-*Was zu tun ist:* `status` lesen statt `0`.
+Jetzt ist das Feld **ganz weg**. Der Statuscode steht in der HTTP-Antwort, dort gehört er hin,
+und ein Rumpf, der ihn wiederholt, lädt dazu ein, dass beide auseinanderlaufen — genau das war
+vor `000-000-0006` der Fall: Bei einer `ContentflyException` nannte der Rumpf `getCode()` und die
+Antwort etwas anderes.
+
+*Was zu tun ist:* Den Statuscode der HTTP-Antwort lesen statt `body.status`.
 
 ### Ein Fehler beim Start antwortet mit JSON statt mit leerem Rumpf
 **Seit `000-000-0024` (2026-09-15).**
@@ -449,14 +454,19 @@ Eine Ausnahme, die fällt, bevor der Kernel steht — ein unerfüllbarer `APP_CA
 fehlende `custom/config.php` —, erreichte keinen Fehlerhandler. Die Antwort war **HTTP 500 mit
 0 Byte**; die Meldung stand nur im Serverlog.
 
-Jetzt fängt `Kernel\Start::web()` sie ab und antwortet im Format der übrigen Fehlerantworten:
-`message`, `type`, `status`, bei `APP_DEBUG` zusätzlich `debug` mit Datei, Zeile und Trace. Ohne
-`APP_DEBUG` ersetzt die Antwort Projekt- und Paketverzeichnis durch `<project>` bzw. `<package>`.
-Die Meldung steht weiterhin im Serverlog, dort mit vollen Pfaden. Die Konsole ist unverändert:
-Dort endet ein Startfehler wie bisher mit der Ausnahme auf `stderr`.
+Jetzt fängt `Kernel\Start::web()` sie ab und antwortet im Format der übrigen Fehlerantworten —
+**seit `011-001-0003` im Envelope**, also `data: null`, `errors` und `meta`, bei `APP_DEBUG`
+zusätzlich `meta.debug` mit Datei, Zeile und Trace. Ohne `APP_DEBUG` ersetzt die Antwort Projekt-
+und Paketverzeichnis durch `<project>` bzw. `<package>`. Die Meldung steht weiterhin im Serverlog,
+dort mit vollen Pfaden. Die Konsole ist unverändert: Dort endet ein Startfehler wie bisher mit der
+Ausnahme auf `stderr`.
+
+**`meta.version` ist hier `null`, und das ist eine Aussage:** Diese Antwort entsteht, bevor
+`version.php` gelesen ist — zu diesem Zeitpunkt weiss niemand, welche Version nicht starten
+konnte.
 
 *Was zu tun ist:* Nichts. Wer die leere 500 als Zeichen für eine Fehlkonfiguration ausgewertet
-hat, liest jetzt `message`.
+hat, liest jetzt `errors[0].detail`.
 
 ### Die Dateiauslieferung leitet auf einen Pfad ab `WEB_ROOT` um
 **Seit `000-000-0006` (2026-09-09).**
@@ -656,9 +666,67 @@ Zusatzschlüssel aus `meta` zu lesen. Wirklich umzubauen sind `insert` (`body.id
 `body.data.id`), `delete`/`update` (`body.id` → `body.data.id`), `config` (`body.devmode` →
 `body.data.devmode`) und `schema` (`body.permissions` → `body.meta.permissions`).
 
-**`/auth/*`, `/file/upload`, `/file/overwrite` und `/system/do` folgen mit `011-001-0004`, die
-Fehlerform mit `011-001-0003`.** Bis dahin antworten sie in ihrer bisherigen Form. Die
-vollständige Zieltabelle über alle Endpunkte steht in `an_project/docs/api-envelope.md`.
+**`/auth/*`, `/file/upload`, `/file/overwrite` und `/system/do` folgen mit `011-001-0004`.** Bis
+dahin antworten sie in ihrer bisherigen Form. Die vollständige Zieltabelle über alle Endpunkte
+steht in `an_project/docs/api-envelope.md`.
+
+### Jede Fehlerantwort hat dieselbe Form wie eine Erfolgsantwort
+**Seit `011-001-0003` (2026-09-16).**
+
+Die Fehlerform war die achte neben den sieben Erfolgsformen — und sie war in sich nicht einheitlich:
+
+```json
+{"message":"contentfly_file_too_large","type":"…\\ContentflyException","message_value":1048576,"status":413}
+```
+
+**Welche Schlüssel ankamen, hing von der Ausnahmeklasse ab.** `message_value` gab es nur bei einer
+`ContentflyException`, `message_entity` und `message_lang` nur bei einer `ContentflyI18NException`,
+bei einem PHP-Fehler keines von beiden. Ein Client musste also die Ausnahmen des Frameworks kennen,
+um einen Fehler überhaupt lesen zu können.
+
+Jetzt:
+
+```json
+{"data": null,
+ "errors": [{"code": "contentfly_file_too_large",
+             "detail": "contentfly_file_too_large",
+             "type": "Areanet\\PIM\\Classes\\Exceptions\\ContentflyException",
+             "context": {"value": 1048576}}],
+ "meta": {"ts": "…", "version": "…", "projectVersion": "…", "hash": "…"}}
+```
+
+**Vier feste Schlüssel je Eintrag, immer vorhanden:**
+
+| Feld | Bedeutung | vorher |
+|---|---|---|
+| `code` | Worauf ein Client **verzweigt**: der `Messages`-Schlüssel einer Contentfly-Ausnahme — und `null` bei allem anderen | `message`, sofern es ein Schlüssel war |
+| `detail` | Für einen Menschen: `getMessage()`. Bei einer Contentfly-Ausnahme derselbe String wie `code`, weil die Meldung dort der Schlüssel **ist** | `message` |
+| `type` | Die Ausnahmeklasse | `type`, unverändert |
+| `context` | Was die Ausnahme darüber hinaus weiss: `{"value": …}` bzw. `{"entity": …, "lang": …}`, sonst `null` | `message_value` bzw. `message_entity`/`message_lang` |
+
+**`code: null` ist keine Lücke, sondern die Aussage:** Das ist ein unvorhergesehener Serverfehler,
+hier gibt es nichts Stabiles zum Verzweigen. Wer solche Fälle doch unterscheiden muss, liest `type`
+— und trägt das Risiko, dass eine Klasse umbenannt wird.
+
+**`errors` ist eine Liste, obwohl heute immer genau ein Eintrag darin steht.** Der Handler sieht
+eine Ausnahme. Die Liste ist der Platz für die Feldvalidierung, die mehrere Fehler auf einmal melden
+können muss, ohne die Form noch einmal zu ändern.
+
+**Der Stacktrace steht im Debug-Modus unter `meta.debug`**, nicht mehr auf oberster Ebene: Er
+beschreibt diese Antwort, nicht den Fehler — dieselbe Ebene wie `ts` und `hash`. Wie bisher nur bei
+`APP_DEBUG`.
+
+**Auch der Hinweis „nicht installiert" ist jetzt ein Envelope** (`503`) und trägt den neuen
+`Messages`-Schlüssel `contentfly_general_not_installed`. Bisher war er ein blosses
+`{"message": …}` — die neunte Form.
+
+**Betroffen ist jeder Client**, der Fehlerantworten auswertet.
+
+*Was zu tun ist:* `body.message` → `body.errors[0].code` (zum Verzweigen) bzw.
+`body.errors[0].detail` (zum Anzeigen), `body.message_value` → `body.errors[0].context.value`,
+`body.message_entity`/`body.message_lang` → `body.errors[0].context.entity`/`.lang`,
+`body.debug` → `body.meta.debug`. `body.status` ersatzlos — der Statuscode steht in der
+HTTP-Antwort.
 
 ### Eine `unique`-Verletzung antwortet mit 409 statt 500
 **Seit `009-003-0002` (2026-09-09).**

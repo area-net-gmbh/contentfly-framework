@@ -69,12 +69,23 @@ class StartupFailureResponseTest extends TestCase
 
         $body = json_decode($raw, true);
         $this->assertIsArray($body, 'The body is JSON');
-        $this->assertSame(array('message', 'type', 'status'), array_keys($body),
-            'The same fields as every other error response — and no debug block');
-        $this->assertStringContainsString('APP_CACHE_DRIVER = "apc"', $body['message'],
+        // 011-001-0003: the same envelope as every other error response — and no debug block.
+        // `status` is gone from the body; it stands in the HTTP response, asserted above.
+        $this->assertSame(array('data', 'errors', 'meta'), array_keys($body));
+        $this->assertNull($body['data']);
+        $this->assertArrayNotHasKey('debug', $body['meta']);
+
+        $entry = $body['errors'][0];
+        $this->assertSame(array('code', 'detail', 'type', 'context'), array_keys($entry));
+        $this->assertStringContainsString('APP_CACHE_DRIVER = "apc"', $entry['detail'],
             'The caller learns what is wrong, not just that something is');
-        $this->assertSame('RuntimeException', $body['type']);
-        $this->assertSame(500, $body['status']);
+        $this->assertSame('RuntimeException', $entry['type']);
+
+        // The versions ARE known here: the cache driver fails late in the boot, after version.php.
+        // The hash is not — `$app['schema']` never came into being. The counter-case, a failure
+        // before version.php, is in testWithoutDebugTheBodyNamesNoDirectory.
+        $this->assertNotNull($body['meta']['version']);
+        $this->assertNull($body['meta']['hash']);
     }
 
     /**
@@ -94,11 +105,13 @@ class StartupFailureResponseTest extends TestCase
 
         $this->assertSame(500, $status);
         $this->assertIsArray($body, 'The body stays JSON in debug mode');
-        $this->assertSame(array('message', 'type', 'status', 'debug'), array_keys($body));
-        $this->assertSame(array('file', 'line', 'trace'), array_keys($body['debug']));
-        $this->assertStringEndsWith('Start.php', $body['debug']['file']);
-        $this->assertNotEmpty($body['debug']['trace']);
-        $this->assertStringContainsString((string) realpath($this->scratch), $body['message'],
+        // 011-001-0003: the trace describes THIS ANSWER, not the fault — so it sits in the meta,
+        // beside `ts` and `hash`, and no longer at the top level of the body.
+        $this->assertSame(array('data', 'errors', 'meta'), array_keys($body));
+        $this->assertSame(array('file', 'line', 'trace'), array_keys($body['meta']['debug']));
+        $this->assertStringEndsWith('Start.php', $body['meta']['debug']['file']);
+        $this->assertNotEmpty($body['meta']['debug']['trace']);
+        $this->assertStringContainsString((string) realpath($this->scratch), $body['errors'][0]['detail'],
             'In debug mode the directory stays in the message');
     }
 
@@ -117,11 +130,23 @@ class StartupFailureResponseTest extends TestCase
 
         $this->assertSame(500, $status);
         $this->assertIsArray($body);
-        $this->assertStringContainsString('project configuration is missing', $body['message']);
-        $this->assertStringContainsString('<project>/custom/config.php', $body['message']);
+        // 011-001-0003: message -> errors[0].detail, debug -> meta.debug.
+        $this->assertStringContainsString('project configuration is missing', $body['errors'][0]['detail']);
+        $this->assertStringContainsString('<project>/custom/config.php', $body['errors'][0]['detail']);
         $this->assertStringNotContainsString($this->scratch, $raw);
         $this->assertStringNotContainsString((string) realpath($this->scratch), $raw);
-        $this->assertArrayNotHasKey('debug', $body);
+        $this->assertArrayNotHasKey('debug', $body['meta']);
+
+        /*
+         * BOTH VERSIONS ARE NULL HERE, and that is the point of reading them defensively
+         * (011-001-0003). This failure happens in Start::prepare(), before bootstrap.php has read
+         * `version.php` — the constants do not exist yet. A plain constant lookup in the envelope
+         * would be a fatal error inside the error response, which is the failure mode 000-000-0006
+         * fixed one floor up. `null` is the honest answer: nobody knows yet which version it was
+         * that could not start.
+         */
+        $this->assertNull($body['meta']['version']);
+        $this->assertNull($body['meta']['projectVersion']);
     }
 
     private function writeConfiguration(string $cacheDriver): void

@@ -3,9 +3,9 @@
 > Entschieden mit `000-000-0014`. Dieses Dokument hält fest, **welche Form** die API künftig
 > hat und **wann** sie sie bekommt.
 >
-> **Stand 2026-09-16:** Die Erfolgsantworten unter `/api/*` sind umgestellt (`011-001-0002`).
-> Offen sind die Fehlerantworten (`011-001-0003`) sowie `/auth/*`, `/file/*` und `/system/do`
-> (`011-001-0004`). Siehe *Was schon gilt*.
+> **Stand 2026-09-16:** Die Erfolgsantworten unter `/api/*` (`011-001-0002`) **und alle
+> Fehlerantworten** (`011-001-0003`) sind umgestellt. Offen sind nur noch die Erfolgsantworten von
+> `/auth/*`, `/file/*` und `/system/do` (`011-001-0004`). Siehe *Was schon gilt*.
 
 ## Der Befund
 
@@ -189,6 +189,42 @@ Im Test steht die Form an einer Stelle: `IntegrationTestCase::assertEnvelope()` 
 Endpunkt zusätzlich in `meta` legt. Vorher schrieb jeder Test die Schlüsselliste seines Endpunkts
 aus — und schrieb damit genau das fest, was hier abgeschafft wird.
 
+**Seit `011-001-0003` (2026-09-16): jede Fehlerantwort.** Sie war die achte Form neben den sieben
+Erfolgsformen — und in sich uneinheitlich, weil die vorhandenen Schlüssel von der Ausnahmeklasse
+abhingen. Jetzt: `data` = `null`, `errors` = Liste, `meta` wie beim Erfolg.
+
+Ein Eintrag trägt **vier feste Schlüssel**:
+
+| Feld | Inhalt |
+|---|---|
+| `code` | Worauf verzweigt wird: der `Messages`-Schlüssel — `null`, wenn es keinen gibt |
+| `detail` | Für einen Menschen: `getMessage()` |
+| `type` | Die Ausnahmeklasse |
+| `context` | `{"value": …}` bzw. `{"entity": …, "lang": …}`, sonst `null` |
+
+Entschieden dabei:
+
+- **`code: null` statt eines erfundenen Schlüssels.** Ein PHP-Fehler hat keinen stabilen
+  Bezeichner; `null` sagt das, statt so zu tun, als gäbe es einen. Wer trotzdem unterscheiden muss,
+  liest `type`.
+- **`errors` ist eine Liste, obwohl heute immer ein Eintrag darin steht.** Der Handler sieht eine
+  Ausnahme. Die Liste ist der Platz für die Feldvalidierung, damit die Form später nicht noch
+  einmal bricht.
+- **`status` fällt ersatzlos.** Er steht in der HTTP-Antwort; ein Rumpf, der ihn wiederholt, lädt
+  ein, dass beide auseinanderlaufen — was vor `000-000-0006` genau so passiert ist.
+- **Der Stacktrace geht nach `meta.debug`.** Er beschreibt die Antwort, nicht den Fehler.
+
+**Gebaut wird beides von `Classes\Envelope`** — Erfolg wie Fehler. Zwei Kopien der Meta an zwei
+weit entfernten Stellen (`ApiController` und `bootstrap-web.php`) wären auseinandergelaufen, und
+dann hätte ein Client doch vorher wissen müssen, welche Art Antwort er hat. Drei Stellen erzeugen
+heute Fehler, und alle drei gehen durch diese Klasse: der Handler, die Startfehler-Antwort in
+`Kernel\Start` und der Hinweis „nicht installiert" in `BaseControllerProvider`. Die letzte hat
+dafür einen eigenen `Messages`-Schlüssel bekommen (`contentfly_general_not_installed`) — „nicht
+installiert" ist ein vorhersehbarer Zustand, auf den ein Client verzweigen darf.
+
+Im Test prüft `IntegrationTestCase::assertErrorEnvelope()` die Fehlerform an einer Stelle, so wie
+`assertEnvelope()` die Erfolgsform.
+
 Zwei Punkte aus `000-000-0014` liessen sich schon vorher nicht sinnvoll aufschieben, weil sie keine
 Formfragen sind, sondern Defekte:
 
@@ -199,9 +235,9 @@ Formfragen sind, sondern Defekte:
   bekannte Entity ohne Treffer antwortet mit `200` und einer leeren Liste; vorher kam
   `404 {"message":"Not found"}`, dieselbe Antwort wie für eine Entity, die es nicht gibt.
 
-Die Fehlerantworten selbst sind mit `000-000-0006` in Ordnung gebracht — Statuscodes, die
-stimmen, und ein Rumpf, der aus der Anwendung kommt statt aus Symfonys Notfallseite. Ihre
-**Form** ändert sich erst mit dem Rest.
+Die Fehlerantworten selbst waren schon mit `000-000-0006` in Ordnung gebracht worden — Statuscodes,
+die stimmen, und ein Rumpf, der aus der Anwendung kommt statt aus Symfonys Notfallseite. Ihre
+**Form** ist mit `011-001-0003` nachgezogen.
 
 ## Zusammenhang mit anderen Tasks
 

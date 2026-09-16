@@ -145,8 +145,8 @@ class MultiupdateApiTest extends IntegrationTestCase
         )), $this->token());
 
         $this->assertSame(404, $status);
-        $this->assertArrayNotHasKey('data', $body,
-            'The error response claims no change');
+        // 011-001-0003: `data` is present and null — the error response claims no change.
+        $this->assertErrorEnvelope($body);
         $this->assertSame('First', $this->title($this->firstTag),
             'And there was none either — the batch failed as a whole');
     }

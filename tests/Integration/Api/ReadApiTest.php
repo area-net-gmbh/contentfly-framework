@@ -122,8 +122,8 @@ class ReadApiTest extends IntegrationTestCase
         );
 
         $this->assertSame(404, $status);
-        $this->assertSame('contentfly_general_not_found', $body['message']);
-        $this->assertArrayNotHasKey('data', $body);
+        // 011-001-0003: the message key is now `errors[0].code` — the field a client branches on.
+        $this->assertErrorEnvelope($body, 'contentfly_general_not_found');
     }
 
     public function testUnknownEntityReturns404(): void
@@ -149,7 +149,8 @@ class ReadApiTest extends IntegrationTestCase
         );
 
         $this->assertSame(401, $status, 'Since the stack switch (006-002-0003) the intended code — Symfony 4.4 fixes 000-000-0006 here');
-        $this->assertArrayNotHasKey('data', $body, 'Without a token no data flows');
+        // 011-001-0003: `data` is present and null instead of missing — the stronger statement.
+        $this->assertErrorEnvelope($body);
     }
 
     // ── /api/list ──────────────────────────────────────────────────────────────────────
@@ -279,6 +280,6 @@ class ReadApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'));
 
         $this->assertSame(401, $status, 'Since the stack switch (006-002-0003) the intended code — Symfony 4.4 fixes 000-000-0006 here');
-        $this->assertArrayNotHasKey('data', $body);
+        $this->assertErrorEnvelope($body); // 011-001-0003: `data` is present and null
     }
 }

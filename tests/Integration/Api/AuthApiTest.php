@@ -83,7 +83,12 @@ class AuthApiTest extends IntegrationTestCase
         // 000-000-0006 that redirect no longer exists — there is no home a browser could be
         // sent to since the UI was dropped — and the exception's code comes through.
         $this->assertSame(401, $status);
-        $this->assertStringNotContainsString('"data"', $body);
+        /*
+         * INVERTED WITH 011-001-0003. The raw body now DOES contain the string `"data"` — the key
+         * is always there, and on an error it holds null. The assertion was about the payload, not
+         * about the word, so it now says that: no object, no list, nothing but null.
+         */
+        $this->assertSame(array('data' => null), array_intersect_key(json_decode($body, true), array('data' => null)));
     }
 
     public function testProtectedRouteWithFabricatedTokenReturnsNoData(): void

@@ -246,7 +246,7 @@ class FileApiTest extends IntegrationTestCase
         [$status, $body] = $this->uploadWithStatus($name, '<?php echo "EXECUTED-" . (6*7);', $this->token());
 
         $this->assertSame(415, $status, "$name is rejected as an unsupported type");
-        $this->assertSame('contentfly_file_invalid_type', $body['message'] ?? null);
+        $this->assertErrorEnvelope($body, 'contentfly_file_invalid_type'); // 011-001-0003
         $this->assertSame($rowsBefore, (int) $this->pdo()->query('SELECT COUNT(*) FROM pim_file')->fetchColumn(),
             'No row in pim_file');
         $this->assertSame($dirsBefore, $this->fileDirectories(), 'No directory under data/files/');
@@ -278,8 +278,10 @@ class FileApiTest extends IntegrationTestCase
         [$status, $body] = $this->uploadWithStatus('large.txt', str_repeat('a', self::TEST_SERVER_MAX_UPLOAD_SIZE + 1), $token);
 
         $this->assertSame(413, $status, 'One byte over FILE_MAX_UPLOAD_SIZE');
-        $this->assertSame('contentfly_file_too_large', $body['message'] ?? null);
-        $this->assertSame(self::TEST_SERVER_MAX_UPLOAD_SIZE, $body['message_value'] ?? null, 'The limit is named');
+        // 011-001-0003: `message` became `code`, and `message_value` moved into `context` — a
+        // fixed key instead of one that only appeared for a ContentflyException.
+        $entry = $this->assertErrorEnvelope($body, 'contentfly_file_too_large');
+        $this->assertSame(self::TEST_SERVER_MAX_UPLOAD_SIZE, $entry['context']['value'], 'The limit is named');
         $this->assertSame($rowsBefore, (int) $this->pdo()->query('SELECT COUNT(*) FROM pim_file')->fetchColumn(), 'No row in pim_file');
         $this->assertSame($dirsBefore, $this->fileDirectories(), 'No directory under data/files/');
     }
@@ -305,7 +307,7 @@ class FileApiTest extends IntegrationTestCase
         [$status, $body] = $this->uploadWithStatus('huge.bin', str_repeat('a', $phpLimit + 1024), $this->token());
 
         $this->assertSame(413, $status, 'PHP rejected the file; before 000-000-0042 this answered 400 missing params');
-        $this->assertSame('contentfly_file_too_large', $body['message'] ?? null);
+        $this->assertErrorEnvelope($body, 'contentfly_file_too_large'); // 011-001-0003
     }
 
     private function bytes(string $iniValue): int
