@@ -57,7 +57,7 @@
 # als dist, der Lauf erzeugt keine einzige git-Meldung, und die Manifeste haben kein
 # `repositories` mit VCS-Quelle. Das Auschecken des Repos ist Sache des Runners, nicht
 # dieses Images (die Pipeline setzt einen Docker-Executor voraus — siehe Kopf von
-# .gitlab-ci.yml).
+# .github/workflows/pipeline.yml).
 #
 # NACHRÜSTEN, WENN: der Lock ein Paket enthält, das nur als `source` verfügbar ist, oder
 # ein Manifest eine VCS-`repositories`-Quelle bekommt. Beides meldet sich als

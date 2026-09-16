@@ -51,7 +51,7 @@ Zwei, und keine davon produktiv:
 
 - **Lokal** — Datenbank aus `docker-compose.yml`, PHP von der Maschine. Der Ablauf steht in
   `an_project/docs/runbook.md`.
-- **CI** — `.gitlab-ci.yml`, siehe unten.
+- **CI** — `.github/workflows/pipeline.yml`, siehe unten.
 
 ## Wo das Repository liegt
 
@@ -67,16 +67,20 @@ einzige Stelle, an der die Prüfungen nachweislich laufen.
 ## Die Pipeline
 
 **Angelegt am 2026-09-08 mit Story `008-005`** als GitLab CI — damals, weil der Remote GitLab war.
-**Sie zieht mit `011-002-0002` auf GitHub Actions um;** bis dahin beschreibt dieser Abschnitt den
-Stand, der läuft, und nicht den, der kommt.
+**Seit `011-002-0002` (2026-09-16) GitHub Actions**, `.github/workflows/pipeline.yml`. Umgeschrieben
+ist das Gerüst; die Schritte stehen unverändert in `tools/ci/*.sh`.
+
+**Sie läuft bei Push auf `master` und bei jedem Pull Request** — nicht mehr bei jedem Push auf
+jeden Branch, wie die GitLab-Fassung es tat: Das prüfte auch Zwischenstände, die noch gar nicht
+grün sein sollten. `workflow_dispatch` erlaubt zusätzlich den Start von Hand.
 
 | Job | Stage | Was er tut |
 |---|---|---|
-| `check:template-config` | `check` | Verhindert, dass eine installierte `custom/config.php` in die Historie gerät |
-| `check:audit` | `check` | `composer audit --locked` gegen die Ausnahmeliste — **blockierend** |
-| `check:phpstan` | `check` | Statische Analyse gegen die Ausnahmeliste — **blockierend seit `009-003-0003`** |
-| `test:php8.3` | `test` | Beide Testsuiten gegen eine frisch installierte Instanz — **pflicht** |
-| `test:php8.4` | `test` | Derselbe Lauf auf PHP 8.4, `allow_failure: true` |
+| `check-template-config` | — | Verhindert, dass eine installierte `custom/config.php` in die Historie gerät |
+| `check-audit` | — | `composer audit --locked` gegen die Ausnahmeliste — **blockierend** |
+| `check-phpstan` | — | Statische Analyse gegen die Ausnahmeliste — **blockierend seit `009-003-0003`** |
+| `test (8.3)` | Matrix | Beide Testsuiten gegen eine frisch installierte Instanz — **pflicht** |
+| `test (8.4)` | Matrix | Derselbe Lauf auf PHP 8.4 — **blockierend seit `010-003-0003`** |
 
 **Der 8.4-Job ist eine Frühwarnung, kein Gate.** Zielplattform ist PHP 8.5; was hier rot wird,
 ist die Liste dessen, was auf dem Weg dorthin zu erledigen bleibt — aber es darf die Pipeline
@@ -89,7 +93,8 @@ deshalb blockierend wird, ist eine offene Entscheidung.
 - **Ein Runner mit Docker-Executor.** Ohne ihn funktionieren weder `image:` noch `services:`.
   Steht nur ein Shell-Runner zur Verfügung, muss der Job Datenbank und PHP selbst mitbringen —
   ein anderer Zuschnitt, keine kleine Änderung. Die Annahme steht im Kopf der
-  `.gitlab-ci.yml`.
+  Kopf der Workflow-Datei. **Auf GitHub Actions entfällt diese Voraussetzung:** Die Jobs laufen
+  in `container:`/`services:` auf `ubuntu-latest`, ein eigener Runner wird nicht gebraucht.
 - **`CONTENTFLY_TEST_ADMIN_PASS`** als CI-Variable (Settings → CI/CD → Variables). Bewusst
   nicht in der YAML: Auch für eine flüchtige Datenbank gehört ein Passwort nicht ins Repo.
 
@@ -387,9 +392,14 @@ Gemessen am 2026-09-10, nach Epic `010`:
 | `orm:validate-schema` | Datenbank **in sync**; ein Mapping-Fehler übrig (`000-000-0025`) |
 
 **Die Pipeline hat kein `allow_failure` mehr.** Der PHP-8.4-Job ist mit `010-003-0003`
-blockierend geworden — die `.gitlab-ci.yml` hatte die Bedingung selbst benannt („Ob der Job
+blockierend geworden — die Pipeline hatte die Bedingung selbst benannt („Ob der Job
 blockierend werden kann, entscheidet ein Lauf auf 8.4"), und der Lauf liegt inzwischen dreimal
 vor: mit Symfony 7.4 und ORM 2.20, mit ORM 3.7, und auf dem Endstand von Epic `010`.
+
+**Dieser Abschnitt widersprach sich bis `011-002-0002` selbst.** Die Tabelle oben führte
+`test:php8.4` mit „`allow_failure: true`" und nannte es „eine offene Entscheidung" — die Pipeline
+hatte sie längst getroffen. Beim Umbau auf Actions ist die Tabelle nachgezogen worden; die
+Entscheidung selbst ist keine neue.
 
 ## Die Suite ist die Abnahmegrundlage
 Was ein roter Test beim Kernel-Tausch bedeutet, ist in `an_project/docs/technical.md`

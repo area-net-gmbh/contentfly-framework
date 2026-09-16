@@ -44,7 +44,7 @@ welchem gehört, steht in `an_project/docs/architecture.md` unter *Key decisions
 - **Die Alt-Version.** Die Befunde, die dieses Projekt ausgelöst haben, stammen aus dem alten
   Contentfly. Dieser Stand ist der Nachfolger, nicht derselbe Code.
 - **Zugangsdaten.** `custom/config.php` ist eine Vorlage ohne Werte; die Geheimnisse in der
-  Pipeline (`.gitlab-ci.yml`) sind Wegwerfwerte für eine Wegwerf-Datenbank und als solche
+  Pipeline (`.github/workflows/pipeline.yml`) sind Wegwerfwerte für eine Wegwerf-Datenbank und als solche
   gekennzeichnet.
 
 ---

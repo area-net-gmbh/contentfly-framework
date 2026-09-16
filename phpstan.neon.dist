@@ -30,7 +30,7 @@
 # Die Bedingung, die hier stand, lautete: "Sobald `vendor/`-fremde Treffer auf null stehen."
 # Sie ist erfüllt. Von 115 Meldungen sind 31 übrig, und alle 31 kommen aus Doctrine —
 # Annotationen, cache und die Console-Commands des ORM. Sie stehen unten benannt und
-# fallen mit Epic 010. allow_failure ist aus der .gitlab-ci.yml entfernt.
+# fallen mit Epic 010. allow_failure gibt es in der Pipeline nicht mehr.
 
 parameters:
     level: 0

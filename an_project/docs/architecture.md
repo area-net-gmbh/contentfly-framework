@@ -191,7 +191,7 @@ Alle 26 versionierten Top-Level-Einträge, Stand 2026-09-11. Kein Eintrag bleibt
 | `README.md` | beide, verschieden | das Paket beschreibt das Paket, das Projekt das Projekt |
 | `tests/` | Entwicklungs-Repo | die Suite prüft das Framework **durch eine Installation**; sie gehört zur Entwicklung, nicht in den Lieferumfang |
 | `tools/` | Entwicklungs-Repo | CI-Werkzeuge |
-| `phpunit.xml.dist` · `phpstan.neon.dist` · `.gitlab-ci.yml` · `docker-compose.yml` · `build.xml` · `apidoc.json` | Entwicklungs-Repo | dito |
+| `phpunit.xml.dist` · `phpstan.neon.dist` · `.github/workflows/` · `docker-compose.yml` · `build.xml` · `apidoc.json` | Entwicklungs-Repo | dito |
 | `an_project/` · `.an_framework/` · `.claude/` · `CLAUDE.md` | Entwicklungs-Repo | Arbeitsorganisation, kein Lieferbestandteil |
 | `.gitignore` | je Repo | — |
 

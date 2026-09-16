@@ -38,7 +38,7 @@
 # ── Warum das Skript nicht zwischen 8.3 und 8.4 unterscheidet ─────────────────────────
 #
 # Es prueft immer dasselbe. Der Unterschied zwischen "blockiert" und "nur Fruehwarnung"
-# steht dort, wo er hingehoert: in .gitlab-ci.yml. Der Job test:php8.4 traegt
+# steht dort, wo er hingehoert: in .github/workflows/pipeline.yml. Die Matrix traegt
 # allow_failure: true, der Job test:php8.3 nicht.
 #
 # Eine Fallunterscheidung nach PHP-Version im Skript waere dieselbe Aussage an einer
