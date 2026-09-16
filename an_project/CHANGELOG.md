@@ -14,6 +14,11 @@
 - 011-003-0000 story created: "Vorlage und Doku auf den Zielzustand bringen" (Epic 011)
 - 011-004-0000 story created: "Version, Gates und Upgrade-Pfad festschreiben" (Epic 011)
 - 011-001-0000…011-004-0000 refined: **Epic 011 geschnitten, vier Stories mit Ziel und Abgrenzung.** `011-001` zuerst, weil es als einziges den Draht bricht (Envelope `data`/`errors`/`meta` nach `api-envelope.md`, zehn Endpunkte plus Fehlerfall, Charakterisierungstests mit Begründung, Register und Leitfaden). `011-002` klärt den Bezugsweg von aussen — Beleg für die Lücke ist der absolute `path`-Eintrag, den UFP im Probelauf brauchte. `011-003` (nach `001`) bringt Vorlage und Doku auf den Zielzustand. `011-004` zuletzt: Version, vollständige Bruchstellenliste, `composer audit` unter PHP 8.5, Silex-Freiheit als Gate, Upgrade-Pfad Symfony 8.4.
+- 011-001-0001 task created: "Bestandsaufnahme der Antwortformen und Geltungsbereich des Envelopes"
+- 011-001-0002 task created: "Erfolgsantworten auf data/errors/meta umstellen"
+- 011-001-0003 task created: "Fehlerantworten in dieselbe Form bringen"
+- 011-001-0004 task created: "Restliche Endpunkte und Abnahme des Envelopes"
+- 011-001-0001…0004 refined: **Story 011-001 geschnitten am offenen Punkt und am Trichter.** `0001` erhebt jede Antwortstelle aus dem Code (`/api/*` über `renderResponse()`, 18 Aufrufe; Fehler im Handler von `bootstrap-web.php`; `/auth` 10, `/file` 2, `/system` 1 eigene `JsonResponse`) und entscheidet den Geltungsbereich — `api-envelope.md` führt bisher nur zehn Endpunkte. `0002` stellt die Erfolgsantworten im Trichter um, mit begründeter Anpassung der Charakterisierungstests. `0003` bringt die Fehlerform nach (`data: null`, `errors` als Liste, `status` fällt aus dem Rumpf), Statuscodes unverändert. `0004` liefert die restlichen Endpunkte und die Abnahme: ein Test wertet jeden Endpunkt mit einer einzigen Auswertung aus.
 
 ## 2026-09-15
 - 000-000-0032 → in-progress
