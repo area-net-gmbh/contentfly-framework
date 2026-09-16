@@ -47,9 +47,11 @@ der Pipeline ausprobieren kann, ist beim Suchen eines Fehlers nutzlos."
 | `allow_failure` (seit `010-003-0003` nicht mehr gesetzt) | **beide blockierend**, ausdrücklich so entschieden |
 | Push auf jeden Branch | Push auf `master` und jeder Pull Request, dazu `workflow_dispatch` |
 
-`workflow_dispatch` ist kein Komfort: Ohne ihn liesse sich der erste Lauf nur durch einen Merge
-nach `master` oder einen Pull Request auslösen — also erst, nachdem er bereits hätte grün sein
-müssen.
+**Korrektur an der eigenen Begründung:** `workflow_dispatch` war als Weg für den ersten Lauf
+gedacht. Er taugt dafür nicht — die Referenz sagt „This event will only trigger a workflow run if
+the workflow file exists on the default branch". Der erste Lauf kommt also aus einem Pull Request,
+dessen Kopf diese Datei trägt; `workflow_dispatch` ist danach das Mittel, einen Lauf ohne neuen
+Commit anzustossen. Der Kommentar in der Workflow-Datei sagt das jetzt so.
 
 ### Die eine Stelle, die sich nicht übertragen liess
 
