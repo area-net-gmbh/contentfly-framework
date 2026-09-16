@@ -9,6 +9,11 @@
 - 000-000-0049 → review: **`data/cache/proxies/<Kennung>` statt `data/cache/doctrine`.** `Classes\ORM\ProxyDirectory` bildet die Kennung aus Version und Referenz von `areanet/contentfly` und `doctrine/orm`; Bootstrap und `appcms:install` benutzen sie. `ProxyDirectoryTest` und ein Integrationstest mit einer werfenden Alt-Proxy im früheren Verzeichnis; Gegenprobe mit master rot. Am UFP-Probe-Backend mit unveränderter Datenkopie antwortet das Backend wieder. Register unter Doctrine ORM 3, Metadaten-Cache-Eintrag ergänzt, Phase 4 leert alle drei Verzeichnisse, `deployment.md` erweitert, `migration.md` auf 115. Suite 608 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
 - 000-000-0049 → done (merged into master)
 - 007-000-0000 → done: alle fünf Stories sind geschlossen (Paketbezug, Rector-Regel, `$app`-Bridge, Leitfaden, echtes Bestandsprojekt). Der Leitfaden ist an UFP gefahren, die Befunde daraus sind als `000-000-0038`…`0049` umgesetzt.
+- 011-001-0000 story created: "Den Antwort-Envelope der API vereinheitlichen" (Epic 011)
+- 011-002-0000 story created: "Das Framework aus Projektsicht beziehbar machen" (Epic 011)
+- 011-003-0000 story created: "Vorlage und Doku auf den Zielzustand bringen" (Epic 011)
+- 011-004-0000 story created: "Version, Gates und Upgrade-Pfad festschreiben" (Epic 011)
+- 011-001-0000…011-004-0000 refined: **Epic 011 geschnitten, vier Stories mit Ziel und Abgrenzung.** `011-001` zuerst, weil es als einziges den Draht bricht (Envelope `data`/`errors`/`meta` nach `api-envelope.md`, zehn Endpunkte plus Fehlerfall, Charakterisierungstests mit Begründung, Register und Leitfaden). `011-002` klärt den Bezugsweg von aussen — Beleg für die Lücke ist der absolute `path`-Eintrag, den UFP im Probelauf brauchte. `011-003` (nach `001`) bringt Vorlage und Doku auf den Zielzustand. `011-004` zuletzt: Version, vollständige Bruchstellenliste, `composer audit` unter PHP 8.5, Silex-Freiheit als Gate, Upgrade-Pfad Symfony 8.4.
 
 ## 2026-09-15
 - 000-000-0032 → in-progress
