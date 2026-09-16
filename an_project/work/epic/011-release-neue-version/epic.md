@@ -1,7 +1,7 @@
 ---
 id: 011-000-0000
 title: Release der neuen Framework-Version
-status: todo
+status: in-progress
 depends_on: [007-000-0000, 009-000-0000, 010-000-0000]
 ---
 
@@ -36,7 +36,7 @@ tatsächlich einsetzen und auf die es migrieren kann.
 
 ## Stories
 <!-- Die Stories dieses Epics. Wird von /new-story synchron gehalten. -->
-- [ ] 011-001-0000 — Den Antwort-Envelope der API vereinheitlichen
+- [x] 011-001-0000 — Den Antwort-Envelope der API vereinheitlichen
 - [ ] 011-002-0000 — Das Framework aus Projektsicht beziehbar machen
 - [ ] 011-003-0000 — Vorlage und Doku auf den Zielzustand bringen
 - [ ] 011-004-0000 — Version, Gates und Upgrade-Pfad festschreiben

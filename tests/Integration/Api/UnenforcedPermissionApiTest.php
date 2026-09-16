@@ -79,7 +79,9 @@ class UnenforcedPermissionApiTest extends IntegrationTestCase
         [$status, $raw] = $this->get('/api/schema', $this->token());
         $this->assertSame(200, $status);
 
-        $rights = json_decode($raw, true)['permissions'];
+        // 011-001-0002: the rights annotate the schema, they are not the schema — so they sit in
+        // the meta, where the schema hash has always sat.
+        $rights = json_decode($raw, true)['meta']['permissions'];
 
         $this->assertSame(
             array('readable', 'writable', 'deletable'),
@@ -99,7 +101,7 @@ class UnenforcedPermissionApiTest extends IntegrationTestCase
         )));
 
         [, $raw] = $this->get('/api/schema', $token);
-        $rights  = json_decode($raw, true)['permissions']['PIM\\Tag'];
+        $rights  = json_decode($raw, true)['meta']['permissions']['PIM\\Tag']; // 011-001-0002
 
         $this->assertArrayNotHasKey('export', $rights);
         $this->assertArrayNotHasKey('extended', $rights);
@@ -154,6 +156,7 @@ class UnenforcedPermissionApiTest extends IntegrationTestCase
             $token
         );
         $this->assertSame(200, $statusInsert, 'Writing works');
+        $created = $created['data']; // 011-001-0002: insert answers with the object as payload
         $this->deleteAfterTest('pim_tag', $created['id']);
 
         [$statusDelete] = $this->postJson(

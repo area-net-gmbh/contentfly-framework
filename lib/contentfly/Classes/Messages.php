@@ -9,6 +9,23 @@ namespace Areanet\PIM\Classes;
 class Messages
 {
     const contentfly_general_access_denied              = 'contentfly_general_access_denied';
+
+    /*
+     * THE REJECTIONS AuthController DECIDES ITSELF (011-001-0004).
+     *
+     * They never reach the error handler, so until now they were the last group with a body of
+     * their own: `{"message": "…"}` with a sentence in it and nothing to branch on. Each of them
+     * is a foreseeable state, so each gets a key.
+     *
+     * `…_invalid_credentials` deliberately covers ALL 401s of the login — unknown user, wrong
+     * password, rejected provider. The response must not be an oracle for which accounts exist;
+     * one key for all of them keeps it that way (see AuthController, `$reject`).
+     */
+    const contentfly_general_invalid_credentials        = 'contentfly_general_invalid_credentials';
+    const contentfly_general_invalid_refresh_token      = 'contentfly_general_invalid_refresh_token';
+    const contentfly_general_too_many_attempts          = 'contentfly_general_too_many_attempts';
+    const contentfly_general_jwt_not_configured         = 'contentfly_general_jwt_not_configured';
+
     // An upload whose name or content type is not accepted (000-000-0038).
     const contentfly_file_invalid_type                  = 'contentfly_file_invalid_type';
     const contentfly_file_too_large                     = 'contentfly_file_too_large';
@@ -22,6 +39,8 @@ class Messages
     const contentfly_general_invalid_gettersetter       = 'contentfly_general_invalid_gettersetter';
     const contentfly_general_missing_params             = 'contentfly_general_missing_params';
     const contentfly_general_not_found                  = 'contentfly_general_not_found';
+    // The installation has not been run — the guard in BaseControllerProvider (011-001-0003).
+    const contentfly_general_not_installed              = 'contentfly_general_not_installed';
     const contentfly_general_permission_denied          = 'contentfly_general_permission_denied';
     const contentfly_general_plugin_not_found           = 'contentfly_general_plugin_not_found';
     const contentfly_general_property_not_exists        = 'contentfly_general_property_not_exists';

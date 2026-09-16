@@ -36,8 +36,9 @@ class SyncApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/api/all', array(), $this->token());
 
         $this->assertSame(200, $status, 'Until 000-000-0007 this was an HTTP 500');
-        $this->assertSame(array('lastModified', 'data', 'version', 'hash'), array_keys($body),
-            'all carries lastModified instead of ts — the next envelope of its own');
+        // 011-001-0002: all used to carry `lastModified` beside `data` — the next shape of its own.
+        // It is now one meta key, and the payload is the entity map itself.
+        $this->assertEnvelope($body, array('lastModified'));
         $this->assertArrayHasKey('PIM\\Tag', $body['data'],
             'Since 000-000-0007 the schema determines the entities, no longer a hard-wired '
             .'list of File, User and Group');
@@ -63,7 +64,8 @@ class SyncApiTest extends IntegrationTestCase
 
         $this->assertSame(401, $status,
             'Since 006-002-0003 the intended code — Symfony 4.4 fixes 000-000-0006 here');
-        $this->assertArrayNotHasKey('data', $body, 'Without a token no data flows');
+        // 011-001-0003: `data` is present and null instead of missing — the stronger statement.
+        $this->assertErrorEnvelope($body);
     }
 
     // ── /api/deleted ───────────────────────────────────────────────────────────────────
@@ -73,8 +75,8 @@ class SyncApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/api/deleted', array(), $this->token());
 
         $this->assertSame(200, $status);
-        $this->assertSame(array('ts', 'data', 'version', 'hash'), array_keys($body));
-        $this->assertIsArray($body['data']);
+        // 011-001-0002: `ts` moved into the meta, where it now stands for every endpoint.
+        $this->assertIsArray($this->assertEnvelope($body));
     }
 
     public function testDeletedReturnsAFlatListOfRawLogRows(): void
@@ -175,7 +177,7 @@ class SyncApiTest extends IntegrationTestCase
 
         $this->assertSame(401, $status,
             'Since 006-002-0003 the intended code — Symfony 4.4 fixes 000-000-0006 here');
-        $this->assertArrayNotHasKey('data', $body);
+        $this->assertErrorEnvelope($body); // 011-001-0003: `data` is present and null
     }
 
     // ── /api/count ─────────────────────────────────────────────────────────────────────
@@ -187,7 +189,7 @@ class SyncApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/api/count', array('entity' => 'PIM\\Tag'), $this->token());
 
         $this->assertSame(200, $status);
-        $this->assertSame(array('ts', 'data', 'version', 'hash'), array_keys($body));
+        $this->assertEnvelope($body); // 011-001-0002
         $this->assertSame(
             array('dataCount', 'filesCount', 'filesSize', 'details'),
             array_keys($body['data']),
@@ -211,7 +213,7 @@ class SyncApiTest extends IntegrationTestCase
 
         $this->assertSame(401, $status,
             'Since 006-002-0003 the intended code — Symfony 4.4 fixes 000-000-0006 here');
-        $this->assertArrayNotHasKey('data', $body);
+        $this->assertErrorEnvelope($body); // 011-001-0003: `data` is present and null
     }
 
     // ── excludeFromSync ────────────────────────────────────────────────────────────────

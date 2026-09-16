@@ -433,14 +433,19 @@ API; im Debug-Modus weiterhin die Ausnahme im Klartext. Zugleich kommt der Statu
 *Was zu tun ist:* Nichts, sofern der Client kein HTML erwartet. Ein Browser, der auf die
 Umleitung gebaut hat, findet unter `/` ohnehin nichts mehr.
 
-### Der Statuscode steht im Fehlerrumpf unter `status`
-**Seit `000-000-0006` (2026-09-09).**
+### Der Statuscode steht nicht mehr im Fehlerrumpf
+**Seit `011-001-0003` (2026-09-16).** Ersetzt die Zwischenstufe aus `000-000-0006`.
 
-Für alles, was weder `ContentflyException` noch `ContentflyI18NException` ist — also für jeden
-PHP-Fehler — stand der Code als **schlüsselloser** Eintrag im Rumpf und kam deshalb als `"0"`
-beim Client an. In den beiden anderen Zweigen hiess das Feld schon immer `status`.
+`000-000-0006` hat das Feld `status` in Ordnung gebracht: Für alles, was weder
+`ContentflyException` noch `ContentflyI18NException` war — also für jeden PHP-Fehler — stand der
+Code als **schlüsselloser** Eintrag im Rumpf und kam als `"0"` beim Client an.
 
-*Was zu tun ist:* `status` lesen statt `0`.
+Jetzt ist das Feld **ganz weg**. Der Statuscode steht in der HTTP-Antwort, dort gehört er hin,
+und ein Rumpf, der ihn wiederholt, lädt dazu ein, dass beide auseinanderlaufen — genau das war
+vor `000-000-0006` der Fall: Bei einer `ContentflyException` nannte der Rumpf `getCode()` und die
+Antwort etwas anderes.
+
+*Was zu tun ist:* Den Statuscode der HTTP-Antwort lesen statt `body.status`.
 
 ### Ein Fehler beim Start antwortet mit JSON statt mit leerem Rumpf
 **Seit `000-000-0024` (2026-09-15).**
@@ -449,14 +454,19 @@ Eine Ausnahme, die fällt, bevor der Kernel steht — ein unerfüllbarer `APP_CA
 fehlende `custom/config.php` —, erreichte keinen Fehlerhandler. Die Antwort war **HTTP 500 mit
 0 Byte**; die Meldung stand nur im Serverlog.
 
-Jetzt fängt `Kernel\Start::web()` sie ab und antwortet im Format der übrigen Fehlerantworten:
-`message`, `type`, `status`, bei `APP_DEBUG` zusätzlich `debug` mit Datei, Zeile und Trace. Ohne
-`APP_DEBUG` ersetzt die Antwort Projekt- und Paketverzeichnis durch `<project>` bzw. `<package>`.
-Die Meldung steht weiterhin im Serverlog, dort mit vollen Pfaden. Die Konsole ist unverändert:
-Dort endet ein Startfehler wie bisher mit der Ausnahme auf `stderr`.
+Jetzt fängt `Kernel\Start::web()` sie ab und antwortet im Format der übrigen Fehlerantworten —
+**seit `011-001-0003` im Envelope**, also `data: null`, `errors` und `meta`, bei `APP_DEBUG`
+zusätzlich `meta.debug` mit Datei, Zeile und Trace. Ohne `APP_DEBUG` ersetzt die Antwort Projekt-
+und Paketverzeichnis durch `<project>` bzw. `<package>`. Die Meldung steht weiterhin im Serverlog,
+dort mit vollen Pfaden. Die Konsole ist unverändert: Dort endet ein Startfehler wie bisher mit der
+Ausnahme auf `stderr`.
+
+**`meta.version` ist hier `null`, und das ist eine Aussage:** Diese Antwort entsteht, bevor
+`version.php` gelesen ist — zu diesem Zeitpunkt weiss niemand, welche Version nicht starten
+konnte.
 
 *Was zu tun ist:* Nichts. Wer die leere 500 als Zeichen für eine Fehlkonfiguration ausgewertet
-hat, liest jetzt `message`.
+hat, liest jetzt `errors[0].detail`.
 
 ### Die Dateiauslieferung leitet auf einen Pfad ab `WEB_ROOT` um
 **Seit `000-000-0006` (2026-09-09).**
@@ -601,17 +611,175 @@ Eine **unbekannte** Entity bleibt ein `404`, jetzt aber unterscheidbar, mit
 *Was zu tun ist:* Die Sonderbehandlung des 404 entfernen. Wer weiterhin unterscheiden will,
 liest `message`: Bei einer unbekannten Entity steht dort `contentfly_general_unknown_entity`.
 
-### Die übrigen Envelopes ändern sich erst mit dem Release
-**Angekündigt mit `000-000-0014` — noch keine Änderung.**
+### Jede Erfolgsantwort unter `/api/*` hat dieselbe Form: `data`, `errors`, `meta`
+**Seit `011-001-0002` (2026-09-16).** Angekündigt mit `000-000-0014`.
 
-Die sieben Antwortformen der API werden auf `data`, `errors`, `meta` gebracht. Der Umbau gehört
-in Epic `011` und nicht in `009`: Die Charakterisierungstests aus Epic `008` sind die
-Abnahmegrundlage des Kernel-Wechsels, und wären beide Seiten des Vergleichs gleichzeitig neu,
-liesse sich eine Abweichung nicht mehr dem Umbau oder der Absicht zuordnen.
+**Das ist die grösste Formänderung des Release.** Siebzehn Antwortstellen unter `/api/*` trugen
+sieben verschiedene Formen: hier `ts` und `data`, dort `lastModified` und `data`, bei `insert` die
+`id` **neben** dem Objekt, bei `list` `totalItems` dazwischen, bei `schema` das Schema auf der
+obersten Ebene. Ein Client brauchte einen Leser je Endpunkt. Jetzt gibt es einen:
 
-Die vollständige Tabelle *vorher → nachher* je Endpunkt steht in
-`an_project/docs/api-envelope.md`. Sie ist die Vorlage für den Migrationsleitfaden aus Epic
-`007` — wer heute einen Client baut, kann sich darauf einstellen.
+```json
+{"data": …, "errors": null, "meta": {"ts": "…", "version": "…", "projectVersion": "…", "hash": "…"}}
+```
+
+`data` ist die Nutzlast des Endpunkts, `errors` ist im Erfolgsfall `null` (nicht abwesend), und
+alles, was die Antwort **beschreibt** statt sie zu sein, steht in `meta`.
+
+| Endpunkt | vorher | jetzt |
+|---|---|---|
+| `POST /api/all` | `lastModified`, `data` | `data`; `meta.lastModified` |
+| `GET /api/config` | `devmode`, `version`, `hash` | `data = {devmode}` |
+| `POST /api/count` | `ts`, `data` | `data` |
+| `POST /api/delete` | `ts`, `id` | `data = {id}` |
+| `POST /api/deleted` | `ts`, `data` | `data` |
+| `POST /api/insert` | `ts`, `id`, `data` | `data` — das Objekt trägt die `id` |
+| `POST /api/list` | `data`, `totalItems`, ggf. `itemsPerPage`, `lastModified` | `data`; diese drei in `meta` |
+| `POST /api/list` (`count: true`) | `data` = Anzahl | `data` = Anzahl |
+| `POST /api/multiupdate` | `ts`, `data` | `data` |
+| `POST /api/query` | `ts`, `params`, `data` | `data`; `meta.params` |
+| `POST /api/replace` | erbt von `insert`/`update` | erbt mit |
+| `GET /api/schema` | Schema auf oberster Ebene, dazu `permissions`, `i18nPermissions`, `frontend`, `devmode` | `data` = Schema; die vier anderen in `meta` |
+| `POST /api/single` | `ts`, `data` | `data` |
+| `POST /api/tree`, `/api/tree2` | `ts`, `data` | `data` |
+| `POST /api/translations` | `data` | `data` |
+| `POST /api/update` | `ts`, `id` | `data = {id}` |
+
+**Drei Änderungen sind mehr als ein Umhängen von Schlüsseln:**
+
+- **`/api/insert` liefert die `id` nur noch einmal.** Sie stand doppelt in der Antwort — einmal
+  oben, einmal im Objekt. Die Nutzlast ist jetzt das Objekt, und es trägt seine `id`.
+- **`/api/all` antwortet auf eine leere Menge mit `200` statt `204`.** Eine `204` hat keinen Rumpf
+  und damit auch keinen Envelope — genau der Fall, für den die Vereinheitlichung da ist.
+  `/api/list` hat dasselbe mit `000-000-0014` abgelegt.
+- **`meta` trägt zwei Versionen statt einer.** `version` ist die des Frameworks,
+  `projectVersion` die des Projekts. Bisher **verlor `/api/config` die Projektversion**: Die
+  Aktion übergab `APP_VERSION.'/'.CUSTOM_VERSION`, und `renderResponse()` überschrieb den
+  Schlüssel danach mit `APP_VERSION` allein. Kein Client hat sie je gesehen.
+
+**Betroffen ist jeder Client**, der eine dieser Antworten auswertet.
+
+*Was zu tun ist:* Eine Leserfunktion für den Envelope schreiben und die Auswertung darauf
+umstellen. `body.data` ist bei `single`, `list`, `count`, `deleted`, `tree`, `tree2`,
+`translations`, `query`, `multiupdate` und `schema` dasselbe wie vorher — dort genügt es, die
+Zusatzschlüssel aus `meta` zu lesen. Wirklich umzubauen sind `insert` (`body.id` →
+`body.data.id`), `delete`/`update` (`body.id` → `body.data.id`), `config` (`body.devmode` →
+`body.data.devmode`) und `schema` (`body.permissions` → `body.meta.permissions`).
+
+**`/auth/*`, `/file/upload`, `/file/overwrite` und `/system/do` sind mit `011-001-0004` nachgezogen**
+— siehe den übernächsten Eintrag. Die vollständige Tabelle über alle Endpunkte steht in
+`an_project/docs/api-envelope.md`.
+
+### Jede Fehlerantwort hat dieselbe Form wie eine Erfolgsantwort
+**Seit `011-001-0003` (2026-09-16).**
+
+Die Fehlerform war die achte neben den sieben Erfolgsformen — und sie war in sich nicht einheitlich:
+
+```json
+{"message":"contentfly_file_too_large","type":"…\\ContentflyException","message_value":1048576,"status":413}
+```
+
+**Welche Schlüssel ankamen, hing von der Ausnahmeklasse ab.** `message_value` gab es nur bei einer
+`ContentflyException`, `message_entity` und `message_lang` nur bei einer `ContentflyI18NException`,
+bei einem PHP-Fehler keines von beiden. Ein Client musste also die Ausnahmen des Frameworks kennen,
+um einen Fehler überhaupt lesen zu können.
+
+Jetzt:
+
+```json
+{"data": null,
+ "errors": [{"code": "contentfly_file_too_large",
+             "detail": "contentfly_file_too_large",
+             "type": "Areanet\\PIM\\Classes\\Exceptions\\ContentflyException",
+             "context": {"value": 1048576}}],
+ "meta": {"ts": "…", "version": "…", "projectVersion": "…", "hash": "…"}}
+```
+
+**Vier feste Schlüssel je Eintrag, immer vorhanden:**
+
+| Feld | Bedeutung | vorher |
+|---|---|---|
+| `code` | Worauf ein Client **verzweigt**: der `Messages`-Schlüssel einer Contentfly-Ausnahme — und `null` bei allem anderen | `message`, sofern es ein Schlüssel war |
+| `detail` | Für einen Menschen: `getMessage()`. Bei einer Contentfly-Ausnahme derselbe String wie `code`, weil die Meldung dort der Schlüssel **ist** | `message` |
+| `type` | Die Ausnahmeklasse | `type`, unverändert |
+| `context` | Was die Ausnahme darüber hinaus weiss: `{"value": …}` bzw. `{"entity": …, "lang": …}`, sonst `null` | `message_value` bzw. `message_entity`/`message_lang` |
+
+**`code: null` ist keine Lücke, sondern die Aussage:** Das ist ein unvorhergesehener Serverfehler,
+hier gibt es nichts Stabiles zum Verzweigen. Wer solche Fälle doch unterscheiden muss, liest `type`
+— und trägt das Risiko, dass eine Klasse umbenannt wird.
+
+**`errors` ist eine Liste, obwohl heute immer genau ein Eintrag darin steht.** Der Handler sieht
+eine Ausnahme. Die Liste ist der Platz für die Feldvalidierung, die mehrere Fehler auf einmal melden
+können muss, ohne die Form noch einmal zu ändern.
+
+**Der Stacktrace steht im Debug-Modus unter `meta.debug`**, nicht mehr auf oberster Ebene: Er
+beschreibt diese Antwort, nicht den Fehler — dieselbe Ebene wie `ts` und `hash`. Wie bisher nur bei
+`APP_DEBUG`.
+
+**Auch der Hinweis „nicht installiert" ist jetzt ein Envelope** (`503`) und trägt den neuen
+`Messages`-Schlüssel `contentfly_general_not_installed`. Bisher war er ein blosses
+`{"message": …}` — die neunte Form.
+
+**Betroffen ist jeder Client**, der Fehlerantworten auswertet.
+
+*Was zu tun ist:* `body.message` → `body.errors[0].code` (zum Verzweigen) bzw.
+`body.errors[0].detail` (zum Anzeigen), `body.message_value` → `body.errors[0].context.value`,
+`body.message_entity`/`body.message_lang` → `body.errors[0].context.entity`/`.lang`,
+`body.debug` → `body.meta.debug`. `body.status` ersatzlos — der Statuscode steht in der
+HTTP-Antwort.
+
+### `/auth/*`, `/file/*` und `/system/do` antworten wie alle anderen
+**Seit `011-001-0004` (2026-09-16).** Damit ist der Envelope vollständig.
+
+Diese drei Gruppen hatten je eine eigene Form, und keine davon ging durch den Trichter der API.
+
+| Endpunkt | vorher | jetzt |
+|---|---|---|
+| `POST /auth/login` | `message`, `token`, `user`, optional `data`, `refreshToken`, `expiresIn`, `schema`, `hash` | `data` = `{token, user, …}` |
+| `POST /auth/refresh` | `message`, `token`, `refreshToken`, `expiresIn` | `data` = `{token, refreshToken, expiresIn}` |
+| `GET /auth/logout` | `message` | `data` = `null` |
+| `POST /file/upload` | `message`, `data` | `data` = das Dateiobjekt |
+| `POST /file/overwrite` | `message`, `sourceId`, `destId` | `data` = `{sourceId, destId}` |
+| `POST /system/do` | `method`, `datetime`, `message` | `data` = `{method, message}` |
+
+**`message` entfällt überall.** „Login successful", „File uploaded", „File overwritten",
+„Logout successful" — Sätze, die ein Client nur wörtlich vergleichen konnte, neben einem `200`,
+das dasselbe schon sagte.
+
+**Vier Stellen sind mehr als ein Umhängen:**
+
+- **`/auth/login`: aus `data` wird `tempData`.** Was ein Projekt dem Client bei der Anmeldung
+  mitgibt, hiess auf oberster Ebene `data`. Unter dem Envelope wäre das `body.data.data` gewesen;
+  jetzt heisst es wie das Entity-Feld, aus dem es kommt.
+- **`/auth/login?withSchema` antwortet wie `/api/schema`.** Beide lieferten bisher den ganzen
+  `getExtendedSchema()`-Block am Stück. `/api/schema` ist mit `011-001-0002` aufgeteilt worden —
+  `data` ist die Entity-Karte, Rechte und Rest stehen in `meta`. Hier gilt jetzt dasselbe:
+  `data.schema` ist die Entity-Karte, `meta.permissions`, `meta.i18nPermissions`, `meta.devmode`
+  und `meta.frontend` stehen daneben. Sonst bräuchte ein Client zwei Leser für dasselbe Schema, je
+  nachdem, woher es kam. Das mitgelieferte `hash` entfällt: `meta.hash` trägt es in **jeder**
+  Antwort.
+- **`/system/do`: `datetime` entfällt ersatzlos.** `meta.ts` ist derselbe Wert im selben Format —
+  und steht in jeder Antwort, nicht nur in dieser.
+- **Die Ablehnungen der Anmeldung tragen endlich einen Code.** `401`, `429` und der `500` bei
+  fehlender JWT-Konfiguration entstehen im `AuthController` selbst und erreichten den Fehlerhandler
+  nie; sie waren die letzte Gruppe mit eigenem Rumpf. Neu sind dafür vier `Messages`-Schlüssel:
+  `contentfly_general_invalid_credentials`, `contentfly_general_invalid_refresh_token`,
+  `contentfly_general_too_many_attempts` und `contentfly_general_jwt_not_configured`. Bisher musste
+  ein Client den Satz erkennen, um „warte" von „falsches Passwort" zu unterscheiden — beides `4xx`.
+
+  **`…_invalid_credentials` gilt bewusst für *jeden* `401` der Anmeldung** — unbekannter Benutzer,
+  falsches Passwort, abgelehnter Provider. Die Antwort darf kein Orakel dafür sein, welche Konten
+  existieren.
+
+**Die letzte Antwort ausserhalb des Envelopes ist damit auch weg:** Eine `FileNotFoundException`
+beantwortete der Fehlerhandler mit einem **Klartext-404** — `text/html`, im Rumpf nur die Meldung.
+Das traf nicht nur die Dateiauslieferung, sondern auch `/file/overwrite`. Die Ausnahme erbt jetzt
+von `ContentflyException`, geht den normalen Weg und trägt ihren `Messages`-Schlüssel als `code`.
+
+*Was zu tun ist:* `body.token` → `body.data.token`, `body.user` → `body.data.user`,
+`body.data` (Projektdaten der Anmeldung) → `body.data.tempData`, `body.message` (Dateiobjekt bzw.
+Ergebnis von `/system/do`) → `body.data`. Auswertungen von `message`, `datetime` und dem `hash` der
+Anmeldung entfernen.
 
 ### Eine `unique`-Verletzung antwortet mit 409 statt 500
 **Seit `009-003-0002` (2026-09-09).**

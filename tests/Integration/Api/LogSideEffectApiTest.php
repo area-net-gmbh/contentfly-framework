@@ -44,10 +44,13 @@ class LogSideEffectApiTest extends IntegrationTestCase
 
         $this->assertSame(200, $status, 'Precondition: creating succeeds');
 
-        $this->deleteAfterTest('pim_tag', $body['id']);
-        $this->observed[] = $body['id'];
+        // 011-001-0002: insert answers with the created object as payload; it carries the id.
+        $id = $body['data']['id'];
 
-        return $body['id'];
+        $this->deleteAfterTest('pim_tag', $id);
+        $this->observed[] = $id;
+
+        return $id;
     }
 
     protected function tearDown(): void

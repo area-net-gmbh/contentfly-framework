@@ -33,10 +33,73 @@ class ErrorResponseApiTest extends IntegrationTestCase
         );
 
         $this->assertSame(500, $status, 'A PHP error is a server error');
-        $this->assertArrayHasKey('message', $body, 'The response is JSON — previously HTML');
-        $this->assertArrayHasKey('type', $body);
-        $this->assertSame(500, $body['status'],
-            'The status code is under "status" — previously as a keyless entry under "0"');
+
+        /*
+         * 011-001-0003. The body is the envelope now. Two of the three assertions that stood here
+         * kept their meaning and only changed address; the third is gone on purpose:
+         *
+         * `status` is NOT in the body any more. It was put in there by 000-000-0006 so that a
+         * client got a code at all where the shape was in disarray — but the code belongs in the
+         * HTTP response, and a body that repeats it invites the two to disagree. The status code
+         * is asserted one line above, where it comes from.
+         */
+        $entry = $this->assertErrorEnvelope($body);
+
+        $this->assertNull($entry['code'],
+            'A TypeError has no Messages key — null says: nothing stable to branch on here');
+        $this->assertNotSame('', $entry['detail'], 'The response is JSON — previously HTML');
+        $this->assertSame('TypeError', $entry['type']);
+        $this->assertNull($entry['context']);
+    }
+
+    /**
+     * ONE SHAPE ACROSS THE STATUS CODES — the acceptance test of `011-001-0003`.
+     *
+     * The counterpart to `EnvelopeApiTest`, which walks the success cases: five faults of very
+     * different origin — a missing token, a missing right, an unknown id, a rejected value, a PHP
+     * error — and one reader for all of them. They used to differ in more than their status code:
+     * a `ContentflyException` brought `message_value` along, a `ContentflyI18NException`
+     * `message_entity` and `message_lang`, a PHP error neither. Which keys arrived depended on the
+     * exception class, so a client had to know the framework's exceptions to read an error.
+     *
+     * What this test does NOT check is the status codes themselves — the endpoints' own tests do
+     * that, and `000-000-0006` is where they were put right. Here they are only the proof that the
+     * shape does not depend on them.
+     */
+    public function testEveryErrorIsReadableWithTheSameCode(): void
+    {
+        $token = $this->token();
+
+        $editor = $this->createTestUser(array('PIM\\Tag' => array()))[0];
+
+        $calls = array(
+            '401 without token'       => array(array('entity' => 'PIM\\Tag'), null, '/api/list', 401),
+            '403 without right'       => array(array('entity' => 'PIM\\Tag'), $editor, '/api/list', 403),
+            '404 unknown entity'      => array(array('entity' => 'PIM\\DoesNotExist'), $token, '/api/list', 404),
+            '404 unknown id'          => array(array('entity' => 'PIM\\Tag', 'id' => 'nope'), $token, '/api/single', 404),
+            '500 php error'           => array(array('entity' => 'PIM\\Tag', 'id' => 'x', 'data' => 'notAnArray'), $token, '/api/update', 500),
+        );
+
+        foreach ($calls as $name => [$payload, $with, $path, $expected]) {
+            [$status, $body] = $this->postJson($path, $payload, $with);
+
+            $this->assertSame($expected, $status, $name);
+
+            // The same three lines for every one of them — that is the whole claim.
+            $this->assertSame(array('data', 'errors', 'meta'), array_keys($body), $name);
+            $this->assertNull($body['data'], $name);
+            $this->assertSame(array('code', 'detail', 'type', 'context'), array_keys($body['errors'][0]), $name);
+        }
+    }
+
+    /** The status code left the body with 011-001-0003 — it stands in the HTTP response alone. */
+    public function testTheStatusCodeIsNoLongerRepeatedInTheBody(): void
+    {
+        [, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\DoesNotExist'), $this->token());
+
+        $this->assertArrayNotHasKey('status', $body);
+        $this->assertArrayNotHasKey('status', $body['errors'][0]);
+        $this->assertArrayNotHasKey('status', $body['meta']);
     }
 
     /**

@@ -64,12 +64,15 @@ class TemplateApiTest extends IntegrationTestCase
             $this->token()
         );
 
-        if (isset($body['id'])) {
-            $this->deleteAfterTest('example_entity', $body['id']);
-            $this->loggedIds[] = $body['id'];
+        // 011-001-0002: insert answers with the created object as payload; it carries the id.
+        $created = $body['data'] ?? null;
+
+        if (is_array($created) && isset($created['id'])) {
+            $this->deleteAfterTest('example_entity', $created['id']);
+            $this->loggedIds[] = $created['id'];
         }
 
-        return array($status, $body);
+        return array($status, $created);
     }
 
     private function schema(): array
@@ -91,7 +94,8 @@ class TemplateApiTest extends IntegrationTestCase
         $schema = $this->schema();
 
         $this->assertArrayHasKey(self::ENTITY, $schema['data']);
-        $this->assertArrayHasKey(self::ENTITY, $schema['permissions'],
+        // 011-001-0002: the rights annotate the schema and now sit in the meta.
+        $this->assertArrayHasKey(self::ENTITY, $schema['meta']['permissions'],
             'Also in the permissions block — a project entity is not treated differently');
 
         $this->assertSame('example_entity', $schema['data'][self::ENTITY]['settings']['dbname']);

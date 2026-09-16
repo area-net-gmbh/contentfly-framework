@@ -31,8 +31,9 @@ class ConstraintApiTest extends IntegrationTestCase
         );
 
         if ($status === 200) {
-            $this->deleteAfterTest('pim_tag', $body['id']);
-            $this->observed[] = $body['id'];
+            // 011-001-0002: insert answers with the created object as payload; it carries the id.
+            $this->deleteAfterTest('pim_tag', $body['data']['id']);
+            $this->observed[] = $body['data']['id'];
         }
 
         return array($status, $body);

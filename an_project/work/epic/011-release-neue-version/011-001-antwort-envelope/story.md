@@ -1,7 +1,7 @@
 ---
 id: 011-001-0000
 title: Den Antwort-Envelope der API vereinheitlichen
-status: todo
+status: done
 depends_on: []
 ---
 
@@ -36,7 +36,7 @@ Antwort jedes Endpunkts mit demselben Code auswerten kann.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
-- [ ] 011-001-0001 — Bestandsaufnahme der Antwortformen und Geltungsbereich des Envelopes
-- [ ] 011-001-0002 — Erfolgsantworten auf data/errors/meta umstellen
-- [ ] 011-001-0003 — Fehlerantworten in dieselbe Form bringen
-- [ ] 011-001-0004 — Restliche Endpunkte und Abnahme des Envelopes
+- [x] 011-001-0001 — Bestandsaufnahme der Antwortformen und Geltungsbereich des Envelopes
+- [x] 011-001-0002 — Erfolgsantworten auf data/errors/meta umstellen
+- [x] 011-001-0003 — Fehlerantworten in dieselbe Form bringen
+- [x] 011-001-0004 — Restliche Endpunkte und Abnahme des Envelopes

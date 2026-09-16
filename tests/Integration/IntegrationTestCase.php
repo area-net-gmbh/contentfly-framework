@@ -166,11 +166,12 @@ abstract class IntegrationTestCase extends TestCase
     {
         [, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => $this->pass()));
 
-        if (!isset($body['token'])) {
+        // 011-001-0004: the session is the payload of the login, so the token sits in `data`.
+        if (!isset($body['data']['token'])) {
             $this->fail('Login failed: '.json_encode($body));
         }
 
-        return $body['token'];
+        return $body['data']['token'];
     }
 
     /**
@@ -305,6 +306,73 @@ abstract class IntegrationTestCase extends TestCase
         );
     }
 
+    // ── The envelope ──────────────────────────────────────────────────────────
+
+    /**
+     * Checks the one envelope and returns the payload (`011-001-0002`).
+     *
+     * **This method exists because the assertion it replaces was the wrong one.** Before, each test
+     * wrote out the key list of its own endpoint — `array('ts', 'data', 'version', 'hash')` here,
+     * `array('lastModified', 'data', …)` there — and thereby fixed the very thing Epic `011` is
+     * removing: seven shapes for one API. The target form is in `an_project/docs/api-envelope.md`;
+     * it is checked here, once, so a new endpoint cannot bring an eighth along.
+     *
+     * A test now only names what its own endpoint ADDS to the meta. Everything a client may rely on
+     * everywhere — `data`, `errors`, and `ts`/`version`/`projectVersion`/`hash` in the meta — is
+     * checked here for every single call.
+     *
+     * @param array<string,mixed> $body the decoded response
+     * @param list<string> $extraMeta the meta keys this endpoint adds, in order
+     * @return mixed the payload
+     */
+    protected function assertEnvelope(array $body, array $extraMeta = array(), string $message = ''): mixed
+    {
+        $this->assertSame(array('data', 'errors', 'meta'), array_keys($body),
+            $message !== '' ? $message : 'Every success answer carries data, errors and meta — and nothing else');
+        $this->assertNull($body['errors'], 'On success errors is null, not absent');
+        $this->assertSame(
+            array_merge(array('ts', 'version', 'projectVersion', 'hash'), $extraMeta),
+            array_keys($body['meta']),
+            'The standard meta, plus what this endpoint adds'
+        );
+
+        return $body['data'];
+    }
+
+    /**
+     * Checks the envelope of an ERROR and returns its first entry (`011-001-0003`).
+     *
+     * The counterpart to assertEnvelope(). It replaces two assertions that stood all over the
+     * suite: `assertArrayNotHasKey('data', $body)` — "no data flows" — and the reading of
+     * `$body['message']`. The first one no longer holds and did not mean what it said: `data` is
+     * ALWAYS there now, and on an error it is `null`. That is the stronger statement, because an
+     * absent key and a key holding a payload are only distinguishable if you know that the key
+     * could be absent at all.
+     *
+     * @param array<string,mixed> $body the decoded response
+     * @param string|null $code the expected `code` — null when the test does not care
+     * @return array<string,mixed> the first entry of `errors`
+     */
+    protected function assertErrorEnvelope(array $body, ?string $code = null): array
+    {
+        $this->assertSame(array('data', 'errors', 'meta'), array_keys($body),
+            'An error carries the same three keys as a success');
+        $this->assertNull($body['data'], 'On an error no data flows — the key is there and empty');
+        $this->assertIsArray($body['errors']);
+        $this->assertNotEmpty($body['errors'], 'An error names at least one fault');
+
+        $entry = $body['errors'][0];
+
+        $this->assertSame(array('code', 'detail', 'type', 'context'), array_keys($entry),
+            'Four fixed keys — which of them are filled no longer depends on the exception class');
+
+        if ($code !== null) {
+            $this->assertSame($code, $entry['code']);
+        }
+
+        return $entry;
+    }
+
     /**
      * Registers a row for cleanup. tearDown() removes it even if the test fails — otherwise a red
      * test taints the following ones.
@@ -435,10 +503,11 @@ abstract class IntegrationTestCase extends TestCase
 
         [, $body] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORD));
 
-        if (!isset($body['token'])) {
+        // 011-001-0004: the session is the payload of the login — see login().
+        if (!isset($body['data']['token'])) {
             $this->fail('Login of the test user failed: '.json_encode($body));
         }
 
-        return array($body['token'], $userId, $groupId);
+        return array($body['data']['token'], $userId, $groupId);
     }
 }

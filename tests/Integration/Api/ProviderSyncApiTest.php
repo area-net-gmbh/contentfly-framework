@@ -53,7 +53,7 @@ class ProviderSyncApiTest extends IntegrationTestCase
             $this->fail('Login through the provider failed: '.json_encode($body));
         }
 
-        return $body;
+        return $body['data']; // 011-001-0004: the session is the payload of the login
     }
 
     /**
@@ -108,7 +108,7 @@ class ProviderSyncApiTest extends IntegrationTestCase
 
         $this->assertFalse($this->isActive($entry['identifier']), 'Locked — '.$output);
 
-        [$after] = $this->postJson('/auth/refresh', array('refreshToken' => $second['refreshToken'] ?? 'x'));
+        [$after] = $this->postJson('/auth/refresh', array('refreshToken' => $second['data']['refreshToken'] ?? 'x'));
         $this->assertSame(401, $after, 'The refresh token no longer redeems');
     }
 

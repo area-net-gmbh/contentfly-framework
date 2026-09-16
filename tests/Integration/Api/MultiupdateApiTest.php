@@ -88,11 +88,12 @@ class MultiupdateApiTest extends IntegrationTestCase
         )), $this->token());
 
         $this->assertSame(200, $status);
-        $this->assertArrayHasKey('ts', $body);
+        // 011-001-0002: the timestamp is no longer a key of this endpoint but standard meta —
+        // assertEnvelope() checks it for every call.
         $this->assertSame(array(
             array('entity' => 'PIM\\Tag', 'id' => $this->firstTag),
             array('entity' => 'PIM\\Tag', 'id' => $this->lastTag),
-        ), $body['data']);
+        ), $this->assertEnvelope($body));
     }
 
     // ── Partial failure — the actual finding ───────────────────────────────────────────
@@ -144,8 +145,8 @@ class MultiupdateApiTest extends IntegrationTestCase
         )), $this->token());
 
         $this->assertSame(404, $status);
-        $this->assertArrayNotHasKey('data', $body,
-            'The error response claims no change');
+        // 011-001-0003: `data` is present and null — the error response claims no change.
+        $this->assertErrorEnvelope($body);
         $this->assertSame('First', $this->title($this->firstTag),
             'And there was none either — the batch failed as a whole');
     }

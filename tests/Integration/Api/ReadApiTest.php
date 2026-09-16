@@ -54,7 +54,7 @@ class ReadApiTest extends IntegrationTestCase
 
     // ── /api/single ────────────────────────────────────────────────────────────────────
 
-    public function testSingleReturnsTheObjectInTheStandardEnvelope(): void
+    public function testSingleReturnsTheObjectInTheOneEnvelope(): void
     {
         [$status, $body] = $this->postJson(
             '/api/single',
@@ -63,10 +63,12 @@ class ReadApiTest extends IntegrationTestCase
         );
 
         $this->assertSame(200, $status);
-        $this->assertSame(array('ts', 'data', 'version', 'hash'), array_keys($body),
-            'The envelope of /api/single — note: without totalItems, unlike /api/list');
-        $this->assertSame($this->tagA, $body['data']['id']);
-        $this->assertSame('Alpha', $body['data']['title']);
+        // Until 011-001-0002 this test said "without totalItems, unlike /api/list". There is
+        // nothing left to say that about — both answer in the same envelope now, and what one has
+        // and the other has not is a meta key, not a different shape.
+        $tag = $this->assertEnvelope($body);
+        $this->assertSame($this->tagA, $tag['id']);
+        $this->assertSame('Alpha', $tag['title']);
     }
 
     public function testDateFieldsComeAsGroupOfFour(): void
@@ -120,8 +122,8 @@ class ReadApiTest extends IntegrationTestCase
         );
 
         $this->assertSame(404, $status);
-        $this->assertSame('contentfly_general_not_found', $body['message']);
-        $this->assertArrayNotHasKey('data', $body);
+        // 011-001-0003: the message key is now `errors[0].code` — the field a client branches on.
+        $this->assertErrorEnvelope($body, 'contentfly_general_not_found');
     }
 
     public function testUnknownEntityReturns404(): void
@@ -147,19 +149,25 @@ class ReadApiTest extends IntegrationTestCase
         );
 
         $this->assertSame(401, $status, 'Since the stack switch (006-002-0003) the intended code — Symfony 4.4 fixes 000-000-0006 here');
-        $this->assertArrayNotHasKey('data', $body, 'Without a token no data flows');
+        // 011-001-0003: `data` is present and null instead of missing — the stronger statement.
+        $this->assertErrorEnvelope($body);
     }
 
     // ── /api/list ──────────────────────────────────────────────────────────────────────
 
-    public function testListReturnsADifferentEnvelopeThanSingle(): void
+    public function testListReturnsTheSameEnvelopeAsSingle(): void
     {
+        /*
+         * INVERTED WITH 011-001-0002, including its name. It used to record the inconsistency:
+         * "list carries totalItems but no ts — single the other way round". That was exactly the
+         * finding of `000-000-0014`, and it is what this story removes. What list has beyond
+         * single is now `totalItems` in the meta — one key more, not another shape.
+         */
         [$status, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'), $this->token());
 
         $this->assertSame(200, $status);
-        $this->assertSame(array('data', 'totalItems', 'version', 'hash'), array_keys($body),
-            'list carries totalItems but no ts — single the other way round. Inconsistent, but the current state.');
-        $this->assertGreaterThanOrEqual(2, $body['totalItems']);
+        $this->assertEnvelope($body, array('totalItems'));
+        $this->assertGreaterThanOrEqual(2, $body['meta']['totalItems']);
     }
 
     public function testListWithoutOrderParameterSortsByIdDescending(): void
@@ -272,6 +280,6 @@ class ReadApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'));
 
         $this->assertSame(401, $status, 'Since the stack switch (006-002-0003) the intended code — Symfony 4.4 fixes 000-000-0006 here');
-        $this->assertArrayNotHasKey('data', $body);
+        $this->assertErrorEnvelope($body); // 011-001-0003: `data` is present and null
     }
 }

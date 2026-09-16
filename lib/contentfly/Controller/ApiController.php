@@ -31,7 +31,6 @@ use Doctrine\ORM\Id\AssignedGenerator;
 use Doctrine\ORM\Query;
 
 use Symfony\Component\HttpFoundation\File\Exception\AccessDeniedException;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
@@ -104,7 +103,14 @@ class ApiController extends BaseController
 
         $currentDate = new \Datetime();
 
-        return $this->renderResponse(array('lastModified' => $currentDate->format('Y-m-d H:i:s'),  'data' => $all), count($all) ? 200 : 204);
+        /*
+         * AN EMPTY SET IS A RESULT, NOT A SPECIAL CASE (011-001-0002).
+         *
+         * This answered `204` — no body, and therefore no envelope, which is exactly what the
+         * unification is for. `/api/list` gave up the same behaviour with `000-000-0014`: a known
+         * entity without matches answers `200` with an empty list.
+         */
+        return $this->renderResponse($all, 200, array('lastModified' => $currentDate->format('Y-m-d H:i:s')));
     }
 
     /**
@@ -140,7 +146,8 @@ class ApiController extends BaseController
          * put something back into it. The removal is recorded as a breaking change in
          * an_project/docs/breaking-changes.md.
          */
-        return $this->renderResponse(array('devmode' => Config\Adapter::getConfig()->APP_DEBUG, 'version' => APP_VERSION.'/'.CUSTOM_VERSION));
+        // Both versions live in `meta` now — see renderResponse().
+        return $this->renderResponse(array('devmode' => Config\Adapter::getConfig()->APP_DEBUG));
     }
 
     /**
@@ -199,9 +206,7 @@ class ApiController extends BaseController
         $entity         = ($request->request->all()["entity"] ?? null);
         $data           = $api->getCount($lastModified, $entity);
 
-        $currentDate    = new \Datetime();
-
-        return $this->renderResponse(array('ts' => $currentDate->format('Y-m-d H:i:s'), 'data' => $data));
+        return $this->renderResponse($data);
     }
 
     /**
@@ -252,9 +257,7 @@ class ApiController extends BaseController
         $event->setParam('app',     $this->app);
         $this->app['dispatcher']->dispatch($event, 'pim.entity.after.delete');
 
-        $currentDate = new \Datetime();
-
-        return $this->renderResponse(array('ts' => $currentDate->format('Y-m-d H:i:s'), 'id' => $id));
+        return $this->renderResponse(array('id' => $id));
     }
 
     /**
@@ -286,8 +289,7 @@ class ApiController extends BaseController
         $api            = new Api($this->app, $request);
         $lastModified   = ($request->request->all()["lastModified"] ?? null);
         $data           = $api->getDeleted($lastModified);
-        $currentDate    = new \Datetime();
-        return $this->renderResponse(array('ts' => $currentDate->format('Y-m-d H:i:s'), 'data' => $data));
+        return $this->renderResponse($data);
     }
 
 
@@ -364,9 +366,8 @@ class ApiController extends BaseController
         $event->setParam('app',     $this->app);
         $this->app['dispatcher']->dispatch($event, 'pim.entity.after.insert');
 
-        $currentDate    = new \Datetime();
-
-        return $this->renderResponse(array('ts' => $currentDate->format('Y-m-d H:i:s'), 'id' => $object->getId(), "data" => $object->toValueObject($this->app, $entityShortName, true)));
+        // The value object carries the id, so there is no second place for it.
+        return $this->renderResponse($object->toValueObject($this->app, $entityShortName, true));
     }
 
     /**
@@ -537,27 +538,26 @@ class ApiController extends BaseController
         }
 
         if($doCount){
-            return $this->renderResponse(array('data' => count($data['objects'])));
+            return $this->renderResponse(count($data['objects']));
         }
 
 
-        if($currentPage) {
-            $data = array('data' => $data['objects'], 'itemsPerPage' => $itemsPerPage, 'totalItems' => $data['totalObjects']);
+        /*
+         * One answer instead of two branches: paging only adds `itemsPerPage` to the meta, it does
+         * not change the shape. The two branches said the same thing twice.
+         */
+        $meta = array('totalItems' => $data['totalObjects']);
 
-            if($lastModified){
-                $currentDate = new \Datetime();
-                $data['lastModified'] = $currentDate->format('Y-m-d H:i:s');
-            }
-            return $this->renderResponse($data);
-        } else {
-            $data = array('data' => $data['objects'], 'totalItems' => $data['totalObjects']);
-
-            if($lastModified){
-                $currentDate = new \Datetime();
-                $data['lastModified'] = $currentDate->format('Y-m-d H:i:s');
-            }
-            return $this->renderResponse($data);
+        if($currentPage){
+            $meta['itemsPerPage'] = $itemsPerPage;
         }
+
+        if($lastModified){
+            $currentDate = new \Datetime();
+            $meta['lastModified'] = $currentDate->format('Y-m-d H:i:s');
+        }
+
+        return $this->renderResponse($data['objects'], 200, $meta);
     }
 
     /**
@@ -626,12 +626,7 @@ class ApiController extends BaseController
             throw $e;
         }
 
-        $currentDate = new \DateTime();
-
-        return $this->renderResponse(array(
-            'ts'    => $currentDate->format('Y-m-d H:i:s'),
-            'data'  => $updated
-        ));
+        return $this->renderResponse($updated);
     }
 
     /**
@@ -731,16 +726,8 @@ class ApiController extends BaseController
         $this->app['dispatcher']->dispatch($event, 'pim.entity.after.udpdate');
         $this->app['dispatcher']->dispatch($event, 'pim.entity.after.update');
 
-        $currentDate = new \Datetime();
+        return $this->renderResponse(array('id' => $id));
 
-        return $this->renderResponse(array('ts' => $currentDate->format('Y-m-d H:i:s'), 'id' => $id));
-
-    }
-
-    protected function renderResponse(Array $data, $status = 200){
-        $data['version']    = APP_VERSION;
-        $data['hash']       = $this->app['schema']['_hash'];
-        return new JsonResponse($data, $status);
     }
 
     /**
@@ -887,11 +874,28 @@ class ApiController extends BaseController
      */
     public function schemaAction()
     {
-        $api = new Api($this->app);
+        $api            = new Api($this->app);
         $extendedSchema = $api->getExtendedSchema();
 
-        return $this->renderResponse($extendedSchema);
-
+        /*
+         * THE SCHEMA IS THE PAYLOAD; WHAT ANNOTATES IT IS META (011-001-0002).
+         *
+         * `getExtendedSchema()` returns four things at once, and until now all four lay at the top
+         * level of the response, beside `version` and `hash`. `data` — the entity map — keeps its
+         * place and its meaning: whoever read `body.data` before reads the same thing today.
+         *
+         * Everything else annotates the schema instead of being it, and therefore goes to `meta`,
+         * where the schema hash has always gone: `permissions` and `i18nPermissions` say what THIS
+         * caller may do with the entities in `data`, `devmode` describes the installation, and
+         * `frontend` holds the two keys that survived `000-000-0010` — navigation and languages.
+         * `version` is dropped here because `meta` carries both versions for every endpoint.
+         */
+        return $this->renderResponse($extendedSchema['data'], 200, array(
+            'permissions'     => $extendedSchema['permissions'],
+            'i18nPermissions' => $extendedSchema['i18nPermissions'],
+            'devmode'         => $extendedSchema['devmode'],
+            'frontend'        => $extendedSchema['frontend'],
+        ));
     }
 
     /**
@@ -995,9 +999,8 @@ class ApiController extends BaseController
         if($data === null){
             throw new ContentflyException(Messages::contentfly_general_not_found, $entityName, Messages::contentfly_status_not_found);
         }
-        $currentDate    = new \Datetime();
 
-        return $this->renderResponse(array('ts' => $currentDate->format('Y-m-d H:i:s'), 'data' => $data));
+        return $this->renderResponse($data);
 
     }
 
@@ -1088,9 +1091,8 @@ class ApiController extends BaseController
 
         $api            = new Api($this->app);
         $tree           = $api->getTree($entityName, null, $properties, $lang);
-        $currentDate    = new \Datetime();
 
-        return $this->renderResponse(array('ts' => $currentDate->format('Y-m-d H:i:s'),'data' => $tree));
+        return $this->renderResponse($tree);
     }
 
     /**
@@ -1138,9 +1140,8 @@ class ApiController extends BaseController
 
         $api            = new Api($this->app);
         $tree           = $api->getTree2($entityName,  $lang);
-        $currentDate    = new \Datetime();
 
-        return $this->renderResponse(array('ts' => $currentDate->format('Y-m-d H:i:s'),'data' => $tree));
+        return $this->renderResponse($tree);
     }
 
     /**
@@ -1180,7 +1181,7 @@ class ApiController extends BaseController
         $api  = new Api($this->app);
         $lang = $api->getTranslations($entityName, $lang);
 
-        return $this->renderResponse(array('data' => $lang));
+        return $this->renderResponse($lang);
     }
 
     /**
@@ -1235,9 +1236,8 @@ class ApiController extends BaseController
 
         $api            = new Api($this->app, $request);
         $data           = $api->getQuery($params);
-        $currentDate    = new \Datetime();
 
-        return $this->renderResponse(array('ts' => $currentDate->format('Y-m-d H:i:s'), 'params' => $params, 'data' => $data));
+        return $this->renderResponse($data, 200, array('params' => $params));
     }
 
 

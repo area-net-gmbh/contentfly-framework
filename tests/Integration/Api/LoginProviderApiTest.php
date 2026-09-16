@@ -61,9 +61,11 @@ class LoginProviderApiTest extends IntegrationTestCase
         [$status, $body] = $this->loginThroughProvider();
 
         $this->assertSame(200, $status, 'Response: '.json_encode($body));
-        $this->assertArrayHasKey('token', $body);
 
-        $this->assertSame(200, $this->getWithToken('/api/schema', $body['token']),
+        $session = $this->assertEnvelope($body); // 011-001-0004
+        $this->assertArrayHasKey('token', $session);
+
+        $this->assertSame(200, $this->getWithToken('/api/schema', $session['token']),
             'The token opens a protected route — the same path as with a password login');
     }
 
