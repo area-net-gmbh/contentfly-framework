@@ -8,6 +8,7 @@
 - 000-000-0049 → in-progress
 - 000-000-0049 → review: **`data/cache/proxies/<Kennung>` statt `data/cache/doctrine`.** `Classes\ORM\ProxyDirectory` bildet die Kennung aus Version und Referenz von `areanet/contentfly` und `doctrine/orm`; Bootstrap und `appcms:install` benutzen sie. `ProxyDirectoryTest` und ein Integrationstest mit einer werfenden Alt-Proxy im früheren Verzeichnis; Gegenprobe mit master rot. Am UFP-Probe-Backend mit unveränderter Datenkopie antwortet das Backend wieder. Register unter Doctrine ORM 3, Metadaten-Cache-Eintrag ergänzt, Phase 4 leert alle drei Verzeichnisse, `deployment.md` erweitert, `migration.md` auf 115. Suite 608 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
 - 000-000-0049 → done (merged into master)
+- 007-000-0000 → done: alle fünf Stories sind geschlossen (Paketbezug, Rector-Regel, `$app`-Bridge, Leitfaden, echtes Bestandsprojekt). Der Leitfaden ist an UFP gefahren, die Befunde daraus sind als `000-000-0038`…`0049` umgesetzt.
 
 ## 2026-09-15
 - 000-000-0032 → in-progress

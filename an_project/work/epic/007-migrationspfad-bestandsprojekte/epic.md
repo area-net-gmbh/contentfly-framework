@@ -1,7 +1,7 @@
 ---
 id: 007-000-0000
 title: Migrationspfad für Bestandsprojekte
-status: todo
+status: done
 depends_on: [009-000-0000, 010-000-0000]
 ---
 
