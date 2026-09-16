@@ -19,6 +19,10 @@
 - 011-001-0003 task created: "Fehlerantworten in dieselbe Form bringen"
 - 011-001-0004 task created: "Restliche Endpunkte und Abnahme des Envelopes"
 - 011-001-0001…0004 refined: **Story 011-001 geschnitten am offenen Punkt und am Trichter.** `0001` erhebt jede Antwortstelle aus dem Code (`/api/*` über `renderResponse()`, 18 Aufrufe; Fehler im Handler von `bootstrap-web.php`; `/auth` 10, `/file` 2, `/system` 1 eigene `JsonResponse`) und entscheidet den Geltungsbereich — `api-envelope.md` führt bisher nur zehn Endpunkte. `0002` stellt die Erfolgsantworten im Trichter um, mit begründeter Anpassung der Charakterisierungstests. `0003` bringt die Fehlerform nach (`data: null`, `errors` als Liste, `status` fällt aus dem Rumpf), Statuscodes unverändert. `0004` liefert die restlichen Endpunkte und die Abnahme: ein Test wertet jeden Endpunkt mit einer einzigen Auswertung aus.
+- 011-000-0000 → in-progress
+- 011-001-0000 → in-progress
+- 011-001-0001 → in-progress
+- 011-001-0001 → review: **32 JSON-Antwortstellen erhoben (eine davon der Trichter selbst), Geltungsbereich entschieden.** `/api/*` 19, `/auth/*` 10, `/file/*` 2, `/system/do` 1, dazu der Fehlerhandler; entschieden: der Envelope gilt für **jeden** JSON-Endpunkt, `/file/get` und der `204`-Preflight bleiben aussen. Vollständige Zieltabelle (25 Zeilen) in `api-envelope.md`, dazu die Tests, die die heutige Form halten. Korrekturen am Dokument: `/api/mail` nicht mehr gemountet, `/api/replace` delegiert, fünf Endpunkte fehlten, `/api/list` hat drei Formen. Befunde für `0002`: `/api/config` verliert die Projektversion (renderResponse überschreibt `version`), `/api/all` antwortet `204` ohne Rumpf. Kein Code geändert.
 
 ## 2026-09-15
 - 000-000-0032 → in-progress

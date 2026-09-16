@@ -90,6 +90,78 @@ Je Endpunkt, vorher → nachher:
 | `/api/config` | `frontend`, `devmode`, `version`, `hash` | `data` = `{"devmode": …}`; Rest unter `meta` |
 | Fehlerfall | `message`, `type`, `message_value`, `status` | `data` = `null`, `errors` = `[{code, detail, …}]`, `meta` |
 
+## Geltungsbereich und vollständige Zieltabelle
+
+> Erhoben und entschieden mit `011-001-0001` (2026-09-16). Die Tabelle oben stammt aus `000-000-0014`
+> und führt zehn Endpunkte — erhoben wurden **32 JSON-Antwortstellen in vier Controllern** (eine davon
+> der Trichter `renderResponse` selbst), dazu der Fehlerhandler und die `204`-Antwort auf `OPTIONS`.
+
+**Entschieden: Der Envelope gilt für jeden JSON-Endpunkt des Frameworks** — `/api/*`, `/auth/*`,
+`/file/upload`, `/file/overwrite` und `/system/do`. Zwei Formen wären keine Vereinheitlichung: Das
+Erfolgskriterium des Epics lautet, dass ein Client **jeden** Endpunkt mit demselben Code auswertet.
+Der Preis ist benannt — auch der Anmelderumpf ändert sich, und zwölf Tests hängen daran.
+
+**Nicht betroffen:** `/file/get/...` liefert die Datei selbst (`RedirectResponse` bzw.
+`StreamedResponse`), und die `204`-Antwort auf einen `OPTIONS`-Preflight hat keinen Rumpf.
+
+### Zwei Korrekturen an der Tabelle oben
+
+- **`/api/mail` gibt es nicht mehr** — die Route ist nicht gemountet.
+- **`/api/replace` hat keine eigene Antwort.** Es delegiert per Sub-Request an `insert` bzw. `update`
+  und erbt deren Form; mit ihnen ist es miterledigt.
+
+### Die Endpunkte, vollständig
+
+| Endpunkt | Antwortstelle | heute | Zielform |
+|---|---|---|---|
+| `POST /api/all` | `ApiController:107` | `lastModified`, `data` (+ `version`, `hash`; `204` bei leerer Menge) | `data`; `lastModified` unter `meta` |
+| `GET /api/config` | `:143` | `devmode`, `version`, `hash` | `data` = `{devmode}`; Rest unter `meta` |
+| `POST /api/count` | `:204` | `ts`, `data` | `data`; `ts` unter `meta` |
+| `POST /api/delete` | `:257` | `ts`, `id` | `data` = `{id}`; Rest unter `meta` |
+| `POST /api/deleted` | `:290` | `ts`, `data` | `data`; Rest unter `meta` |
+| `POST /api/insert` | `:369` | `ts`, `id`, `data` | `data` (enthält die `id`); Rest unter `meta` |
+| `POST /api/list` (Zählung) | `:540` | `data` = Anzahl | `data` = Anzahl; Rest unter `meta` |
+| `POST /api/list` (Seite) | `:551` | `data`, `itemsPerPage`, `totalItems`, optional `lastModified` | `data`; `itemsPerPage`, `totalItems`, `lastModified` unter `meta` |
+| `POST /api/list` (ohne Seite) | `:559` | `data`, `totalItems`, optional `lastModified` | dito |
+| `POST /api/multiupdate` | `:631` | `ts`, `data` | `data`; Rest unter `meta` |
+| `POST /api/update` | `:736` | `ts`, `id` | `data` = `{id}`; Rest unter `meta` |
+| `GET /api/schema` | `:893` | das Schema **auf oberster Ebene**, plus `version`, `hash` | `data` = Schema; Rest unter `meta` |
+| `POST /api/single` | `:1000` | `ts`, `data` | `data`; Rest unter `meta` |
+| `POST /api/tree` | `:1093` | `ts`, `data` | `data`; Rest unter `meta` |
+| `POST /api/tree2` | `:1143` | `ts`, `data` | `data`; Rest unter `meta` |
+| `POST /api/translations` | `:1183` | `data` | `data`; `meta` wie überall |
+| `POST /api/query` | `:1240` | `ts`, `params`, `data` | `data`; `params` und `ts` unter `meta` |
+| `POST /api/replace` | — | erbt von `insert`/`update` | erbt mit |
+| `POST /auth/login` | `AuthController:248` (Erfolg) | `message`, `token`, `user`, optional `data`, `refreshToken`, `expiresIn` | `data` = `{token, user, …}`; `message` entfällt (der Statuscode sagt es) |
+| `POST /auth/refresh` | `:446` | `message`, `token`, `refreshToken`, `expiresIn` | `data` = `{token, refreshToken, expiresIn}` |
+| `GET /auth/logout` | `:526` | `message` | `data` = `null` |
+| `POST /file/upload` | `FileController:276` | `message`, `data` | `data` |
+| `POST /file/overwrite` | `:543` | `message`, `sourceId`, `destId` | `data` = `{sourceId, destId}` |
+| `POST /system/do` | `SystemController:97` | `method`, `datetime`, `message` | `data` = `{method, message}`; `datetime` unter `meta` |
+| Fehlerfall (alle) | `bootstrap-web.php:174–190` | `message`, `type`, `status`, je nach Ausnahme `message_value`, `message_entity`, `message_lang` | `data` = `null`, `errors` = Liste, `meta`; `status` entfällt |
+
+### Was die Erhebung nebenbei gefunden hat
+
+- **`/api/config` verliert die Projektversion.** Die Aktion übergibt `APP_VERSION.'/'.CUSTOM_VERSION`,
+  und `renderResponse()` überschreibt den Schlüssel danach mit `APP_VERSION` (`ApiController:143`
+  gegen `:741`). Der Client sieht die Projektversion nie. Mit der Umstellung ist zu entscheiden, ob
+  `meta.version` beide trägt.
+- **`/api/all` antwortet `204` bei leerer Menge** — ohne Rumpf, also auch ohne Envelope. `/api/list`
+  hat genau das mit `000-000-0014` abgelegt (leere Menge ist `200` mit leerer Liste). Beim Umstellen
+  ist zu entscheiden, ob `/api/all` nachzieht.
+
+### Welche Tests die heutige Form halten
+
+| Endpunktgruppe | Tests |
+|---|---|
+| `/api/*` | `ReadApiTest`, `WriteApiTest`, `QueryApiTest`, `TreeApiTest`, `SyncApiTest`, `ManyToManyApiTest`, `MultiupdateApiTest`, `UpdateReplaceApiTest`, `ConstraintApiTest`, `ReadPermissionApiTest`, `WritePermissionApiTest`, `UnenforcedPermissionApiTest` |
+| `/auth/*` | zwölf Dateien, allen voran `AuthApiTest`, `LoginProviderApiTest`, `LoginThrottleApiTest`, `LoginEventApiTest` |
+| `/file/*`, `/system/do` | `FileApiTest`, `SystemControllerApiTest` |
+| Fehlerform | `ErrorResponseApiTest`, `RouteSecurityApiTest` |
+
+Jede Anpassung dieser Erwartungen ist ein Verhaltenswechsel und trägt ihre Begründung im Test —
+`an_project/docs/technical.md`.
+
 ## Was schon gilt
 
 Zwei Punkte aus `000-000-0014` liessen sich nicht sinnvoll aufschieben, weil sie keine

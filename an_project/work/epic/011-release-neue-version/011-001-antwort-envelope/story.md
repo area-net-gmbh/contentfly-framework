@@ -1,7 +1,7 @@
 ---
 id: 011-001-0000
 title: Den Antwort-Envelope der API vereinheitlichen
-status: todo
+status: in-progress
 depends_on: []
 ---
 

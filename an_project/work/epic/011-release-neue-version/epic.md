@@ -1,7 +1,7 @@
 ---
 id: 011-000-0000
 title: Release der neuen Framework-Version
-status: todo
+status: in-progress
 depends_on: [007-000-0000, 009-000-0000, 010-000-0000]
 ---
 
