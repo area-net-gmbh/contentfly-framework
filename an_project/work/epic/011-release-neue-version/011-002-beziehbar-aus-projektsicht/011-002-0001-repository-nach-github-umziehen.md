@@ -1,7 +1,7 @@
 ---
 id: 011-002-0001
 title: Das Repository nach GitHub umziehen
-status: review
+status: done
 depends_on: []
 ---
 
