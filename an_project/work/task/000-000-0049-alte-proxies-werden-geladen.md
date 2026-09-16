@@ -1,7 +1,7 @@
 ---
 id: 000-000-0049
 title: Proxies aus einer älteren Version werden geladen statt ersetzt
-status: review
+status: done
 depends_on: []
 ---
 

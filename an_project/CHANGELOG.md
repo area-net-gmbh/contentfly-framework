@@ -7,6 +7,7 @@
 - 000-000-0049 refined: **Regression aus `000-000-0047`, gefunden bei der Messung zu `000-000-0041`.** Proxies lagen in `data/cache/doctrine`; seit der Vorgabe `FILE_NOT_EXISTS_OR_CHANGED` wird eine Proxy nur ersetzt, wenn sie älter ist als die Entity — die des alten Betriebs ist jünger, und Composer-Dateien tragen das Datum ihres Archivs. Gemessen an der UFP-Datenkopie: `500 Interface "Doctrine\ORM\Proxy\Proxy" not found`. Entschieden: ein Verzeichnis je Framework- und ORM-Stand.
 - 000-000-0049 → in-progress
 - 000-000-0049 → review: **`data/cache/proxies/<Kennung>` statt `data/cache/doctrine`.** `Classes\ORM\ProxyDirectory` bildet die Kennung aus Version und Referenz von `areanet/contentfly` und `doctrine/orm`; Bootstrap und `appcms:install` benutzen sie. `ProxyDirectoryTest` und ein Integrationstest mit einer werfenden Alt-Proxy im früheren Verzeichnis; Gegenprobe mit master rot. Am UFP-Probe-Backend mit unveränderter Datenkopie antwortet das Backend wieder. Register unter Doctrine ORM 3, Metadaten-Cache-Eintrag ergänzt, Phase 4 leert alle drei Verzeichnisse, `deployment.md` erweitert, `migration.md` auf 115. Suite 608 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
+- 000-000-0049 → done (merged into master)
 
 ## 2026-09-15
 - 000-000-0032 → in-progress
