@@ -4,7 +4,7 @@
 
 **Dieser Leitfaden ist der Weg. `an_project/docs/breaking-changes.md` ist das Register.**
 
-Das Register hat **113 Einträge in 14 Abschnitten** (Stand 2026-09-15) und ist nach Epic und
+Das Register hat **114 Einträge in 14 Abschnitten** (Stand 2026-09-15) und ist nach Epic und
 Story geordnet — also danach, *wann wir etwas geändert haben*. Das ist die richtige Ordnung zum
 Nachschlagen und die falsche zum Arbeiten. Hier steht die andere: **was ein Projekt tut, und in
 welcher Reihenfolge.**
@@ -212,6 +212,17 @@ den ersten Start zu Fall, und die Meldung handelt dann von Doctrine und nicht vo
   `#[ORM\AssociationOverrides]`; sonst ändert sich das Löschverhalten still.
 - **Eigene DQL-Funktionen** müssen `getSql(): string` deklarieren.
 
+**Vor dem Schema-Update die Dateien umziehen,** falls das Projekt von Contentfly 1.6 kommt: Dort lagen
+sie unter `data/files/JJJJ/MM/<id>/`, und das Update löscht die Spalte `pim_file.path`, die das festhält.
+
+```sh
+php bin/console.php appcms:files:relocate --dry-run
+php bin/console.php appcms:files:relocate
+```
+
+Meldet der Command, es gebe keine Spalte `path`, war nichts umzuziehen. Details im Register unter
+*Entity-Layer*.
+
 **Das Schema-Update erst lesen, dann anwenden — das ist Pflicht, kein Rat:**
 
 ```sh
@@ -221,7 +232,7 @@ php bin/console.php orm:schema-tool:update --force      # erst danach
 
 Bei UFP hat das Lesen Datenverlust verhindert: Geplant waren `DROP` für die Spalten der nicht migrierten
 Traits (Phase 3) und für `pim_file.path` — ohne diese Spalte sind die Dateien aus 1.x unter
-`data/files/JJJJ/MM/<id>/` nicht mehr erreichbar (offen im Framework: `000-000-0041`). Ein Projekt, das die
+`data/files/JJJJ/MM/<id>/` nicht mehr erreichbar. Ein Projekt, das die
 Tabelle `pim_navItem` umbenannt hat — oder deren Dump von einem Server mit anderem
 `lower_case_table_names` stammt —, sieht dort `DROP` und `CREATE`; der Register-Eintrag unter *Doctrine
 ORM 3* nennt das `RENAME TABLE` davor. **Jede `DROP`-Zeile

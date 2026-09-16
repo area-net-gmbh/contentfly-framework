@@ -1009,6 +1009,35 @@ Paket in seinem eigenen Manifest an.
 
 ## Entity-Layer (Story `010-001`)
 
+### Dateien aus Contentfly 1.6 liegen unter `data/files/JJJJ/MM/<id>/` — `appcms:files:relocate` zieht sie um
+**Seit `000-000-0041` (2026-09-15).**
+
+Contentfly 1.6 legte eine Datei unter `data/files/<path><id>/` ab; `pim_file.path` hielt ein
+Datumspräfix wie `2026/06/`. Contentfly 2 liest `data/files/<id>/` und kennt `path` nicht — das
+Schema-Update **löscht die Spalte**. Danach findet die API keine Bestandsdatei mehr, und die Angabe, wo
+sie lag, ist mit der Spalte weg. Beim Bestandsprojekt UFP (`007-005-0003`) traf das alle 41 Dateien.
+
+Entschieden: **ein Layout, einmal erreicht** — kein Altlast-Zweig im Datei-Backend. Der neue Command
+verschiebt jeden Ordner samt Thumbnails und Varianten nach `data/files/<id>/`; die Datenbank liest er nur.
+
+*Was zu tun ist:* **Vor dem Schema-Update** in Phase 4, weil der Command die Spalte braucht:
+
+```sh
+php bin/console.php appcms:files:relocate --dry-run   # zeigt, was er täte
+php bin/console.php appcms:files:relocate             # verschiebt
+```
+
+Gemessen an UFP: 27 verschoben, 14 fehlten schon vorher (gemeldet, nicht angefasst); ein zweiter Lauf
+findet alle 27 am Platz; eine Bestandsdatei wird danach vom migrierten Backend byte-gleich ausgeliefert.
+Geleerte Datumsordner entfernt der Command. **Er meldet und lässt stehen:** Ordner, die schon fehlen;
+Konflikte, bei denen Quelle und Ziel beide existieren; einen `path`, der kein schlichtes relatives Präfix
+ist. Konflikte und abgelehnte Pfade setzen den Exit-Code auf 1. Ordner unter einem Datumspräfix, zu denen
+`pim_file` keine Zeile hat (bei UFP 12), bleiben liegen — sie gehören zu keiner Datei der Anwendung.
+
+Ohne Spalte `path` meldet der Command, dass nichts zu tun ist — auch wenn er versehentlich nach dem
+Schema-Update läuft. Dann liegen die Dateien noch im alten Layout, und die Zuordnung steht nur noch in der
+Sicherung aus Phase 1.
+
 ### Entities tragen PHP-Attribute statt Annotationen
 **Seit `010-001-0003` (2026-09-10).**
 
