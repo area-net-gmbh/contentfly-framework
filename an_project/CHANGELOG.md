@@ -26,6 +26,11 @@
 - 011-001-0002 → in-progress (entschieden: `meta.version` plus `meta.projectVersion`; `/api/all` antwortet bei leerer Menge `200` mit leerer Liste statt `204`)
 - 011-001-0003 → in-progress (entschieden: ein Eintrag trägt `code`/`detail`/`type`/`context` mit festen Schlüsseln; der Stacktrace geht im Debug-Modus nach `meta.debug`. Mehrere Einträge entstehen heute nie — der Handler sieht eine Ausnahme; die Liste ist für die Feldvalidierung später)
 - 011-001-0004 → in-progress
+- 011-002-0001 task created: "Das Repository nach GitHub umziehen"
+- 011-002-0002 task created: "Die Pipeline auf GitHub Actions bringen"
+- 011-002-0003 task created: "Das Paket per Subtree-Split ausliefern"
+- 011-002-0004 task created: "Den Weg von aussen fahren, ins Runbook schreiben und als Gate festnageln"
+- 011-002-0000 refined: **Bezugsweg entschieden — eine Quelle auf GitHub, Paket per Subtree-Split, kein Registry-Weg.** Das Repository zieht nach `github.com/area-net-gmbh/contentfly-framework`, das interne GitLab wird abgeschaltet: Ein Zugang für eine externe Security-Prüfung liesse sich dort nur über VPN oder Netzwerkausnahmen geben. Geprüft und entscheidend: GitHub Packages unterstützt **kein** Composer, die GitLab-Registry verlangt die `composer.json` in der Repo-Wurzel — beide Registry-Wege fallen damit weg; es bleibt `vcs` auf ein Split-Repo, das als Erzeugnis bei jedem Tag neu entsteht. Für Bestandsprojekte ist genau das der Gewinn: einmal eine URL eintragen statt eines absoluten Pfads (der Blocker aus dem UFP-Probelauf), danach `composer update`. Vier Tasks: Umzug, Pipeline auf GitHub Actions, Split, Weg von aussen als Runbook-Abschnitt und Gate.
 - 011-001-0000 → done (merged into master)
 - 011-001-0000 schliesst mit sich: 011-001-0001, 011-001-0002, 011-001-0003 und 011-001-0004 → done (auf dem Story-Branch committet)
 - 011-001-0000 → review: **Der Envelope der API ist vereinheitlicht.** Alle vier Tasks stehen auf `review`; jeder JSON-Endpunkt antwortet mit `data`/`errors`/`meta`, im Erfolgs- wie im Fehlerfall. Die Story war noch `in-progress`, weil die Tasks einzeln über `/implement <task-id>` gelaufen sind — ein Story-Lauf hätte den Status am Ende selbst gesetzt.
