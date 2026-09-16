@@ -149,17 +149,25 @@ class SystemControllerApiTest extends IntegrationTestCase
 
     public function testSystemEndpointUsesItsOwnResponseShape(): void
     {
-        // The /api endpoints respond with data/totalItems/version/hash, /system/do with
-        // method/datetime/message. Two shapes in the same framework — recorded under
-        // 000-000-0014 (unification of the envelopes).
+        /*
+         * HALF DONE — AND THAT IS WHAT THIS TEST NOW RECORDS (011-001-0002).
+         *
+         * Both endpoints used to bring their own shape: `/api/*` data/totalItems/version/hash,
+         * `/system/do` method/datetime/message. `/api/*` has moved to the one envelope; `/system/do`
+         * follows with `011-001-0004`, together with `/auth/*` and `/file/*`.
+         *
+         * The test stays as long as the difference does. It disappears with `0004` — and it is the
+         * place that will report it if `/system/do` is forgotten there.
+         */
         [$statusSystem, $system] = $this->systemDo('generateToken');
         [$statusApi, $api]       = $this->postJson('/api/list', array('entity' => 'PIM\\User'), $this->token());
 
         $this->assertSame(200, $statusSystem);
         $this->assertSame(200, $statusApi, 'Precondition: both calls succeed');
 
-        $this->assertSame(array('method', 'datetime', 'message'), array_keys($system));
-        $this->assertSame(array('data', 'totalItems', 'version', 'hash'), array_keys($api));
+        $this->assertSame(array('method', 'datetime', 'message'), array_keys($system),
+            '/system/do still answers in its own shape — 011-001-0004 moves it');
+        $this->assertEnvelope($api, array('totalItems'));
     }
 
     public function testUnknownMethodEndsInHtmlErrorPage(): void

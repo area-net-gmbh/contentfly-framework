@@ -76,8 +76,9 @@ class WritePermissionApiTest extends IntegrationTestCase
         );
 
         $this->assertSame(200, $status, 'OWN is enough for creating — there is nothing foreign yet');
-        $this->deleteAfterTest('pim_tag', $body['id']);
-        $this->pdo()->prepare('DELETE FROM pim_log WHERE model_id = :id')->execute(array('id' => $body['id']));
+        $created = $body['data']; // 011-001-0002: insert answers with the object as payload
+        $this->deleteAfterTest('pim_tag', $created['id']);
+        $this->pdo()->prepare('DELETE FROM pim_log WHERE model_id = :id')->execute(array('id' => $created['id']));
     }
 
     public function testWithoutWriteRightNothingIsCreated(): void

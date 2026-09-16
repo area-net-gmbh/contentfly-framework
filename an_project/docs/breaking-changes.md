@@ -601,17 +601,64 @@ Eine **unbekannte** Entity bleibt ein `404`, jetzt aber unterscheidbar, mit
 *Was zu tun ist:* Die Sonderbehandlung des 404 entfernen. Wer weiterhin unterscheiden will,
 liest `message`: Bei einer unbekannten Entity steht dort `contentfly_general_unknown_entity`.
 
-### Die übrigen Envelopes ändern sich erst mit dem Release
-**Angekündigt mit `000-000-0014` — noch keine Änderung.**
+### Jede Erfolgsantwort unter `/api/*` hat dieselbe Form: `data`, `errors`, `meta`
+**Seit `011-001-0002` (2026-09-16).** Angekündigt mit `000-000-0014`.
 
-Die sieben Antwortformen der API werden auf `data`, `errors`, `meta` gebracht. Der Umbau gehört
-in Epic `011` und nicht in `009`: Die Charakterisierungstests aus Epic `008` sind die
-Abnahmegrundlage des Kernel-Wechsels, und wären beide Seiten des Vergleichs gleichzeitig neu,
-liesse sich eine Abweichung nicht mehr dem Umbau oder der Absicht zuordnen.
+**Das ist die grösste Formänderung des Release.** Siebzehn Antwortstellen unter `/api/*` trugen
+sieben verschiedene Formen: hier `ts` und `data`, dort `lastModified` und `data`, bei `insert` die
+`id` **neben** dem Objekt, bei `list` `totalItems` dazwischen, bei `schema` das Schema auf der
+obersten Ebene. Ein Client brauchte einen Leser je Endpunkt. Jetzt gibt es einen:
 
-Die vollständige Tabelle *vorher → nachher* je Endpunkt steht in
-`an_project/docs/api-envelope.md`. Sie ist die Vorlage für den Migrationsleitfaden aus Epic
-`007` — wer heute einen Client baut, kann sich darauf einstellen.
+```json
+{"data": …, "errors": null, "meta": {"ts": "…", "version": "…", "projectVersion": "…", "hash": "…"}}
+```
+
+`data` ist die Nutzlast des Endpunkts, `errors` ist im Erfolgsfall `null` (nicht abwesend), und
+alles, was die Antwort **beschreibt** statt sie zu sein, steht in `meta`.
+
+| Endpunkt | vorher | jetzt |
+|---|---|---|
+| `POST /api/all` | `lastModified`, `data` | `data`; `meta.lastModified` |
+| `GET /api/config` | `devmode`, `version`, `hash` | `data = {devmode}` |
+| `POST /api/count` | `ts`, `data` | `data` |
+| `POST /api/delete` | `ts`, `id` | `data = {id}` |
+| `POST /api/deleted` | `ts`, `data` | `data` |
+| `POST /api/insert` | `ts`, `id`, `data` | `data` — das Objekt trägt die `id` |
+| `POST /api/list` | `data`, `totalItems`, ggf. `itemsPerPage`, `lastModified` | `data`; diese drei in `meta` |
+| `POST /api/list` (`count: true`) | `data` = Anzahl | `data` = Anzahl |
+| `POST /api/multiupdate` | `ts`, `data` | `data` |
+| `POST /api/query` | `ts`, `params`, `data` | `data`; `meta.params` |
+| `POST /api/replace` | erbt von `insert`/`update` | erbt mit |
+| `GET /api/schema` | Schema auf oberster Ebene, dazu `permissions`, `i18nPermissions`, `frontend`, `devmode` | `data` = Schema; die vier anderen in `meta` |
+| `POST /api/single` | `ts`, `data` | `data` |
+| `POST /api/tree`, `/api/tree2` | `ts`, `data` | `data` |
+| `POST /api/translations` | `data` | `data` |
+| `POST /api/update` | `ts`, `id` | `data = {id}` |
+
+**Drei Änderungen sind mehr als ein Umhängen von Schlüsseln:**
+
+- **`/api/insert` liefert die `id` nur noch einmal.** Sie stand doppelt in der Antwort — einmal
+  oben, einmal im Objekt. Die Nutzlast ist jetzt das Objekt, und es trägt seine `id`.
+- **`/api/all` antwortet auf eine leere Menge mit `200` statt `204`.** Eine `204` hat keinen Rumpf
+  und damit auch keinen Envelope — genau der Fall, für den die Vereinheitlichung da ist.
+  `/api/list` hat dasselbe mit `000-000-0014` abgelegt.
+- **`meta` trägt zwei Versionen statt einer.** `version` ist die des Frameworks,
+  `projectVersion` die des Projekts. Bisher **verlor `/api/config` die Projektversion**: Die
+  Aktion übergab `APP_VERSION.'/'.CUSTOM_VERSION`, und `renderResponse()` überschrieb den
+  Schlüssel danach mit `APP_VERSION` allein. Kein Client hat sie je gesehen.
+
+**Betroffen ist jeder Client**, der eine dieser Antworten auswertet.
+
+*Was zu tun ist:* Eine Leserfunktion für den Envelope schreiben und die Auswertung darauf
+umstellen. `body.data` ist bei `single`, `list`, `count`, `deleted`, `tree`, `tree2`,
+`translations`, `query`, `multiupdate` und `schema` dasselbe wie vorher — dort genügt es, die
+Zusatzschlüssel aus `meta` zu lesen. Wirklich umzubauen sind `insert` (`body.id` →
+`body.data.id`), `delete`/`update` (`body.id` → `body.data.id`), `config` (`body.devmode` →
+`body.data.devmode`) und `schema` (`body.permissions` → `body.meta.permissions`).
+
+**`/auth/*`, `/file/upload`, `/file/overwrite` und `/system/do` folgen mit `011-001-0004`, die
+Fehlerform mit `011-001-0003`.** Bis dahin antworten sie in ihrer bisherigen Form. Die
+vollständige Zieltabelle über alle Endpunkte steht in `an_project/docs/api-envelope.md`.
 
 ### Eine `unique`-Verletzung antwortet mit 409 statt 500
 **Seit `009-003-0002` (2026-09-09).**

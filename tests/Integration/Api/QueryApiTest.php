@@ -60,10 +60,10 @@ class QueryApiTest extends IntegrationTestCase
         );
 
         $this->assertSame(200, $status);
-        $this->assertSame(array('ts', 'params', 'data', 'version', 'hash'), array_keys($body),
-            'query is the only endpoint that carries the request parameters back in the response');
-        $this->assertSame(array('select' => 'id', 'from' => 'PIM\\Tag'), $body['params']);
-        $this->assertIsArray($body['data']);
+        // 011-001-0002: query is still the only endpoint that carries the request parameters back —
+        // but they are no longer a fourth shape beside the payload, they are one meta key.
+        $this->assertIsArray($this->assertEnvelope($body, array('params')));
+        $this->assertSame(array('select' => 'id', 'from' => 'PIM\\Tag'), $body['meta']['params']);
     }
 
     public function testQueryForNonAdminWithEnabledGroupIsAllowed(): void

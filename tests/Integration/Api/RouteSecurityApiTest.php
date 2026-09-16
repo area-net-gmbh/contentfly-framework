@@ -63,8 +63,9 @@ class RouteSecurityApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\Nav'), $this->token());
 
         $this->assertSame(200, $status);
-        $this->assertSame(array(), $body['data'], 'An empty list, not an error message');
-        $this->assertSame(0, $body['totalItems']);
+        $this->assertSame(array(), $this->assertEnvelope($body, array('totalItems')),
+            'An empty list, not an error message');
+        $this->assertSame(0, $body['meta']['totalItems']); // 011-001-0002: totalItems is meta
     }
 
     public function testUnknownEntityRemainsA404WithReason(): void
@@ -132,10 +133,12 @@ class RouteSecurityApiTest extends IntegrationTestCase
         // The frontend key was dropped entirely, not emptied: a key that no longer carries
         // anything invites putting something back into it. Noted as a
         // breaking change in an_project/docs/breaking-changes.md.
-        $this->assertSame(array('devmode', 'version', 'hash'), array_keys($config),
-            'An envelope of its own, the seventh — without data and without ts');
+        // 011-001-0002 ends the second half of the sentence that stood here: "An envelope of its
+        // own, the seventh — without data and without ts". /api/config answers in the one envelope
+        // like everything else; what it has to say is one flag.
+        $this->assertSame(array('devmode' => false), $this->assertEnvelope($config));
 
-        $this->assertArrayNotHasKey('frontend', $config,
+        $this->assertArrayNotHasKey('frontend', $config['data'],
             'The public endpoint no longer advertises anything from the deleted UI');
     }
 

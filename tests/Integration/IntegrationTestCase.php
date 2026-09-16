@@ -305,6 +305,39 @@ abstract class IntegrationTestCase extends TestCase
         );
     }
 
+    // ── The envelope ──────────────────────────────────────────────────────────
+
+    /**
+     * Checks the one envelope and returns the payload (`011-001-0002`).
+     *
+     * **This method exists because the assertion it replaces was the wrong one.** Before, each test
+     * wrote out the key list of its own endpoint — `array('ts', 'data', 'version', 'hash')` here,
+     * `array('lastModified', 'data', …)` there — and thereby fixed the very thing Epic `011` is
+     * removing: seven shapes for one API. The target form is in `an_project/docs/api-envelope.md`;
+     * it is checked here, once, so a new endpoint cannot bring an eighth along.
+     *
+     * A test now only names what its own endpoint ADDS to the meta. Everything a client may rely on
+     * everywhere — `data`, `errors`, and `ts`/`version`/`projectVersion`/`hash` in the meta — is
+     * checked here for every single call.
+     *
+     * @param array<string,mixed> $body the decoded response
+     * @param list<string> $extraMeta the meta keys this endpoint adds, in order
+     * @return mixed the payload
+     */
+    protected function assertEnvelope(array $body, array $extraMeta = array(), string $message = ''): mixed
+    {
+        $this->assertSame(array('data', 'errors', 'meta'), array_keys($body),
+            $message !== '' ? $message : 'Every success answer carries data, errors and meta — and nothing else');
+        $this->assertNull($body['errors'], 'On success errors is null, not absent');
+        $this->assertSame(
+            array_merge(array('ts', 'version', 'projectVersion', 'hash'), $extraMeta),
+            array_keys($body['meta']),
+            'The standard meta, plus what this endpoint adds'
+        );
+
+        return $body['data'];
+    }
+
     /**
      * Registers a row for cleanup. tearDown() removes it even if the test fails — otherwise a red
      * test taints the following ones.

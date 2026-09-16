@@ -4,7 +4,7 @@
 
 **Dieser Leitfaden ist der Weg. `an_project/docs/breaking-changes.md` ist das Register.**
 
-Das Register hat **115 Einträge in 14 Abschnitten** (Stand 2026-09-15) und ist nach Epic und
+Das Register hat **115 Einträge in 14 Abschnitten** (Stand 2026-09-16) und ist nach Epic und
 Story geordnet — also danach, *wann wir etwas geändert haben*. Das ist die richtige Ordnung zum
 Nachschlagen und die falsche zum Arbeiten. Hier steht die andere: **was ein Projekt tut, und in
 welcher Reihenfolge.**
@@ -383,8 +383,18 @@ unbekannten Pfaden, 409 bei einer `unique`-Verletzung, 429 bei zu vielen Anmelde
 **Und die Formänderungen:** Der `frontend`-Block schrumpft, in `/api/config` fällt er ganz weg;
 `export` und `extended` verschwinden aus dem `permissions`-Block.
 
-**Der Envelope selbst bleibt vorerst.** Die Vereinheitlichung kommt mit dem Release (Epic `011`)
-und ist bewusst nicht hier.
+**Der Envelope: eine Form statt sieben.** Jede Erfolgsantwort unter `/api/*` besteht aus `data`,
+`errors` und `meta` — der grösste Einzelposten dieser Phase. Der Register-Eintrag *Jede
+Erfolgsantwort unter `/api/*` hat dieselbe Form* führt jeden Endpunkt einzeln auf und sagt, was
+davon wirklich umzubauen ist: bei zehn Endpunkten bleibt `body.data` dasselbe wie vorher, nur die
+Zusatzschlüssel wandern nach `meta`. Umzubauen sind `insert`, `delete`, `update`, `config` und
+`schema`.
+
+**Ein Client, der nichts davon tut, merkt das an `insert`.** Dort ist `body.id` weg; die Id steht
+im Objekt. Das ist die Stelle, an der ein nicht angepasster Client still das Falsche tut, statt
+einen Fehler zu bekommen — also die erste, die zu prüfen ist.
+
+**`/auth/*`, `/file/*` und `/system/do`** ziehen im selben Release nach.
 
 **Fertig, wenn:** die eigenen Clients gegen die neue Instanz laufen.
 

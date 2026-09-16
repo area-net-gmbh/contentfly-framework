@@ -88,11 +88,12 @@ class MultiupdateApiTest extends IntegrationTestCase
         )), $this->token());
 
         $this->assertSame(200, $status);
-        $this->assertArrayHasKey('ts', $body);
+        // 011-001-0002: the timestamp is no longer a key of this endpoint but standard meta —
+        // assertEnvelope() checks it for every call.
         $this->assertSame(array(
             array('entity' => 'PIM\\Tag', 'id' => $this->firstTag),
             array('entity' => 'PIM\\Tag', 'id' => $this->lastTag),
-        ), $body['data']);
+        ), $this->assertEnvelope($body));
     }
 
     // ── Partial failure — the actual finding ───────────────────────────────────────────

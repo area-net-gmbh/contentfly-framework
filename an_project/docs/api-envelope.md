@@ -1,8 +1,11 @@
 # Der Antwort-Envelope der API
 
 > Entschieden mit `000-000-0014`. Dieses Dokument hält fest, **welche Form** die API künftig
-> hat und **wann** sie sie bekommt. Umgesetzt ist bisher nur der eine Teil, der ohne den Rest
-> Sinn ergibt — siehe *Was schon gilt*.
+> hat und **wann** sie sie bekommt.
+>
+> **Stand 2026-09-16:** Die Erfolgsantworten unter `/api/*` sind umgestellt (`011-001-0002`).
+> Offen sind die Fehlerantworten (`011-001-0003`) sowie `/auth/*`, `/file/*` und `/system/do`
+> (`011-001-0004`). Siehe *Was schon gilt*.
 
 ## Der Befund
 
@@ -164,7 +167,29 @@ Jede Anpassung dieser Erwartungen ist ein Verhaltenswechsel und trägt ihre Begr
 
 ## Was schon gilt
 
-Zwei Punkte aus `000-000-0014` liessen sich nicht sinnvoll aufschieben, weil sie keine
+**Seit `011-001-0002` (2026-09-16): jede Erfolgsantwort unter `/api/*`.** Siebzehn Antwortstellen,
+eine Form. Gebaut wird sie an genau einer Stelle — `ApiController::renderResponse()` nimmt jetzt
+Nutzlast, Statuscode und die Meta-Zusätze des Endpunkts entgegen, statt ein fertiges Array
+durchzureichen. Eine Aktion kann damit keine achte Form mehr erfinden.
+
+Drei Entscheidungen sind dabei gefallen, die über das Umhängen von Schlüsseln hinausgehen:
+
+- **`meta.version` und `meta.projectVersion` statt einer Zeichenkette.** `/api/config` hat die
+  Projektversion bisher **nie ausgeliefert** — die Aktion übergab `APP_VERSION.'/'.CUSTOM_VERSION`,
+  der Trichter überschrieb den Schlüssel danach. Zwei Felder, weil ein Client, der Versionen
+  vergleicht, keine Zeichenkette zerlegen sollte.
+- **`/api/all` antwortet auf eine leere Menge mit `200` statt `204`.** Eine `204` hat keinen Rumpf
+  und damit keinen Envelope.
+- **`/api/schema`: `data` ist das Schema.** `permissions`, `i18nPermissions`, `frontend` und
+  `devmode` beschreiben die Antwort, statt sie zu sein, und liegen in `meta` — dort, wo der
+  Schema-Hash immer schon lag. `body.data` bedeutet damit unverändert dasselbe wie vorher.
+
+Im Test steht die Form an einer Stelle: `IntegrationTestCase::assertEnvelope()` prüft `data`,
+`errors` und die vier Standard-Meta-Felder bei **jedem** Aufruf; ein Test nennt nur noch, was sein
+Endpunkt zusätzlich in `meta` legt. Vorher schrieb jeder Test die Schlüsselliste seines Endpunkts
+aus — und schrieb damit genau das fest, was hier abgeschafft wird.
+
+Zwei Punkte aus `000-000-0014` liessen sich schon vorher nicht sinnvoll aufschieben, weil sie keine
 Formfragen sind, sondern Defekte:
 
 - **`/api/multiupdate` meldet den Erfolg** — erledigt mit `000-000-0009`. Der Aufruf lieferte

@@ -13,7 +13,12 @@ use Tests\Integration\IntegrationTestCase;
  */
 class WriteApiTest extends IntegrationTestCase
 {
-    /** Creates a tag via the API and registers it for cleanup. */
+    /**
+     * Creates a tag via the API and registers it for cleanup — and returns the CREATED OBJECT.
+     *
+     * Until `011-001-0002` it returned the whole response, because the id lay beside the object at
+     * the top level and each test needed both. The object carries the id, so one is enough.
+     */
     private function createTag(string $title): array
     {
         [$status, $body] = $this->postJson(
@@ -24,10 +29,12 @@ class WriteApiTest extends IntegrationTestCase
 
         $this->assertSame(200, $status, 'Precondition: creating succeeds');
 
-        $this->deleteAfterTest('pim_tag', $body['id']);
-        $this->cleanUpLogRows($body['id']);
+        $created = $this->assertEnvelope($body);
 
-        return $body;
+        $this->deleteAfterTest('pim_tag', $created['id']);
+        $this->cleanUpLogRows($created['id']);
+
+        return $created;
     }
 
     /** Every write operation leaves log rows behind; they have to be cleaned up as well. */
@@ -55,30 +62,34 @@ class WriteApiTest extends IntegrationTestCase
 
     // ── /api/insert ────────────────────────────────────────────────────────────────────
 
-    public function testInsertReturnsTheGeneratedIdOnTheTopLevel(): void
+    public function testInsertReturnsTheCreatedObjectWithItsId(): void
     {
-        $body = $this->createTag('Insert-Probe');
+        /*
+         * INVERTED WITH 011-001-0002. Until then this test held exactly the deviation the
+         * unification removes: insert carried `id` beside `data` at the top level, unlike single
+         * and list. It was the same id twice — `$body['id'] === $body['data']['id']` was the
+         * second assertion here. The payload is now the object alone, and it carries its id.
+         */
+        $created = $this->createTag('Insert-Probe');
 
-        $this->assertSame(array('ts', 'id', 'data', 'version', 'hash'), array_keys($body),
-            'insert carries the generated id next to data on the top level — unlike single and list');
-        $this->assertSame($body['id'], $body['data']['id']);
+        $this->assertArrayHasKey('id', $created);
+        $this->assertSame('Insert-Probe', $created['title']);
     }
 
     public function testInsertGeneratesAGuid(): void
     {
-        $body = $this->createTag('Guid-Probe');
+        $created = $this->createTag('Guid-Probe');
 
         $this->assertMatchesRegularExpression(
             '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/',
-            $body['id'],
+            $created['id'],
             'The installation ran with --db-strategy=guid'
         );
     }
 
     public function testInsertSetsCreatedModifiedAndUserCreated(): void
     {
-        $body = $this->createTag('Automatic-Probe');
-        $data = $body['data'];
+        $data = $this->createTag('Automatic-Probe');
 
         foreach (array('created', 'modified') as $field) {
             $this->assertSame(
@@ -96,11 +107,11 @@ class WriteApiTest extends IntegrationTestCase
 
     public function testTheCreatedObjectCanBeFetchedViaSingle(): void
     {
-        $body = $this->createTag('Fetch-Probe');
+        $created = $this->createTag('Fetch-Probe');
 
         [$status, $single] = $this->postJson(
             '/api/single',
-            array('entity' => 'PIM\\Tag', 'id' => $body['id']),
+            array('entity' => 'PIM\\Tag', 'id' => $created['id']),
             $this->token()
         );
 
@@ -112,15 +123,15 @@ class WriteApiTest extends IntegrationTestCase
     {
         // Current state and inconsistent: the response of insert passes the raw value through
         // (isIntern as 0), while single serialises via the type classes (false).
-        $body = $this->createTag('Boolean-Probe');
+        $created = $this->createTag('Boolean-Probe');
 
         [, $single] = $this->postJson(
             '/api/single',
-            array('entity' => 'PIM\\Tag', 'id' => $body['id']),
+            array('entity' => 'PIM\\Tag', 'id' => $created['id']),
             $this->token()
         );
 
-        $this->assertSame(0, $body['data']['isIntern'], 'insert returns the integer');
+        $this->assertSame(0, $created['isIntern'], 'insert returns the integer');
         $this->assertFalse($single['data']['isIntern'], 'single returns the boolean value');
     }
 
@@ -162,33 +173,33 @@ class WriteApiTest extends IntegrationTestCase
 
     public function testDeleteRemovesTheObject(): void
     {
-        $body = $this->createTag('Delete-Probe');
+        $created = $this->createTag('Delete-Probe');
 
         [$status, $response] = $this->postJson(
             '/api/delete',
-            array('entity' => 'PIM\\Tag', 'id' => $body['id']),
+            array('entity' => 'PIM\\Tag', 'id' => $created['id']),
             $this->token()
         );
 
         $this->assertSame(200, $status);
-        $this->assertSame(array('ts', 'id', 'version', 'hash'), array_keys($response),
-            'delete returns the id, but no data');
-        $this->assertSame($body['id'], $response['id']);
+        // 011-001-0002: delete has nothing to hand back but the id of what is gone — so that is
+        // the payload, instead of a key beside the standard fields.
+        $this->assertSame(array('id' => $created['id']), $this->assertEnvelope($response));
 
         $count = (int) $this->pdo()
-            ->query('SELECT COUNT(*) FROM pim_tag WHERE id = '.$this->pdo()->quote($body['id']))
+            ->query('SELECT COUNT(*) FROM pim_tag WHERE id = '.$this->pdo()->quote($created['id']))
             ->fetchColumn();
         $this->assertSame(0, $count, 'The row is really gone — checked against the database');
     }
 
     public function testAfterDeletingSingleReturnsA404(): void
     {
-        $body = $this->createTag('After-Probe');
-        $this->postJson('/api/delete', array('entity' => 'PIM\\Tag', 'id' => $body['id']), $this->token());
+        $created = $this->createTag('After-Probe');
+        $this->postJson('/api/delete', array('entity' => 'PIM\\Tag', 'id' => $created['id']), $this->token());
 
         [$status, $single] = $this->postJson(
             '/api/single',
-            array('entity' => 'PIM\\Tag', 'id' => $body['id']),
+            array('entity' => 'PIM\\Tag', 'id' => $created['id']),
             $this->token()
         );
 
@@ -215,14 +226,14 @@ class WriteApiTest extends IntegrationTestCase
 
     public function testDeleteWithoutTokenDeletesNothing(): void
     {
-        $body = $this->createTag('Protected-Probe');
+        $created = $this->createTag('Protected-Probe');
 
-        [$status] = $this->postJson('/api/delete', array('entity' => 'PIM\\Tag', 'id' => $body['id']));
+        [$status] = $this->postJson('/api/delete', array('entity' => 'PIM\\Tag', 'id' => $created['id']));
 
         $this->assertSame(401, $status, 'Since the stack switch (006-002-0003) the intended code — Symfony 4.4 fixes 000-000-0006 here');
 
         $count = (int) $this->pdo()
-            ->query('SELECT COUNT(*) FROM pim_tag WHERE id = '.$this->pdo()->quote($body['id']))
+            ->query('SELECT COUNT(*) FROM pim_tag WHERE id = '.$this->pdo()->quote($created['id']))
             ->fetchColumn();
         $this->assertSame(1, $count, 'Without a token the object remains');
     }

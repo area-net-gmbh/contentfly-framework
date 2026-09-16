@@ -70,7 +70,7 @@ class TreeApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/api/tree', array('entity' => 'PIM\\Folder'), $this->token());
 
         $this->assertSame(200, $status);
-        $this->assertSame(array('ts', 'data', 'version', 'hash'), array_keys($body));
+        $this->assertEnvelope($body); // 011-001-0002
 
         $root = $this->node($body['data'], $this->root, 'treeChilds');
         $this->assertNotNull($root, 'The root is on the top level');
@@ -123,7 +123,7 @@ class TreeApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/api/tree2', array('entity' => 'PIM\\Folder'), $this->token());
 
         $this->assertSame(200, $status);
-        $this->assertSame(array('ts', 'data', 'version', 'hash'), array_keys($body));
+        $this->assertEnvelope($body); // 011-001-0002
 
         $root = $this->node($body['data'], $this->root, 'childs');
         $this->assertNotNull($root);

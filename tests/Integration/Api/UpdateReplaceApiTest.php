@@ -106,7 +106,9 @@ class UpdateReplaceApiTest extends IntegrationTestCase
         );
 
         $this->assertSame(200, $status);
-        $this->assertSame($newId, $body['id'],
+        // 011-001-0002: replace inherits the shape of insert — the created object is the payload,
+        // and it carries the id instead of a copy of it beside the data.
+        $this->assertSame($newId, $body['data']['id'],
             'replace takes the given id instead of generating a GUID');
 
         [$title] = $this->fromDatabase($newId);
