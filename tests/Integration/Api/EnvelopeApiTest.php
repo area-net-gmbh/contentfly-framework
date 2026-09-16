@@ -36,6 +36,19 @@ class EnvelopeApiTest extends IntegrationTestCase
             $this->pdo()->prepare('DELETE FROM pim_tag WHERE id = :id')->execute(array('id' => $id));
         }
 
+        /*
+         * THE REVOCATION THIS TEST CREATES (000-000-0050).
+         *
+         * `/auth/logout` on a JWT session writes a row into `pim_revoked_token` — that is the
+         * purpose of the revocation, not a side effect. This class left it lying around from
+         * `011-001-0004` on, and `AuthApiTest` counted the table. One seed in four came out in the
+         * wrong order, and the suite was red without anyone touching it.
+         *
+         * A test that leaves state behind is a test that breaks other tests — visible only in an
+         * order nobody chose.
+         */
+        $this->pdo()->exec('DELETE FROM pim_revoked_token');
+
         $this->created = array();
 
         parent::tearDown();
