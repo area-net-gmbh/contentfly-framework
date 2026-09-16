@@ -4,7 +4,7 @@
 
 **Dieser Leitfaden ist der Weg. `an_project/docs/breaking-changes.md` ist das Register.**
 
-Das Register hat **114 Einträge in 14 Abschnitten** (Stand 2026-09-15) und ist nach Epic und
+Das Register hat **115 Einträge in 14 Abschnitten** (Stand 2026-09-15) und ist nach Epic und
 Story geordnet — also danach, *wann wir etwas geändert haben*. Das ist die richtige Ordnung zum
 Nachschlagen und die falsche zum Arbeiten. Hier steht die andere: **was ein Projekt tut, und in
 welcher Reihenfolge.**
@@ -200,8 +200,11 @@ halb migrierten Baum, sondern einen kaputten.
 
 ## Phase 4 — Datenbankschicht nachziehen
 
-**Zuerst, und das ist erzwungen: den Metadaten-Cache leeren.** Ein Cache im alten Format bringt
-den ersten Start zu Fall, und die Meldung handelt dann von Doctrine und nicht vom Cache.
+**Zuerst, und das ist erzwungen: den Cache leeren** — `data/cache/metadata`, `data/cache/query` und
+`data/cache/doctrine`. Ein Metadaten-Cache im alten Format bringt den ersten Start zu Fall, und die
+Meldung handelt dann von Doctrine und nicht vom Cache. `data/cache/doctrine` war bis `000-000-0049` der
+Ort der Proxy-Klassen; eine Proxy aus dem alten Betrieb dort kostet sonst jeden Aufruf
+(`Interface "Doctrine\ORM\Proxy\Proxy" not found`).
 
 **Zu tun:** die Einträge unter *Doctrine ORM 3 (Story `010-003`)* und *Doctrine (Story
 `009-005`)*. Die beiden, die am häufigsten treffen:

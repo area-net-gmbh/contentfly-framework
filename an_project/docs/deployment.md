@@ -151,6 +151,7 @@ wahr und ist es seit `010-002` ganz.
 |---|---|---|
 | Abfrage | `data/cache/query` | übersetzte DQL |
 | Metadaten | `data/cache/metadata` | die Zuordnung Entity → Tabelle |
+| Proxies | `data/cache/proxies/<Kennung>` | Doctrines Proxy-Klassen, je Version von `areanet/contentfly` und `doctrine/orm` (`000-000-0049`); der frühere Ort `data/cache/doctrine` darf gelöscht werden |
 
 **Warum es jetzt zählt:** Bis `010-002-0005` hat der Metadaten-Cache **nie gegriffen**. Der
 Bootstrap setzte ihn auf der Konfiguration, nachdem der EntityManager schon gebaut war — und

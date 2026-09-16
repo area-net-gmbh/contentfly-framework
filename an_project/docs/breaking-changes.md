@@ -1858,6 +1858,28 @@ RENAME TABLE pim_nav_item TO pim_navItem;   -- bzw. pim_navitem
 
 Danach meldet `--dump-sql` für die Navigation nichts mehr, und die Zeilen sind erhalten (gemessen).
 
+### Die Proxies liegen unter `data/cache/proxies/<Kennung>`, nicht mehr in `data/cache/doctrine`
+**Seit `000-000-0049` (2026-09-16).**
+
+Doctrine schreibt seine Proxy-Klassen jetzt in ein Verzeichnis **je Version** von `areanet/contentfly`
+und `doctrine/orm`. Der alte Ort `data/cache/doctrine` wird nicht mehr gelesen und darf gelöscht werden.
+
+**Warum das kein Aufräumen ist, sondern eine Reparatur:** Seit `000-000-0047` erzeugt Doctrine eine Proxy
+nur neu, wenn sie fehlt oder **älter** ist als ihre Entity-Datei. Eine Proxy aus dem Betrieb vor dem
+Update ist regelmässig jünger — Dateien eines Composer-Pakets tragen das Datum ihres Archivs. Gemessen an
+der Datenkopie des Bestandsprojekts UFP: Die Proxy von ORM 2 wurde geladen, und jeder Aufruf endete mit
+
+```
+500 Interface "Doctrine\ORM\Proxy\Proxy" not found
+```
+
+Mit einem Verzeichnis je Version entscheidet kein Datum mehr darüber, ob eine Proxy passt.
+
+*Was zu tun ist:* Nichts — das neue Verzeichnis entsteht beim ersten Lauf. `data/cache/doctrine` kann
+weg; ein Deployment, das `data/` behält, sollte es löschen. Alte Versionsverzeichnisse unter
+`data/cache/proxies/` bleiben absichtlich liegen (eine laufende alte Installation bedient sich noch
+daraus) und können jederzeit entfernt werden.
+
 ### Der Metadaten-Cache muss vor dem Upgrade geleert werden
 **Seit `010-003-0002` (2026-09-10).**
 
@@ -1874,7 +1896,8 @@ Beim Umstieg im Framework selbst standen damit **191 von 268 Tests** rot; nach d
 Caches waren es 3. Wer diesen Fehler sieht, sucht ihn beim Mapping und findet ihn dort nie.
 
 *Was zu tun ist:* `data/cache/metadata` und `data/cache/query` leeren, bevor die neue Version
-zum ersten Mal läuft. Siehe `an_project/docs/deployment.md`.
+zum ersten Mal läuft — und `data/cache/doctrine` gleich mit, den Proxy-Ort bis `000-000-0049`. Siehe
+`an_project/docs/deployment.md`.
 
 ### Eine Entity darf ein geerbtes Feld nicht wortgleich wiederholen
 **Seit `010-003-0002` (2026-09-10).**
