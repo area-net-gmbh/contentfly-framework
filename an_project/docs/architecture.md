@@ -21,6 +21,38 @@
 
 <!-- Entscheidung · erwogene Alternativen · warum diese. -->
 
+### 2026-09-16 — Eine Quelle, und die liegt auf GitHub
+
+**Entscheidung.** Das Repository zieht von `gitlab.in.area-net.de` nach
+`github.com/area-net-gmbh/contentfly-framework` (privat, Company-Account). Das interne GitLab wird
+abgeschaltet, sobald die Pipeline dort einmal grün gelaufen ist (`011-002-0002`).
+
+**Warum.** Contentfly muss künftig einer externen Corporation für eine Security- oder
+Codebase-Prüfung zugänglich gemacht werden können — ein Zugang, der sich **vergeben und wieder
+entziehen** lässt. Ein internes GitLab kann das nur über VPN-Konten oder Netzwerkausnahmen, also
+über eine Entscheidung der IT bei jedem einzelnen Fall. Ein privates GitHub-Repository löst
+denselben Fall mit einem Read-Seat, und der ist reversibel.
+
+#### Erwogene Alternative: beide Remotes parallel
+
+Wäre billig gewesen — der Split-Job hätte ein Push-Ziel mehr bekommen, und das interne GitLab wäre
+als Spiegel für Läufe ohne Internetzugang geblieben. Verworfen, weil **genau eine Quelle kanonisch
+sein muss**: Zögen zwei Entwickler dasselbe Paket aus verschiedenen Remotes, trügen ihre
+`composer.lock` unterschiedliche `source.url`, und die Lock-Datei flatterte bei jedem Commit. Ein
+Spiegel, den niemand als Quelle benutzen darf, ist Aufwand ohne Nutzen; also einer.
+
+#### Was daran hängt
+
+- **Die Pipeline muss von GitLab CI auf GitHub Actions** (`011-002-0002`). Der Umbau trifft das
+  Gerüst, nicht die Logik: Die Schritte stehen seit `000-000-0029` in `tools/ci/*.sh`, aus genau
+  dem Grund, der jetzt zahlt — „eine Pipeline-Definition, deren Schritte man nur in der Pipeline
+  ausprobieren kann, ist beim Suchen eines Fehlers nutzlos".
+- **Der Bezugsweg für Projekte ist ein `vcs`-Repository auf ein Split-Repo, keine Registry**
+  (`011-002-0003`). Geprüft am 2026-09-16: GitHub Packages unterstützt npm, RubyGems, Maven,
+  Gradle, NuGet und Docker — **kein Composer**; die GitLab-Registry könnte es, verlangt aber „a
+  valid `composer.json` file at the project root directory", und unsere liegt in `lib/contentfly`.
+  Beide Registry-Wege fallen damit weg.
+
 ### 2026-09-15 — `BaseI18nTree` bleibt; ein Elternknoten hat dieselbe Sprache
 
 **Entscheidung.** `BaseI18nTree` und `BaseI18nSortable` bleiben im Framework. Die Beziehung

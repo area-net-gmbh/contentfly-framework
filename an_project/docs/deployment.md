@@ -53,9 +53,22 @@ Zwei, und keine davon produktiv:
   `an_project/docs/runbook.md`.
 - **CI** — `.gitlab-ci.yml`, siehe unten.
 
+## Wo das Repository liegt
+
+**Seit `011-002-0001` (2026-09-16) auf GitHub:**
+`git@github.com:area-net-gmbh/contentfly-framework.git`, privat im Company-Account. Die
+Begründung steht in `architecture.md` unter *Key decisions* — kurz: Ein Zugang für eine externe
+Security-Prüfung lässt sich dort vergeben und wieder entziehen, auf einem internen GitLab nicht.
+
+Das alte Remote `gitlab.in.area-net.de` ist in diesem Klon unter dem Namen `gitlab` erhalten und
+wird abgeschaltet, sobald die Pipeline auf GitHub einmal grün gelaufen ist. Bis dahin ist es die
+einzige Stelle, an der die Prüfungen nachweislich laufen.
+
 ## Die Pipeline
 
-**Angelegt am 2026-09-08 mit Story `008-005`.** GitLab CI, weil der Remote GitLab ist.
+**Angelegt am 2026-09-08 mit Story `008-005`** als GitLab CI — damals, weil der Remote GitLab war.
+**Sie zieht mit `011-002-0002` auf GitHub Actions um;** bis dahin beschreibt dieser Abschnitt den
+Stand, der läuft, und nicht den, der kommt.
 
 | Job | Stage | Was er tut |
 |---|---|---|
