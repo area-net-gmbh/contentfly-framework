@@ -54,8 +54,13 @@ class LoginThrottleApiTest extends IntegrationTestCase
         [$status, $body, $headers] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => 'wrong'));
 
         $this->assertSame(429, $status);
-        $this->assertSame(self::MESSAGE, $body['message'] ?? null);
-        $this->assertArrayNotHasKey('token', $body);
+        /*
+         * 011-001-0004: the throttle answers in the error envelope and finally names a CODE — until
+         * now a client had to recognise the sentence to tell "wait" from "wrong password". Both are
+         * 4xx, and only the status code distinguished them.
+         */
+        $this->assertSame(self::MESSAGE, $this->assertErrorEnvelope($body, 'contentfly_general_too_many_attempts')['detail']);
+        $this->assertNull($body['data'], 'And no token comes with it');
         $this->assertNotNull($this->header($headers, 'Retry-After'), 'How long to wait is stated in the response');
     }
 
@@ -100,7 +105,9 @@ class LoginThrottleApiTest extends IntegrationTestCase
 
         $this->assertSame(429, $statusUnknown, 'A made-up identifier is throttled too');
         $this->assertSame(429, $statusReal);
-        $this->assertSame($real['message'] ?? null, $unknown['message'] ?? null, 'The same response for both');
+        // 011-001-0004: identical down to the last field — code, detail and all.
+        $this->assertSame($this->assertErrorEnvelope($real), $this->assertErrorEnvelope($unknown),
+            'The same response for both');
     }
 
     // ── Per IP ─────────────────────────────────────────────────────────────────────────
@@ -122,7 +129,7 @@ class LoginThrottleApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/auth/login', array('alias' => 'someoneelse', 'pass' => 'whatever'));
 
         $this->assertSame(429, $status);
-        $this->assertSame(self::MESSAGE, $body['message'] ?? null);
+        $this->assertSame(self::MESSAGE, $this->assertErrorEnvelope($body, 'contentfly_general_too_many_attempts')['detail']); // 011-001-0004
     }
 
     // ── Reset ──────────────────────────────────────────────────────────────────────────
@@ -142,7 +149,7 @@ class LoginThrottleApiTest extends IntegrationTestCase
 
         [$status, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => $this->pass()));
         $this->assertSame(200, $status);
-        $this->assertArrayHasKey('token', $body);
+        $this->assertArrayHasKey('token', $this->assertEnvelope($body)); // 011-001-0004
 
         for ($i = 1; $i <= self::LIMIT_IDENTIFIER - 1; $i++) {
             [$status] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => 'wrong'.$i));

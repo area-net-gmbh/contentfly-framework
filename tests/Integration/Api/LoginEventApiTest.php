@@ -22,7 +22,12 @@ class LoginEventApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => $this->pass()));
 
         $this->assertSame(200, $status);
-        $this->assertSame(array('loginProvider' => null, 'externalGroups' => array()), $body['data'] ?? null,
+        /*
+         * 011-001-0004: what a project hands the client on login was called `data` at the top level
+         * of the response. Under the envelope that would have read `body.data.data`, so it is now
+         * called what the entity field it comes from is called: `tempData`.
+         */
+        $this->assertSame(array('loginProvider' => null, 'externalGroups' => array()), $body['data']['tempData'] ?? null,
             'The listener ran, and it saw neither a provider nor an identity');
     }
 
@@ -38,7 +43,7 @@ class LoginEventApiTest extends IntegrationTestCase
         $this->removeProvisionedUser($entry['identifier']);
 
         $this->assertSame(200, $status, json_encode($body));
-        $this->assertSame(array('loginProvider' => 'example', 'externalGroups' => $entry['groups']), $body['data'] ?? null,
+        $this->assertSame(array('loginProvider' => 'example', 'externalGroups' => $entry['groups']), $body['data']['tempData'] ?? null,
             'The listener saw the registered name and the groups of the ExternalIdentity');
     }
 
@@ -55,17 +60,17 @@ class LoginEventApiTest extends IntegrationTestCase
         }
 
         $this->assertSame(200, $status);
-        $this->assertArrayHasKey('refreshToken', $body);
-        $this->assertSame(array('loginProvider' => null, 'externalGroups' => array()), $body['data'] ?? null);
+        $this->assertArrayHasKey('refreshToken', $body['data']);
+        $this->assertSame(array('loginProvider' => null, 'externalGroups' => array()), $body['data']['tempData'] ?? null);
     }
 
     public function testARejectedLoginDoesNotFireTheEvent(): void
     {
         [$status, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => 'wrong'));
         $this->assertSame(401, $status);
-        // NOT the envelope, and that is the current state: a rejected login is answered by
-        // AuthController itself, not by the error handler — `/auth/*` moves with 011-001-0004.
-        $this->assertArrayNotHasKey('data', $body, 'Wrong password: no listener output');
+        // 011-001-0004 moved this one too: a rejected login now answers in the error envelope,
+        // so `data` is present and null — and that is what "no listener output" means.
+        $this->assertErrorEnvelope($body, 'contentfly_general_invalid_credentials');
 
         $entry = $this->providerEntry();
         [$status, $body] = $this->postJson('/auth/login', array(
@@ -76,7 +81,7 @@ class LoginEventApiTest extends IntegrationTestCase
         $this->removeProvisionedUser($entry['identifier']);
 
         $this->assertSame(401, $status);
-        $this->assertArrayNotHasKey('data', $body, 'Provider rejected: no listener output'); // see above
+        $this->assertErrorEnvelope($body, 'contentfly_general_invalid_credentials'); // see above
     }
 
     /** @return array{identifier: string, secret: string, groups: list<string>} */

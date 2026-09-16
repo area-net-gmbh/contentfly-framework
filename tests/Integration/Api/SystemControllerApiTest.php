@@ -140,24 +140,33 @@ class SystemControllerApiTest extends IntegrationTestCase
         [$status, $body] = $this->systemDo('flushSchemaCache');
 
         $this->assertSame(200, $status);
-        $this->assertSame(array('method', 'datetime', 'message'), array_keys($body),
-            'Exactly three keys, in this order');
-        $this->assertSame('flushSchemaCache', $body['method'], 'The requested method is mirrored back');
-        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $body['datetime'],
+
+        /*
+         * 011-001-0004: `datetime` is gone, and nothing replaces it. `meta.ts` is the same value in
+         * the same format — and it is there in EVERY answer of the API, not just in this one. Two
+         * fields for one timestamp were one of the shapes this epic removes; assertEnvelope()
+         * checks `ts` for every call.
+         */
+        $this->assertSame(array('method', 'message'), array_keys($this->assertEnvelope($body)),
+            'What is left is the method and its result');
+        $this->assertSame('flushSchemaCache', $body['data']['method'], 'The requested method is mirrored back');
+        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $body['meta']['ts'],
             'Format Y-m-d H:i:s, without time zone');
     }
 
-    public function testSystemEndpointUsesItsOwnResponseShape(): void
+    public function testSystemEndpointAnswersLikeEveryOtherEndpoint(): void
     {
         /*
-         * HALF DONE — AND THAT IS WHAT THIS TEST NOW RECORDS (011-001-0002).
+         * TURNED AROUND WITH 011-001-0004, AND RENAMED.
          *
-         * Both endpoints used to bring their own shape: `/api/*` data/totalItems/version/hash,
-         * `/system/do` method/datetime/message. `/api/*` has moved to the one envelope; `/system/do`
-         * follows with `011-001-0004`, together with `/auth/*` and `/file/*`.
+         * Its name used to be the finding: `/system/do` answered with method/datetime/message,
+         * `/api/*` with data/totalItems/version/hash — two shapes in one framework, recorded under
+         * `000-000-0014`. `0002` moved `/api/*`, and for one commit this test held the half-done
+         * state.
          *
-         * The test stays as long as the difference does. It disappears with `0004` — and it is the
-         * place that will report it if `/system/do` is forgotten there.
+         * Now it holds the opposite, and it is the place that reports it if a future endpoint
+         * brings a shape of its own again: the two answer identically down to the meta keys, and
+         * what one has beyond the other is a meta entry, not another form.
          */
         [$statusSystem, $system] = $this->systemDo('generateToken');
         [$statusApi, $api]       = $this->postJson('/api/list', array('entity' => 'PIM\\User'), $this->token());
@@ -165,8 +174,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         $this->assertSame(200, $statusSystem);
         $this->assertSame(200, $statusApi, 'Precondition: both calls succeed');
 
-        $this->assertSame(array('method', 'datetime', 'message'), array_keys($system),
-            '/system/do still answers in its own shape — 011-001-0004 moves it');
+        $this->assertEnvelope($system);
         $this->assertEnvelope($api, array('totalItems'));
     }
 
@@ -261,7 +269,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         [$status, $body] = $this->systemDo('generateToken');
 
         $this->assertSame(200, $status);
-        $this->assertMatchesRegularExpression('/^[0-9a-f]{128}$/', $body['message'],
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{128}$/', $body['data']['message'],
             '64 random bytes as hex — the value is only generated, not stored');
         $this->assertSame($before, $this->pdo()->query('SELECT COUNT(*) FROM pim_token')->fetchColumn(),
             'generateToken creates no row; only addToken does');
@@ -276,16 +284,16 @@ class SystemControllerApiTest extends IntegrationTestCase
         $this->assertSame(200, $status);
         $this->assertSame(
             array('id', 'token', 'referrer', 'user'),
-            array_keys($body['message']),
+            array_keys($body['data']['message']),
             'The response carries the row including the embedded user'
         );
-        $this->assertSame($value, $body['message']['token']);
-        $this->assertSame('https://addtoken.example', $body['message']['referrer']);
-        $this->assertSame(array('id', 'alias', 'active'), array_keys($body['message']['user']),
+        $this->assertSame($value, $body['data']['message']['token']);
+        $this->assertSame('https://addtoken.example', $body['data']['message']['referrer']);
+        $this->assertSame(array('id', 'alias', 'active'), array_keys($body['data']['message']['user']),
             'Three fields of the user are mirrored — no password, no salt');
 
         $row = $this->pdo()->prepare('SELECT token, referrer, user_id FROM pim_token WHERE id = :id');
-        $row->execute(array('id' => $body['message']['id']));
+        $row->execute(array('id' => $body['data']['message']['id']));
         $found = $row->fetch(\PDO::FETCH_ASSOC);
 
         /*
@@ -320,7 +328,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         [, $body] = $this->createToken($value);
 
         $log = $this->pdo()->prepare('SELECT mode, model_name, model_label FROM pim_log WHERE model_name = :n AND model_id = :i');
-        $log->execute(array('n' => 'PIM\\Token', 'i' => (string) $body['message']['id']));
+        $log->execute(array('n' => 'PIM\\Token', 'i' => (string) $body['data']['message']['id']));
         $entry = $log->fetch(\PDO::FETCH_ASSOC);
 
         $this->assertSame('INS', $entry['mode'], "Log::INSERTED, not 'Erstellt'");
@@ -412,8 +420,8 @@ class SystemControllerApiTest extends IntegrationTestCase
 
         $this->assertSame(200, $status);
 
-        $id    = (string) $body['message']['id'];
-        $value = $body['message']['token'];
+        $id    = (string) $body['data']['message']['id'];
+        $value = $body['data']['message']['token'];
 
         $this->deleteAfterTest('pim_token', $id);
         $log = $this->pdo()->prepare('SELECT id FROM pim_log WHERE model_name = :n AND model_id = :i');
@@ -475,7 +483,7 @@ class SystemControllerApiTest extends IntegrationTestCase
 
         $this->assertSame(200, $status);
 
-        $values = array_column($body['message'], 'token');
+        $values = array_column($body['data']['message'], 'token');
         /*
          * Since 013-001-0004 `token` is the HASH. The token itself can no longer be looked
          * up — not even by the operator. Whoever holds one hashes it themselves and finds
@@ -485,7 +493,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         $this->assertContains(hash('sha256', $value), $values, 'its hash identifies the row');
         $this->assertNotContains($this->token(), $values, 'The login token of the test run does not show up');
 
-        foreach ($body['message'] as $entry) {
+        foreach ($body['data']['message'] as $entry) {
             $this->assertSame(array('id', 'token', 'referrer', 'user'), array_keys($entry));
             $this->assertNotSame('', $entry['referrer']);
         }
@@ -529,7 +537,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         $value = 'test-'.bin2hex(random_bytes(16));
 
         [, $body] = $this->createToken($value);
-        $id       = $body['message']['id'];
+        $id       = $body['data']['message']['id'];
 
         [$status] = $this->systemDo('deleteToken', array('id' => $id));
         $this->assertSame(200, $status);
@@ -682,7 +690,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         [$status, $body] = $this->systemDo('flushSchemaCache');
 
         $this->assertSame(200, $status);
-        $this->assertSame('Schema cache cleared!', $body['message']);
+        $this->assertSame('Schema cache cleared!', $body['data']['message']);
 
         [$statusSchema] = $this->get('/api/schema', $this->token());
         $this->assertSame(200, $statusSchema, 'The schema is rebuilt afterwards');
@@ -760,7 +768,7 @@ class SystemControllerApiTest extends IntegrationTestCase
 
         [, $body] = $this->systemDo('flushSchemaCache');
 
-        $this->assertSame('Schema cache cleared!', $body['message'],
+        $this->assertSame('Schema cache cleared!', $body['data']['message'],
             'The message does not say whether there was anything at all');
     }
 

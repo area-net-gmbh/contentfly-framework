@@ -167,9 +167,10 @@ class ReadPermissionApiTest extends IntegrationTestCase
         $this->deleteAfterTest('pim_user', $id);
 
         [, $login] = $this->postJson('/auth/login', array('alias' => $id, 'pass' => self::TEST_PASSWORD));
-        $this->assertArrayHasKey('token', $login);
+        $session = $this->assertEnvelope($login); // 011-001-0004
+        $this->assertArrayHasKey('token', $session);
 
-        [$status] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'), $login['token']);
+        [$status] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'), $session['token']);
 
         $this->assertSame(403, $status,
             'Since 006-002-0003 the intended code — Symfony 4.4 fixes 000-000-0006 here');

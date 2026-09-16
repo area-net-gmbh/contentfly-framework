@@ -50,7 +50,7 @@ class LoginManagerApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORD));
 
         $this->assertSame(200, $status);
-        $this->assertArrayHasKey('token', $body);
+        $this->assertArrayHasKey('token', $this->assertEnvelope($body)); // 011-001-0004
     }
 
     public function testAUserWithLoginManagerCannotLogInWithPassword(): void
@@ -64,8 +64,10 @@ class LoginManagerApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORD));
 
         $this->assertSame(401, $status);
-        $this->assertArrayNotHasKey('token', $body);
-        $this->assertSame('The user can only be authenticated through their login provider.', $body['message']);
+        // 011-001-0004: one code for every 401 of the login — the answer must not say which of the
+        // reasons applied. The wording stays in `detail`, and `data` is null, so no token comes with it.
+        $this->assertSame('The user can only be authenticated through their login provider.',
+            $this->assertErrorEnvelope($body, 'contentfly_general_invalid_credentials')['detail']);
     }
 
     /**
@@ -121,7 +123,7 @@ class LoginManagerApiTest extends IntegrationTestCase
             [$status, $body] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => $attempt));
 
             $this->assertSame(401, $status, 'Attempt with "'.$attempt.'"');
-            $this->assertArrayNotHasKey('token', $body);
+            $this->assertErrorEnvelope($body); // 011-001-0004: `data` is null, so there is no token
         }
     }
 
@@ -136,7 +138,8 @@ class LoginManagerApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORD));
 
         $this->assertSame(401, $status);
-        $this->assertSame('The user can only be authenticated through their login provider.', $body['message']);
+        $this->assertSame('The user can only be authenticated through their login provider.',
+            $this->assertErrorEnvelope($body, 'contentfly_general_invalid_credentials')['detail']); // 011-001-0004
     }
 
     /** Creates a user with a locked password — as provisioning would. */
@@ -220,6 +223,6 @@ class LoginManagerApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => $this->pass()));
 
         $this->assertSame(200, $status);
-        $this->assertArrayHasKey('token', $body);
+        $this->assertArrayHasKey('token', $this->assertEnvelope($body)); // 011-001-0004
     }
 }

@@ -21,9 +21,15 @@ class AuthApiTest extends IntegrationTestCase
     {
         [, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => $this->pass()));
 
-        $this->assertSame('Login successful', $body['message'] ?? null);
-        $this->assertMatchesRegularExpression('/^[0-9a-f]{128}$/', $body['token'] ?? '', 'Token is 64 bytes as hex');
-        $this->assertTrue($body['user']['isAdmin'] ?? false);
+        /*
+         * 011-001-0004: `message` is gone. It said "Login successful" — a sentence a client could
+         * only compare verbatim, next to the 200 that already said it. What remains is what the
+         * caller actually takes away, and it is the payload now.
+         */
+        $session = $this->assertEnvelope($body);
+
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{128}$/', $session['token'] ?? '', 'Token is 64 bytes as hex');
+        $this->assertTrue($session['user']['isAdmin'] ?? false);
     }
 
     public function testLoginWithWrongPasswordReturnsNoToken(): void
@@ -54,9 +60,11 @@ class AuthApiTest extends IntegrationTestCase
         [, $unknown] = $this->postJson('/auth/login', array('alias' => 'doesnotexist', 'pass' => 'whatever'));
         [, $wrong]   = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => 'wrong'));
 
+        // 011-001-0004: `message` became `errors[0].detail`. What the test records is unchanged —
+        // the two answers still differ, and 013-001 is the place where that is decided.
         $this->assertNotSame(
-            $unknown['message'] ?? null,
-            $wrong['message'] ?? null,
+            $this->assertErrorEnvelope($unknown)['detail'],
+            $this->assertErrorEnvelope($wrong)['detail'],
             'Different messages today - see 013-001'
         );
     }
@@ -157,7 +165,7 @@ class AuthApiTest extends IntegrationTestCase
         ));
 
         $this->assertSame(200, $status);
-        $this->assertNotEmpty($body['token'] ?? null);
+        $this->assertNotEmpty($this->assertEnvelope($body)['token'] ?? null); // 011-001-0004
     }
 
     public function testWrongPasswordStillFailsAfterRehashing(): void
@@ -331,7 +339,7 @@ class AuthApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => $this->pass()));
         $this->assertSame(200, $status);
 
-        [$logout] = $this->get('/auth/logout', $body['token']);
+        [$logout] = $this->get('/auth/logout', $body['data']['token']); // 011-001-0004
         $this->assertSame(200, $logout);
     }
 
@@ -412,9 +420,12 @@ class AuthApiTest extends IntegrationTestCase
     {
         [, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => $this->pass()));
 
-        $this->assertMatchesRegularExpression('/^[0-9a-f]{128}$/', $body['token'] ?? '');
-        $this->assertArrayNotHasKey('refreshToken', $body);
-        $this->assertArrayNotHasKey('expiresIn', $body);
+        // 011-001-0004: the session is the payload — the two keys must be absent THERE.
+        $session = $this->assertEnvelope($body);
+
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{128}$/', $session['token'] ?? '');
+        $this->assertArrayNotHasKey('refreshToken', $session);
+        $this->assertArrayNotHasKey('expiresIn', $session);
     }
 
     public function testOnRequestLoginReturnsJwtAndRefreshToken(): void
@@ -471,7 +482,11 @@ class AuthApiTest extends IntegrationTestCase
         $this->assertSame('contentfly', $claims['iss']);
     }
 
-    /** Logs in with `tokenType: jwt` and returns the response body. */
+    /**
+     * Logs in with `tokenType: jwt` and returns THE SESSION — since `011-001-0004` the payload of
+     * the response, not the whole response. Token, refresh token and lifetime are what a caller
+     * takes away from a login; the envelope around them is checked where it is the subject.
+     */
     private function jwtLogin(): array
     {
         [$status, $body] = $this->postJson('/auth/login', array(
@@ -480,11 +495,11 @@ class AuthApiTest extends IntegrationTestCase
             'tokenType' => 'jwt',
         ));
 
-        if ($status !== 200 || !isset($body['token'], $body['refreshToken'])) {
+        if ($status !== 200 || !isset($body['data']['token'], $body['data']['refreshToken'])) {
             $this->fail('JWT login failed: '.json_encode($body));
         }
 
-        return $body;
+        return $body['data'];
     }
 
     // ── The refresh path (013-003-0002) ────────────────────────────────────────────────
@@ -496,9 +511,14 @@ class AuthApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/auth/refresh', array('refreshToken' => $login['refreshToken']));
 
         $this->assertSame(200, $status);
-        $this->assertCount(3, explode('.', $body['token'] ?? ''));
-        $this->assertNotSame($login['token'], $body['token'], 'A fresh token, not the same one');
-        $this->assertSame(200, $this->getWithHeader('/api/schema', 'Authorization: Bearer '.$body['token']));
+
+        // 011-001-0004: refresh answers in the envelope, and `message` is gone for the same reason
+        // as at the login.
+        $fresh = $this->assertEnvelope($body);
+
+        $this->assertCount(3, explode('.', $fresh['token'] ?? ''));
+        $this->assertNotSame($login['token'], $fresh['token'], 'A fresh token, not the same one');
+        $this->assertSame(200, $this->getWithHeader('/api/schema', 'Authorization: Bearer '.$fresh['token']));
     }
 
     /**
@@ -513,12 +533,12 @@ class AuthApiTest extends IntegrationTestCase
         $login = $this->jwtLogin();
 
         [, $first] = $this->postJson('/auth/refresh', array('refreshToken' => $login['refreshToken']));
-        $this->assertNotSame($login['refreshToken'], $first['refreshToken'] ?? null, 'A new refresh token');
+        $this->assertNotSame($login['refreshToken'], $first['data']['refreshToken'] ?? null, 'A new refresh token'); // 011-001-0004
 
         [$second] = $this->postJson('/auth/refresh', array('refreshToken' => $login['refreshToken']));
         $this->assertSame(401, $second, 'The old one is no longer valid');
 
-        [$withNew] = $this->postJson('/auth/refresh', array('refreshToken' => $first['refreshToken']));
+        [$withNew] = $this->postJson('/auth/refresh', array('refreshToken' => $first['data']['refreshToken']));
         $this->assertSame(200, $withNew, 'The new one is');
     }
 
@@ -575,8 +595,17 @@ class AuthApiTest extends IntegrationTestCase
         [, $wrongKind] = $this->postJson('/auth/refresh', array('refreshToken' => $login['token']));
         [, $without]   = $this->postJson('/auth/refresh', array());
 
-        $this->assertSame($unknown['message'], $wrongKind['message']);
-        $this->assertSame($unknown['message'], $without['message']);
+        // 011-001-0004: all three answer in the error envelope — and all three name the same
+        // `code`, which is exactly what this test is about: the caller learns nothing about which
+        // attempt came closer.
+        $this->assertSame(
+            $this->assertErrorEnvelope($unknown, 'contentfly_general_invalid_refresh_token'),
+            $this->assertErrorEnvelope($wrongKind, 'contentfly_general_invalid_refresh_token')
+        );
+        $this->assertSame(
+            $this->assertErrorEnvelope($unknown)['detail'],
+            $this->assertErrorEnvelope($without)['detail']
+        );
     }
 
     /**
@@ -682,7 +711,8 @@ class AuthApiTest extends IntegrationTestCase
             'tokenType' => 'jwt',
         ));
 
-        $own = $this->jwtLogin();
+        $foreign = $foreign['data']; // 011-001-0004: the session is the payload of the login
+        $own     = $this->jwtLogin();
 
         $this->get('/auth/logout?refreshToken='.$foreign['refreshToken'], $own['token']);
 
@@ -713,6 +743,7 @@ class AuthApiTest extends IntegrationTestCase
             'tokenType' => 'jwt',
         ));
 
+        $login = $login['data']; // 011-001-0004: the session is the payload of the login
         $this->assertSame(200, $this->getWithHeader('/api/schema', 'Authorization: Bearer '.$login['token']));
 
         $deactivate = $this->pdo()->prepare('UPDATE pim_user SET isActive = 0 WHERE id = :id');

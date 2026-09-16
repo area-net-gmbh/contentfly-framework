@@ -30,8 +30,9 @@ class FileApiTest extends IntegrationTestCase
     {
         $response = $this->upload('sample.txt', "hello contentfly\n", $this->token());
 
-        $this->assertSame('File uploaded', $response['message'] ?? null);
-        $this->assertNotEmpty($response['data']['id'] ?? null);
+        // 011-001-0004: `message` is gone — the 200 says it. `data` keeps its meaning: before it
+        // was the payload beside the sentence, now it is the payload alone.
+        $this->assertNotEmpty($this->assertEnvelope($response)['id'] ?? null);
     }
 
     public function testUploadedFileIsStoredByteIdenticalOnDisk(): void
@@ -151,7 +152,14 @@ class FileApiTest extends IntegrationTestCase
     {
         $response = $this->upload('forbidden.txt', "no\n", null);
 
-        $this->assertNotSame('File uploaded', $response['message'] ?? null, 'Without a token no upload may succeed');
+        /*
+         * 011-001-0004: no file in the payload — `data` is null and the answer carries `errors`.
+         *
+         * `code` is null here, and that is right: the rejection is Symfony's AccessDeniedHttpException
+         * from the route guard, not a Contentfly exception with a Messages key. It has no stable
+         * identifier, so the envelope does not invent one.
+         */
+        $this->assertNull($this->assertErrorEnvelope($response)['code']);
     }
 
     public function testOverwriteReplacesTheContentOfTheTarget(): void
@@ -162,7 +170,8 @@ class FileApiTest extends IntegrationTestCase
 
         [, $response] = $this->postJson('/file/overwrite', array('sourceId' => $source, 'destId' => $target), $this->token());
 
-        $this->assertSame('File overwritten', $response['message'] ?? null);
+        // 011-001-0004: the two ids ARE the answer; `message` said the same thing a second time.
+        $this->assertSame(array('sourceId' => $source, 'destId' => $target), $this->assertEnvelope($response));
 
         $targetPath = self::dataDir().'/files/'.$target.'/same.txt';
         $this->assertFileExists($targetPath);

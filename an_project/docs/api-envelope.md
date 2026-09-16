@@ -1,11 +1,11 @@
 # Der Antwort-Envelope der API
 
-> Entschieden mit `000-000-0014`. Dieses Dokument hält fest, **welche Form** die API künftig
-> hat und **wann** sie sie bekommt.
+> Entschieden mit `000-000-0014`. Dieses Dokument hält fest, **welche Form** die API hat, warum sie
+> so aussieht und was auf dem Weg dorthin entschieden wurde.
 >
-> **Stand 2026-09-16:** Die Erfolgsantworten unter `/api/*` (`011-001-0002`) **und alle
-> Fehlerantworten** (`011-001-0003`) sind umgestellt. Offen sind nur noch die Erfolgsantworten von
-> `/auth/*`, `/file/*` und `/system/do` (`011-001-0004`). Siehe *Was schon gilt*.
+> **Stand 2026-09-16: vollständig umgesetzt.** Jeder JSON-Endpunkt des Frameworks antwortet mit
+> `data`, `errors`, `meta` — im Erfolgs- wie im Fehlerfall (`011-001-0002` bis `011-001-0004`).
+> Dieses Dokument beschreibt damit den **erreichten** Zustand, nicht mehr den geplanten.
 
 ## Der Befund
 
@@ -93,7 +93,7 @@ Je Endpunkt, vorher → nachher:
 | `/api/config` | `frontend`, `devmode`, `version`, `hash` | `data` = `{"devmode": …}`; Rest unter `meta` |
 | Fehlerfall | `message`, `type`, `message_value`, `status` | `data` = `null`, `errors` = `[{code, detail, …}]`, `meta` |
 
-## Geltungsbereich und vollständige Zieltabelle
+## Geltungsbereich und vollständige Tabelle
 
 > Erhoben und entschieden mit `011-001-0001` (2026-09-16). Die Tabelle oben stammt aus `000-000-0014`
 > und führt zehn Endpunkte — erhoben wurden **32 JSON-Antwortstellen in vier Controllern** (eine davon
@@ -115,7 +115,11 @@ Der Preis ist benannt — auch der Anmelderumpf ändert sich, und zwölf Tests h
 
 ### Die Endpunkte, vollständig
 
-| Endpunkt | Antwortstelle | heute | Zielform |
+> **Die Spalte „vorher" beschreibt den Stand vor Epic `011`.** Alle Zeilen sind umgesetzt; wo die
+> Umsetzung von der damals notierten Zielform abweicht, steht die Abweichung mit Begründung unter
+> *Was schon gilt*.
+
+| Endpunkt | Antwortstelle | vorher | jetzt |
 |---|---|---|---|
 | `POST /api/all` | `ApiController:107` | `lastModified`, `data` (+ `version`, `hash`; `204` bei leerer Menge) | `data`; `lastModified` unter `meta` |
 | `GET /api/config` | `:143` | `devmode`, `version`, `hash` | `data` = `{devmode}`; Rest unter `meta` |
@@ -153,7 +157,7 @@ Der Preis ist benannt — auch der Anmelderumpf ändert sich, und zwölf Tests h
   hat genau das mit `000-000-0014` abgelegt (leere Menge ist `200` mit leerer Liste). Beim Umstellen
   ist zu entscheiden, ob `/api/all` nachzieht.
 
-### Welche Tests die heutige Form halten
+### Welche Tests die frühere Form gehalten haben
 
 | Endpunktgruppe | Tests |
 |---|---|
@@ -162,8 +166,12 @@ Der Preis ist benannt — auch der Anmelderumpf ändert sich, und zwölf Tests h
 | `/file/*`, `/system/do` | `FileApiTest`, `SystemControllerApiTest` |
 | Fehlerform | `ErrorResponseApiTest`, `RouteSecurityApiTest` |
 
-Jede Anpassung dieser Erwartungen ist ein Verhaltenswechsel und trägt ihre Begründung im Test —
-`an_project/docs/technical.md`.
+Jede Anpassung dieser Erwartungen war ein Verhaltenswechsel und trägt ihre Begründung im Test —
+`an_project/docs/technical.md`. Zwei Tests sind dabei umgedreht **und umbenannt** worden, weil ihre
+Aussage sich ins Gegenteil verkehrt hat (`ReadApiTest::testListReturnsADifferentEnvelopeThanSingle`
+→ `…ReturnsTheSameEnvelopeAsSingle`, `SystemControllerApiTest::testSystemEndpointUsesItsOwnResponseShape`
+→ `…AnswersLikeEveryOtherEndpoint`); ein dritter hielt seine Aussage und wechselte nur die Adresse
+(`WriteApiTest::…ReturnsTheGeneratedIdOnTheTopLevel` → `…ReturnsTheCreatedObjectWithItsId`).
 
 ## Was schon gilt
 
@@ -188,6 +196,28 @@ Im Test steht die Form an einer Stelle: `IntegrationTestCase::assertEnvelope()` 
 `errors` und die vier Standard-Meta-Felder bei **jedem** Aufruf; ein Test nennt nur noch, was sein
 Endpunkt zusätzlich in `meta` legt. Vorher schrieb jeder Test die Schlüsselliste seines Endpunkts
 aus — und schrieb damit genau das fest, was hier abgeschafft wird.
+
+**Seit `011-001-0004` (2026-09-16): auch `/auth/*`, `/file/*` und `/system/do`.** Damit gibt es
+keinen JSON-Endpunkt mehr ausserhalb des Envelopes. Vier Entscheidungen darin:
+
+- **`message` entfällt überall** — „Login successful", „File uploaded", „File overwritten",
+  „Logout successful". Sätze, die ein Client nur wörtlich vergleichen konnte, neben einem `200`,
+  das dasselbe sagte.
+- **`/auth/login`: aus `data` wird `tempData`**, weil `body.data.data` kein Name ist.
+- **`/auth/login?withSchema` teilt genau wie `/api/schema` auf** — sonst bräuchte ein Client zwei
+  Leser für dasselbe Schema, je nachdem, woher es kam. Das mitgelieferte `hash` entfällt,
+  `meta.hash` trägt es ohnehin.
+- **`/system/do`: `datetime` entfällt ersatzlos**, `meta.ts` ist derselbe Wert.
+
+**Die Ablehnungen, die `AuthController` selbst baut**, gehen über `BaseController::renderError()` —
+sie erreichen den Fehlerhandler nie und waren deshalb die letzte Gruppe mit eigenem Rumpf. Vier
+neue `Messages`-Schlüssel geben ihnen einen `code`; `contentfly_general_invalid_credentials` gilt
+bewusst für **jeden** `401` der Anmeldung, damit die Antwort kein Orakel für existierende Konten
+wird.
+
+**Und die allerletzte Ausnahme:** Eine `FileNotFoundException` beantwortete der Fehlerhandler mit
+einem Klartext-`404` (`text/html`, im Rumpf nur die Meldung) — auch auf `/file/overwrite`, einem
+JSON-Endpunkt. Sie erbt jetzt von `ContentflyException` und geht den normalen Weg.
 
 **Seit `011-001-0003` (2026-09-16): jede Fehlerantwort.** Sie war die achte Form neben den sieben
 Erfolgsformen — und in sich uneinheitlich, weil die vorhandenen Schlüssel von der Ausnahmeklasse
@@ -224,6 +254,13 @@ installiert" ist ein vorhersehbarer Zustand, auf den ein Client verzweigen darf.
 
 Im Test prüft `IntegrationTestCase::assertErrorEnvelope()` die Fehlerform an einer Stelle, so wie
 `assertEnvelope()` die Erfolgsform.
+
+**Die Abnahme** ist `tests/Integration/Api/EnvelopeApiTest.php`: Es läuft die Endpunkte in
+Schleifen durch — 15 Erfolgsstellen unter `/api/*`, die sechs aus `0004`, und elf Fälle quer über
+alle vier Routengruppen, Erfolg **und** Fehler gemischt — und wertet jede Antwort mit **derselben**
+Leserfunktion aus, die nichts kennt als `data`, `errors` und `meta`. Zwanzig Einzeltests hätten
+belegt, dass jeder Endpunkt *eine* Form hat; nur ein Stück Code, das alle durchläuft, belegt, dass
+es **dieselbe** ist.
 
 Zwei Punkte aus `000-000-0014` liessen sich schon vorher nicht sinnvoll aufschieben, weil sie keine
 Formfragen sind, sondern Defekte:

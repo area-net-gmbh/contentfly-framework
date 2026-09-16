@@ -4,7 +4,7 @@
 
 **Dieser Leitfaden ist der Weg. `an_project/docs/breaking-changes.md` ist das Register.**
 
-Das Register hat **116 Einträge in 14 Abschnitten** (Stand 2026-09-16) und ist nach Epic und
+Das Register hat **117 Einträge in 14 Abschnitten** (Stand 2026-09-16) und ist nach Epic und
 Story geordnet — also danach, *wann wir etwas geändert haben*. Das ist die richtige Ordnung zum
 Nachschlagen und die falsche zum Arbeiten. Hier steht die andere: **was ein Projekt tut, und in
 welcher Reihenfolge.**
@@ -402,7 +402,19 @@ Form wie eine Erfolgsantwort*; die kürzeste Fassung:
 `message` → `errors[0].code` (verzweigen) bzw. `errors[0].detail` (anzeigen), `message_value` →
 `errors[0].context.value`, `debug` → `meta.debug`, `status` ersatzlos.
 
-**`/auth/*`, `/file/*` und `/system/do`** ziehen im selben Release nach.
+**`/auth/*`, `/file/*` und `/system/do` sind mitgezogen** — die API hat damit **eine** Antwortform,
+ohne Ausnahme. Für einen Client sind drei Stellen davon die wichtigsten:
+
+- **Die Anmeldung.** `body.token` → `body.data.token`, `body.user` → `body.data.user`. Und wenn das
+  Projekt eigene Daten mitgibt: `body.data` → `body.data.tempData`.
+- **Der Upload.** `body.data` bleibt das Dateiobjekt — hier ändert sich nur, dass `message`
+  wegfällt.
+- **Die Ablehnungen der Anmeldung tragen jetzt einen `code`.** Wer bisher den Satz erkennen musste,
+  um „zu viele Versuche" von „falsches Passwort" zu unterscheiden, liest `errors[0].code`.
+
+**Was dabei still kaputtgehen kann:** ein Client, der `body.message` auf „Login successful" prüft.
+Das Feld ist weg, der Vergleich schlägt fehl, und die Anmeldung sieht aus wie gescheitert, obwohl
+sie geklappt hat. Zusammen mit `insert` ist das die zweite Stelle, die zuerst zu prüfen ist.
 
 **Fertig, wenn:** die eigenen Clients gegen die neue Instanz laufen.
 

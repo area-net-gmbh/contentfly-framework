@@ -166,11 +166,12 @@ abstract class IntegrationTestCase extends TestCase
     {
         [, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => $this->pass()));
 
-        if (!isset($body['token'])) {
+        // 011-001-0004: the session is the payload of the login, so the token sits in `data`.
+        if (!isset($body['data']['token'])) {
             $this->fail('Login failed: '.json_encode($body));
         }
 
-        return $body['token'];
+        return $body['data']['token'];
     }
 
     /**
@@ -502,10 +503,11 @@ abstract class IntegrationTestCase extends TestCase
 
         [, $body] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORD));
 
-        if (!isset($body['token'])) {
+        // 011-001-0004: the session is the payload of the login — see login().
+        if (!isset($body['data']['token'])) {
             $this->fail('Login of the test user failed: '.json_encode($body));
         }
 
-        return array($body['token'], $userId, $groupId);
+        return array($body['data']['token'], $userId, $groupId);
     }
 }
