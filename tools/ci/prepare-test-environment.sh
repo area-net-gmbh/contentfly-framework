@@ -78,7 +78,7 @@ until php -r '
                 fwrite(STDERR, "  ".get_class($e).": ".$e->getMessage()."\n");
             }
             fwrite(STDERR, "  geladene PDO-Treiber: ".implode(", ", PDO::getAvailableDrivers())."\n");
-        ' >&2 2>&1
+        '
         exit 1
     fi
     sleep 1
