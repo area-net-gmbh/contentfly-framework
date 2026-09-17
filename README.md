@@ -1,182 +1,82 @@
-![Contentfly CMS](https://www.contentfly-cms.de/file/get/7d937604-23e2-11e8-b76e-00ac10d52400)
-
 # Contentfly
-- **Lizenz**: Duale Lizenz MIT/ Properitär
-- **Webseite**: http://www.contentfly-cms.de
 
-## Die Contentfly Plattform
+**Datenhaltung und Kernfunktionen als PHP-Bibliothek.** Contentfly nimmt Entities entgegen,
+verwaltet sie über Doctrine, regelt Rechte, Anmeldung und Dateien — und stellt das über eine
+JSON-API und eine Console bereit. Ein Projekt bringt seine eigenen Entities, Routen und Dienste mit
+und bezieht Contentfly als Composer-Abhängigkeit.
 
-- **Server**: https://github.com/area-net-gmbh/contentfly-cms
-- **Ionic SDK**: https://github.com/area-net-gmbh/contentfly-ionic
-- **Download + Dokumentation**: http://www.contentfly-cms.de
+## Was es nicht ist
 
-## Einführung
+**Contentfly 2 hat keine Oberfläche.** Die PIM-CMS-Oberfläche früherer Versionen ist mit Epic `012`
+ersatzlos entfallen; mit ihr Twig und rund 31 MB Assets. Wer eine Oberfläche braucht, baut sie als
+eigenes Frontend gegen die API.
 
-Mit der Contentfly Plattform können Geschäftsprozesse digitalisiert und mobile Apps für iOS und Android unter dem Einsatz von webbasierten Technologien (Ionic Framework) inklusive Synchronisations-Anbindung an einen Server entwickelt werden.
+Das unterscheidet Contentfly 2 von **Contentfly CMS 1.x**, das ein Produkt mit Oberfläche war und
+unter `area-net-gmbh/contentfly-cms` liegt. Die beiden teilen den Namen und die Herkunft, sonst
+wenig — der Weg von dort hierher steht in `an_project/docs/migration.md` und umfasst neun Phasen.
 
-Der Server basiert dabei auf PHP und MySQL und kann auf nahezu jedem Standard-Hosting-Provider eingesetzt werden. Das Ionic SDK unterstützen Entwickler bei der Datenhaltung und Synchronisation (Offline-Apps) mit dem Contentfly CMS.
+## Der Stand
 
-Für die Entwicklung von Apps mit dem Contentfly Framework sind folgende Kenntnisse erforderlich:
+| | |
+|---|---|
+| PHP | `^8.3` — Zielplattform 8.5 |
+| Erweiterungen | `ext-openssl`, `ext-sodium` |
+| Kernel | Symfony 7.4 LTS (HttpKernel, Routing, Console, EventDispatcher, Security) |
+| Persistenz | Doctrine ORM 3 über DBAL 3.10, Entities mit PHP-Attributen |
+| Antwortform | `data` / `errors` / `meta` — bei **jedem** Endpunkt, Erfolg wie Fehler |
 
-- **Server**: PHP und optimalerweise Doctrine ORM und MySQL
-- **Ionic**: Typescript/Javascript und Kenntnisse im Ionic Framework
+Die Begründungen dahinter — warum 7.4 LTS und nicht 8.x, warum ORM 3, warum diese Antwortform —
+stehen in `an_project/docs/architecture.md` unter *Key decisions*.
 
-# Das Contentfly CMS
+## Die drei Wege
 
-Mit dem CMS können serverseitig beliebige Inhalte gespeichert und verwaltet werden. Das CMS kann letztendlich auch losgelöst von mobilen Apps betrieben werden. Über eine Schnittstelle kann auf alle im CMS gespeicherten Daten zugegriffen werden. Damit kann das CMS auch zum Beispiel als PIM (Product Information Managament) für eine Webseite in TYPO3 oder Wordpress eingesetzt werden.
+**Ein neues Projekt aufsetzen** → `an_project/docs/runbook.md`, Abschnitt *So startet ein neues
+Projekt*. Kurz: Contentfly kommt als Composer-Paket aus
+`area-net-gmbh/contentfly-framework-dist`, die Startdateien kommen aus diesem Repository.
 
-**Technologien**
+**Ein Bestandsprojekt von 1.x migrieren** → `an_project/docs/migration.md`. Neun Phasen, geordnet
+nach dem, was ein Projekt tut; das Register der Einzelheiten ist
+`an_project/docs/breaking-changes.md`. Der Leitfaden ist an einem echten Bestandsprojekt erprobt
+worden, nicht am Reissbrett.
 
-- [PHP](http://www.php.net/) und [MySQL](https://www.mysql.de/)
-- [Symfony 7.4 LTS](https://symfony.com/) als Komponenten-Unterbau: HttpFoundation, HttpKernel,
-  EventDispatcher, Routing, Console. Den Container stellt Contentfly selbst
-  (`Areanet\PIM\Classes\Kernel\Container`).
-- [Doctrine](http://www.doctrine-project.org/) als ORM für die Datenhaltung
+**Am Framework selbst arbeiten** → `an_project/docs/dev-guide.md` für die Struktur,
+`an_project/docs/runbook.md` für die lokale Umgebung, `tests/README.md` für die Testsuiten.
 
-> Bis Epic `009` lief hier [Silex 2](http://silex.sensiolabs.org/) als Microframework. Silex ist
-> seit 2018 EOL und deckelte Symfony auf 4.4; der Kernel ist getauscht, die Schnittstelle für
-> Projekte (`$app['…']`, `mount()`, `before()`, `after()`) ist geblieben. Was sich für ein
-> Bestandsprojekt ändert, steht in `an_project/docs/breaking-changes.md`.
+## Was in diesem Repository liegt
 
-## Migration 1.5 auf 1.6
+**Zwei Dinge, und die Trennung ist Absicht** (Epic `007`):
 
-Angepasste Ordnerstruktur und Betrieb in Unterordnern z.B. www.domain.de/contentfly möglich.
+- **`lib/contentfly/`** — das Paket `areanet/contentfly`. Was hier liegt, wird bei jedem Release
+  als eigenständiges Repository ausgeliefert; ein Projekt fasst es nie an.
+- **Alles andere** — das Skeleton `areanet/contentfly-skeleton`: `custom/`, `bin/`, `index.php`,
+  `data/`, `plugins/`. Das ist der Startpunkt eines Projekts, und `custom/` zeigt mit
+  Beispiel-Controller, -Entity, -Service, -Command und -Provider, wie man es macht.
 
-### Allgemeine Änderungen
+Bis Contentfly 1.x lag das Framework als **Kopie** im Projekt. Eine neue Version bekam man nur,
+indem man den Baum überschrieb, in dem auch der eigene Code stand — der Grund, aus dem Epic `007`
+die Grenze gezogen hat.
 
-* **Webserver Document-Root muss auf "/" anstatt "appcms/public" gesetzt werden**
-* *RewriteBase* wurde aus der .htaccess entfernt
-* Der Webordner/-pfad wird in der Bootstrap-Datei automatisch in die Konfigurationsvariable *WEB_ROOT* geschrieben
-* Die Variable *WEB-ROOT* wird automatisch in den Twig-Templates als base/href gesetzt
+Dazu, was nur der Entwicklung dient und **nicht** Teil eines Projekts ist: `tests/`, `tools/`,
+`an_project/` (Backlog und Dokumentation) und die Gate-Konfigurationen.
 
-### Geänderte Ordner- und Dateistruktur
+## Eine Version herausgeben
 
-* *appcms/areanet/PIM* => *lib/contentfly*
-* *appcms/areanet/PIM-UI* => *lib/contentfly-ui* (mit Epic `012` ersatzlos entfallen)
-* *appcms/vendor* => *vendor*
-* *appcms/bootstrap.php* => *lib/contentfly/bootstrap.php*
-* *appcms/bootstrap-web.php* => *lib/contentfly/bootstrap-web.php*
-* *appcms/version.php* => *lib/contentfly/version.php*
-* *appcms/config-sample.php* => *lib/contentfly/config-sample.php*
-* *appcms/console.php* => *bin/console.php*
-* *appcms/cli-config.php* => *bin/cli-config.php*
-* *data* => *data*
-* *custom* => *custom*
+Ein Tag `v*` auf `master` erzeugt das Paket-Repository neu. Der Ablauf, die Prüfungen davor und was
+dabei schiefgehen kann: `an_project/docs/deployment.md`, Abschnitt *Eine Version herausgeben*.
 
-**Hinweis:** Die PHP-Namespaces z.B. "Areanet/PIM/Entity" wurden nicht geändert.
+## Prüfungen
 
-### Dateien und Bilder
+Die Pipeline (`.github/workflows/pipeline.yml`) fährt bei jedem Push auf `master` und bei jedem
+Pull Request fünf Prüfungen — Vorlagen-Konfiguration, `composer audit`, PHPStan, beide Testsuiten
+auf PHP 8.3 und 8.4, und den Bezugsweg von aussen. **Alle blockierend.** Die Schritte stehen in
+`tools/ci/*.sh` und lassen sich lokal nachspielen.
 
-* Der Dateiabruf "file/get" wurde intern auf HTTP-Redirects (301) auf "/data/files/..." umgestellt
-* Alternativ kann der Abruf über die Konfigurationsvariable APP_FILE_MODE auf "readfile" oder "xsendfile" gestellt werden
+## Lizenz
 
-### Migration
+Proprietär, siehe `LICENSE`.
 
-* Folgende Ordner/Dateien aus der Version 1.6 in das Root-Verzeichnis kopieren
-    * *lib*
-    * *vendor*
-    * *bin*
-    * *index.php*
-    * *.htaccess*
-* Document-Root des Webservers auf das Root-Verzeichnis stellen
-* Ordner *appcms* löschen
+---
 
-
-## Installation
-
-### Systemvoraussetzungen
-
-* Apache 2.x
-* PHP 7.1 oder höher
-* PHP-Module (benötigt)
-    * open_ssl
-    * gd
-    * pdo_mysql
-* PHP-Module (empfohlen)
-    * imagick
-* MySQL 5.5.0 oder höher
-* Konsolen-/SSH-Zugriff empfohlen
-
-### Installation einer Release-Version
-
-(1) Download Contentfly CMS unter http://www.contentfly-cms.de
-
-(2) Installations-Anleitung unter http://www.contentfly-cms.de/docs/cms folgen
-
-### Manuelle Installation aus GitHub
-
-> **Seit dem Umbau auf Composer (Story `006-003`) liegt kein _vendor_-Ordner mehr im Repository.**
-> Ein frischer Checkout ist ohne Schritt (2) nicht lauffähig — er meldet sich dann mit fehlenden
-> Klassen, nicht mit dem Grund. Der ausführliche Ablauf für Entwickler steht in
-> _an_project/docs/runbook.md_.
-
-(1) Git-Repository laden
-
-`git clone git@github.com:area-net-gmbh/contentfly-framework.git`
-
-> **Die URL hat sich mit `011-002-0001` (2026-09-16) geändert.** Sie zeigte auf
-> `area-net-gmbh/contentfly-cms` — das ist Contentfly 1.x. Wer diesem Repository folgte und den
-> alten Link klonte, bekam stillschweigend das falsche Produkt.
-
-(2) Abhängigkeiten installieren ([Composer](https://getcomposer.org/) 2.x erforderlich)
-
-`composer install`
-
-Für eine Installation ohne Entwicklungswerkzeuge stattdessen:
-
-`composer install --no-dev --optimize-autoloader`
-
-(3) Systemumgebung über [Ant](http://ant.apache.org/)-Buildskript im Root-Ordner erstellen
-
-`ant`
-
-(4) Datenbankzugangsdaten in _custom/config.php_ eintragen
-
-(5) Datenbank über Doctrine im Ordner _bin_ generieren.
-
-`php console.php orm:schema:update --force`
-
-(6) Datenbank im Ordner _bin_ initalisieren/einrichten
-
-`php console.php appcms:setup`
-
-(7) URL/Host aufrufen und Standard-Login in das Contentfly CMS mit Benutzer _admin_ und Passwort _admin_
-
-### ZIP-Version für Release-Build erstellen
-
-`ant zip-release`
-
-## Dokumentation
-
-- http://www.contentfly-cms.de/docs/cms
-
-# Lizenz
-
-Die Contentfly Plattform ist unter eine dualen Lizenz (MIT und properitär) verfügbar. Die genauen Lizenzbedingungen sind in der Datei _LICENCE_ zu finden.
-
-# Die Contentfly Plattform ist ein Produkt der AREA-NET GmbH
-
-AREA-NET GmbH
-Öschstrasse 33
-73072 Donzdorf
-
-**Kontakt**
-
-- Telefon: 0 71 62 / 94 11 40
-- Telefax: 0 71 62 / 94 11 18
-- http://www.area-net.de
-- http://www.app-agentur-bw.de
-- http://www.contentfly-cms.de
-
-
-**Geschäftsführer**
-Gaugler Stephan, Köller Holger, Schmid Markus
-
-**Handelsregister**
-HRB 541303 Ulm
-Sitz der Gesellschaft: Donzdorf
-UST-ID: DE208051892
-
-
-
-
+<sub>**Zur Historie:** Bis Epic `009` lief unter Contentfly ein Silex-2-Kernel, bis Epic `010`
+Doctrine ORM 2 mit Annotationen. Beides ist aus dem Baum. Wer auf ältere Anleitungen stösst, die
+`appcms/`, ein Ant-Buildskript oder PHP 7 nennen, hat Contentfly 1.x vor sich.</sub>
