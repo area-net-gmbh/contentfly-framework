@@ -387,7 +387,16 @@ wahrscheinlichsten ist — eine Lücke, die in einem Paket veröffentlicht wird,
 arbeitet.
 
 **Dazu, aus derselben Entscheidung:** Dependabot (`.github/dependabot.yml`, wöchentlich und
-gruppiert, für Composer **und** GitHub Actions) und `SECURITY.md`. Die beiden Wege ergänzen
+gruppiert, für Composer **und** GitHub Actions) und `SECURITY.md`.
+
+> **Dependabot braucht seinen eigenen Secret-Speicher.** Ein Dependabot-Pull-Request bekommt die
+> normalen Repository-Secrets **nicht** — GitHub fährt ihn mit einem eingeschränkten Token und
+> reicht nur durch, was unter *Settings → Secrets and variables → **Dependabot*** liegt, einem
+> anderen Reiter als *Actions*. Dort gehört `CONTENTFLY_TEST_ADMIN_PASS` hin, damit die
+> Testjobs laufen. **`PAKET_REPO_DEPLOY_KEY` ausdrücklich nicht:** Der Job `bezugsweg` wird bei
+> Dependabot stattdessen übersprungen — er bezieht das *veröffentlichte* Paket und wird von
+> einem Bump im lokalen Lock gar nicht berührt. Gefunden an PR `#13` am 2026-09-17, der daran
+> scheiterte. Die beiden Wege ergänzen
 sich statt sich zu ersetzen — Dependabot benachrichtigt passiv aus GitHubs Datenbank,
 `composer audit` prüft aktiv gegen die von FriendsOfPHP, die im PHP-Umfeld oft früher dran ist.
 
