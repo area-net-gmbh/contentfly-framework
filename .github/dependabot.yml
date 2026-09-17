@@ -15,6 +15,25 @@
 # Majors bleiben ABSICHTLICH einzeln. Ein Major kann brechen; er gehoert angesehen, nicht
 # mitgeschwemmt.
 
+# ── EINZUTRAGEN, DAMIT DIE PULL REQUESTS DIESES BOTS GRUEN WERDEN KOENNEN ─────────────
+#
+# Ein Dependabot-PR bekommt die normalen Repository-Secrets NICHT. GitHub faehrt ihn mit
+# einem eingeschraenkten Token und reicht ihm nur durch, was unter
+#
+#   Settings → Secrets and variables → DEPENDABOT
+#
+# liegt — ein anderer Reiter als `Actions`. Dort muss stehen:
+#
+#   CONTENTFLY_TEST_ADMIN_PASS   damit die beiden Testjobs laufen
+#
+# NICHT dort stehen darf PAKET_REPO_DEPLOY_KEY. Der Job `bezugsweg` wird bei Dependabot
+# stattdessen uebersprungen; die Begruendung steht in pipeline.yml bei diesem Job.
+#
+# Gefunden an PR #13 (2026-09-17), der actions/checkout auf v7 heben wollte und daran
+# scheiterte. Ohne diesen Eintrag ist JEDER Pull Request dieses Bots rot — und ein Bot,
+# dessen PRs grundsaetzlich rot sind, erzeugt genau die Liste, die die Gruppierung
+# weiter unten vermeiden soll. Nur eben in Rot.
+
 version: 2
 updates:
   # ── PHP-Abhaengigkeiten ────────────────────────────────────────────────────────────────

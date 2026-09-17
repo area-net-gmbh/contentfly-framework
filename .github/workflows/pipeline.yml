@@ -176,8 +176,27 @@ jobs:
 
   bezugsweg:
     name: "check: Bezugsweg von aussen"
-    # Im Zeitplan-Lauf uebersprungen: Dort geht es nur um den Lock (000-000-0055).
-    if: github.event_name != 'schedule'
+    # Uebersprungen in zwei Faellen, und die Gruende sind verschieden:
+    #
+    # 1. ZEITPLAN-LAUF — dort geht es nur um den Lock (000-000-0055).
+    #
+    # 2. DEPENDABOT — dieser Job braucht PAKET_REPO_DEPLOY_KEY, und ein Dependabot-PR
+    #    bekommt die normalen Repository-Secrets NICHT. GitHub faehrt ihn seit 2021 mit
+    #    einem eingeschraenkten Token und gibt ihm nur Secrets aus einem eigenen Speicher
+    #    (Settings → Secrets and variables → DEPENDABOT, ein anderer Reiter als Actions).
+    #    Ohne diese Bedingung ist JEDER Dependabot-PR rot — gemessen an PR #13, der
+    #    actions/checkout auf v7 heben wollte und hier scheiterte.
+    #
+    #    DER DEPLOY KEY WIRD ABSICHTLICH NICHT GETEILT. Ein Dependabot-PR darf
+    #    Workflow-Dateien aendern — genau das tat #13 — und ein Schluessel, der ihm
+    #    zugaenglich ist, ist einem Bot-PR zugaenglich. Der Weg ist schmal, aber real.
+    #
+    #    WAS DABEI NICHT VERLOREN GEHT: Dieser Job bezieht das VEROEFFENTLICHTE Paket aus
+    #    contentfly-framework-dist. Ein Bump im Lock dieses Repositories aendert daran
+    #    nichts — der Job prueft bei einem Dependabot-PR also ohnehin nichts, was die
+    #    Aenderung betrifft. Die Testsuiten laufen weiter; CONTENTFLY_TEST_ADMIN_PASS ist
+    #    das Passwort einer fluechtigen Testdatenbank und liegt deshalb in beiden Speichern.
+    if: github.event_name != 'schedule' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     container: php:8.3-cli
     # DAS GATE AUS 011-002-0004. Es baut ein Projekt in einem frischen Verzeichnis AUSSERHALB
