@@ -52,6 +52,23 @@ on:
     branches: [master]
   pull_request:
   workflow_dispatch:
+  # TAEGLICH UM 06:00 UTC — NUR FUER check-audit (000-000-0055).
+  #
+  # Das Sicherheits-Gate lief bis zum 2026-09-17 ausschliesslich bei Push und Pull Request.
+  # Wird zwei Wochen nicht committet, prueft es zwei Wochen nichts — obwohl taeglich neue
+  # Advisories erscheinen. Der Lock aendert sich dabei nicht; die Datenbank, gegen die er
+  # geprueft wird, schon. Genau das ist der Fall, den ein Auslöser am Commit nicht abdeckt.
+  #
+  # WARUM HIER UND NICHT IN EINEM EIGENEN WORKFLOW: Dann gaebe es zwei Definitionen desselben
+  # Jobs, und die zweite laeuft der ersten hinterher, sobald jemand eine aendert. Die fuenf
+  # anderen Jobs tragen stattdessen `if: github.event_name != 'schedule'` — sie werden im
+  # Zeitplan-Lauf uebersprungen, nicht ausgeschaltet.
+  #
+  # Die Folge, wenn jemand einen neuen Job hinzufuegt und die Bedingung vergisst: Er laeuft
+  # taeglich mit. Das kostet Runner-Zeit und bricht nichts — die umgekehrte Reihenfolge
+  # (Bedingung vergessen heisst Gate laeuft nicht) waere die gefaehrliche.
+  schedule:
+    - cron: '0 6 * * *'
 
 env:
   # ── Der MySQL-Service ───────────────────────────────────────────────────────────────
@@ -94,6 +111,8 @@ jobs:
 
   check-template-config:
     name: "check: Vorlagen-Konfiguration"
+    # Im Zeitplan-Lauf uebersprungen: Dort geht es nur um den Lock (000-000-0055).
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     # custom/config.php ist die Vorlage, aus der appcms:install die Konfiguration macht. Nach
     # einer lokalen Installation trägt sie Host, Benutzer und Passwort — und ein `git add -A`
@@ -129,6 +148,8 @@ jobs:
 
   check-phpstan:
     name: "check: PHPStan"
+    # Im Zeitplan-Lauf uebersprungen: Dort geht es nur um den Lock (000-000-0055).
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     container: php:8.3-cli
     # Die statische Haelfte des "0 Deprecations"-Gates (006-005-0004). Das Laufzeit-Log aus
@@ -155,6 +176,8 @@ jobs:
 
   bezugsweg:
     name: "check: Bezugsweg von aussen"
+    # Im Zeitplan-Lauf uebersprungen: Dort geht es nur um den Lock (000-000-0055).
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     container: php:8.3-cli
     # DAS GATE AUS 011-002-0004. Es baut ein Projekt in einem frischen Verzeichnis AUSSERHALB
@@ -234,6 +257,8 @@ jobs:
 
   test:
     name: "test: PHP ${{ matrix.php }}"
+    # Im Zeitplan-Lauf uebersprungen: Dort geht es nur um den Lock (000-000-0055).
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     # `needs` bildet nach, was bei GitLab die Stages taten: Erst die Pruefungen, die keine
     # Umgebung brauchen, dann der teure Lauf. Ein Lock mit einer Sicherheitsluecke soll nicht
