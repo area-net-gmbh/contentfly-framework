@@ -41,7 +41,7 @@ jobs:
     steps:
       # VOLLE HISTORIE. `git subtree split` baut aus der Historie des Präfixes eine eigene;
       # mit dem flachen Klon der Vorgabe (fetch-depth: 1) hat es nichts zu spalten.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

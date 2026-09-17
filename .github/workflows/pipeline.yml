@@ -122,7 +122,7 @@ jobs:
     # Ohne Container: Das Skript ist reines POSIX sh und liest eine Datei. Ein alpine:3-Image
     # wie in der GitLab-Fassung brächte hier nichts als Startzeit.
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: sh tools/check-template-config.sh
 
   check-audit:
@@ -138,7 +138,7 @@ jobs:
     # config.audit.ignore, jede mit Begruendung. Eine WEITERE Meldung macht diesen Job sofort
     # rot — das ist der Unterschied zwischen einer Ausnahme und einem abgeschalteten Gate.
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: sh tools/ci/install-composer.sh
       - run: sh tools/ci/audit.sh
       # Zweite Haelfte des Gates (006-005-0002): Eine Ausnahme, die nicht mehr greift, macht
@@ -162,7 +162,7 @@ jobs:
     #
     # Der Job braucht keine Datenbank — statische Analyse fuehrt nichts aus.
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: sh tools/ci/install-php-extensions.sh
       - run: sh tools/ci/install-composer.sh
       - run: composer install --no-interaction --no-progress --prefer-dist
@@ -224,7 +224,7 @@ jobs:
       CONTENTFLY_TEST_DB_USER: contentfly
       CONTENTFLY_TEST_DB_PASSWORD: contentfly
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: sh tools/ci/install-php-extensions.sh
       - run: sh tools/ci/install-composer.sh
 
@@ -319,7 +319,7 @@ jobs:
           --health-retries=20
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: PHP-Erweiterungen und Composer
         run: |
