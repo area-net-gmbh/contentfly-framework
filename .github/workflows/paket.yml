@@ -62,10 +62,18 @@ jobs:
             echo "  Kopf dieser Datei." >&2
             exit 1
           fi
-          mkdir -p ~/.ssh
-          printf '%s\n' "$SCHLUESSEL" > ~/.ssh/paket_deploy_key
-          chmod 600 ~/.ssh/paket_deploy_key
-          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "$SCHLUESSEL" > "$HOME/.ssh/paket_deploy_key"
+          chmod 600 "$HOME/.ssh/paket_deploy_key"
+
+          # Ohne `2>/dev/null` und mit Gegenprobe — siehe pipeline.yml, Job `bezugsweg`.
+          # Hier lief es auch vorher, aber nur, weil dieser Job ohne `container:` läuft;
+          # eine Lücke, die nur woanders auffällt, ist trotzdem eine.
+          ssh-keyscan -t rsa,ecdsa,ed25519 github.com >> "$HOME/.ssh/known_hosts"
+          if ! grep -q '^github.com ' "$HOME/.ssh/known_hosts"; then
+            echo "✗ ssh-keyscan hat keinen Host-Key für github.com geliefert." >&2
+            exit 1
+          fi
 
       - name: Veröffentlichen
         env:
@@ -77,9 +85,9 @@ jobs:
           # IdentitiesOnly, damit kein anderer Schlüssel des Runners angeboten wird — dieselbe
           # Falle, die beim Umzug (011-002-0001) eine Stunde gekostet hat: Der Agent bot seine
           # Schlüssel zuerst an, und GitHub sah das falsche Konto.
-          GIT_SSH_COMMAND: ssh -i ~/.ssh/paket_deploy_key -o IdentitiesOnly=yes -o IdentityAgent=none
+          GIT_SSH_COMMAND: ssh -i $HOME/.ssh/paket_deploy_key -o IdentitiesOnly=yes -o IdentityAgent=none -o UserKnownHostsFile=$HOME/.ssh/known_hosts
         run: sh tools/ci/paket-veroeffentlichen.sh
 
       - name: Schlüssel wegräumen
         if: always()
-        run: rm -f ~/.ssh/paket_deploy_key
+        run: rm -f "$HOME/.ssh/paket_deploy_key"

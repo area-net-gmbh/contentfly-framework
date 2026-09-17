@@ -135,6 +135,85 @@ jobs:
 
   # ── Die Testsuiten ───────────────────────────────────────────────────────────────────
 
+  bezugsweg:
+    name: "check: Bezugsweg von aussen"
+    runs-on: ubuntu-latest
+    container: php:8.3-cli
+    # DAS GATE AUS 011-002-0004. Es baut ein Projekt in einem frischen Verzeichnis AUSSERHALB
+    # des Checkouts, bezieht Contentfly über das Paket-Repository und ruft die API auf.
+    #
+    # Warum es nicht bei den drei Prüfungen oben steht: Es braucht eine Datenbank. Warum es
+    # nicht Teil des Testjobs ist: Ein Fehlschlag hier heisst etwas anderes — nicht „der Code
+    # ist kaputt", sondern „das Paket ist von aussen nicht beziehbar". Zwei Aussagen, zwei Jobs.
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: bezugsweg_probe
+          MYSQL_USER: contentfly
+          MYSQL_PASSWORD: contentfly
+          MYSQL_ROOT_PASSWORD: root
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      CONTENTFLY_TEST_DB_HOST: mysql
+      CONTENTFLY_TEST_DB_PORT: "3306"
+      CONTENTFLY_TEST_DB_USER: contentfly
+      CONTENTFLY_TEST_DB_PASSWORD: contentfly
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh tools/ci/install-php-extensions.sh
+      - run: sh tools/ci/install-composer.sh
+
+      # Leseschlüssel für das Paket-Repository. Es ist derselbe Deploy Key, mit dem
+      # paket.yml schreibt — Lesen ist darin enthalten, und ein zweiter Schlüssel wäre eine
+      # zweite Stelle, an der etwas ablaufen kann.
+      - name: Zugang zum Paket-Repository
+        env:
+          SCHLUESSEL: ${{ secrets.PAKET_REPO_DEPLOY_KEY }}
+        run: |
+          if [ -z "$SCHLUESSEL" ]; then
+            echo "✗ Das Secret PAKET_REPO_DEPLOY_KEY ist nicht gesetzt." >&2
+            echo "  Ohne es kann dieser Job das Paket-Repository nicht lesen." >&2
+            exit 1
+          fi
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "$SCHLUESSEL" > "$HOME/.ssh/paket_deploy_key"
+          chmod 600 "$HOME/.ssh/paket_deploy_key"
+
+          # NICHT `2>/dev/null`, UND MIT GEGENPROBE (011-002-0004).
+          #
+          # Der erste Anlauf verschluckte die Ausgabe von ssh-keyscan und prüfte nicht, ob
+          # etwas herauskam. Composer scheiterte danach an „Host key verification failed" —
+          # eine Meldung, die auf den Schlüssel zeigt und nicht auf die leere Datei. Eine
+          # unterdrückte Diagnose kostet dieselbe Stunde wie beim Datenbank-Wartelauf.
+          ssh-keyscan -t rsa,ecdsa,ed25519 github.com >> "$HOME/.ssh/known_hosts"
+          if ! grep -q '^github.com ' "$HOME/.ssh/known_hosts"; then
+            echo "✗ ssh-keyscan hat keinen Host-Key für github.com geliefert." >&2
+            echo "  Ohne ihn lehnt ssh die Verbindung ab, und Composer meldet nur" >&2
+            echo "  \"Host key verification failed\" — was nach einem Problem mit dem" >&2
+            echo "  Deploy Key aussieht und keines ist." >&2
+            exit 1
+          fi
+          echo "  ✓ $(grep -c '^github.com ' "$HOME/.ssh/known_hosts") Host-Key(s) für github.com"
+
+      - name: Ein Projekt von aussen aufsetzen
+        env:
+          # Absolute Pfade statt `~`: Die Tilde löst die Shell auf, die git für
+          # GIT_SSH_COMMAND startet — und welche das ist, hängt vom Aufrufer ab. $HOME ist
+          # in beiden Fällen dasselbe.
+          #
+          # UserKnownHostsFile ausdrücklich, damit nicht offenbleibt, welche Datei ssh liest.
+          GIT_SSH_COMMAND: ssh -i $HOME/.ssh/paket_deploy_key -o IdentitiesOnly=yes -o IdentityAgent=none -o UserKnownHostsFile=$HOME/.ssh/known_hosts
+        run: sh tools/ci/bezugsweg-pruefen.sh
+
+      - name: Schlüssel wegräumen
+        if: always()
+        run: rm -f "$HOME/.ssh/paket_deploy_key"
+
   test:
     name: "test: PHP ${{ matrix.php }}"
     runs-on: ubuntu-latest

@@ -108,6 +108,7 @@ class EnglishOnlyTest extends TestCase
         array('tests/Unit/Security/JwtAccessTokenTest.php', 'gruppe', 'German claim names are on the list of forbidden claims on purpose'),
         // Text matched against German files outside the scanned paths (tools/ci, an_project/docs).
         array('tests/Unit/Ci/CiStepsTest.php', 'audit-ausnahmen-pruefen.sh', 'script name in tools/ci'),
+        array('tests/Unit/Ci/CiStepsTest.php', 'bezugsweg-pruefen.sh', 'script name in tools/ci (011-002-0004)'),
         array('tests/Unit/Ci/CiStepsTest.php', '$FEHLERLOG', 'variable name in tools/ci/audit-ausnahmen-pruefen.sh'),
         array('tests/README.md', 'audit-ausnahmen-pruefen.sh', 'script name in tools/ci'),
         array('tests/README.md', 'deprecations-pruefen.sh', 'script name in tools/ci'),

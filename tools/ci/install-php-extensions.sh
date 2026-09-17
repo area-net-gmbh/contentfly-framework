@@ -27,6 +27,10 @@
 #              git-Historie der Framework-Kopie eines Projekts, um einen Projekt-Patch von
 #              einer Entfernung durch das Framework zu unterscheiden. Siehe unten.
 #
+#   openssh-   Für tools/ci/bezugsweg-pruefen.sh: Es bezieht das Paket über SSH aus dem
+#   client     Paket-Repository. Ohne das Paket fehlt nicht nur `ssh-keyscan`, sondern
+#              `ssh` selbst — Composer könnte gar nicht klonen. Siehe unten.
+#
 # mbstring, ctype, json, openssl, filter, hash, phar und tokenizer bringt das Image mit.
 # Was es NICHT mitbringt und was hier deshalb dazukommt: siehe die beiden Blöcke unten.
 #
@@ -76,6 +80,15 @@
 #
 # Ein Projekt, das migriert, hat git — sonst hätte es keine Kopie mit Historie. Die CI soll
 # fahren, was dort passiert, und nicht den Ersatzweg.
+#
+# OPENSSH-CLIENT FEHLT AUCH, und es fiel beim ersten Lauf des Bezugsweg-Gates auf: Exit 127,
+# also „Kommando nicht gefunden", an `ssh-keyscan`. Die Meldung nennt nur das eine fehlende
+# Kommando — gefehlt hätte auch `ssh`, und damit wäre der `composer install` über SSH
+# unmöglich gewesen.
+#
+# WARUM ES IN paket.yml OHNE GING: Jener Job läuft ohne `container:` auf ubuntu-latest, und
+# das Runner-Image bringt openssh-client mit. Wer die beiden Workflows einmal vereinheitlicht,
+# fällt genau hier hinein — deshalb steht es hier und nicht als Zeile in einem der beiden.
 
 set -eu
 
@@ -88,14 +101,15 @@ set -eu
 schritt "Paketlisten holen" \
     apt-get update -q
 
-schritt "Systempakete für gd, ldap, den Composer-Entpacker und das Inventar-Werkzeug" \
+schritt "Systempakete für gd, ldap, Composer, das Inventar-Werkzeug und den SSH-Bezug" \
     apt-get install -y -q --no-install-recommends \
         libpng-dev \
         libjpeg62-turbo-dev \
         libfreetype6-dev \
         libldap2-dev \
         unzip \
-        git
+        git \
+        openssh-client
 
 schritt "gd konfigurieren" \
     docker-php-ext-configure gd --with-freetype --with-jpeg
@@ -112,3 +126,4 @@ echo "✓ PHP $(php -r 'echo PHP_VERSION;') mit:"
 php -m | grep -E '^(pdo_mysql|gd|ldap|mbstring|json|openssl|tokenizer)$' | sed 's/^/    /'
 echo "    unzip $(unzip -v | head -1 | cut -d' ' -f2) (Composer-Entpacker, keine PHP-Erweiterung)"
 echo "    $(git --version) (für tools/migration/inventory.php, nicht für Composer)"
+echo "    openssh-client $(dpkg-query -W -f='${Version}' openssh-client) (für den SSH-Bezug in tools/ci/bezugsweg-pruefen.sh)"
