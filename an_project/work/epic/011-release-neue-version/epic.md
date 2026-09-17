@@ -38,5 +38,5 @@ tatsächlich einsetzen und auf die es migrieren kann.
 <!-- Die Stories dieses Epics. Wird von /new-story synchron gehalten. -->
 - [x] 011-001-0000 — Den Antwort-Envelope der API vereinheitlichen
 - [ ] 011-002-0000 — Das Framework aus Projektsicht beziehbar machen
-- [ ] 011-003-0000 — Vorlage und Doku auf den Zielzustand bringen
+- [x] 011-003-0000 — Vorlage und Doku auf den Zielzustand bringen
 - [ ] 011-004-0000 — Version, Gates und Upgrade-Pfad festschreiben
