@@ -293,43 +293,61 @@ class TemplateApiTest extends IntegrationTestCase
 
     public function testTheExampleEndpointReturnsTheTemplateContent(): void
     {
-        // The security side is covered by RouteSecurityApiTest (unsecured route, own
-        // envelope). Here the content: what ApiResponseService::success() makes of the
-        // controller's arguments.
+        // The security side is covered by RouteSecurityApiTest (unsecured route). Here the
+        // content: what ApiResponseService::success() makes of the controller's arguments.
         [$status, $body] = $this->postJson('/api/v1/example/bootstrap', array());
 
         $this->assertSame(200, $status);
-        $this->assertTrue($body['success']);
-        $this->assertSame(200, $body['status'], 'The status code is also in the body');
 
-        $this->assertSame(
-            array('message', 'key', 'parameters', 'translations'),
-            array_keys($body['i18n']),
-            'The i18n block of the template — message and translation key kept separate'
-        );
-        $this->assertSame('Configuration loaded successfully', $body['i18n']['message']);
-        $this->assertSame('core.config.loaded', $body['i18n']['key']);
+        /*
+         * INVERTED WITH 011-003-0001. This used to assert the template's own shape — `success`
+         * true, `status` 200 in the body, and an `i18n` block with four keys. Two of those were
+         * exactly what `api-envelope.md` decided NOT to adopt: `success` and `status` repeat the
+         * HTTP status code, and the translation key is a requirement of the project the template
+         * came from.
+         *
+         * The example now answers in the one hull, and the payload is real instead of empty —
+         * `startedAt` shows what ApiDateTimeFormatter is for: formatting DATA, not the envelope's
+         * own timestamp, which is `meta.ts`.
+         */
+        $payload = $this->assertEnvelope($body);
 
-        $this->assertSame(array(), $body['data'], 'The example controller deliberately returns nothing');
-        $this->assertNull($body['errors']);
-        $this->assertNull($body['meta']);
+        $this->assertSame(array('name', 'startedAt'), array_keys($payload));
+        $this->assertSame('contentfly', $payload['name']);
     }
 
-    public function testTheTemplateTimestampIsFinerThanTheFrameworkTimestamp(): void
+    public function testTheTemplateFormatsItsOwnDatesFinerThanTheEnvelope(): void
     {
-        // A difference that will stand out when unifying the envelopes (000-000-0014): the
-        // template returns ISO 8601 with milliseconds and time zone, the framework
-        // "Y-m-d H:i:s" without either. Two formats in one response chain.
+        /*
+         * RENAMED AND TURNED AROUND WITH 011-003-0001.
+         *
+         * It used to record a FINDING: the template answered with its own `timestamp` in ISO 8601
+         * with milliseconds while the framework used "Y-m-d H:i:s" — two formats in one response
+         * chain, noted for the envelope unification.
+         *
+         * The template no longer has a timestamp of its own; `meta.ts` is the envelope's, and it
+         * is the framework's format. What remains — and what this test now holds — is the useful
+         * half: a project formats the dates IN ITS PAYLOAD however it needs, and
+         * ApiDateTimeFormatter is the example of that. Two formats, but no longer two answers to
+         * the same question.
+         */
         [, $template] = $this->postJson('/api/v1/example/bootstrap', array());
         [, $framework] = $this->postJson('/api/list', array('entity' => 'PIM\\User'), $this->token());
 
         $this->assertMatchesRegularExpression(
             '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}\+\d{2}:\d{2}$/',
-            $template['timestamp'],
-            'Template: ISO 8601 with milliseconds'
+            $template['data']['startedAt'],
+            'Template payload: ISO 8601 with milliseconds'
         );
-        $this->assertArrayNotHasKey('timestamp', $framework,
-            'Framework: no timestamp at all in this response');
+        $this->assertMatchesRegularExpression(
+            '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/',
+            $template['meta']['ts'],
+            'And the envelope around it carries the framework format — the same in both answers'
+        );
+        $this->assertSame($template['meta']['ts'] !== null, $framework['meta']['ts'] !== null,
+            'Both answers carry the timestamp in the same place — meta.ts');
+        $this->assertArrayNotHasKey('timestamp', $template,
+            'And the template has no timestamp of its own any more');
     }
 
     // ── C: The middleware ──────────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@
 # Changelog
 
 ## 2026-09-17
+- 011-003-0001 → review: **Die Vorlage antwortet im Envelope des Frameworks.** Entschieden und in `api-envelope.md` nachgetragen, wo bisher offenblieb, was aus dem „Vorbild" selbst wird: `ApiResponseService` benutzt jetzt `Classes\Envelope`. `success`/`status`/`timestamp` entfallen, der `i18n`-Schlüssel zieht nach `errors[].context` — **das** zu zeigen ist nützlicher als ein zweites Format daneben. Eine Vorlage ist ein Startpunkt, kein Katalog der Möglichkeiten; wer sie kopiert, soll keine API bekommen, die dem Framework widerspricht. `ExampleController` hat jetzt eine echte Nutzlast, die zeigt, wofür `ApiDateTimeFormatter` da ist (Daten, nicht Envelope-Metadaten), plus eine zweite Methode für den Fehlerfall — die Hälfte, die eine Vorlage üblicherweise weglässt. Entfernt: die **tote** Twig-Datei (band drei nicht existierende Partials ein, Twig in keinem Manifest) und drei leere Verzeichnisse. Zwei Tests umgedreht, einer umbenannt — der hielt bisher eine Unstimmigkeit fest, die jetzt verschwunden ist. Register um zwei Einträge, `migration.md` auf 119. Suite 616 grün, PHPStan ohne Fehler, Deprecation-Gate 0.
 - 011-003-0001 task created: "Die Vorlage auf den Zielzustand bringen"
 - 011-003-0002 task created: "Den README auf Contentfly 2 bringen"
 - 011-003-0003 task created: "dev-guide und technical auf den echten Weg bringen"

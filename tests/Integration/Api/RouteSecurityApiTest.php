@@ -95,15 +95,17 @@ class RouteSecurityApiTest extends IntegrationTestCase
 
         $this->assertSame(200, $status, 'Reachable without a token because isSecure=false');
 
-        // And a finding on the side: the template responds in its OWN format — success,
-        // status, i18n, data, errors, meta, timestamp — not in the framework's envelope.
-        // A project is therefore not bound to its shape.
-        $this->assertSame(
-            array('success', 'status', 'i18n', 'data', 'errors', 'meta', 'timestamp'),
-            array_keys($body),
-            'The template brings its own response envelope'
-        );
-        $this->assertTrue($body['success']);
+        /*
+         * INVERTED WITH 011-003-0001. This assertion used to record the template's OWN format —
+         * `success`, `status`, `i18n`, `data`, `errors`, `meta`, `timestamp` — with the note that
+         * a project is not bound to the framework's shape.
+         *
+         * That was true and it was the wrong thing for a TEMPLATE to demonstrate. A project is
+         * still free to answer however it likes; but whoever copies the starting point should get
+         * an API that agrees with the framework it runs on, not one that contradicts it. Since
+         * `011-001` every framework endpoint answers in this hull, and now so does the example.
+         */
+        $this->assertEnvelope($body);
     }
 
     public function testUnsecuredRouteAlsoRespondsWithToken(): void
