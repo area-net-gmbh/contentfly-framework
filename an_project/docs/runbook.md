@@ -46,7 +46,7 @@ dieses Entwicklungs-Repo benutzt:
         { "type": "vcs", "url": "git@github.com:area-net-gmbh/contentfly-framework-dist.git" }
     ],
     "require": {
-        "areanet/contentfly": "^2.0@RC",
+        "areanet/contentfly": "^2.0",
         "vlucas/phpdotenv": "^5.6"
     },
     "config": {
@@ -75,10 +75,13 @@ dieses Entwicklungs-Repo benutzt:
 > …`). Möglich, aber es hängt an einem Konto statt an einem Repository — dieselbe Abwägung wie bei
 > der Wahl des Deploy Keys.
 
-> **Das `@RC` fällt weg, sobald `v2.0.0` gesetzt ist** — solange es nur Vorab-Tags gibt, nimmt
-> Composer sie bei Standard-Stabilität nicht. Dieselbe Zeichenkette steht in
-> `tools/ci/bezugsweg-pruefen.sh`; wer eine ändert, ändert beide, sonst prüft das Gate einen
-> anderen Weg als die Doku beschreibt.
+> **Dieselbe Zeichenkette steht in `tools/ci/bezugsweg-pruefen.sh`** — wer eine ändert, ändert
+> beide, sonst prüft das Gate einen anderen Weg als die Doku beschreibt. Und weil das Gate bei
+> jedem Lauf ein frisches Projekt genau so aufsetzt, ist dieser Block nicht nur beschrieben,
+> sondern nachgefahren.
+>
+> Bis zum Release stand hier `^2.0@RC`. Seit `v2.0.0` gesetzt ist, braucht es den Zusatz nicht
+> mehr — er hätte sonst weiterhin Vorab-Versionen zugelassen, und das will ein Projekt nicht.
 
 **3. Installieren:**
 

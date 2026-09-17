@@ -43,7 +43,7 @@ tatsächlich einsetzen und auf die es migrieren kann.
 | **Keine Symfony-2/3-Komponente** | siehe unten — die fünf `v3.7.x`-Einträge sind `*-contracts` und **keine** Symfony-3-Komponenten | ✅ |
 | **`composer audit --locked` sauber** | Job `check: composer audit` in der Pipeline, blockierend; dazu `audit-ausnahmen-pruefen.sh`, das eine nicht mehr greifende Ausnahme rot macht | ✅ |
 | **…unter der Zielplattform PHP 8.5** | `LockGuaranteesTest::testNoPackageCapsPhpBelowTheTargetPlatform` — **Constraint-Seite**, nicht ein Lauf auf 8.5 (siehe *Was offen bleibt*) | ⚠️ teilweise |
-| **Version vergeben, `version.php` und Metadaten stimmen überein** | `PackageManifestTest`; der Tag kommt mit `011-004-0003` | ⏳ offen |
+| **Version vergeben, `version.php` und Metadaten stimmen überein** | `PackageManifestTest`; `v2.0.0` steht seit `011-004-0003` auf `635325db`, das Paket-Repository trägt ihn als `b8e22a7a` | ✅ |
 | **Bruchstellen vollständig benannt** | `breaking-changes.md`, 119 Einträge in 14 Abschnitten; `MigrationGuideTest` hält Zahl und Abschnitts-Zuordnung | ✅ |
 | **Beziehbar, einmal aus Projektsicht durchgespielt** | `011-002-0004`: frisches Verzeichnis ausserhalb des Repos, `composer install` gegen die echte URL, Installation, API-Aufruf. Als Job `check: Bezugsweg von aussen` bei **jedem** Lauf wiederholt. | ✅ |
 | **Vorlage stimmt** | `011-003-0001`: `custom/` antwortet im Envelope; `TemplateApiTest` und `RouteSecurityApiTest` messen es | ✅ |
@@ -98,7 +98,6 @@ ab und meldet `014` als Lücke. Deshalb steht hier die Begründung und nicht nur
   Erweiterungen mitbringt.
 - **Die `@api`-Blöcke der API-Doku** tragen noch Antwortbeispiele von **vor** Epic `011`. Benannt
   in `dev-guide.md`, Abschnitt *API-Dokumentation*.
-- **Der Tag `v2.0.0`** — `011-004-0003`.
 
 ## Stories
 <!-- Die Stories dieses Epics. Wird von /new-story synchron gehalten. -->
