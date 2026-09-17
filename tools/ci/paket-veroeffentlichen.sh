@@ -39,10 +39,15 @@ done
 
 # ── 1. Tag, composer.json und version.php müssen dieselbe Version nennen ───────────────
 #
-# DREI STELLEN, EINE ZAHL. `PackageManifestTest` hält schon zusammen, dass `composer.json`
-# und `version.php` übereinstimmen — „eine Zusicherung, die niemand prüft, ist keine
-# Zusicherung". Der Tag ist die dritte Stelle, und er ist die einzige, die ein Mensch im
-# Moment des Veröffentlichens tippt.
+# DREI STELLEN, EINE ZAHL. `PackageManifestTest` hält zusammen, dass `version.php` und die
+# Option des `path`-Repositories im Wurzel-Manifest übereinstimmen — „eine Zusicherung, die
+# niemand prüft, ist keine Zusicherung". Der Tag ist die dritte Stelle, und er ist die einzige,
+# die ein Mensch im Moment des Veröffentlichens tippt.
+#
+# DAS PAKET-MANIFEST NENNT KEINE VERSION MEHR (011-002-0003). Es tat es bis zum ersten echten
+# Tag, und genau daran scheiterte der: Composer verwirft einen Tag, dessen `composer.json` eine
+# ANDERE Version deklariert als der Tag selbst — v2.0.0-rc1 verschwand wortlos, und das Paket
+# war nur als `dev-master` zu sehen. Die ausgelieferte Version kommt jetzt vom Tag.
 #
 # Eine Abweichung bricht hier ab, statt eine falsch benannte Version zu veröffentlichen.
 # Das ist die teurere Richtung des Irrtums: Ein abgebrochener Lauf kostet einen zweiten
@@ -58,26 +63,27 @@ done
 
 VERSION_TAG=$(echo "$TAG" | sed 's/^v//')
 VERSION_KERN=$(echo "$VERSION_TAG" | sed 's/-.*//')
-VERSION_MANIFEST=$(sed -n 's/.*"version": "\([^"]*\)".*/\1/p' "$PRAEFIX/composer.json" | head -1)
+VERSION_PFAD=$(sed -n 's/.*"areanet\/contentfly": "\([^"]*\)".*/\1/p' composer.json | head -1)
 VERSION_PHP=$(sed -n "s/.*APP_VERSION = '\([^']*\)'.*/\1/p" "$PRAEFIX/version.php" | head -1)
 
 echo "→ Version prüfen"
-echo "    Tag             $TAG  (→ $VERSION_TAG, Kern $VERSION_KERN)"
-echo "    composer.json   $VERSION_MANIFEST"
-echo "    version.php     $VERSION_PHP"
+echo "    Tag                    $TAG  (→ $VERSION_TAG, Kern $VERSION_KERN)"
+echo "    path-Option (Wurzel)   $VERSION_PFAD"
+echo "    version.php            $VERSION_PHP"
 
-if [ "$VERSION_KERN" != "$VERSION_MANIFEST" ] || [ "$VERSION_KERN" != "$VERSION_PHP" ]; then
+if [ "$VERSION_KERN" != "$VERSION_PFAD" ] || [ "$VERSION_KERN" != "$VERSION_PHP" ]; then
     echo "✗ Die drei Stellen nennen nicht dieselbe Version." >&2
     echo "  Verglichen wird der Kern des Tags ($VERSION_KERN) — ein Vorab-Zusatz wie -rc1 ist" >&2
     echo "  erlaubt, ein abweichender Kern nicht." >&2
     echo "  Der Tag ist die einzige der drei Stellen, die von Hand getippt wird: vermutlich fehlt" >&2
-    echo "  der Bump in $PRAEFIX/composer.json und $PRAEFIX/version.php, oder der Tag heisst anders." >&2
+    echo "  der Bump in composer.json (options.versions) und $PRAEFIX/version.php, oder der Tag" >&2
+    echo "  heisst anders." >&2
     echo "  Ein falscher Tag im Paket-Repository steht danach in jedem composer.lock." >&2
     exit 1
 fi
 
 if [ "$VERSION_TAG" != "$VERSION_KERN" ]; then
-    echo "  ✓ $VERSION_TAG — ein Vorab-Tag von $VERSION_KERN; ^$VERSION_MANIFEST zieht ihn NICHT"
+    echo "  ✓ $VERSION_TAG — ein Vorab-Tag von $VERSION_KERN; ^$VERSION_PFAD zieht ihn NICHT"
 else
     echo "  ✓ $VERSION_TAG"
 fi
@@ -108,6 +114,16 @@ if ! git cat-file -e "$SPLIT:composer.json" 2>/dev/null; then
     echo "✗ Im Split liegt keine composer.json in der Wurzel — Composer könnte das Paket nicht lesen." >&2
     echo "  Gefunden wurde:" >&2
     git ls-tree --name-only "$SPLIT" | sed 's/^/    /' >&2
+    exit 1
+fi
+
+# DAS FELD `version` DARF IM SPLIT NICHT STEHEN — sonst verwirft Composer jeden Tag, dessen
+# Name davon abweicht, und zwar wortlos. `PackageManifestTest` hält das schon im Arbeitsbaum
+# fest; hier steht die Gegenprobe an dem, was WIRKLICH veröffentlicht wird.
+if git cat-file -p "$SPLIT:composer.json" | grep -q '"version"[[:space:]]*:'; then
+    echo "✗ Die composer.json des Splits deklariert eine Version." >&2
+    echo "  Composer verwirft dann jeden Tag, der anders heisst — ohne Meldung; das Paket ist" >&2
+    echo "  danach nur als dev-master zu sehen. Siehe 011-002-0003." >&2
     exit 1
 fi
 

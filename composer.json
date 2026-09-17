@@ -6,7 +6,12 @@
     "repositories": [
         {
             "type": "path",
-            "url": "lib/contentfly"
+            "url": "lib/contentfly",
+            "options": {
+                "versions": {
+                    "areanet/contentfly": "2.0.0"
+                }
+            }
         }
     ],
     "config": {
