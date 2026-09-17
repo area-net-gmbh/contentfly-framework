@@ -20,26 +20,60 @@ use PHPUnit\Framework\TestCase;
 class PackageManifestTest extends TestCase
 {
     /**
-     * The version is stated in two places — so it has to be checked that it is the same.
+     * The version is still stated in two places — the guard moved, it did not go away
+     * (`011-002-0003`).
      *
-     * `lib/contentfly/version.php` carries `APP_VERSION`, the manifest a `version` field. The
-     * field is needed for a `path` repository: Without it Composer derives the version from the
-     * Git branch, and resolution would then depend on what the branch happens to be called.
+     * IT USED TO COMPARE `lib/contentfly/composer.json` WITH `version.php`. That field is gone:
+     * Composer discards a tag whose `composer.json` declares a different version than the tag,
+     * which made every pre-release tag invisible and the delivery path unprovable before a
+     * release. The tag is now the single source of the DELIVERED version.
      *
-     * The manifest promises exactly that — this test keeps the promise.
+     * What remains is the development tree, which still needs a stable version for its `path`
+     * repository — it lives in the root manifest under `repositories[].options.versions`, a
+     * statement about this checkout rather than about the package. Two places again, so the same
+     * question again: do they agree?
+     *
+     * `tools/ci/paket-veroeffentlichen.sh` asks the third one at publishing time, against the tag.
      */
-    public function testTheVersionInTheManifestMatchesVersionPhp(): void
+    public function testTheVersionOfThePathRepositoryMatchesVersionPhp(): void
     {
-        $manifest = $this->packageManifest();
+        $root = json_decode(file_get_contents(dirname(__DIR__, 3) . '/composer.json'), true);
 
-        $this->assertArrayHasKey('version', $manifest,
-            'Without a version field Composer derives the version of the path package from the Git branch.');
+        $versionen = null;
+        foreach ($root['repositories'] as $repository) {
+            if (($repository['type'] ?? null) === 'path' && ($repository['url'] ?? null) === 'lib/contentfly') {
+                $versionen = $repository['options']['versions'] ?? null;
+            }
+        }
+
+        $this->assertIsArray($versionen,
+            "The path repository for lib/contentfly has no options.versions.\n"
+            ."Without it Composer derives the version of the path package from the Git branch, and\n"
+            ."the resolution of \"areanet/contentfly\": \"^2.0\" would depend on what the branch\n"
+            ."happens to be called.");
 
         $this->assertSame(
             APP_VERSION,
-            $manifest['version'],
-            "version in lib/contentfly/composer.json and APP_VERSION in lib/contentfly/version.php\n"
+            $versionen['areanet/contentfly'] ?? null,
+            "options.versions in composer.json and APP_VERSION in lib/contentfly/version.php\n"
             ."have diverged. Whoever changes one changes both."
+        );
+    }
+
+    /**
+     * And the field must NOT come back.
+     *
+     * Adding it again looks harmless — it is the obvious answer to "how does this package know its
+     * version". It would silently break every pre-release tag, and the symptom appears far away:
+     * Composer reports the package as `dev-master` only, with no word about the tag it dropped.
+     */
+    public function testThePackageManifestDeclaresNoVersion(): void
+    {
+        $this->assertArrayNotHasKey('version', $this->packageManifest(),
+            "lib/contentfly/composer.json declares a version again.\n"
+            ."Composer discards every tag whose composer.json names a DIFFERENT version than the\n"
+            ."tag itself — measured on 2026-09-17: with the field, v2.0.0-rc1 disappeared without\n"
+            ."a message. The delivered version comes from the tag; see 011-002-0003."
         );
     }
 
