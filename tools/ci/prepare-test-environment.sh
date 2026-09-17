@@ -59,6 +59,26 @@ until php -r '
     i=$((i + 1))
     if [ "$i" -ge "$WARTEZEIT" ]; then
         echo "✗ Die Datenbank antwortet nach ${WARTEZEIT}s nicht." >&2
+        # DER GRUND, NICHT NUR DIE FOLGE (011-002-0002).
+        #
+        # Die Schleife oben wirft ihre Fehlermeldung weg (`2>/dev/null`) — richtig, solange sie
+        # wartet, denn ein noch nicht gestarteter Server soll nicht 90 Zeilen erzeugen. Beim
+        # Aufgeben ist es aber falsch: Ein fehlendes `pdo_mysql` sieht dann aus wie eine
+        # Datenbank, die nicht antwortet, und man sucht am falschen Ende. Der letzte Versuch
+        # laeuft deshalb noch einmal MIT Ausgabe.
+        echo "  Der letzte Versuch im Wortlaut:" >&2
+        php -r '
+            try {
+                new PDO(
+                    sprintf("mysql:host=%s;port=%s", getenv("CONTENTFLY_TEST_DB_HOST"), getenv("CONTENTFLY_TEST_DB_PORT")),
+                    getenv("CONTENTFLY_TEST_DB_USER"),
+                    getenv("CONTENTFLY_TEST_DB_PASSWORD")
+                );
+            } catch (Throwable $e) {
+                fwrite(STDERR, "  ".get_class($e).": ".$e->getMessage()."\n");
+            }
+            fwrite(STDERR, "  geladene PDO-Treiber: ".implode(", ", PDO::getAvailableDrivers())."\n");
+        ' >&2 2>&1
         exit 1
     fi
     sleep 1
