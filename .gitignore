@@ -36,7 +36,13 @@ data/*/*
 !data/*/.gitkeep
 profiler/*
 backup/*
+# Dasselbe fuer plugins/: Was ein Projekt dort ablegt, bleibt draussen - das Verzeichnis
+# selbst gehoert ins Repo. Bis 011-002-0004 fehlte die Ausnahme, und damit fehlte
+# plugins/ in JEDEM frischen Checkout: Git fuehrt keine leeren Verzeichnisse. Lokal fiel
+# es nie auf, weil Testlaeufe das Verzeichnis anlegen; gefunden hat es das
+# Bezugsweg-Gate beim ersten Lauf in der CI.
 plugins/*
+!plugins/.gitkeep
 # Anchored: unanchored 'info.php' matched PHPUnit's Event/.../Telemetry/Info.php
 # (case-insensitive on APFS) and broke `make ci-backend` on a fresh clone.
 /info.php

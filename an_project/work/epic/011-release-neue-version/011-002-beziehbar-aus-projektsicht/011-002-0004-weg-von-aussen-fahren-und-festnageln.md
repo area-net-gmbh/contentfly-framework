@@ -106,3 +106,27 @@ Nebenbei: Die naheliegende Ausgabe `ssh -V 2>&1` hätte `CiStepsTest` ausgelöst
 seine Version nach `stderr`, und das Einfangen sieht aus wie ein unterdrückter Schritt. Statt einer
 Ausnahme im Wächter fragt die Zeile jetzt `dpkg-query`. Eine Ausnahme einzutragen, nur um eine
 Versionsnummer zu zeigen, wäre ein schlechter Tausch gewesen.
+
+### Der zweite CI-Lauf: `plugins/` gibt es in einem frischen Checkout nicht
+
+```
+cp: cannot stat '/__w/.../plugins': No such file or directory
+```
+
+**Git führt keine leeren Verzeichnisse**, und `.gitignore` ignorierte `plugins/*` ohne Ausnahme —
+also lag dort nichts, und das Verzeichnis existierte in keinem frischen Checkout. Das
+Wurzel-Manifest bildet `Plugins\` aber darauf ab, und der Runbook-Abschnitt sagt, man solle es
+mitkopieren.
+
+**Lokal ist das nie aufgefallen**, und der Grund ist der Kern der Sache: Auf dieser Maschine lag
+`plugins/` da — mit acht Verzeichnissen aus einem Testlauf vom 14. September, der hart abgebrochen
+war, bevor sein `tearDown()` greifen konnte. Ein Fehler, den eigener Müll verdeckt.
+
+Behoben an der Quelle statt im Gate: `plugins/.gitkeep` plus die Ausnahme in `.gitignore` — genau
+das Muster, das `data/` seit jeher hat (`data/*/*` und `!data/*/.gitkeep`) und mit derselben
+Begründung: „Laufzeitdaten bleiben draussen, die Verzeichnisse selbst gehören ins Repo."
+
+**Geprüft, ob die Altlasten Schaden anrichten konnten:** nein. Plugins werden nicht automatisch
+erkannt — weder `custom/app.php` noch der `PluginManager` durchsuchen das Verzeichnis, sie müssen
+ausdrücklich registriert werden. Die acht Verzeichnisse lagen wirkungslos herum. Entfernt sind sie
+trotzdem.

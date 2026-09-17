@@ -1,0 +1,11 @@
+Hält `plugins/` in Git.
+
+DAS VERZEICHNIS GEHÖRT ZUM SKELETON, und bis 011-002-0004 fehlte es in jedem frischen
+Checkout: Git führt keine leeren Verzeichnisse, und `plugins/` war leer. Aufgefallen ist es
+erst, als das Bezugsweg-Gate zum ersten Mal in der CI lief und ein Projekt aus einem
+FRISCHEN Checkout aufsetzte — lokal war das Verzeichnis immer da, weil Testläufe es
+angelegt hatten.
+
+Das Wurzel-Manifest bildet `Plugins\` auf dieses Verzeichnis ab. Ein Projekt, das der
+Anleitung in `an_project/docs/runbook.md` folgt, kopiert es mit; ohne diese Datei kopierte
+es etwas, das es nicht gibt.
