@@ -1,0 +1,227 @@
+# Pipeline des Contentfly-Frameworks.
+#
+# Fährt beide Testsuiten gegen eine frisch installierte Instanz. Der Sinn steht in
+# an_project/work/epic/008-testnetz/: Ein Testnetz, das nur auf einer Maschine läuft, ist
+# beim Kernel-Umbau wertlos — niemand fährt es dann noch.
+#
+# ÜBERNOMMEN AUS .gitlab-ci.yml MIT 011-002-0002. Der Umzug des Repositories nach GitHub
+# (011-002-0001) hat die alte Pipeline heimatlos gemacht. Umgeschrieben ist das GERÜST;
+# die Schritte stehen unverändert in tools/ci/*.sh — aus dem Grund, der dort seit
+# 000-000-0029 steht und sich genau jetzt auszahlt: Eine Pipeline-Definition, deren
+# Schritte man nur in der Pipeline ausprobieren kann, ist beim Suchen eines Fehlers
+# nutzlos. Dieselben Skripte laufen lokal in Docker.
+#
+# EINZUTRAGEN unter Settings → Secrets and variables → Actions, bevor die Pipeline zum
+# ersten Mal läuft:
+#   CONTENTFLY_TEST_ADMIN_PASS   Passwort des Admin-Benutzers der Testinstanz.
+#                                Bewusst nicht in dieser Datei — auch für eine flüchtige
+#                                Datenbank gehört ein Passwort nicht ins Repo.
+
+name: Pipeline
+
+# Push auf den Integrationsbranch und jeder Pull Request (entschieden am 2026-09-16).
+# Die GitLab-Pipeline lief bei jedem Push auf jeden Branch; das prüfte auch
+# Zwischenstände, die noch gar nicht grün sein sollten.
+#
+# workflow_dispatch erlaubt den Start von Hand — mit einer Einschränkung, die man kennen
+# muss: **Er wirkt erst, wenn diese Datei auf dem Default-Branch liegt.** „This event will
+# only trigger a workflow run if the workflow file exists on the default branch", sagt die
+# Referenz. Für den allerersten Lauf taugt er deshalb nicht; der kommt aus einem Pull
+# Request, dessen Kopf diese Datei trägt. Danach ist er das Mittel, einen Lauf ohne neuen
+# Commit anzustossen.
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  # ── Der MySQL-Service ───────────────────────────────────────────────────────────────
+  MYSQL_DATABASE: contentfly
+  MYSQL_USER: contentfly
+  MYSQL_PASSWORD: contentfly
+  MYSQL_ROOT_PASSWORD: root
+
+  # ── Was die Suite über ihre Umgebung wissen muss ────────────────────────────────────
+  # Im Service-Netz ist der Port 3306; das 3307 aus docker-compose.yml ist nur die
+  # lokale Umgehung eines belegten Standard-Ports.
+  CONTENTFLY_TEST_DB_HOST: mysql
+  CONTENTFLY_TEST_DB_PORT: "3306"
+  CONTENTFLY_TEST_DB_NAME: contentfly
+  CONTENTFLY_TEST_DB_USER: contentfly
+  CONTENTFLY_TEST_DB_PASSWORD: contentfly
+  CONTENTFLY_TEST_BASE_URL: "http://127.0.0.1:8145"
+  CONTENTFLY_TEST_MAIL_TRAP: "${{ github.workspace }}/.ci-mailtrap"
+
+  # Signaturgeheimnis fuer die JWT-Tests (013-003-0001). Ein fester Wert ist hier richtig: Die
+  # Pipeline faehrt gegen eine Wegwerf-Datenbank und einen Testserver, die mit dem Job
+  # verschwinden. Ein Geheimnis, das nichts schuetzt, muss auch nicht geheim sein — und ein
+  # variabler Wert machte den Lauf schwerer nachzuspielen.
+  #
+  # Mindestens 32 Byte: firebase/php-jwt weist fuer HS256 kuerzere Schluessel ab.
+  CONTENTFLY_TEST_JWT_SECRET: "ci-only-jwt-secret-mit-genug-laenge-32"
+
+  # Speist den ExampleProvider aus 013-004-0004 — kennung:geheimnis:gruppe|gruppe.
+  # Wegwerf-Werte fuer eine Wegwerf-Datenbank; ohne diese Variable laesst die Vorlage
+  # niemanden herein, und genau das misst ein eigener Test.
+  CONTENTFLY_TEST_PROVIDER: "external-one:ci-only-provider-secret:CN=Editorial"
+
+  # Die eine erlaubte CORS-Herkunft des Testservers (000-000-0039). Ein erfundener Name: Die
+  # Suite schickt ihn als Origin-Header, kein Browser ruft ihn auf.
+  CONTENTFLY_TEST_ALLOWED_ORIGIN: "https://allowed.example"
+
+jobs:
+
+  # ── Prüfungen, die keine Umgebung brauchen ───────────────────────────────────────────
+
+  check-template-config:
+    name: "check: Vorlagen-Konfiguration"
+    runs-on: ubuntu-latest
+    # custom/config.php ist die Vorlage, aus der appcms:install die Konfiguration macht. Nach
+    # einer lokalen Installation trägt sie Host, Benutzer und Passwort — und ein `git add -A`
+    # genügt, damit das in der Historie landet. Der Job ist die zweite Schicht: Der
+    # pre-commit-Hook aus tools/hooks/ fängt früher, aber nur bei dem, der ihn installiert hat.
+    #
+    # Ohne Container: Das Skript ist reines POSIX sh und liest eine Datei. Ein alpine:3-Image
+    # wie in der GitLab-Fassung brächte hier nichts als Startzeit.
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh tools/check-template-config.sh
+
+  check-audit:
+    name: "check: composer audit"
+    runs-on: ubuntu-latest
+    container: php:8.3-cli
+    # Das Sicherheits-Gate aus 006-005-0001. Es braucht KEIN composer install: `--locked`
+    # prueft den committeten Lock, nicht ein installiertes vendor/. Damit laeuft es auch
+    # dann, wenn der Testlauf an etwas anderem scheitert — ein Sicherheitsbefund soll nicht
+    # davon abhaengen, ob die Suite gruen ist.
+    #
+    # Die Ausnahmen stehen einzeln nach CVE-Kennung in composer.json unter
+    # config.audit.ignore, jede mit Begruendung. Eine WEITERE Meldung macht diesen Job sofort
+    # rot — das ist der Unterschied zwischen einer Ausnahme und einem abgeschalteten Gate.
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh tools/ci/install-composer.sh
+      - run: sh tools/ci/audit.sh
+      # Zweite Haelfte des Gates (006-005-0002): Eine Ausnahme, die nicht mehr greift, macht
+      # den Lauf rot. Sonst waere die Liste aus config.audit.ignore eine Erlaubnis ins Leere,
+      # die stillschweigend weiterwirkt.
+      - run: sh tools/ci/audit-ausnahmen-pruefen.sh
+
+  check-phpstan:
+    name: "check: PHPStan"
+    runs-on: ubuntu-latest
+    container: php:8.3-cli
+    # Die statische Haelfte des "0 Deprecations"-Gates (006-005-0004). Das Laufzeit-Log aus
+    # 006-005-0003 zeigt nur, was ein Testlauf AUSGEFUEHRT hat; PHPStan findet deprecated
+    # APIs auch in Zweigen, die die Suite nicht betritt.
+    #
+    # BLOCKIEREND SEIT 009-003-0003. PHPStan meldet einen Ausnahme-Eintrag, der nichts mehr
+    # trifft, seinerseits als Fehler — die Liste ueberwacht sich also selbst, wie die beiden
+    # anderen Gates aus 006-005.
+    #
+    # Der Job braucht keine Datenbank — statische Analyse fuehrt nichts aus.
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh tools/ci/install-php-extensions.sh
+      - run: sh tools/ci/install-composer.sh
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      # --memory-limit=512M ist nicht willkuerlich: Mit dem PHP-Standard von 128M bricht ein
+      # Worker bei KALTEM Ergebnis-Cache ab, und PHPStan meldet dann "Result is incomplete"
+      # mit WENIGER Treffern — das saehe aus wie Fortschritt. In der CI ist der Cache immer
+      # kalt. Nachgemessen in 006-005-0004: 128M kalt unvollstaendig, 512M kalt vollstaendig.
+      - run: ./vendor/bin/phpstan analyse --no-progress --memory-limit=512M
+
+  # ── Die Testsuiten ───────────────────────────────────────────────────────────────────
+
+  test:
+    name: "test: PHP ${{ matrix.php }}"
+    runs-on: ubuntu-latest
+    # `needs` bildet nach, was bei GitLab die Stages taten: Erst die Pruefungen, die keine
+    # Umgebung brauchen, dann der teure Lauf. Ein Lock mit einer Sicherheitsluecke soll nicht
+    # erst nach zehn Minuten Testlauf auffallen.
+    needs: [check-template-config, check-audit, check-phpstan]
+    container: php:${{ matrix.php }}-cli
+
+    strategy:
+      # Ohne fail-fast: Faellt 8.3 aus, will man trotzdem wissen, wie 8.4 stand — und
+      # umgekehrt. Die Information ist gerade dann am meisten wert.
+      fail-fast: false
+      matrix:
+        # BEIDE SIND BLOCKIEREND. Auf GitLab trug 8.4 bis 010-003-0003 ein
+        # allow_failure: true; die Begruendung ("der Stand ist auf 8.4 nicht erprobt") ist
+        # zweimal ueberholt und einmal eingeloest worden — zwei Laeufe auf zwei Staenden, je
+        # OK und 0 Deprecations. Zielplattform bleibt PHP 8.5; was auf 8.4 rot wird, ist ab
+        # jetzt ein Fehler und keine Vorschau.
+        #
+        # an_project/docs/deployment.md hat das bis 011-002-0002 noch als offene Entscheidung
+        # gefuehrt, obwohl die Pipeline sie laengst getroffen hatte.
+        php: ['8.3', '8.4']
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: contentfly
+          MYSQL_USER: contentfly
+          MYSQL_PASSWORD: contentfly
+          MYSQL_ROOT_PASSWORD: root
+        # Actions kennt keinen Health-Check von sich aus; ohne ihn beginnt der Job, waehrend
+        # MySQL noch startet. Der Wartelauf in prepare-test-environment.sh faenge das zwar ab,
+        # aber er soll auf eine Datenbank warten, die kommt — nicht auf eine, die vielleicht
+        # gar nicht kommt.
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP-Erweiterungen und Composer
+        run: |
+          sh tools/ci/install-php-extensions.sh
+          sh tools/ci/install-composer.sh
+
+      - name: Abhängigkeiten
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Testumgebung aufbauen
+        env:
+          CONTENTFLY_TEST_ADMIN_PASS: ${{ secrets.CONTENTFLY_TEST_ADMIN_PASS }}
+          CONTENTFLY_CI_LOG: ${{ github.workspace }}/testserver.log
+        run: sh tools/ci/prepare-test-environment.sh
+
+      # Der Exit-Code wird aufgehoben statt sofort wirksam: Das Deprecation-Gate darunter
+      # liest das Serverlog und MUSS auch dann laufen, wenn die Suite rot ist — sonst waere
+      # es genau dann blind, wenn am meisten passiert ist (006-005-0003).
+      #
+      # Ohne --testsuite laufen beide: `unit` ohne Datenbank, `integration` gegen die eben
+      # aufgebaute Instanz. Die Trennung ist Absicht und in phpunit.xml.dist begruendet.
+      - name: Testsuiten
+        id: phpunit
+        continue-on-error: true
+        env:
+          CONTENTFLY_TEST_ADMIN_PASS: ${{ secrets.CONTENTFLY_TEST_ADMIN_PASS }}
+        run: ./vendor/bin/phpunit
+
+      - name: Deprecation-Gate
+        env:
+          CONTENTFLY_CI_LOG: ${{ github.workspace }}/testserver.log
+        run: sh tools/ci/deprecations-pruefen.sh
+
+      # Der Postausgang der Versandfalle gehoert ins Log, auch wenn der Lauf gruen war: Eine
+      # nicht leere Datei hiesse, dass ein Testlauf zuzustellen versucht hat.
+      - name: Postausgang der Versandfalle
+        if: always()
+        run: cat "$CONTENTFLY_TEST_MAIL_TRAP/outbox.log" || true
+
+      # Das aufgehobene Ergebnis der Suite wird hier wirksam. Erst hier, damit das
+      # Deprecation-Gate darueber in jedem Fall gelaufen ist.
+      - name: Ergebnis der Suite
+        if: steps.phpunit.outcome == 'failure'
+        run: |
+          echo "Die Testsuite ist rot — siehe den Schritt 'Testsuiten'." >&2
+          exit 1

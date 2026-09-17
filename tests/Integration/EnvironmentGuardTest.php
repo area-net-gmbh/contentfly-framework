@@ -15,7 +15,7 @@ use PHPUnit\Framework\TestCase;
  * This class deliberately does **not** extend `IntegrationTestCase`. If it did, it would skip
  * itself under exactly the conditions it is meant to warn about.
  *
- * **The rule lives here and not in `.gitlab-ci.yml`.** Whoever runs the suite elsewhere — in
+ * **The rule lives here and not in the workflow file.** Whoever runs the suite elsewhere — in
  * another CI, in a container, in the pipeline after epic `006` — takes it along without
  * reinventing it.
  *
@@ -52,12 +52,12 @@ class EnvironmentGuardTest extends TestCase
     /**
      * Is the suite running in a pipeline?
      *
-     * `CI` is set by GitLab, GitHub Actions and most others on their own. An explicit
+     * `CI` is set by GitHub Actions and most others on their own. An explicit
      * `CI=false`, `CI=0` or an empty variable does not count.
      *
      * **This is also the back door:** whoever sets `CI=false` switches the guard off. That is
      * intentional — some local tools set `CI=false`, and a guard that fires on that would be a
-     * nuisance rather than useful. In GitLab `CI` cannot be overridden, so the back door does not
+     * nuisance rather than useful. In GitHub Actions `CI` cannot be overridden, so the back door does not
      * apply there.
      */
     private function runsInPipeline(): bool

@@ -2,11 +2,11 @@
 #
 # Holt Composer in ein php:<version>-cli-Image (000-000-0029).
 #
-# ── Warum das hier steht und nicht in der .gitlab-ci.yml ──────────────────────────────
+# ── Warum das hier steht und nicht in der Workflow-Datei ──────────────────────────────
 #
 # Es stand dort, dreimal woertlich gleich — in check:audit, in check:phpstan und in
 # .testlauf. Drei Kopien heisst: Wer eine davon verbessert, verbessert eine von dreien. Der
-# Kopf der .gitlab-ci.yml sagt den Grund schon fuer die anderen Schritte: Eine
+# Kopf der Workflow-Datei sagt den Grund schon fuer die anderen Schritte: Eine
 # Pipeline-Definition, deren Schritte man nur in der Pipeline ausprobieren kann, ist beim
 # Suchen eines Fehlers nutzlos.
 #

@@ -749,8 +749,26 @@ class AuthApiTest extends IntegrationTestCase
         $deactivate = $this->pdo()->prepare('UPDATE pim_user SET isActive = 0 WHERE id = :id');
         $deactivate->execute(array('id' => $userId));
 
-        $this->assertSame(0, (int) $this->pdo()->query('SELECT COUNT(*) FROM pim_revoked_token')->fetchColumn(),
-            'No entry in the revocation list — deactivation works without it');
+        /*
+         * INVERTED WITH 000-000-0050: THIS TOKEN'S jti, not the whole table.
+         *
+         * The assertion used to count `pim_revoked_token` globally and expect zero. That is a
+         * claim about the WHOLE SUITE, not about this test — and it broke as soon as any other
+         * class logged out a JWT without cleaning up (`EnvelopeApiTest` did, from `011-001-0004`
+         * on). With `executionOrder="random"` it depended on the seed: four of twelve were red,
+         * and the message pointed at deactivation, which had nothing to do with it.
+         *
+         * What the test actually claims is narrower and now literal: THIS token was not revoked
+         * through the list, so whatever stops it afterwards is the deactivation. The jti is in the
+         * JWT; reading it costs one line and makes the test independent of everything else.
+         */
+        $jti = json_decode(base64_decode(strtr(explode('.', $login['token'])[1], '-_', '+/')), true)['jti'];
+
+        $revoked = $this->pdo()->prepare('SELECT COUNT(*) FROM pim_revoked_token WHERE jti = :jti');
+        $revoked->execute(array('jti' => $jti));
+
+        $this->assertSame('0', (string) $revoked->fetchColumn(),
+            'No entry in the revocation list for THIS token — deactivation works without it');
         $this->assertNotSame(200, $this->getWithHeader('/api/schema', 'Authorization: Bearer '.$login['token']));
     }
 
@@ -781,9 +799,14 @@ class AuthApiTest extends IntegrationTestCase
     /**
      * Empties the revocation list again after a test.
      *
-     * The entries are leftovers of a logout and do not disturb subsequent tests — but
-     * `testUserDeactivationTakesEffectImmediatelyWithoutRevocationList` counts them, and an empty
-     * list is the only statement that test can make.
+     * **The reason has changed with `000-000-0050`.** It used to read: the entries do not disturb
+     * anyone, but `testUserDeactivationTakesEffectImmediatelyWithoutRevocationList` counts them,
+     * and an empty list is the only statement that test can make. That was true and it was a trap:
+     * it made every test in the suite responsible for a global count, and the trap sprang shut the
+     * moment `EnvelopeApiTest` logged out a JWT (`011-001-0004`).
+     *
+     * That test now asks about its own jti, so nothing depends on an empty table any more. This
+     * method stays for the plain reason: a test cleans up what it created.
      */
     private function cleanUpRevocationList(): void
     {

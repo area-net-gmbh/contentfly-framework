@@ -112,7 +112,11 @@ Angepasste Ordnerstruktur und Betrieb in Unterordnern z.B. www.domain.de/content
 
 (1) Git-Repository laden
 
-`git clone https://github.com/area-net-gmbh/contentfly-cms.git`
+`git clone git@github.com:area-net-gmbh/contentfly-framework.git`
+
+> **Die URL hat sich mit `011-002-0001` (2026-09-16) geändert.** Sie zeigte auf
+> `area-net-gmbh/contentfly-cms` — das ist Contentfly 1.x. Wer diesem Repository folgte und den
+> alten Link klonte, bekam stillschweigend das falsche Produkt.
 
 (2) Abhängigkeiten installieren ([Composer](https://getcomposer.org/) 2.x erforderlich)
 

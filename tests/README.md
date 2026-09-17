@@ -116,7 +116,7 @@ That is the source the "0 deprecations" gate from `006-005` later reads from.
 integration tests skip themselves, PHPUnit reports `OK, but some tests were skipped` — and the
 job turns green.
 
-The guard therefore checks: if `CI` is set (GitLab and most others do this on their
+The guard therefore checks: if `CI` is set (GitHub Actions and most others do this on their
 own), `CONTENTFLY_TEST_BASE_URL`, `CONTENTFLY_TEST_MAIL_TRAP` and
 `CONTENTFLY_TEST_ADMIN_PASS` **must** be present. If one is missing, the run is red, and the
 message names the variable and why it is not waved through.
@@ -144,7 +144,7 @@ integration run, not every conceivable skip.
 
 ## In the pipeline
 
-`.gitlab-ci.yml` runs exactly this procedure; the steps live in `tools/ci/` so that they can be
+`.github/workflows/pipeline.yml` runs exactly this procedure; the steps live in `tools/ci/` so that they can be
 **replayed locally in Docker** — a pipeline definition whose steps can only be tried out in the
 pipeline is useless when hunting down a bug.
 
@@ -159,10 +159,9 @@ sh tools/ci/prepare-test-environment.sh  # wait, install, mail trap, server
 sh tools/ci/deprecations-pruefen.sh      # reads the server log, NOT the output above
 ```
 
-**The last step is part of it, even if PHPUnit was red.** The `.gitlab-ci.yml` therefore
-holds back PHPUnit's exit code and only applies it afterwards — otherwise GitLab would abort the
-list at the first failure, and the deprecation gate would be blind precisely when the most has
-happened.
+**The last step is part of it, even if PHPUnit was red.** The workflow therefore runs PHPUnit with
+`continue-on-error` and applies its result in a later step — otherwise the job would stop at the
+first failure, and the deprecation gate would be blind precisely when the most has happened.
 
 The two checks of the `check` stage need neither a database nor a test server:
 

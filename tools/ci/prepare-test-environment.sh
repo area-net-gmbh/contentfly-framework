@@ -4,11 +4,11 @@
 # Contentfly installieren, Versandfalle einrichten, Testserver starten.
 #
 # Läuft in der Pipeline (008-005-0001) und beim lokalen Nachspielen mit demselben
-# Aufruf — deshalb steht der Ablauf hier und nicht in der .gitlab-ci.yml. Eine
+# Aufruf — deshalb steht der Ablauf hier und nicht in der Workflow-Datei. Eine
 # Pipeline-Definition, deren Schritte man nur in der Pipeline ausprobieren kann,
 # ist beim Suchen eines Fehlers nutzlos.
 #
-# Erwartete Umgebungsvariablen (die .gitlab-ci.yml setzt sie):
+# Erwartete Umgebungsvariablen (.github/workflows/pipeline.yml setzt sie):
 #
 #   CONTENTFLY_TEST_DB_HOST / _PORT / _NAME / _USER / _PASSWORD
 #   CONTENTFLY_TEST_BASE_URL       Adresse, unter der der Testserver antwortet
@@ -59,11 +59,73 @@ until php -r '
     i=$((i + 1))
     if [ "$i" -ge "$WARTEZEIT" ]; then
         echo "✗ Die Datenbank antwortet nach ${WARTEZEIT}s nicht." >&2
+        # DER GRUND, NICHT NUR DIE FOLGE (011-002-0002).
+        #
+        # Die Schleife oben wirft ihre Fehlermeldung weg (`2>/dev/null`) — richtig, solange sie
+        # wartet, denn ein noch nicht gestarteter Server soll nicht 90 Zeilen erzeugen. Beim
+        # Aufgeben ist es aber falsch: Ein fehlendes `pdo_mysql` sieht dann aus wie eine
+        # Datenbank, die nicht antwortet, und man sucht am falschen Ende. Der letzte Versuch
+        # laeuft deshalb noch einmal MIT Ausgabe.
+        echo "  Der letzte Versuch im Wortlaut:" >&2
+        php -r '
+            try {
+                new PDO(
+                    sprintf("mysql:host=%s;port=%s", getenv("CONTENTFLY_TEST_DB_HOST"), getenv("CONTENTFLY_TEST_DB_PORT")),
+                    getenv("CONTENTFLY_TEST_DB_USER"),
+                    getenv("CONTENTFLY_TEST_DB_PASSWORD")
+                );
+            } catch (Throwable $e) {
+                fwrite(STDERR, "  ".get_class($e).": ".$e->getMessage()."\n");
+            }
+            fwrite(STDERR, "  geladene PDO-Treiber: ".implode(", ", PDO::getAvailableDrivers())."\n");
+        '
         exit 1
     fi
     sleep 1
 done
 echo "  ✓ nach ${i}s erreichbar"
+
+# ── 1b. Zeichensatz der Datenbank festlegen ───────────────────────────────────────
+#
+# Zeichensatz und Kollation müssen zu Config::DB_CHARSET / DB_COLLATE passen
+# (utf8 / utf8_unicode_ci), sonst legt die Installation Tabellen an, die nicht zum
+# erwarteten Schema passen — und der Fehler zeigt sich erst weit später. In MySQL 8
+# heissen sie utf8mb3_*; utf8 ist nur noch ein Alias darauf.
+#
+# WARUM DAS HIER STEHT UND NICHT AM SERVICE (011-002-0002). Die GitLab-Pipeline übergab
+# dem MySQL-Container die Flags `--character-set-server` und `--collation-server` als
+# Kommandozeile. GitHub Actions kann das nicht: Ein Service-Container nimmt `image`, `env`,
+# `ports`, `volumes` und `options` entgegen — `options` sind docker-Optionen VOR dem
+# Imagenamen, die Flags müssten dahinter stehen.
+#
+# Statt auf einen undokumentierten Schlüssel zu setzen, wird der Zeichensatz gesetzt,
+# nachdem die Datenbank antwortet. Das Ergebnis ist dasselbe, und es ist unabhängig davon,
+# wie der Server gestartet wurde: Lokal aus docker-compose.yml (die die Flags weiterhin
+# mitgibt) ist der Aufruf ein Leerlauf, in der Pipeline stellt er den Zustand her.
+#
+# Die Umstellung auf utf8mb4 ist eine Datenmodell-Entscheidung und gehört zu Epic 010.
+
+echo "→ Zeichensatz der Datenbank $CONTENTFLY_TEST_DB_NAME"
+php -r '
+    $db = new PDO(
+        sprintf("mysql:host=%s;port=%s", getenv("CONTENTFLY_TEST_DB_HOST"), getenv("CONTENTFLY_TEST_DB_PORT")),
+        getenv("CONTENTFLY_TEST_DB_USER"),
+        getenv("CONTENTFLY_TEST_DB_PASSWORD"),
+        array(PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION)
+    );
+    $name = getenv("CONTENTFLY_TEST_DB_NAME");
+    if (!preg_match("/^[A-Za-z0-9_]+$/", $name)) {
+        fwrite(STDERR, "Datenbankname enthaelt unerwartete Zeichen: ".$name."\n");
+        exit(1);
+    }
+    $db->exec("ALTER DATABASE `".$name."` CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci");
+    $ist = $db->query("SELECT DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ".$db->quote($name))->fetchColumn();
+    if ($ist !== "utf8mb3_unicode_ci") {
+        fwrite(STDERR, "Kollation ist ".var_export($ist, true).", erwartet utf8mb3_unicode_ci\n");
+        exit(1);
+    }
+    echo "  ✓ utf8mb3 / utf8mb3_unicode_ci\n";
+'
 
 # ── 2. Installieren ────────────────────────────────────────────────────────────────
 #

@@ -378,6 +378,6 @@ denkbaren Übersprung. Ein `markTestSkipped()`, das jemand einem einzelnen Test 
 fällt nicht auf.
 
 ### Wo die Suite läuft
-`.gitlab-ci.yml` fährt sie bei jedem Push, gegen PHP 8.3 (pflicht) und 8.4 (`allow_failure`
-als Frühwarnung für den Sprung auf 8.5). Die Schritte stehen in `tools/ci/`, damit sie sich
+`.github/workflows/pipeline.yml` fährt sie bei Push auf `master` und bei jedem Pull Request, gegen
+PHP 8.3 und 8.4 — **beide blockierend**. Die Schritte stehen in `tools/ci/`, damit sie sich
 lokal nachspielen lassen. Details: `tests/README.md`, Einrichtung: `an_project/docs/runbook.md`.

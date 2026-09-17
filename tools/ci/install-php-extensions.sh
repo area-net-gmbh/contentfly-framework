@@ -23,6 +23,10 @@
 #   unzip      Composer entpackt damit die dist-Archive. Ohne einen Entpacker
 #              scheitert `composer install` sofort — siehe unten.
 #
+#   git        NICHT für Composer, sondern für tools/migration/inventory.php: Es liest die
+#              git-Historie der Framework-Kopie eines Projekts, um einen Projekt-Patch von
+#              einer Entfernung durch das Framework zu unterscheiden. Siehe unten.
+#
 # mbstring, ctype, json, openssl, filter, hash, phar und tokenizer bringt das Image mit.
 # Was es NICHT mitbringt und was hier deshalb dazukommt: siehe die beiden Blöcke unten.
 #
@@ -52,17 +56,26 @@
 # sein. Sie wäre nur nötig, wenn die ANWENDUNG ZipArchive benutzte — tut sie nicht: kein
 # ZipArchive im Code, kein `ext-zip` in composer.lock (geprüft über alle 77 Pakete).
 #
-# GIT KOMMT BEWUSST NICHT MIT. Es kostet 49,5 MB und zieht neun weitere Pakete nach — das
-# Hundertfache von unzip — und wird für nichts gebraucht: Alle 77 Pakete des Locks kommen
-# als dist, der Lauf erzeugt keine einzige git-Meldung, und die Manifeste haben kein
-# `repositories` mit VCS-Quelle. Das Auschecken des Repos ist Sache des Runners, nicht
-# dieses Images (die Pipeline setzt einen Docker-Executor voraus — siehe Kopf von
-# .gitlab-ci.yml).
+# GIT KAM BEWUSST NICHT MIT — BIS 011-002-0002. Die Begründung von `000-000-0021` stand hier
+# so: Es kostet 49,5 MB und zieht neun weitere Pakete nach, das Hundertfache von unzip, und
+# wird für nichts gebraucht — alle 77 Pakete des Locks kommen als dist, der Lauf erzeugt keine
+# einzige git-Meldung, und die Manifeste haben kein `repositories` mit VCS-Quelle.
 #
-# NACHRÜSTEN, WENN: der Lock ein Paket enthält, das nur als `source` verfügbar ist, oder
-# ein Manifest eine VCS-`repositories`-Quelle bekommt. Beides meldet sich als
-# "Source fallback" oder "git was not found" — dann ist die Zeile hier die Antwort, nicht
-# ein neuer Befund.
+# **Für Composer stimmt das unverändert.** Der Grund, aus dem git jetzt doch mitkommt, ist ein
+# anderer und kam mit Epic `007` dazu: `tools/migration/inventory.php` ruft `git log` auf der
+# Framework-Kopie eines Projekts auf. Nur die Historie dieser Kopie kann sagen, ob ein
+# Konfigurationsschlüssel vom Framework ENTFERNT wurde oder ob das Projekt ihn selbst
+# hinzugepatcht hat (`removed` gegen `patch`, Befund L-6 am Bestandsprojekt UFP, das vier
+# solche Schlüssel hatte).
+#
+# Ohne git fallen beide in `old_copy_only` — eine dokumentierte Degradation des Werkzeugs, kein
+# Fehler. Aber: Ohne git im Image fährt die CI **nur noch diesen Notnagel**, und der Hauptpfad
+# des Werkzeugs bliebe ungeprüft. `InventoryToolTest` hat das beim ersten Actions-Lauf gemeldet;
+# unter GitLab ist es nie aufgefallen, weil der Test aus Epic `007` jünger ist als der letzte
+# Lauf dort.
+#
+# Ein Projekt, das migriert, hat git — sonst hätte es keine Kopie mit Historie. Die CI soll
+# fahren, was dort passiert, und nicht den Ersatzweg.
 
 set -eu
 
@@ -75,13 +88,14 @@ set -eu
 schritt "Paketlisten holen" \
     apt-get update -q
 
-schritt "Systempakete für gd, ldap und den Composer-Entpacker" \
+schritt "Systempakete für gd, ldap, den Composer-Entpacker und das Inventar-Werkzeug" \
     apt-get install -y -q --no-install-recommends \
         libpng-dev \
         libjpeg62-turbo-dev \
         libfreetype6-dev \
         libldap2-dev \
-        unzip
+        unzip \
+        git
 
 schritt "gd konfigurieren" \
     docker-php-ext-configure gd --with-freetype --with-jpeg
@@ -97,3 +111,4 @@ schritt "Aufräumen" \
 echo "✓ PHP $(php -r 'echo PHP_VERSION;') mit:"
 php -m | grep -E '^(pdo_mysql|gd|ldap|mbstring|json|openssl|tokenizer)$' | sed 's/^/    /'
 echo "    unzip $(unzip -v | head -1 | cut -d' ' -f2) (Composer-Entpacker, keine PHP-Erweiterung)"
+echo "    $(git --version) (für tools/migration/inventory.php, nicht für Composer)"

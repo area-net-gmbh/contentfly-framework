@@ -38,7 +38,7 @@ import sys
 
 BASE = 'b93e5cf7'  # the last commit before epic 014
 
-CODE_PATHS = ['lib', 'custom', 'bin', 'tests', 'index.php', 'phpunit.xml.dist', 'tools', '.gitlab-ci.yml']
+CODE_PATHS = ['lib', 'custom', 'bin', 'tests', 'index.php', 'phpunit.xml.dist', 'tools', '.github']
 MESSAGE_PATHS = ['lib', 'custom', 'bin', 'index.php']
 
 EXTRA = {
