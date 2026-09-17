@@ -16,6 +16,75 @@ die konkreten Befehle je Stack und ersetzt die Platzhalter unten.
 - **Composer** — zwingend. Seit Story `006-003` liegt **kein `vendor/`-Baum mehr im Repo**;
   er entsteht bei der Installation. Getestet mit Composer 2.6.
 
+## So startet ein neues Projekt
+
+**Seit `011-002-0004` gefahren und als Gate festgenagelt.** Was hier steht, wiederholt
+`tools/ci/bezugsweg-pruefen.sh` bei jedem Pipeline-Lauf — ein Weg, den niemand fährt, verrottet.
+
+> **Dieser Abschnitt gilt für ein NEUES Projekt.** Ein Bestandsprojekt, das von Contentfly 1.x
+> kommt, folgt `an_project/docs/migration.md`; Phase 2 dort nennt denselben Bezugsweg.
+
+**Voraussetzung:** Lesezugriff auf `area-net-gmbh/contentfly-framework-dist` — ein Deploy Key oder
+ein Konto in der Organisation. Ohne ihn scheitert `composer install` mit `Permission denied
+(publickey)`, und die Meldung sagt nicht, woran es liegt.
+
+**1. Die Dateien, mit denen ein Projekt startet.** Dieses Repository ist zugleich das Skeleton;
+was ein Projekt braucht, ist die Wurzel abzüglich dessen, was nur der Entwicklung dient:
+
+```
+.htaccess  bin/  custom/  data/  index.php  plugins/  favicon.ico  robots.txt
+```
+
+**2. Ein eigenes `composer.json`** — mit dem Paket-Repository statt des `path`-Eintrags, den
+dieses Entwicklungs-Repo benutzt:
+
+```json
+{
+    "name": "ihre-firma/ihr-projekt",
+    "type": "project",
+    "repositories": [
+        { "type": "vcs", "url": "git@github.com:area-net-gmbh/contentfly-framework-dist.git" }
+    ],
+    "require": {
+        "areanet/contentfly": "^2.0@RC",
+        "vlucas/phpdotenv": "^5.6"
+    },
+    "autoload": {
+        "psr-4": { "Custom\\": "custom/", "Plugins\\": "plugins/" }
+    }
+}
+```
+
+> **Das `@RC` fällt weg, sobald `v2.0.0` gesetzt ist** — solange es nur Vorab-Tags gibt, nimmt
+> Composer sie bei Standard-Stabilität nicht. Dieselbe Zeichenkette steht in
+> `tools/ci/bezugsweg-pruefen.sh`; wer eine ändert, ändert beide, sonst prüft das Gate einen
+> anderen Weg als die Doku beschreibt.
+
+**3. Installieren:**
+
+```sh
+composer install
+php bin/console.php appcms:install -n \
+    --db-host=127.0.0.1 --db-port=3306 --db-name=<name> \
+    --db-user=<benutzer> --db-pass=<passwort> \
+    --db-strategy=guid --admin-password=<passwort>
+```
+
+**4. Nachsehen, dass es wirklich aus dem Paket kam:**
+
+```sh
+php -r '$l=json_decode(file_get_contents("composer.lock"),true);
+        foreach($l["packages"] as $p) if($p["name"]==="areanet/contentfly")
+            printf("%s aus %s\n", $p["version"], $p["source"]["url"]);'
+```
+
+Steht dort `dev-master` statt einer Version, hat Composer die Tags nicht gesehen — dann ist im
+Paket ein `version`-Feld gelandet, das jeden abweichenden Tag verwirft. Der Fall ist in
+`011-002-0003` beschrieben.
+
+**Ein Update ist danach `composer update areanet/contentfly`.** Der Framework-Baum wird nie wieder
+angefasst — das ist der ganze Zweck des Pakets.
+
 ## 1. Abhängigkeiten installieren
 
 **Der erste Schritt, vor allem anderen.** Ein frischer Checkout ist ohne ihn nicht lauffähig —

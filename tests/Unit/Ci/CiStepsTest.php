@@ -63,6 +63,33 @@ class CiStepsTest extends TestCase
                 .'waits for its command, but this command is precisely not supposed to end.',
             ),
         ),
+        'bezugsweg-pruefen.sh' => array(
+            array(
+                'kill "$SERVER_PID" 2>/dev/null || true',
+                'Cleanup on EXIT. The suppressed message is "no such process" — the case where '
+                .'the server has already ended, which is the good one. Reporting it would make '
+                .'every successful run end with an error line.',
+            ),
+            array(
+                'wait "$SERVER_PID" 2>/dev/null || true',
+                'Without it the shell announces the terminated background job as "Terminated" — a '
+                .'line that looks like a failure and is not. Exactly the noise this suppression '
+                .'removes.',
+            ),
+            array(
+                '-S "$ADRESSE" index.php >',
+                'The probe project\'s server keeps running in the background; its output belongs '
+                .'in a file, and the wait loop below prints that file if the server does not '
+                .'answer. The same reason as in prepare-test-environment.sh: `schritt` waits for '
+                .'its command, and this command is precisely not supposed to end.',
+            ),
+            array(
+                '/api/config"); exit($r !== false',
+                'A wait loop that asks every second whether the server already answers. A failure '
+                .'is the normal case there and the termination condition; once the deadline has '
+                .'passed the loop reports it together with the server log.',
+            ),
+        ),
         'paket-veroeffentlichen.sh' => array(
             array(
                 'git cat-file -e "$SPLIT:composer.json" 2>/dev/null',

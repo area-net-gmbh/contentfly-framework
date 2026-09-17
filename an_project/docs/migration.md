@@ -154,6 +154,28 @@ Nachfolger, und eine Aufzeichnung des alten Backends ist zweimal hintereinander 
 **Das Framework kommt ab jetzt über Composer.** Wer `lib/` im eigenen Repo liegen hat, bekommt
 eine neue Version nur durch Hineinkopieren — und verliert dabei jede eigene Änderung.
 
+**Woher das Paket kommt** (seit `011-002-0003`): aus einem eigenen Repository, das bei jedem
+Release aus `lib/contentfly` erzeugt wird. In die `composer.json` des Projekts gehört
+
+```json
+"repositories": [
+    { "type": "vcs", "url": "git@github.com:area-net-gmbh/contentfly-framework-dist.git" }
+],
+"require": { "areanet/contentfly": "^2.0@RC" }
+```
+
+— und sonst nichts; kein Pfad, keine Kopie. **Voraussetzung ist Lesezugriff** auf dieses
+Repository, per Deploy Key oder Organisationskonto. Das `@RC` fällt weg, sobald `v2.0.0` gesetzt
+ist.
+
+**Danach ist ein Update `composer update areanet/contentfly`.** Das ist die eigentliche Änderung
+gegenüber 1.x: Der Framework-Baum wird nie wieder angefasst, und eine neue Version überschreibt
+nicht mehr das Verzeichnis, in dem auch eigener Code liegt.
+
+**Nachsehen, dass es wirklich aus dem Paket kam:** `composer.lock` muss für `areanet/contentfly`
+eine **Version** nennen und keine `dev-…`-Zeichenkette. Steht dort `dev-master`, hat Composer die
+Tags nicht gesehen.
+
 **Zu tun:** Die fünf Schritte in `an_project/docs/breaking-changes.md`, Abschnitt *Paketgrenze
 (Epic `007`)*, Unterabschnitt *Der Ablauf, Schritt für Schritt*. Sie sind mit `007-001-0005` an der
 Vorlage gegangen worden und mit `007-005-0003` an UFP, einem Projekt mit eingecheckter Framework-Kopie.

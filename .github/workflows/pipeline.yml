@@ -135,6 +135,65 @@ jobs:
 
   # ── Die Testsuiten ───────────────────────────────────────────────────────────────────
 
+  bezugsweg:
+    name: "check: Bezugsweg von aussen"
+    runs-on: ubuntu-latest
+    container: php:8.3-cli
+    # DAS GATE AUS 011-002-0004. Es baut ein Projekt in einem frischen Verzeichnis AUSSERHALB
+    # des Checkouts, bezieht Contentfly über das Paket-Repository und ruft die API auf.
+    #
+    # Warum es nicht bei den drei Prüfungen oben steht: Es braucht eine Datenbank. Warum es
+    # nicht Teil des Testjobs ist: Ein Fehlschlag hier heisst etwas anderes — nicht „der Code
+    # ist kaputt", sondern „das Paket ist von aussen nicht beziehbar". Zwei Aussagen, zwei Jobs.
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: bezugsweg_probe
+          MYSQL_USER: contentfly
+          MYSQL_PASSWORD: contentfly
+          MYSQL_ROOT_PASSWORD: root
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      CONTENTFLY_TEST_DB_HOST: mysql
+      CONTENTFLY_TEST_DB_PORT: "3306"
+      CONTENTFLY_TEST_DB_USER: contentfly
+      CONTENTFLY_TEST_DB_PASSWORD: contentfly
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh tools/ci/install-php-extensions.sh
+      - run: sh tools/ci/install-composer.sh
+
+      # Leseschlüssel für das Paket-Repository. Es ist derselbe Deploy Key, mit dem
+      # paket.yml schreibt — Lesen ist darin enthalten, und ein zweiter Schlüssel wäre eine
+      # zweite Stelle, an der etwas ablaufen kann.
+      - name: Zugang zum Paket-Repository
+        env:
+          SCHLUESSEL: ${{ secrets.PAKET_REPO_DEPLOY_KEY }}
+        run: |
+          if [ -z "$SCHLUESSEL" ]; then
+            echo "✗ Das Secret PAKET_REPO_DEPLOY_KEY ist nicht gesetzt." >&2
+            echo "  Ohne es kann dieser Job das Paket-Repository nicht lesen." >&2
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SCHLUESSEL" > ~/.ssh/paket_deploy_key
+          chmod 600 ~/.ssh/paket_deploy_key
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Ein Projekt von aussen aufsetzen
+        env:
+          GIT_SSH_COMMAND: ssh -i ~/.ssh/paket_deploy_key -o IdentitiesOnly=yes -o IdentityAgent=none
+        run: sh tools/ci/bezugsweg-pruefen.sh
+
+      - name: Schlüssel wegräumen
+        if: always()
+        run: rm -f ~/.ssh/paket_deploy_key
+
   test:
     name: "test: PHP ${{ matrix.php }}"
     runs-on: ubuntu-latest
