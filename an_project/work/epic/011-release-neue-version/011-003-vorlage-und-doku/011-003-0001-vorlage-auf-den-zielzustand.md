@@ -1,7 +1,7 @@
 ---
 id: 011-003-0001
 title: Die Vorlage auf den Zielzustand bringen
-status: review
+status: done
 depends_on: []
 ---
 

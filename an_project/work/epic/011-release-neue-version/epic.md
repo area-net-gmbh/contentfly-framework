@@ -34,9 +34,75 @@ tatsächlich einsetzen und auf die es migrieren kann.
 - **Upgrade-Pfad festgehalten:** Symfony 8.4 LTS (erwartet Nov 2027) als geplanter nächster
   Schritt, abgesichert durch das CI-Gate „0 Deprecations" aus 009.
 
+## Bilanz — jedes Kriterium mit seinem Beleg
+<!-- Erstellt mit 011-004-0002 am 2026-09-17. -->
+
+| Kriterium | Beleg | Stand |
+|---|---|---|
+| **Silex ist weg** | `LockGuaranteesTest::testTheLockCarriesNoSilexOrPimplePackage` prüft die Paketnamen im Lock; `NoSilexTypesTest` hält die Typnamen aus dem Code. Beide blockierend. | ✅ |
+| **Keine Symfony-2/3-Komponente** | siehe unten — die fünf `v3.7.x`-Einträge sind `*-contracts` und **keine** Symfony-3-Komponenten | ✅ |
+| **`composer audit --locked` sauber** | Job `check: composer audit` in der Pipeline, blockierend; dazu `audit-ausnahmen-pruefen.sh`, das eine nicht mehr greifende Ausnahme rot macht | ✅ |
+| **…unter der Zielplattform PHP 8.5** | `LockGuaranteesTest::testNoPackageCapsPhpBelowTheTargetPlatform` — **Constraint-Seite**, nicht ein Lauf auf 8.5 (siehe *Was offen bleibt*) | ⚠️ teilweise |
+| **Version vergeben, `version.php` und Metadaten stimmen überein** | `PackageManifestTest`; der Tag kommt mit `011-004-0003` | ⏳ offen |
+| **Bruchstellen vollständig benannt** | `breaking-changes.md`, 119 Einträge in 14 Abschnitten; `MigrationGuideTest` hält Zahl und Abschnitts-Zuordnung | ✅ |
+| **Beziehbar, einmal aus Projektsicht durchgespielt** | `011-002-0004`: frisches Verzeichnis ausserhalb des Repos, `composer install` gegen die echte URL, Installation, API-Aufruf. Als Job `check: Bezugsweg von aussen` bei **jedem** Lauf wiederholt. | ✅ |
+| **Vorlage stimmt** | `011-003-0001`: `custom/` antwortet im Envelope; `TemplateApiTest` und `RouteSecurityApiTest` messen es | ✅ |
+| **Doku nachgezogen** | `011-003`: README neu, `runbook.md` mit *So startet ein neues Projekt*, `dev-guide.md` mit der Antwortform, `technical.md` mit dem Vertrag, `migration.md` fortgeschrieben | ✅ |
+| **Antwort-Envelope vereinheitlicht** | `011-001`: 17 Antwortstellen plus `/auth`, `/file`, `/system`, plus Fehlerform. `EnvelopeApiTest` wertet alle mit **einer** Leserfunktion aus | ✅ |
+| **Upgrade-Pfad festgehalten** | `architecture.md`, *Key decisions*, Eintrag vom 2026-09-17 | ✅ |
+
+### Zu „keine Symfony-2/3-Komponente" — was eine Versionsprüfung falsch liest
+
+Im Lock stehen fünf Pakete mit einer Version `v3.7.x`:
+
+```
+symfony/cache-contracts  symfony/deprecation-contracts  symfony/event-dispatcher-contracts
+symfony/http-client-contracts  symfony/service-contracts
+```
+
+**Das sind keine Symfony-3-Komponenten.** Die `*-contracts`-Pakete versionieren eigenständig;
+`service-contracts` 3.x ist die Linie, die Symfony **7.4** benutzt. Wer nur auf die Zahl sieht,
+kommt hier zum falschen Schluss — deshalb steht es hier und nicht als Fussnote.
+
+Die eigentlichen Komponenten stehen alle auf `v7.4.x`.
+
+### Das Register — was es trägt, und warum ein Epic fehlen **darf**
+
+Nachgezählt am 2026-09-17: **119 Einträge in 14 Abschnitten.** `migration.md` nennt beide Zahlen
+im Kopf, `MigrationGuideTest` hält sie zusammen. Nach Epic:
+
+| Epic | im Register | |
+|---|---|---|
+| `007` Paketgrenze | eigener Abschnitt | ✅ |
+| `009` Kernel | eigener Abschnitt + *Doctrine (Story `009-005`)* | ✅ |
+| `010` Entity-Layer | drei Abschnitte (`010-001`, `010-003`, `010-004`) | ✅ |
+| `011` Envelope | im Abschnitt *API*, dem grössten mit 24 Einträgen; dazu *Die Vorlage antwortet im Envelope* | ✅ |
+| `012` Oberfläche entfernt | verteilt, 7 Fundstellen | ✅ |
+| `013` Authentifizierung | fünf Abschnitte (`013-001`…`013-005`) | ✅ |
+| `014` Codebase englisch | **kein Eintrag** | ✅ **richtig so** |
+
+**Zu `014`:** Das Epic hat rund 45 Klassen und 150 Methoden umbenannt — und trotzdem gehört kein
+Wort davon ins Register. Der Grund steht im Epic selbst: *„Keiner dieser Namen war je in einem
+Release. Heute kostet das Umbenennen keinen Bruch für Bestandsprojekte, nach dem Release wäre es
+einer."* Ein Bestandsprojekt kommt von Contentfly 1.x und hat `Kernel\Pfade` nie gesehen. Ein
+Eintrag „`Pfade` heisst jetzt `Paths`" würde jemanden nach Code suchen lassen, den er nicht hat.
+
+Das ist der Punkt, an dem eine Vollständigkeitsprüfung von selbst das Falsche tut: Sie hakt Epics
+ab und meldet `014` als Lücke. Deshalb steht hier die Begründung und nicht nur das Häkchen.
+
+### Was offen bleibt, und warum es benannt und nicht abgehakt ist
+
+- **Ein Lauf auf PHP 8.5.** Das Gate prüft die *Constraint*-Seite: Kein Paket deckelt unterhalb
+  8.5. Ob die Suite dort grün ist, sagt nur ein Lauf, und die Pipeline geht bis 8.4. Das ist keine
+  Nachlässigkeit, sondern die Reihenfolge: Erst muss es ein PHP-8.5-Image geben, das alle
+  Erweiterungen mitbringt.
+- **Die `@api`-Blöcke der API-Doku** tragen noch Antwortbeispiele von **vor** Epic `011`. Benannt
+  in `dev-guide.md`, Abschnitt *API-Dokumentation*.
+- **Der Tag `v2.0.0`** — `011-004-0003`.
+
 ## Stories
 <!-- Die Stories dieses Epics. Wird von /new-story synchron gehalten. -->
 - [x] 011-001-0000 — Den Antwort-Envelope der API vereinheitlichen
-- [ ] 011-002-0000 — Das Framework aus Projektsicht beziehbar machen
-- [ ] 011-003-0000 — Vorlage und Doku auf den Zielzustand bringen
+- [x] 011-002-0000 — Das Framework aus Projektsicht beziehbar machen
+- [x] 011-003-0000 — Vorlage und Doku auf den Zielzustand bringen
 - [ ] 011-004-0000 — Version, Gates und Upgrade-Pfad festschreiben

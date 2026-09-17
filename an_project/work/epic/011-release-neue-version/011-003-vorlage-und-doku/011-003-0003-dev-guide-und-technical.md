@@ -1,7 +1,7 @@
 ---
 id: 011-003-0003
 title: dev-guide und technical auf den echten Weg bringen
-status: review
+status: done
 depends_on: [011-003-0002]
 ---
 

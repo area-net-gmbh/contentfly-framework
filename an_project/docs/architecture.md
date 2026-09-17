@@ -21,6 +21,43 @@
 
 <!-- Entscheidung · erwogene Alternativen · warum diese. -->
 
+### 2026-09-17 — Der nächste Sprung ist Symfony 8.4 LTS, und er wird heute vorbereitet
+
+**Entscheidung.** Nach Symfony 7.4 LTS ist **8.4 LTS** der geplante nächste Schritt, erwartet für
+November 2027. Bis dahin bleibt der Kernel auf 7.4; Bugfixes laufen dort bis November 2028,
+Sicherheitsfixes bis November 2029.
+
+**Was den Sprung zu einem reinen Constraint-Bump macht.** Ein Symfony-Major entfernt, was der
+Vorgänger als deprecated markiert hat — mehr nicht. Wer keine dieser APIs benutzt, hebt eine Zahl
+im Manifest. Wer sie benutzt, merkt es am Tag des Sprungs und repariert unter Zeitdruck.
+
+**Deshalb ist das Gate „0 Deprecations" die eigentliche Vorbereitung**, und es steht seit Epic
+`009` in der Pipeline, blockierend und in zwei Hälften:
+
+| Hälfte | prüft |
+|---|---|
+| `tools/ci/deprecations-pruefen.sh` | das **Laufzeit**-Log eines echten Testlaufs: was tatsächlich ausgeführt wurde |
+| PHPStan mit `phpstan-deprecation-rules` | auch die Zweige, die die Suite **nicht** betritt |
+
+Beide tragen dieselbe Regel: **Eine Ausnahme, die nicht mehr greift, macht den Lauf rot.** Im Epic
+`010` hat sie sich fünfmal gemeldet, und jedes Mal war ein Muster gegenstandslos geworden.
+
+**Was den Pfad gefährden würde**, benannt statt abgewartet:
+
+- **Eine Ausnahme, die zur Dauerlösung wird.** Die Ausnahmeliste ist eine Schuld, kein Vorrat. Sie
+  trägt heute einen Eintrag, und der kommt aus DBAL, nicht aus eigenem Code.
+- **Das Abschalten einer der beiden Hälften.** Das Laufzeit-Log sieht nur, was lief; PHPStan sieht
+  nur, was statisch erkennbar ist. Einzeln ist jede blind für das, was die andere findet.
+- **Eine Abhängigkeit, die bei 7.x stehenbleibt.** `LockGuaranteesTest` prüft die Constraint-Seite
+  für PHP; für Symfony tut es heute niemand. Das wäre der nächste Wächter, wenn der Sprung näher
+  rückt.
+
+**Erwogene Alternative: gleich auf Symfony 8.x.** Verworfen und begründet im Eintrag vom
+2026-09-04 — 8.0 hat denselben Funktionsumfang wie 7.4, verlangt aber PHP ≥ 8.4 in **jeder**
+Umgebung und ein Pflicht-Minor alle sechs Monate. 7.4 entkoppelt die PHP- von der
+Kernel-Entscheidung, und genau das zählt, solange Bestandsprojekte unterschiedliche PHP-Versionen
+mitbringen.
+
 ### 2026-09-16 — Eine Quelle, und die liegt auf GitHub
 
 **Entscheidung.** Das Repository zieht von `gitlab.in.area-net.de` nach

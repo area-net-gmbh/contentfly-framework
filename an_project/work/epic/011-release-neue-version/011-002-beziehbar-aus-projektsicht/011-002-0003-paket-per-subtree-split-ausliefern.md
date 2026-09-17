@@ -1,7 +1,7 @@
 ---
 id: 011-002-0003
 title: Das Paket per Subtree-Split ausliefern
-status: review
+status: done
 depends_on: [011-002-0002]
 ---
 

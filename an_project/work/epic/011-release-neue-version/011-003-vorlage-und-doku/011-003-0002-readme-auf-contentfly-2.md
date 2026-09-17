@@ -1,7 +1,7 @@
 ---
 id: 011-003-0002
 title: Den README auf Contentfly 2 bringen
-status: review
+status: done
 depends_on: [011-003-0001]
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: 011-003-0000
 title: Vorlage und Doku auf den Zielzustand bringen
-status: todo
+status: done
 depends_on: [011-001-0000]
 ---
 
@@ -28,6 +28,6 @@ aufsetzen kann und die Beispiele in `custom/` das tun, was sie behaupten.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. Geschnitten beim Start der Story. -->
-- [ ] 011-003-0001 — Die Vorlage auf den Zielzustand bringen
-- [ ] 011-003-0002 — Den README auf Contentfly 2 bringen
-- [ ] 011-003-0003 — dev-guide und technical auf den echten Weg bringen
+- [x] 011-003-0001 — Die Vorlage auf den Zielzustand bringen
+- [x] 011-003-0002 — Den README auf Contentfly 2 bringen
+- [x] 011-003-0003 — dev-guide und technical auf den echten Weg bringen
