@@ -82,7 +82,10 @@ grün sein sollten. `workflow_dispatch` erlaubt zusätzlich den Start von Hand.
 | `test (8.3)` | Matrix | Beide Testsuiten gegen eine frisch installierte Instanz — **pflicht** |
 | `test (8.4)` | Matrix | Derselbe Lauf auf PHP 8.4 — **blockierend seit `010-003-0003`** |
 
-**Der 8.4-Job ist eine Frühwarnung, kein Gate.** Zielplattform ist PHP 8.5; was hier rot wird,
+**Der erste Lauf auf GitHub Actions war grün am 2026-09-17** — nach drei Anläufen, die zwei
+echte Befunde zutage gefördert haben; beide stehen in `011-002-0002`.
+
+**Der 8.4-Job war eine Frühwarnung, kein Gate.** Zielplattform ist PHP 8.5; was hier rot wird,
 ist die Liste dessen, was auf dem Weg dorthin zu erledigen bleibt — aber es darf die Pipeline
 heute nicht anhalten. Beim Anlegen lief er grün, mit einer einzigen Deprecation aus Silex; eine
 zweite aus eigenem Code (`Classes\Config::__construct()`) kam mit `000-000-0021` dazu. Beide
@@ -92,11 +95,15 @@ deshalb blockierend wird, ist eine offene Entscheidung.
 ### Was die Pipeline voraussetzt
 - **Ein Runner mit Docker-Executor.** Ohne ihn funktionieren weder `image:` noch `services:`.
   Steht nur ein Shell-Runner zur Verfügung, muss der Job Datenbank und PHP selbst mitbringen —
-  ein anderer Zuschnitt, keine kleine Änderung. Die Annahme steht im Kopf der
-  Kopf der Workflow-Datei. **Auf GitHub Actions entfällt diese Voraussetzung:** Die Jobs laufen
-  in `container:`/`services:` auf `ubuntu-latest`, ein eigener Runner wird nicht gebraucht.
-- **`CONTENTFLY_TEST_ADMIN_PASS`** als CI-Variable (Settings → CI/CD → Variables). Bewusst
-  nicht in der YAML: Auch für eine flüchtige Datenbank gehört ein Passwort nicht ins Repo.
+  ein anderer Zuschnitt, keine kleine Änderung. **Auf GitHub Actions entfällt diese
+  Voraussetzung:** Die Jobs laufen in `container:`/`services:` auf `ubuntu-latest`, ein eigener
+  Runner wird nicht gebraucht.
+- **`CONTENTFLY_TEST_ADMIN_PASS`** als Repository-Secret (Settings → Secrets and variables →
+  Actions). Bewusst nicht in der YAML: Auch für eine flüchtige Datenbank gehört ein Passwort
+  nicht ins Repo.
+- **`git` im Image** — seit `011-002-0002`. Nicht für Composer (dort kommen alle Pakete als
+  `dist`), sondern für `tools/migration/inventory.php`: Es liest die git-Historie der
+  Framework-Kopie eines Projekts. Die Begründung steht in `tools/ci/install-php-extensions.sh`.
 
 ### Warum die Schritte in `tools/ci/` stehen
 Eine Pipeline-Definition, deren Schritte man nur in der Pipeline ausprobieren kann, ist beim

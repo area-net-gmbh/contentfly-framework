@@ -1,7 +1,7 @@
 ---
 id: 011-002-0002
 title: Die Pipeline auf GitHub Actions bringen
-status: in-progress
+status: review
 depends_on: [011-002-0001]
 ---
 
@@ -26,13 +26,13 @@ nicht mehr greift, macht den Lauf rot.
 - [x] Die GitLab-spezifischen Umgebungsvariablen (`$CI_PROJECT_DIR` und Verwandte) sind ersetzt, nicht nur überschrieben.
 - [x] Die Geheimnisse stehen in den Repository-Secrets, nicht in der Workflow-Datei — wie zuvor bei `CONTENTFLY_TEST_ADMIN_PASS`.
 - [x] `.gitlab-ci.yml` ist entfernt, und die Doku (`technical.md`, `deployment.md`, `tests/README.md`) nennt den neuen Weg.
-- [ ] Ein Lauf ist grün durchgegangen — belegt, nicht behauptet.
+- [x] Ein Lauf ist grün durchgegangen — belegt, nicht behauptet.
 
 ## Verification
 Der Actions-Lauf auf `master` ist grün, und die Suite darin meldet dieselbe Zahl wie lokal.
 Gegenprobe: Eine absichtlich eingebaute Deprecation macht den Lauf rot.
 
-## Ergebnis (Stand: noch nicht abgenommen)
+## Ergebnis
 
 **Das Gerüst ist portiert, die Logik nicht angefasst.** `.github/workflows/pipeline.yml` fährt
 dieselben Prüfungen wie zuvor, und die Schritte stehen unverändert in `tools/ci/*.sh` — die
@@ -97,3 +97,51 @@ kostet dann jedes Mal eine Untersuchung. Festgehalten als `000-000-0050`.
 
 **Was hier nicht steht, ist der grüne Lauf.** Er ist das letzte Acceptance-Kriterium und lässt sich
 nur auf GitHub erbringen. Dafür fehlt noch das Repository-Secret `CONTENTFLY_TEST_ADMIN_PASS`.
+
+## Der grüne Lauf — und was drei Anläufe gezeigt haben
+
+**Grün am 2026-09-17**, alle fünf Jobs: die drei Prüfungen ohne Umgebung sowie die Suite auf PHP
+8.3 und 8.4.
+
+**Das Gerüst trug auf Anhieb.** Container, MySQL-Service, der neue Zeichensatz-Schritt,
+Installation, Testserver und das Deprecation-Gate liefen im ersten Anlauf durch — genau der Teil,
+der sich lokal nicht prüfen liess. Rot war die Suite, und zwar an zwei echten Befunden:
+
+### 1. Der Wächter hat meinen eigenen Commit gemeldet
+
+`CiStepsTest` — der Wächter aus `000-000-0029`, der Schritte verbietet, die ihre Ausgabe
+unterdrücken, ohne durch `tools/ci/schritt.sh` zu gehen. Ausgelöst hat ihn die Diagnose-Zeile, die
+ich **eine Stunde vorher** eingebaut hatte: ` >&2 2>&1`.
+
+Er hatte recht, und die Behebung war keine Ausnahme, sondern das Entfernen: Das `php -r` schreibt
+ohnehin über `fwrite(STDERR, …)`. Der Redirect war Rauschen.
+
+### 2. `git` fehlt im Image — ein latenter Defekt, kein Regress
+
+`InventoryToolTest` scheiterte, weil `php:8.x-cli` kein `git` mitbringt.
+`tools/migration/inventory.php` ruft `git log` auf der Framework-Kopie eines Projekts auf; **nur
+deren Historie** kann sagen, ob ein Konfigurationsschlüssel vom Framework **entfernt** wurde oder ob
+das Projekt ihn selbst **hinzugepatcht** hat — Befund L-6 am Bestandsprojekt UFP, das vier solche
+Schlüssel hatte.
+
+**Das ist kein Regress der Portierung.** Der Test stammt aus Epic `007` und ist jünger als der
+letzte GitLab-Lauf; dort ist es nie aufgefallen. Der Umzug hat den Defekt sichtbar gemacht, nicht
+verursacht.
+
+**Die verlockende falsche Behebung wäre gewesen, den Test zu überspringen.** Ohne `git` fällt das
+Werkzeug auf `old_copy_only` zurück — eine **dokumentierte** Degradation (`inventory.php:430`), kein
+Fehler. Ein Skip wäre also „vertretbar" gewesen und hätte die CI dauerhaft nur den Notnagel fahren
+lassen, während der Hauptpfad des Werkzeugs ungeprüft bliebe. Ein Projekt, das migriert, hat `git`
+— sonst hätte es keine Kopie mit Historie. Also kommt `git` ins Image.
+
+`000-000-0021` hatte es 2026 bewusst draussen gelassen: *„wird für nichts gebraucht: Alle 77 Pakete
+des Locks kommen als dist."* **Für Composer stimmt das unverändert** — der neue Grund ist ein
+anderer. Die alte Begründung steht weiter im Skript, als überholt markiert statt gelöscht; sie war
+zu ihrer Zeit richtig, und der Unterschied ist die eigentliche Information.
+
+### Was der Lauf nebenbei belegt hat
+
+Der Wartelauf auf die Datenbank nennt seit diesem Task den **Grund** statt nur die Folge: Ausnahme,
+Meldung und die geladenen PDO-Treiber. Fehlt `mysql` in dieser Liste, ist es nicht die Datenbank,
+sondern ein fehlendes `pdo_mysql` — und man sucht nicht 90 Sekunden am falschen Ende. Gebraucht
+wurde die Diagnose diesmal nicht, weil die Umgebung durchlief; eingebaut ist sie trotzdem geblieben.
