@@ -16,6 +16,24 @@
 #   CONTENTFLY_TEST_ADMIN_PASS   Passwort des Admin-Benutzers der Testinstanz.
 #                                Bewusst nicht in dieser Datei — auch für eine flüchtige
 #                                Datenbank gehört ein Passwort nicht ins Repo.
+#
+# ACTIONS: NUR actions/checkout, UND DIE STEHT AUF @v6 (000-000-0052). Das ist die einzige
+# fremde Action im Baum — geprüft über beide Workflow-Dateien, nicht angenommen. Bis zum
+# 2026-09-17 stand hier @v4; die erklärt in ihrem Manifest `using: node20`, und die Runner
+# führten sie längst zwangsweise auf Node 24 aus. Jeder Lauf trug deshalb die Annotation
+# „Node.js 20 is deprecated" — und eine Warnung, die in jedem Lauf steht, wird nach dem
+# dritten Mal nicht mehr gelesen. Dann fällt auch die nächste nicht auf, die etwas anderes
+# sagt.
+#
+# Warum @v6 und nicht @v5: Beide erklären `using: node24`, und ihre action.yml sind
+# BYTE-IDENTISCH — gleiche Eingaben, gleiche Vorgaben. Der Sprung ist damit ein reiner
+# Laufzeitwechsel, und @v6 spart den nächsten. Wer das nachprüfen will:
+#
+#   diff <(curl -sS https://raw.githubusercontent.com/actions/checkout/v5/action.yml) \
+#        <(curl -sS https://raw.githubusercontent.com/actions/checkout/v6/action.yml)
+#
+# Kommt eine zweite Action dazu, gilt für sie dasselbe: Sie muss ihre Laufzeit selbst
+# erklären, sonst kehrt die Annotation zurück.
 
 name: Pipeline
 
@@ -85,7 +103,7 @@ jobs:
     # Ohne Container: Das Skript ist reines POSIX sh und liest eine Datei. Ein alpine:3-Image
     # wie in der GitLab-Fassung brächte hier nichts als Startzeit.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: sh tools/check-template-config.sh
 
   check-audit:
@@ -101,7 +119,7 @@ jobs:
     # config.audit.ignore, jede mit Begruendung. Eine WEITERE Meldung macht diesen Job sofort
     # rot — das ist der Unterschied zwischen einer Ausnahme und einem abgeschalteten Gate.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: sh tools/ci/install-composer.sh
       - run: sh tools/ci/audit.sh
       # Zweite Haelfte des Gates (006-005-0002): Eine Ausnahme, die nicht mehr greift, macht
@@ -123,7 +141,7 @@ jobs:
     #
     # Der Job braucht keine Datenbank — statische Analyse fuehrt nichts aus.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: sh tools/ci/install-php-extensions.sh
       - run: sh tools/ci/install-composer.sh
       - run: composer install --no-interaction --no-progress --prefer-dist
@@ -164,7 +182,7 @@ jobs:
       CONTENTFLY_TEST_DB_USER: contentfly
       CONTENTFLY_TEST_DB_PASSWORD: contentfly
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: sh tools/ci/install-php-extensions.sh
       - run: sh tools/ci/install-composer.sh
 
@@ -257,7 +275,7 @@ jobs:
           --health-retries=20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: PHP-Erweiterungen und Composer
         run: |

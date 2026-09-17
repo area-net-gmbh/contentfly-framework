@@ -1,7 +1,7 @@
 ---
 id: 000-000-0052
 title: actions/checkout läuft auf einem abgekündigten Node
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -28,9 +28,9 @@ Betroffen sind beide Workflows: `.github/workflows/pipeline.yml` (vier Vorkommen
 `.github/workflows/paket.yml` (eines).
 
 ## Acceptance criteria
-- [ ] Alle Vorkommen von `actions/checkout` stehen auf einer Fassung, die Node 24 selbst erklärt.
+- [x] Alle Vorkommen von `actions/checkout` stehen auf einer Fassung, die Node 24 selbst erklärt.
 - [ ] Ein Lauf ist ohne diese Warnung durchgegangen — belegt, nicht behauptet.
-- [ ] Geprüft, ob weitere Actions im Baum dieselbe Meldung erzeugen; heute ist `checkout` die einzige, aber das gilt nur, solange niemand eine zweite hinzufügt.
+- [x] Geprüft, ob weitere Actions im Baum dieselbe Meldung erzeugen; heute ist `checkout` die einzige, aber das gilt nur, solange niemand eine zweite hinzufügt.
 
 ## Verification
 Ein Lauf der Pipeline und ein Trockenlauf des Veröffentlichungs-Workflows, beide ohne die
@@ -40,3 +40,29 @@ Annotation „Node.js 20 is deprecated".
 Der Sprung ist vermutlich ein Einzeiler je Vorkommen. Das ist kein Grund, ihn ohne Ticket zu
 machen — die Regel dieses Projekts kennt keine Ausnahme für kleine Änderungen, und gerade eine
 Versionsänderung an der CI-Infrastruktur will beim Suchen eines späteren Fehlers auffindbar sein.
+
+## Ergebnis
+**Alle sechs Vorkommen stehen auf `actions/checkout@v6`.**
+
+**Sechs, nicht fünf** — der Context oben nennt vier in `pipeline.yml`, es sind fünf. Der
+`bezugsweg`-Job ist nach dem Anlegen dieses Tickets dazugekommen (`011-002-0004`). Genau dafür
+zählt man beim Umsetzen nach, statt die Zahl aus dem Ticket zu übernehmen.
+
+**Warum `@v6` und nicht `@v5`:** Beide erklären `using: node24`. Ihre `action.yml` sind
+**byte-identisch** — gemessen, nicht vermutet:
+
+```
+diff <(curl -sS .../checkout/v5/action.yml) <(curl -sS .../checkout/v6/action.yml)  →  exit 0
+```
+
+Gleiche Eingaben, gleiche Vorgaben; der Sprung ist ein reiner Laufzeitwechsel, und `@v6` spart
+den nächsten. Eigens geprüft, weil `paket.yml` `fetch-depth: 0` setzt und der Subtree-Split die
+volle Historie braucht: Die Option ist unverändert und wird weiterhin gelesen.
+
+`checkout` ist die **einzige** fremde Action in beiden Dateien. Die Begründung steht jetzt im
+Kopf von `pipeline.yml`, mitsamt dem `diff`-Aufruf zum Nachprüfen — damit die nächste Action
+nicht wieder eine mitbringt, die ihre Laufzeit nicht selbst erklärt.
+
+**Offen bis zum Lauf:** Das zweite Acceptance-Kriterium verlangt einen Lauf *ohne* die
+Annotation. Das kann erst der Pull Request zeigen; solange es nicht belegt ist, bleibt die Box
+leer.
