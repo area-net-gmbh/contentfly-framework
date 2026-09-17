@@ -36,13 +36,16 @@ PAKET_REPO_URL="${PAKET_REPO_URL:-git@github.com:area-net-gmbh/contentfly-framew
 DB_NAME="${BEZUGSWEG_DB_NAME:-bezugsweg_probe}"
 ADRESSE="${BEZUGSWEG_ADRESSE:-127.0.0.1:8146}"
 
-# DIE CONSTRAINT STEHT AN EINER STELLE, und sie trägt ihr Verfallsdatum im Kommentar:
+# DIE CONSTRAINT STEHT AN EINER STELLE, und sie ist dieselbe wie im Runbook und in
+# `migration.md`. Das ist Absicht: Eine Constraint, die in der Doku anders steht als im Gate,
+# prüft einen anderen Weg als den beschriebenen.
 #
-# `@RC` ist nötig, solange es nur Vorab-Tags gibt. Sobald `011-004` die Release-Version
-# entscheidet und `v2.0.0` gesetzt ist, gehört hier `^2.0` hin — und im Runbook dieselbe
-# Zeile. Dass beide Stellen dieselbe Zeichenkette tragen, ist Absicht: Eine Constraint, die
-# in der Doku anders steht als im Gate, prüft den falschen Weg.
-CONSTRAINT="${BEZUGSWEG_CONSTRAINT:-^2.0@RC}"
+# Bis `011-004-0003` stand hier `^2.0@RC`, weil es nur Vorab-Tags gab und Composer die bei
+# Standard-Stabilität nicht nimmt. Seit `v2.0.0` gesetzt ist, steht hier die Constraint, die
+# auch ein Projekt schreibt — und damit prüft dieses Gate ab jetzt genau das: dass `^2.0` ohne
+# Zusatz eine **stabile** Version zieht. Käme `v2.0.0` abhanden, fiele der Lauf hier auf
+# "could not be found" statt still auf einen Vorab-Tag zurück.
+CONSTRAINT="${BEZUGSWEG_CONSTRAINT:-^2.0}"
 
 PROJEKT=$(mktemp -d)
 aufraeumen() {

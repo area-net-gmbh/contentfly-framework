@@ -161,7 +161,7 @@ Release aus `lib/contentfly` erzeugt wird. In die `composer.json` des Projekts g
 "repositories": [
     { "type": "vcs", "url": "git@github.com:area-net-gmbh/contentfly-framework-dist.git" }
 ],
-"require": { "areanet/contentfly": "^2.0@RC" },
+"require": { "areanet/contentfly": "^2.0" },
 "config": { "preferred-install": { "areanet/contentfly": "source" } }
 ```
 
@@ -171,8 +171,7 @@ sie `404 Not Found` — was aussieht, als gäbe es das Paket nicht. `source` klo
 SSH. Sie betrifft nur dieses eine Paket; alle anderen kommen von Packagist.
 
 — und sonst nichts; kein Pfad, keine Kopie. **Voraussetzung ist Lesezugriff** auf dieses
-Repository, per Deploy Key oder Organisationskonto. Das `@RC` fällt weg, sobald `v2.0.0` gesetzt
-ist.
+Repository, per Deploy Key oder Organisationskonto.
 
 **Danach ist ein Update `composer update areanet/contentfly`.** Das ist die eigentliche Änderung
 gegenüber 1.x: Der Framework-Baum wird nie wieder angefasst, und eine neue Version überschreibt
