@@ -161,8 +161,14 @@ Release aus `lib/contentfly` erzeugt wird. In die `composer.json` des Projekts g
 "repositories": [
     { "type": "vcs", "url": "git@github.com:area-net-gmbh/contentfly-framework-dist.git" }
 ],
-"require": { "areanet/contentfly": "^2.0@RC" }
+"require": { "areanet/contentfly": "^2.0@RC" },
+"config": { "preferred-install": { "areanet/contentfly": "source" } }
 ```
+
+**Die `config`-Zeile ist nicht optional.** Ohne sie holt Composer das Paket als Zip über die
+GitHub-REST-API, und die kennt einen SSH-Schlüssel nicht: Bei einem privaten Repository antwortet
+sie `404 Not Found` — was aussieht, als gäbe es das Paket nicht. `source` klont stattdessen über
+SSH. Sie betrifft nur dieses eine Paket; alle anderen kommen von Packagist.
 
 — und sonst nichts; kein Pfad, keine Kopie. **Voraussetzung ist Lesezugriff** auf dieses
 Repository, per Deploy Key oder Organisationskonto. Das `@RC` fällt weg, sobald `v2.0.0` gesetzt

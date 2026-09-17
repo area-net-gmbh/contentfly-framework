@@ -49,11 +49,31 @@ dieses Entwicklungs-Repo benutzt:
         "areanet/contentfly": "^2.0@RC",
         "vlucas/phpdotenv": "^5.6"
     },
+    "config": {
+        "preferred-install": { "areanet/contentfly": "source" }
+    },
     "autoload": {
         "psr-4": { "Custom\\": "custom/", "Plugins\\": "plugins/" }
     }
 }
 ```
+
+> **`preferred-install: source` ist nicht optional**, und die Meldung ohne diese Zeile führt in die
+> Irre. Composer bezieht ein Paket am liebsten als `dist`, also als Zip, und holt dieses Zip bei
+> GitHub über die **REST-API**. Die kennt einen SSH-Deploy-Key nicht — bei einem privaten
+> Repository antwortet sie mit
+>
+> ```
+> https://api.github.com/repos/…/zipball/<sha>  →  404 Not Found
+> ```
+>
+> was aussieht, als gäbe es das Paket nicht. `source` heisst *klonen statt herunterladen*, und das
+> geht über SSH — also mit genau dem Zugang, den Sie ohnehin brauchen. Die Zeile betrifft nur
+> dieses eine Paket; alle anderen kommen von Packagist und weiterhin als Zip.
+>
+> Die Alternative wäre ein **API-Token** je Entwickler (`composer config github-oauth.github.com
+> …`). Möglich, aber es hängt an einem Konto statt an einem Repository — dieselbe Abwägung wie bei
+> der Wahl des Deploy Keys.
 
 > **Das `@RC` fällt weg, sobald `v2.0.0` gesetzt ist** — solange es nur Vorab-Tags gibt, nimmt
 > Composer sie bei Standard-Stabilität nicht. Dieselbe Zeichenkette steht in

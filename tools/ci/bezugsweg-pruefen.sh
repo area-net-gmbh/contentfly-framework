@@ -79,11 +79,31 @@ cat > "$PROJEKT/composer.json" <<JSON
         "areanet/contentfly": "$CONSTRAINT",
         "vlucas/phpdotenv": "^5.6"
     },
+    "config": {
+        "preferred-install": { "areanet/contentfly": "source" }
+    },
     "autoload": {
         "psr-4": { "Custom\\\\": "custom/", "Plugins\\\\": "plugins/" }
     }
 }
 JSON
+
+# ── preferred-install: source — und warum das keine Bequemlichkeit ist ─────────────────
+#
+# Composer bezieht ein Paket am liebsten als `dist`, also als Zip. Bei einem Repository auf
+# GitHub holt es dieses Zip über die REST-API — und die kennt einen SSH-Deploy-Key NICHT.
+# Bei einem PRIVATEN Repository antwortet sie mit `404 Not Found`, was aussieht, als gäbe es
+# das Paket nicht.
+#
+# `source` heisst: klonen statt herunterladen. Das geht über SSH und damit mit genau dem
+# Zugang, den der Deploy Key gewährt.
+#
+# DIE ALTERNATIVE WÄRE EIN API-TOKEN je Entwickler und je CI (`composer config
+# github-oauth.github.com …`). Das war schon bei der Wahl des Deploy Keys die verworfene
+# Variante: Ein Token hängt an einem Konto, ein Deploy Key an einem Repository.
+#
+# Die Einschränkung gilt nur für dieses eine Paket — die 54 anderen kommen von Packagist und
+# weiterhin als `dist`.
 
 # ── 2. Beziehen ────────────────────────────────────────────────────────────────────────
 

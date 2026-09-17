@@ -157,3 +157,36 @@ Algorithmus aushandelt, hilft ein einzelner Schlüssel nicht.
 
 **Dieselbe Lücke stand in `paket.yml`** und ist dort mitbehoben — sie fiel nur nicht auf, weil
 jener Job ohne `container:` läuft. Eine Lücke, die sich erst woanders zeigt, ist trotzdem eine.
+
+### Der vierte CI-Lauf: `404` von der GitHub-API — und der wichtigste Fund für ein Projekt
+
+SSH trug, Composer löste das Paket auf, fand `v2.0.0-rc2` und lud alle 55 Pakete. Dann:
+
+```
+https://api.github.com/repos/…/zipball/b8e22a7a…  →  404 Not Found
+Source fallback is disabled. Not trying alternative sources.
+```
+
+**Composer bezieht ein Paket am liebsten als `dist`, also als Zip, und holt es bei GitHub über die
+REST-API.** Die kennt einen SSH-Deploy-Key **nicht** — ein SSH-Schlüssel authentifiziert `git`,
+nicht die API. Bei einem **privaten** Repository antwortet sie mit `404`, also so, als gäbe es das
+Paket gar nicht.
+
+**Lokal war es nie zu sehen**, und der Grund ist derselbe wie beim `plugins/`-Fund: Meine Maschine
+wich auf `source` aus („Cloning … from cache"), weil dort der Rückfall erlaubt ist. In der CI ist
+er abgeschaltet.
+
+**Das trifft nicht die CI, sondern jedes Projekt.** Deshalb steht die Behebung nicht im Gate,
+sondern in der Anleitung — und im Gate nur, weil es dieselbe Anleitung fährt:
+
+```json
+"config": { "preferred-install": { "areanet/contentfly": "source" } }
+```
+
+`source` heisst *klonen statt herunterladen*, und das geht über SSH — mit genau dem Zugang, den ein
+Projekt ohnehin braucht. Die Zeile betrifft **nur dieses eine Paket**; die anderen 54 kommen von
+Packagist und weiterhin als Zip.
+
+**Die Alternative wäre ein API-Token** je Entwickler und je CI (`composer config
+github-oauth.github.com …`). Das war schon bei der Wahl des Deploy Keys die verworfene Variante:
+Ein Token hängt an einem Konto, ein Deploy Key an einem Repository.
