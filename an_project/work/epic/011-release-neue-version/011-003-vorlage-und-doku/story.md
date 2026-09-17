@@ -28,3 +28,6 @@ aufsetzen kann und die Beispiele in `custom/` das tun, was sie behaupten.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. Geschnitten beim Start der Story. -->
+- [ ] 011-003-0001 — Die Vorlage auf den Zielzustand bringen
+- [ ] 011-003-0002 — Den README auf Contentfly 2 bringen
+- [ ] 011-003-0003 — dev-guide und technical auf den echten Weg bringen

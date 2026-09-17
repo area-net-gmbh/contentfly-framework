@@ -2,6 +2,17 @@
 
 # Changelog
 
+## 2026-09-17
+- 011-003-0001 task created: "Die Vorlage auf den Zielzustand bringen"
+- 011-003-0002 task created: "Den README auf Contentfly 2 bringen"
+- 011-003-0003 task created: "dev-guide und technical auf den echten Weg bringen"
+- 011-003-0000 refined: **Sechs Befunde aus der Bestandsaufnahme, in zwei Gruppen.** Die Vorlage zeigt an der wichtigsten Stelle das Falsche — `ApiResponseService` antwortet mit `success`/`status`/`i18n`, also genau in der Form, die `api-envelope.md` ausdrücklich verworfen hat; dazu eine **tote** Twig-Datei (bindet drei nicht existierende Partials ein, Twig ist in keinem Manifest) und zwei leere Verzeichnisse, die es in einem frischen Checkout gar nicht gibt. Die Doku: Der README beschreibt „Das Contentfly CMS" samt PHP 7.1 und Ant-Build — ein Produkt, das es nicht mehr gibt; im `dev-guide` sind *Neue API-Route* und *API-Dokumentation* nie ausgefüllte Platzhalter, die von Bundles sprechen statt vom `RouteManager`; und die Antwortform aus `011-001` steht nirgends ausser in einem Entscheidungsdokument. Offen und in `0001` festgehalten: ob `ApiResponseService` die Framework-Klasse benutzt oder als Beispiel für eine eigene Projektform stehen bleibt.
+
+> **Zur Datierung:** Die Einträge über den GitHub-Umzug, die Actions-Pipeline und das Paket stehen
+> unter dem 2026-09-16, obwohl ein Teil der Arbeit am 17. lief — die Sitzung hat Mitternacht
+> überschritten, und nachträglich umzusortieren hiesse raten, wo die Grenze lag. Wo das Datum
+> zählt, steht es im Eintrag selbst.
+
 ## 2026-09-16
 - 000-000-0049 task created: "Proxies aus einer älteren Version werden geladen statt ersetzt"
 - 000-000-0049 refined: **Regression aus `000-000-0047`, gefunden bei der Messung zu `000-000-0041`.** Proxies lagen in `data/cache/doctrine`; seit der Vorgabe `FILE_NOT_EXISTS_OR_CHANGED` wird eine Proxy nur ersetzt, wenn sie älter ist als die Entity — die des alten Betriebs ist jünger, und Composer-Dateien tragen das Datum ihres Archivs. Gemessen an der UFP-Datenkopie: `500 Interface "Doctrine\ORM\Proxy\Proxy" not found`. Entschieden: ein Verzeichnis je Framework- und ORM-Stand.
