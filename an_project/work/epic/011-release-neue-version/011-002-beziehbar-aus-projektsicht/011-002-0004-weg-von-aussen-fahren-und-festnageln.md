@@ -1,7 +1,7 @@
 ---
 id: 011-002-0004
 title: Den Weg von aussen fahren, ins Runbook schreiben und als Gate festnageln
-status: review
+status: done
 depends_on: [011-002-0003]
 ---
 
