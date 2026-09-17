@@ -313,6 +313,30 @@ Dev-Werkzeuge lagen im ausgelieferten Baum: `phpstan/phpstan` 1.10.58 und `recto
 seit `006-002` in `require-dev`, und `composer install --no-dev --optimize-autoloader` lässt sie
 im Deployment-Artefakt weg (49 statt 77 Pakete, in `006-003-0002` nachgemessen).
 
+## Der API-Vertrag: eine Antwortform
+
+**Seit Epic `011` antwortet jeder JSON-Endpunkt mit `data`, `errors` und `meta`** — Erfolg wie
+Fehler, `/api/*` wie `/auth/*`, `/file/*` und `/system/do`. Das ist Teil dessen, was diese Version
+zusichert, und nicht nur eine Aufräumarbeit: Vorher brauchte ein Client **einen Leser je
+Endpunkt**, weil siebzehn Antwortstellen sieben Formen trugen und die Fehlerform eine achte war.
+
+Drei Eigenschaften, auf die sich ein Client verlassen kann:
+
+- **`data` und `errors` sind immer beide vorhanden.** Auf Erfolg ist `errors` `null`, auf Fehler
+  `data`. Ein Client kann also auf `errors` sehen, **bevor** er weiss, was er bekommen hat.
+- **Ein Fehlereintrag hat vier feste Schlüssel** — `code`, `detail`, `type`, `context`. Welche
+  gefüllt sind, hängt nicht mehr davon ab, welche Ausnahme flog.
+- **Der Statuscode steht nicht im Rumpf.** Er steht in der HTTP-Antwort, und zwei Quellen für
+  dieselbe Aussage laufen irgendwann auseinander.
+
+**Gemessen, nicht behauptet:** `tests/Integration/Api/EnvelopeApiTest.php` läuft alle Endpunkte in
+Schleifen durch und wertet jede Antwort mit **derselben** Leserfunktion aus, die nichts kennt als
+diese drei Schlüssel. Zwanzig Einzeltests hätten belegt, dass jeder Endpunkt *eine* Form hat; nur
+ein Durchlauf über alle belegt, dass es **dieselbe** ist.
+
+Die Form je Endpunkt, die Begründungen und der Weg für einen Client stehen in
+`an_project/docs/api-envelope.md`; der Bruch gegenüber 1.x in `breaking-changes.md`.
+
 ## Die Testsuite ist die Abnahmegrundlage
 
 **Festgelegt am 2026-09-08 mit Story `008-005`.** Epic `008` hat 238 Tests und 575 Assertions

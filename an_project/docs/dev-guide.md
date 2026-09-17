@@ -8,36 +8,104 @@
 # Dev-Guide — Struktur & neue Bausteine
 
 ## Backend-Struktur
-<!-- Die Bundles dieses Projekts und ihre Verantwortlichkeiten. Symfony wird IMMER in
-     Bundles organisiert (wie Shopware 6), egal ob 1 oder 10 Bundles — siehe tech-stack.md. -->
 
-| Bundle | Verantwortung |
+**Keine Bundles — und das ist eine Entscheidung, kein Versäumnis.** `tech-stack.md` nennt die
+Bundle-Regel als Konstante für Symfony-Projekte und sagt im selben Atemzug: „Die Bundle-Regel
+greift erst, wenn ein Epic sie einführt." Epic `009` hat den Unterbau getauscht und die
+Schnittstelle gehalten; Routen entstehen weiterhin über `custom/app.php`.
+
+Die Struktur ist stattdessen die Grenze zwischen Paket und Projekt, die Epic `007` gezogen hat:
+
+| Ort | Verantwortung |
 |---|---|
-| <!-- z. B. CatalogBundle --> | <!-- Produkte, Kategorien --> |
+| `lib/contentfly/` | das Paket `areanet/contentfly` — Kernel, API-Controller, Entities, Security, Console. **Ein Projekt fasst es nie an.** |
+| `custom/Controller/` | die Routen des Projekts, registriert in `custom/app.php` |
+| `custom/Entity/` | die Entities des Projekts; Unterverzeichnisse werden Teil des Kurznamens (`Core\Example`) |
+| `custom/Classes/` | Dienste, Anmeldeprovider, alles Übrige des Projekts |
+| `custom/Command/` | Console-Commands, registriert über den `consoleManager` |
+| `custom/Traits/` | Erweiterungen der Framework-Entities (`User`, `Group`, `File`, `Folder`) |
+| `plugins/` | der zweite Slot, `Plugins\` im Autoloader |
 
 ## Frontend-Struktur
-<!-- Modul-Map: src/modules/<feature> + src/shared. Angular (mit/ohne Ionic) wird IMMER so
-     aufgebaut — siehe tech-stack.md. -->
 
-| Modul | Verantwortung |
-|---|---|
-| <!-- z. B. src/modules/checkout --> | <!-- Warenkorb, Bezahlung --> |
-| `src/shared` | Wiederverwendbare Components, Services, Pipes |
+**Es gibt keines.** Die mitgelieferte Oberfläche ist mit Epic `012` ersatzlos entfallen; Zugriff
+erfolgt über die API und die Console. Wer ein Frontend braucht, baut es als eigenes Projekt gegen
+die API — die Modul-Regel aus `tech-stack.md` (`src/modules` + `src/shared`) gilt dann **dort**,
+nicht hier.
 
 ## Neue API-Route hinzufügen
-<!-- Konkrete Schritte für DIESEN Code: in welchem Bundle der Controller liegt, welches
-     Route-Attribut, wie die Route getestet wird. -->
-1. Controller im zuständigen Bundle anlegen (`#[Route(...)]`).
-2. <!-- Request/Response-DTO, Validierung, Service-Aufruf. -->
-3. API-Doku neu generieren (siehe unten).
+
+**Nicht über ein `#[Route(...)]`-Attribut** — Routen entstehen hier über den `routeManager` in
+`custom/app.php`. Das Beispiel in der Vorlage ist vollständig; hier steht es in Schritten.
+
+**1. Controller anlegen** unter `custom/Controller/`, abgeleitet von
+`Areanet\PIM\Classes\Controller\BaseController`. Die Ableitung ist der Punkt: Sie bringt
+`$this->em`, `$this->app` und — seit `011-001-0004` — `renderResponse()` und `renderError()` mit.
+
+**2. Route registrieren** in `custom/app.php`:
+
+```php
+$controllerProvider = $app['routeManager'];
+
+$controllerProvider->mount('api/v1/example/', '\Custom\Controller\Core\ExampleController')
+    ->post('/bootstrap', false, 'bootstrapAction');
+```
+
+`mount(<Pfad>, <Controller-Klasse>)`, danach `->get()`, `->post()` oder `->match()` mit
+`(<Route>, <isSecure>, <Aktion>)`. **`isSecure` ist die Authentifizierungsentscheidung je Route:**
+`true` verlangt ein gültiges Token. Sie hing unter Silex an einem `before()`-Filter, heute an
+einem Listener auf `kernel.controller` — am Aufruf hier hat sich nichts geändert.
+
+**3. Antworten** — siehe den nächsten Abschnitt. Eine Route, die eine eigene Form erfindet, ist
+der Fehler, den Epic `011` beseitigt hat.
+
+**4. Testen.** `tests/Integration/Api/TemplateApiTest.php` zeigt, wie eine Projekt-Route über HTTP
+gemessen wird; `RouteSecurityApiTest` prüft die `isSecure`-Seite.
+
+## Die Antwortform — `data`, `errors`, `meta`
+
+**Jeder JSON-Endpunkt antwortet gleich, Erfolg wie Fehler** (Epic `011`). Wer eine Route baut,
+baut diese Form nicht nach, sondern benutzt sie:
+
+```json
+{ "data": …, "errors": null,
+  "meta": { "ts": "…", "version": "…", "projectVersion": "…", "hash": "…" } }
+```
+
+| Was | Womit |
+|---|---|
+| In einem Controller, der von `BaseController` erbt | `$this->renderResponse($data, $status, $meta)` |
+| Eine Ablehnung, die der Controller selbst entscheidet | `$this->renderError($code, $detail, $status)` |
+| Ausserhalb eines Controllers | `Areanet\PIM\Classes\Envelope::success()` / `::failure()` |
+| In der Vorlage nachzusehen | `custom/Classes/Service/Core/ApiResponseService.php` |
+
+**`data` und `errors` sind immer beide da.** Im Erfolgsfall ist `errors` `null`, im Fehlerfall
+`data` — damit ein Client auf `errors` sehen kann, ohne vorher zu wissen, was er bekommen hat.
+Alles, was die Antwort **beschreibt** statt sie zu sein, gehört in `meta`: `totalItems`,
+`itemsPerPage`, `lastModified`, eigene Zusätze.
+
+**Ein Fehlereintrag hat vier feste Schlüssel** — `code` (worauf ein Client verzweigt), `detail`
+(für einen Menschen), `type` (die Ausnahmeklasse) und `context` (alles, was das Projekt darüber
+hinaus weiss, etwa ein Übersetzungsschlüssel). Welche davon gefüllt sind, hängt **nicht** mehr
+davon ab, welche Ausnahme flog.
+
+Ein Statuscode gehört **nicht** in den Rumpf: Er steht in der HTTP-Antwort, und zwei Quellen für
+dieselbe Aussage laufen irgendwann auseinander. Die vollständige Begründung und die Tabelle je
+Endpunkt stehen in `an_project/docs/api-envelope.md`.
 
 ## API-Dokumentation
-<!-- Die API-Doku wird AUTOMATISCH generiert, nicht von Hand gepflegt. Womit (z. B.
-     nelmio/api-doc-bundle bzw. api-platform für Symfony; compodoc für Angular), welcher
-     Befehl sie neu baut, und wo das Ergebnis (OpenAPI/Swagger) liegt. -->
-- Generator: <!-- z. B. nelmio/api-doc-bundle -->
-- Befehl: <!-- z. B. bin/console nelmio:apidoc:dump -->
-- Ausgabe: <!-- z. B. http://localhost:8000/api/doc -->
+**Generiert aus den `@api`-Annotationen in den Controllern**, nicht von Hand gepflegt. 27 davon
+stehen heute in `lib/contentfly/Controller/`.
+
+| | |
+|---|---|
+| Generator | [apidoc](https://apidocjs.com/) — **kein Composer-Paket**, muss global installiert sein (`npm i -g apidoc`) |
+| Konfiguration | `apidoc.json` im Wurzelverzeichnis |
+| Befehl | `ant apidoc` (Ziel in `build.xml`) oder `apidoc -i lib/contentfly/Controller/` |
+
+**Zwei Einschränkungen, die man kennen sollte:** Der Generator liest nur
+`lib/contentfly/Controller/` — Routen eines Projekts aus `custom/` sind **nicht** enthalten. Und
+die `@api`-Blöcke tragen noch die Antwortbeispiele von vor Epic `011`; sie nachzuziehen ist offen.
 
 ## Die zugesicherten `$app[...]`-Schlüssel
 
@@ -177,7 +245,7 @@ einen alten Stand stösst und diesen Fehler sieht: Das ist die Ursache.
 
 ## Anmeldung über ein Fremdsystem
 
-<!-- Ausgefüllt mit Story 013-005. Der Rest dieser Datei ist noch Vorlage. -->
+<!-- Ausgefüllt mit Story 013-005. -->
 
 Contentfly bringt zwei Provider mit, LDAP/Active Directory und OIDC. **Beide sind nicht
 eingetragen** — ein Projekt trägt ein, was es braucht, und solange nichts eingetragen ist, gibt
