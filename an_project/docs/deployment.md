@@ -74,6 +74,9 @@ ist das Gerüst; die Schritte stehen unverändert in `tools/ci/*.sh`.
 jeden Branch, wie die GitLab-Fassung es tat: Das prüfte auch Zwischenstände, die noch gar nicht
 grün sein sollten. `workflow_dispatch` erlaubt zusätzlich den Start von Hand.
 
+**Und seit `000-000-0055` täglich um 06:00 UTC** — dann aber **nur** `check-audit`; siehe *Die
+Gates*, Abschnitt *Das Sicherheits-Gate läuft auch ohne Commit*.
+
 | Job | Stage | Was er tut |
 |---|---|---|
 | `check-template-config` | — | Verhindert, dass eine installierte `custom/config.php` in die Historie gerät |
@@ -357,14 +360,36 @@ Request geladen wird und ein inaktiver abgewiesen wird.
 
 ## Die Gates
 
-Vier Prüfungen, verankert mit Story `006-005`. Zwei blockieren, zwei melden:
+Vier Prüfungen, verankert mit Story `006-005`. **Inzwischen blockieren alle vier** — jede
+einzeln eingelöst, nicht gesammelt umgeschaltet:
 
 | Prüfung | prüft | blockiert | wo |
 |---|---|---|---|
 | `composer audit --locked` | den Lock gegen die Advisory-Datenbank | **ja** | `tools/ci/audit.sh` |
 | abgelaufene Audit-Ausnahmen | ob jede Ausnahme noch greift | **ja** | `tools/ci/audit-ausnahmen-pruefen.sh` |
-| Deprecations zur Laufzeit | das Serverlog nach dem Testlauf | **ja** auf PHP 8.3, melden auf 8.4 | `tools/ci/deprecations-pruefen.sh` |
-| PHPStan | deprecated APIs ohne Ausführung | nein (`allow_failure`) | `phpstan.neon.dist` |
+| Deprecations zur Laufzeit | das Serverlog nach dem Testlauf | **ja**, auf 8.3 **und** 8.4 | `tools/ci/deprecations-pruefen.sh` |
+| PHPStan | deprecated APIs ohne Ausführung | **ja seit `009-003-0003`** | `phpstan.neon.dist` |
+
+> **Diese Tabelle stand bis `000-000-0055` auf einem älteren Stand** — sie führte PHPStan als
+> `allow_failure` und die Deprecations auf 8.4 als „melden". Beides war seit Epic `009` bzw.
+> `010` überholt. Wer eine Gate-Tabelle liest, prüft nicht nach; deshalb steht hier jetzt, was
+> `pipeline.yml` tatsächlich tut.
+
+### Das Sicherheits-Gate läuft auch ohne Commit
+
+**Seit `000-000-0055` täglich um 06:00 UTC** (`schedule: cron` in `pipeline.yml`). Nur
+`check-audit` — die anderen fünf Jobs tragen `if: github.event_name != 'schedule'`.
+
+**Der Grund ist der Unterschied zwischen den beiden Seiten einer Audit-Prüfung:** Der Lock
+ändert sich nur durch einen Commit, die Advisory-Datenbank, gegen die er geprüft wird, ändert
+sich täglich. Ein Auslöser am Commit deckt deshalb genau den Fall nicht ab, der am
+wahrscheinlichsten ist — eine Lücke, die in einem Paket veröffentlicht wird, an dem niemand
+arbeitet.
+
+**Dazu, aus derselben Entscheidung:** Dependabot (`.github/dependabot.yml`, wöchentlich und
+gruppiert, für Composer **und** GitHub Actions) und `SECURITY.md`. Die beiden Wege ergänzen
+sich statt sich zu ersetzen — Dependabot benachrichtigt passiv aus GitHubs Datenbank,
+`composer audit` prüft aktiv gegen die von FriendsOfPHP, die im PHP-Umfeld oft früher dran ist.
 
 Alle vier laufen mit demselben Aufruf lokal in Docker. Eine Pipeline-Definition, deren Schritte
 man nur in der Pipeline ausprobieren kann, ist beim Suchen eines Fehlers nutzlos.
