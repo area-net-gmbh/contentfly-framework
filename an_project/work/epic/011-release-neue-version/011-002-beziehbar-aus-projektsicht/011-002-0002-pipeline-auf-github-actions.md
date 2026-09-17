@@ -1,7 +1,7 @@
 ---
 id: 011-002-0002
 title: Die Pipeline auf GitHub Actions bringen
-status: review
+status: done
 depends_on: [011-002-0001]
 ---
 

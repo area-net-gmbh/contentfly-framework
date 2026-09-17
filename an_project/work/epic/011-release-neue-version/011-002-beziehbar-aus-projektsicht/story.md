@@ -57,6 +57,6 @@ und der Weg im Runbook steht.
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. Geschnitten beim Start der Story. -->
 - [x] 011-002-0001 — Das Repository nach GitHub umziehen
-- [ ] 011-002-0002 — Die Pipeline auf GitHub Actions bringen
+- [x] 011-002-0002 — Die Pipeline auf GitHub Actions bringen
 - [ ] 011-002-0003 — Das Paket per Subtree-Split ausliefern
 - [ ] 011-002-0004 — Den Weg von aussen fahren, ins Runbook schreiben und als Gate festnageln

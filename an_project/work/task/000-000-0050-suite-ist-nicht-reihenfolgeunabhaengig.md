@@ -1,7 +1,7 @@
 ---
 id: 000-000-0050
 title: Die Suite ist nicht reihenfolgeunabhängig — ein Lauf von vier war rot
-status: review
+status: done
 depends_on: []
 ---
 
