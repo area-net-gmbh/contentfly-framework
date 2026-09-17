@@ -90,3 +90,19 @@ selbst, und sie hatte recht.
 
 **Verifiziert:** Unit-Suite `312 Tests, 1026 Assertions`; das Gate lokal gegen das echte
 Paket-Repository grün.
+
+### Der erste CI-Lauf des Gates: Exit 127
+
+`ssh-keyscan` gibt es in `php:8.3-cli` nicht — das Image bringt kein `openssh-client` mit. Die
+Meldung nannte nur dieses eine Kommando; **gefehlt hätte auch `ssh` selbst**, und damit wäre der
+`composer install` über SSH ohnehin unmöglich gewesen.
+
+**Warum es in `paket.yml` ohne ging:** Jener Job läuft **ohne** `container:` auf `ubuntu-latest`,
+und das Runner-Image bringt `openssh-client` mit. Wer die beiden Workflows einmal vereinheitlicht,
+fällt genau hier hinein — deshalb steht die Begründung in `install-php-extensions.sh` und nicht als
+Zeile in einem der beiden Workflows.
+
+Nebenbei: Die naheliegende Ausgabe `ssh -V 2>&1` hätte `CiStepsTest` ausgelöst — `ssh` schreibt
+seine Version nach `stderr`, und das Einfangen sieht aus wie ein unterdrückter Schritt. Statt einer
+Ausnahme im Wächter fragt die Zeile jetzt `dpkg-query`. Eine Ausnahme einzutragen, nur um eine
+Versionsnummer zu zeigen, wäre ein schlechter Tausch gewesen.
