@@ -1,7 +1,7 @@
 ---
 id: 011-004-0003
 title: Die Version vergeben, taggen und @RC entfernen
-status: review
+status: done
 depends_on: [011-004-0002]
 ---
 

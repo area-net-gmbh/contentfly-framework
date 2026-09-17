@@ -1,7 +1,7 @@
 ---
 id: 011-004-0000
 title: Version, Gates und Upgrade-Pfad festschreiben
-status: in-progress
+status: done
 depends_on: [011-001-0000, 011-002-0000, 011-003-0000]
 ---
 
@@ -33,6 +33,6 @@ das Release beschrieben ist.
 
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. Geschnitten beim Start der Story. -->
-- [ ] 011-004-0001 — Die Gates schärfen: Silex-Freiheit und PHP 8.5
-- [ ] 011-004-0002 — Das Release beschreiben: Bruchstellen, Erfolgskriterien, Upgrade-Pfad
-- [ ] 011-004-0003 — Die Version vergeben, taggen und @RC entfernen
+- [x] 011-004-0001 — Die Gates schärfen: Silex-Freiheit und PHP 8.5
+- [x] 011-004-0002 — Das Release beschreiben: Bruchstellen, Erfolgskriterien, Upgrade-Pfad
+- [x] 011-004-0003 — Die Version vergeben, taggen und @RC entfernen

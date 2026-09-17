@@ -1,7 +1,7 @@
 ---
 id: 011-004-0001
 title: Die Gates schärfen: Silex-Freiheit und PHP 8.5
-status: review
+status: done
 depends_on: []
 ---
 

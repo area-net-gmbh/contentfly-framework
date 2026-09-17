@@ -104,4 +104,4 @@ ab und meldet `014` als Lücke. Deshalb steht hier die Begründung und nicht nur
 - [x] 011-001-0000 — Den Antwort-Envelope der API vereinheitlichen
 - [x] 011-002-0000 — Das Framework aus Projektsicht beziehbar machen
 - [x] 011-003-0000 — Vorlage und Doku auf den Zielzustand bringen
-- [ ] 011-004-0000 — Version, Gates und Upgrade-Pfad festschreiben
+- [x] 011-004-0000 — Version, Gates und Upgrade-Pfad festschreiben

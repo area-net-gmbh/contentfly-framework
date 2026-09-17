@@ -1,7 +1,7 @@
 ---
 id: 011-004-0002
 title: Das Release beschreiben: Bruchstellen, Erfolgskriterien, Upgrade-Pfad
-status: review
+status: done
 depends_on: [011-004-0001]
 ---
 
