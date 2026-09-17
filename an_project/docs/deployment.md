@@ -105,6 +105,38 @@ deshalb blockierend wird, ist eine offene Entscheidung.
   `dist`), sondern für `tools/migration/inventory.php`: Es liest die git-Historie der
   Framework-Kopie eines Projekts. Die Begründung steht in `tools/ci/install-php-extensions.sh`.
 
+## Eine Version herausgeben
+
+**Seit `011-002-0003`.** Ein Tag `v*` auf `master` löst `.github/workflows/paket.yml` aus; der
+Lauf löst `lib/contentfly` per `git subtree split` heraus und schiebt es nach
+`area-net-gmbh/contentfly-framework-dist`, wo die `composer.json` dann in der **Wurzel** liegt —
+die Bedingung, unter der Composer ein Paket überhaupt lesen kann.
+
+**Der Ablauf:**
+
+1. `lib/contentfly/composer.json` und `lib/contentfly/version.php` auf die neue Version setzen.
+   Beide, nicht eine — `PackageManifestTest` hält sie zusammen.
+2. Committen, nach `master` bringen, warten bis die Pipeline grün ist.
+3. `git tag v<version> && git push origin v<version>`.
+
+**Was dabei schiefgehen kann, und was der Lauf dagegen tut:**
+
+| Fehler | was passiert |
+|---|---|
+| Tag und Manifest nennen verschiedene Versionen | **Abbruch vor dem Push.** Verglichen wird der Kern des Tags; ein Vorab-Zusatz wie `-rc1` ist erlaubt, ein abweichender Kern nicht. |
+| Das Präfix verrutscht, die `composer.json` landet nicht in der Wurzel | **Abbruch**, mit einer Liste dessen, was stattdessen gefunden wurde |
+| `tests/`, `an_project/` oder `tools/` geraten ins Paket | **Abbruch** — geprüft wird jeder der fünf Namen einzeln |
+| Der Deploy Key fehlt oder darf nur lesen | Abbruch mit Meldung bzw. Fehlschlag beim Push; „Allow write access" ist das Häkchen, das dabei fehlt |
+| Ein flacher Klon | `fetch-depth: 0` steht im Workflow — ohne volle Historie hat `subtree split` nichts zu spalten |
+
+**Erproben, ohne etwas zu veröffentlichen:** *Actions → Paket veröffentlichen → Run workflow*,
+mit einem Tag-Namen und angehaktem Trockenlauf. Der Split wird dann gebaut und geprüft, der Push
+bleibt weg. Ein Tag lässt sich nur einmal richtig setzen — deshalb gibt es diesen Weg.
+
+**Ein Vorab-Tag ist die sichere Vollprobe.** `v<version>-rc1` durchläuft alles bis zum Push, und
+ein Projekt mit `^<version>` zieht ihn trotzdem nicht: Composer nimmt Vorab-Versionen bei
+Standard-Stabilität nicht.
+
 ### Warum die Schritte in `tools/ci/` stehen
 Eine Pipeline-Definition, deren Schritte man nur in der Pipeline ausprobieren kann, ist beim
 Suchen eines Fehlers nutzlos. `install-php-extensions.sh` und `prepare-test-environment.sh`

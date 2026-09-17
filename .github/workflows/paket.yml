@@ -1,0 +1,85 @@
+# Veröffentlicht das Framework als Composer-Paket (011-002-0003).
+#
+# Läuft bei einem Tag `v*` und schiebt `lib/contentfly` als eigenständiges Repository nach
+# `area-net-gmbh/contentfly-framework-dist`. Der Grund steht in
+# `tools/ci/paket-veroeffentlichen.sh`: Composer liest die `composer.json` aus der WURZEL
+# eines Repositories, unsere liegt in einem Unterordner.
+#
+# EINZUTRAGEN, bevor der erste Tag gesetzt wird:
+#   PAKET_REPO_DEPLOY_KEY   Privater Teil eines Deploy Keys, der auf
+#                           contentfly-framework-dist SCHREIBEN darf ("Allow write access").
+#                           Ein Deploy Key statt eines Personal Access Tokens: Er hängt an
+#                           genau einem Repository statt an einem Benutzerkonto und stirbt
+#                           nicht, wenn jemand das Unternehmen verlässt.
+#
+# WARUM NICHT DER GITHUB_TOKEN DES LAUFS: Er gilt nur für sein eigenes Repository. Er kann
+# nach contentfly-framework schreiben, nach contentfly-framework-dist nicht.
+
+name: Paket veröffentlichen
+
+on:
+  push:
+    tags: ['v*']
+  # Von Hand, mit Tag als Eingabe — für den Trockenlauf, der den Split baut und prüft, ohne
+  # ein fremdes Repository zu beschreiben. Das ist der Weg, diesen Workflow zu erproben:
+  # Ein Tag lässt sich nur einmal richtig setzen.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag, der geprüft werden soll (z. B. v2.0.0)'
+        required: true
+      trocken:
+        description: 'Trockenlauf — alles bauen und prüfen, nicht pushen'
+        type: boolean
+        default: true
+
+jobs:
+  veroeffentlichen:
+    name: "lib/contentfly → contentfly-framework-dist"
+    runs-on: ubuntu-latest
+
+    steps:
+      # VOLLE HISTORIE. `git subtree split` baut aus der Historie des Präfixes eine eigene;
+      # mit dem flachen Klon der Vorgabe (fetch-depth: 1) hat es nichts zu spalten.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # `git subtree split` schreibt Commits und braucht dafür einen Autor. Der Name sagt,
+      # was die Commits sind: erzeugt, nicht von einem Menschen geschrieben.
+      - name: Git-Identität für den Split
+        run: |
+          git config user.name  'Contentfly CI'
+          git config user.email 'ci@area-net.de'
+
+      - name: Deploy Key einrichten
+        env:
+          SCHLUESSEL: ${{ secrets.PAKET_REPO_DEPLOY_KEY }}
+        run: |
+          if [ -z "$SCHLUESSEL" ]; then
+            echo "✗ Das Secret PAKET_REPO_DEPLOY_KEY ist nicht gesetzt." >&2
+            echo "  Ohne es kann der Lauf nicht in das Paket-Repository schreiben; siehe den" >&2
+            echo "  Kopf dieser Datei." >&2
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SCHLUESSEL" > ~/.ssh/paket_deploy_key
+          chmod 600 ~/.ssh/paket_deploy_key
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Veröffentlichen
+        env:
+          PAKET_REPO_URL: git@github.com:area-net-gmbh/contentfly-framework-dist.git
+          # Der Tag kommt aus dem Ref, wenn ein Tag den Lauf ausgelöst hat — sonst aus der
+          # Eingabe des Starts von Hand.
+          TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+          PAKET_TROCKEN: ${{ github.event_name == 'workflow_dispatch' && inputs.trocken && '1' || '0' }}
+          # IdentitiesOnly, damit kein anderer Schlüssel des Runners angeboten wird — dieselbe
+          # Falle, die beim Umzug (011-002-0001) eine Stunde gekostet hat: Der Agent bot seine
+          # Schlüssel zuerst an, und GitHub sah das falsche Konto.
+          GIT_SSH_COMMAND: ssh -i ~/.ssh/paket_deploy_key -o IdentitiesOnly=yes -o IdentityAgent=none
+        run: sh tools/ci/paket-veroeffentlichen.sh
+
+      - name: Schlüssel wegräumen
+        if: always()
+        run: rm -f ~/.ssh/paket_deploy_key

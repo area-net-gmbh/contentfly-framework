@@ -63,6 +63,21 @@ class CiStepsTest extends TestCase
                 .'waits for its command, but this command is precisely not supposed to end.',
             ),
         ),
+        'paket-veroeffentlichen.sh' => array(
+            array(
+                'git cat-file -e "$SPLIT:composer.json" 2>/dev/null',
+                'A query, not work: it determines WHETHER the split has a composer.json at its '
+                .'root. The "not found" on stderr IS the answer being asked for, and the failure '
+                .'is handled right below with its own message and a listing of what was found '
+                .'instead. `schritt` would report the expected case as a broken step.',
+            ),
+            array(
+                'git cat-file -e "$SPLIT:$verboten" 2>/dev/null',
+                'The same query with the opposite expectation: here the file must NOT exist, so '
+                .'the silent failure is the good case. Reporting it would make every correct run '
+                .'print five errors.',
+            ),
+        ),
         'audit-ausnahmen-pruefen.sh' => array(
             array(
                 'composer --version --no-ansi 2>/dev/null',
