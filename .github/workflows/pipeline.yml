@@ -180,19 +180,39 @@ jobs:
             echo "  Ohne es kann dieser Job das Paket-Repository nicht lesen." >&2
             exit 1
           fi
-          mkdir -p ~/.ssh
-          printf '%s\n' "$SCHLUESSEL" > ~/.ssh/paket_deploy_key
-          chmod 600 ~/.ssh/paket_deploy_key
-          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "$SCHLUESSEL" > "$HOME/.ssh/paket_deploy_key"
+          chmod 600 "$HOME/.ssh/paket_deploy_key"
+
+          # NICHT `2>/dev/null`, UND MIT GEGENPROBE (011-002-0004).
+          #
+          # Der erste Anlauf verschluckte die Ausgabe von ssh-keyscan und prüfte nicht, ob
+          # etwas herauskam. Composer scheiterte danach an „Host key verification failed" —
+          # eine Meldung, die auf den Schlüssel zeigt und nicht auf die leere Datei. Eine
+          # unterdrückte Diagnose kostet dieselbe Stunde wie beim Datenbank-Wartelauf.
+          ssh-keyscan -t rsa,ecdsa,ed25519 github.com >> "$HOME/.ssh/known_hosts"
+          if ! grep -q '^github.com ' "$HOME/.ssh/known_hosts"; then
+            echo "✗ ssh-keyscan hat keinen Host-Key für github.com geliefert." >&2
+            echo "  Ohne ihn lehnt ssh die Verbindung ab, und Composer meldet nur" >&2
+            echo "  \"Host key verification failed\" — was nach einem Problem mit dem" >&2
+            echo "  Deploy Key aussieht und keines ist." >&2
+            exit 1
+          fi
+          echo "  ✓ $(grep -c '^github.com ' "$HOME/.ssh/known_hosts") Host-Key(s) für github.com"
 
       - name: Ein Projekt von aussen aufsetzen
         env:
-          GIT_SSH_COMMAND: ssh -i ~/.ssh/paket_deploy_key -o IdentitiesOnly=yes -o IdentityAgent=none
+          # Absolute Pfade statt `~`: Die Tilde löst die Shell auf, die git für
+          # GIT_SSH_COMMAND startet — und welche das ist, hängt vom Aufrufer ab. $HOME ist
+          # in beiden Fällen dasselbe.
+          #
+          # UserKnownHostsFile ausdrücklich, damit nicht offenbleibt, welche Datei ssh liest.
+          GIT_SSH_COMMAND: ssh -i $HOME/.ssh/paket_deploy_key -o IdentitiesOnly=yes -o IdentityAgent=none -o UserKnownHostsFile=$HOME/.ssh/known_hosts
         run: sh tools/ci/bezugsweg-pruefen.sh
 
       - name: Schlüssel wegräumen
         if: always()
-        run: rm -f ~/.ssh/paket_deploy_key
+        run: rm -f "$HOME/.ssh/paket_deploy_key"
 
   test:
     name: "test: PHP ${{ matrix.php }}"

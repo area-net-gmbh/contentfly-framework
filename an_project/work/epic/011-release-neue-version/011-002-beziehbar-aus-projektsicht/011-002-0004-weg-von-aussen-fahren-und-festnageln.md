@@ -130,3 +130,30 @@ Begründung: „Laufzeitdaten bleiben draussen, die Verzeichnisse selbst gehöre
 erkannt — weder `custom/app.php` noch der `PluginManager` durchsuchen das Verzeichnis, sie müssen
 ausdrücklich registriert werden. Die acht Verzeichnisse lagen wirkungslos herum. Entfernt sind sie
 trotzdem.
+
+### Der dritte CI-Lauf: `Host key verification failed` — und meine eigene unterdrückte Diagnose
+
+Composer kam bis zum Klonen und scheiterte an der Host-Key-Prüfung. **Und ich konnte nicht sagen,
+warum**, weil der Schritt davor seine Ausgabe wegwarf:
+
+```
+ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+```
+
+Leer geblieben oder nie gelesen — beides sah gleich aus. **Derselbe Fehler, den ich zwei Stunden
+vorher am Datenbank-Wartelauf behoben hatte**, und ich habe ihn beim Schreiben dieses Workflows
+noch einmal gemacht.
+
+Drei Änderungen, jede gegen eine andere der möglichen Ursachen:
+
+| | |
+|---|---|
+| kein `2>/dev/null` mehr, dazu eine Gegenprobe auf `^github.com ` | eine leere Datei bricht jetzt **hier** ab, mit einer Meldung, die auf sie zeigt — statt zwei Schritte später auf den Deploy Key |
+| `$HOME/...` statt `~/...` | die Tilde löst die Shell auf, die git für `GIT_SSH_COMMAND` startet; welche das ist, hängt vom Aufrufer ab |
+| `-o UserKnownHostsFile=` ausdrücklich | damit nicht offenbleibt, welche Datei `ssh` liest |
+
+Dazu `-t rsa,ecdsa,ed25519` statt nur `ed25519`: Wenn GitHub für eine Verbindung einen anderen
+Algorithmus aushandelt, hilft ein einzelner Schlüssel nicht.
+
+**Dieselbe Lücke stand in `paket.yml`** und ist dort mitbehoben — sie fiel nur nicht auf, weil
+jener Job ohne `container:` läuft. Eine Lücke, die sich erst woanders zeigt, ist trotzdem eine.
