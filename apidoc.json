@@ -1,6 +1,6 @@
 {
-  "name": "Contentfly CMS",
-  "version": "1.6.0",
-  "description": "API-Dokumentation Contentfly CMS",
-  "title": "API-Dokumentation Contentfly CMS"
+  "name": "Contentfly",
+  "version": "2.0.0",
+  "description": "API-Dokumentation Contentfly — erzeugt aus den @api-Annotationen in lib/contentfly/Controller/",
+  "title": "API-Dokumentation Contentfly"
 }
