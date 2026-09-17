@@ -79,18 +79,21 @@ grün sein sollten. `workflow_dispatch` erlaubt zusätzlich den Start von Hand.
 | `check-template-config` | — | Verhindert, dass eine installierte `custom/config.php` in die Historie gerät |
 | `check-audit` | — | `composer audit --locked` gegen die Ausnahmeliste — **blockierend** |
 | `check-phpstan` | — | Statische Analyse gegen die Ausnahmeliste — **blockierend seit `009-003-0003`** |
+| `bezugsweg` | — | Setzt ein Projekt ausserhalb des Repos auf und bezieht das Paket von aussen — **blockierend seit `011-002-0004`** |
 | `test (8.3)` | Matrix | Beide Testsuiten gegen eine frisch installierte Instanz — **pflicht** |
 | `test (8.4)` | Matrix | Derselbe Lauf auf PHP 8.4 — **blockierend seit `010-003-0003`** |
 
 **Der erste Lauf auf GitHub Actions war grün am 2026-09-17** — nach drei Anläufen, die zwei
 echte Befunde zutage gefördert haben; beide stehen in `011-002-0002`.
 
-**Der 8.4-Job war eine Frühwarnung, kein Gate.** Zielplattform ist PHP 8.5; was hier rot wird,
-ist die Liste dessen, was auf dem Weg dorthin zu erledigen bleibt — aber es darf die Pipeline
-heute nicht anhalten. Beim Anlegen lief er grün, mit einer einzigen Deprecation aus Silex; eine
-zweite aus eigenem Code (`Classes\Config::__construct()`) kam mit `000-000-0021` dazu. Beide
-sind weg, und **der Job ist heute grün, gemessen** — siehe *Was die Gates heute melden*. Ob er
-deshalb blockierend wird, ist eine offene Entscheidung.
+**Der 8.4-Job war eine Frühwarnung und ist heute ein Gate.** Zielplattform ist PHP 8.5; was
+hier rot wird, ist die Liste dessen, was auf dem Weg dorthin zu erledigen bleibt. Beim Anlegen
+lief er grün, mit einer einzigen Deprecation aus Silex; eine zweite aus eigenem Code
+(`Classes\Config::__construct()`) kam mit `000-000-0021` dazu. Beide sind weg, der Job ist grün,
+und **er ist seit `010-003-0003` blockierend** — entschieden noch auf GitLab, wo er bis dahin
+ein `allow_failure: true` trug. Dieses Dokument führte es bis `011-002-0002` als offene Frage,
+obwohl die Pipeline sie längst getroffen hatte; der Kommentar in `pipeline.yml` sagt das seither
+ausdrücklich.
 
 ### Was die Pipeline voraussetzt
 - **Ein Runner mit Docker-Executor.** Ohne ihn funktionieren weder `image:` noch `services:`.
@@ -101,6 +104,12 @@ deshalb blockierend wird, ist eine offene Entscheidung.
 - **`CONTENTFLY_TEST_ADMIN_PASS`** als Repository-Secret (Settings → Secrets and variables →
   Actions). Bewusst nicht in der YAML: Auch für eine flüchtige Datenbank gehört ein Passwort
   nicht ins Repo.
+- **`master` ist geschützt** — seit `000-000-0051` (2026-09-17). Ein direkter Push wird
+  abgelehnt; alle sechs Jobs dieser Tabelle sind **erforderliche Checks**, und die Regel gilt
+  auch für Administratoren. Das ist die Voraussetzung, unter der die Pipeline überhaupt etwas
+  zusichert: Vorher war sie eine Konvention, an der ein `git push origin master` vorbeischrieb.
+  Die Einzelheiten und der Umgang mit `/done` stehen in `an_project/docs/git.md`, Abschnitt
+  *Integration branch*.
 - **`git` im Image** — seit `011-002-0002`. Nicht für Composer (dort kommen alle Pakete als
   `dist`), sondern für `tools/migration/inventory.php`: Es liest die git-Historie der
   Framework-Kopie eines Projekts. Die Begründung steht in `tools/ci/install-php-extensions.sh`.
