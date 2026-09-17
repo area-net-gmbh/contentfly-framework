@@ -45,6 +45,25 @@ der man ihn festmachen kann.
 
 **Als Vorbild ja, wörtlich nein.**
 
+> **Nachgetragen mit `011-003-0001` (2026-09-17): Was aus dem Vorbild selbst geworden ist.**
+> Dieser Abschnitt liess offen, was mit dem `ApiResponseService` geschieht, nachdem das Framework
+> seine eigene Form hat. **Er benutzt sie jetzt** — `Classes\Envelope`, dieselbe Klasse wie
+> `BaseController::renderResponse()` und der Fehlerhandler.
+>
+> Der Grund ist nicht Einheitlichkeit um ihrer selbst willen: Eine **Vorlage** ist ein Startpunkt,
+> kein Katalog der Möglichkeiten. Ein Projekt darf weiterhin antworten, wie es will — aber wer den
+> Startpunkt kopiert, soll eine API bekommen, die dem Framework **nicht widerspricht**, auf dem sie
+> läuft. Genau das war der Zustand: Die Vorlage antwortete mit `success`, `status` und `i18n`,
+> während jeder Endpunkt daneben `data`/`errors`/`meta` lieferte.
+>
+> **Der `i18n`-Schlüssel ist nicht verloren, er ist umgezogen** — nach `errors[].context`, wohin
+> Projektwissen gehört. `ApiResponseService::fault()` zeigt das, und das zu zeigen ist nützlicher
+> als ein zweites Format daneben: Ein Client, der nur den Envelope kennt, findet den Fehler; einer,
+> der den Schlüssel kennt, findet auch ihn.
+>
+> Auf der Erfolgsseite ist die Meldung ersatzlos entfallen — aus demselben Grund, aus dem
+> `011-001-0004` „Login successful" und „File uploaded" aus dem Framework genommen hat.
+
 `custom/Classes/Service/Core/ApiResponseService.php` antwortet mit `success`, `status`, `i18n`,
 `data`, `errors`, `meta`, `timestamp`. Was daran richtig ist und übernommen wird:
 

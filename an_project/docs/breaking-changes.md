@@ -319,6 +319,43 @@ Projektcode, wo die Empfängerprüfung hingehört, statt hinter einem generische
 Ein `APP_MAILFROM` in der eigenen `custom/config.php` kann entfernt werden; es wird nicht mehr
 gelesen.
 
+### Die Vorlage antwortet im Envelope — `success`, `status` und `i18n` entfallen
+**Seit `011-003-0001` (2026-09-17).**
+
+Betrifft ein Projekt, das `custom/Classes/Service/Core/ApiResponseService.php` aus der Vorlage
+übernommen hat. Der Dienst antwortete mit `success`, `status`, `i18n`, `data`, `errors`, `meta`
+und `timestamp`; jetzt mit `data`, `errors`, `meta` — derselben Hülle wie jeder Endpunkt des
+Frameworks.
+
+| vorher | jetzt |
+|---|---|
+| `success`, `status` | entfallen — der Statuscode steht in der HTTP-Antwort |
+| `i18n` (Erfolgsfall) | entfällt — der `200` sagt es, und zwar übersetzungsfest |
+| `i18n` (Fehlerfall) | zieht nach `errors[].context`; `ApiResponseService::fault()` baut den Eintrag |
+| `timestamp` | entfällt — `meta.ts` trägt ihn, im selben Format wie überall |
+
+**Warum die Vorlage das überhaupt anders machte:** Der Dienst stammt aus dem Kundenprojekt, aus dem
+die Vorlage geschnitten wurde, und war das **Vorbild** für den Envelope des Frameworks — „als
+Vorbild ja, wörtlich nein" (`an_project/docs/api-envelope.md`). Solange das Framework keine eigene
+Form hatte, war das in Ordnung. Seit `011-001` widerspricht es ihm.
+
+*Was zu tun ist:* Wer den Dienst übernommen und angepasst hat, behält seine Fassung — sie ist
+Projektcode. Wer ihn unverändert benutzt, zieht die Auswertung nach: `body.success` entfällt
+(der Statuscode genügt), `body.i18n.key` wird zu `body.errors[0].context.i18nKey`,
+`body.timestamp` zu `body.meta.ts`.
+
+### Eine tote Twig-Vorlage ist aus `custom/Views/` entfernt
+**Seit `011-003-0001` (2026-09-17).**
+
+`custom/Views/partials/_email_layout.twig` band `_header.twig`, `_workspace_bar.twig` und
+`_footer.twig` ein — **keine davon existierte**, und Twig steht seit Epic `012` in keinem der
+beiden Manifeste mehr. Die Datei konnte nicht gerendert werden, seit die Oberfläche entfallen ist;
+sie stand nur noch da. Mit ihr sind die leeren Verzeichnisse `custom/Views/`, `custom/Provider/`
+und `custom/i18n/` gegangen, die von nichts referenziert wurden.
+
+*Was zu tun ist:* Nichts, wenn Sie sie nie benutzt haben. Wer sie kopiert hat und rendert, bringt
+Twig selbst mit — dann ist es Projektcode und bleibt unberührt.
+
 ### Der `frontend`-Block schrumpft, in `/api/config` entfällt er ganz
 **Seit `000-000-0010` (2026-09-09).**
 
