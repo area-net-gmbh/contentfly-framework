@@ -3,6 +3,8 @@
 # Changelog
 
 ## 2026-09-18
+- 000-000-0065 task created: "Contentfly 2 unter MIT stellen — Lizenzangaben vereinheitlichen"
+- 000-000-0065 → review: **Contentfly 2 steht unter MIT.** Die Angaben widersprachen sich: `LICENSE` sprach von einer Dual-Lizenz mit MIT-Teil, beide `composer.json` und beide READMEs von „proprietär", und dem veröffentlichten Paket fehlte die `LICENSE` ganz. Jetzt überall MIT, Copyright 2019–2026, und `lib/contentfly/LICENSE` reist mit dem Split. Entschieden vom Auftraggeber. Wirksam für das Paket mit dem nächsten Tag. **Nebenbefund:** Der Composer-Lock gilt schon auf `master` als veraltet — unabhängig von dieser Änderung.
 - 000-000-0064 → in-progress
 - 000-000-0064 → review: **Übersetzungen lassen sich wieder anlegen.** Der Schema-Aufbau las nur die Attribute der Deklaration selbst; `BaseI18n` deklariert `id` neu, aber ohne `Column` (ORM 3 lehnt die doppelte ab) — also fiel `id` aus dem Schema jeder übersetzbaren Entity, und jeder Übersetzungs-Insert scheiterte. `MetadataReader` erbt jetzt die `Column` der Vorfahren-Deklaration, **nur** die Spalte; der eigene Generator bleibt. Ohne `APP_LANGUAGES` keine Warnung mehr, sondern ein begründeter Rückfall. Die Rechtematrix enthält alle zwölf Übersetzungs-Fälle, auch die erlaubten. Suite 699 grün, PHPStan sauber.
 - 000-000-0059 → in-progress
