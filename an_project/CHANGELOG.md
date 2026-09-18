@@ -3,6 +3,9 @@
 # Changelog
 
 ## 2026-09-18
+- 000-000-0062 → in-progress
+- 000-000-0063 task created: "Feldnamen aus dem Request gehen ungeprüft in DQL"
+- 000-000-0062 → review: **`/api/tree2` bindet `lang`, statt es in das SQL zu schreiben.** Belegt mit einem Unit-Test, der die Anweisung an einem Double der DBAL-`Connection` aufzeichnet: mit `lang = "de' OR '1'='1"` vor dem Fix rot, danach grün. **Unit- statt Integrationstest, und das ist eine Abweichung vom Ticket** — der Pfad braucht eine i18n-Tree-Entity, die weder Framework noch Vorlage haben. **Die Suche nach weiteren Stellen hat etwas gefunden:** Die Werte sind überall gebunden, aber vier **Feldnamen** aus dem Request gehen ungeprüft in DQL (`where` in `getSingle`, `order`/`groupBy` in `getList`, `properties` in `getTree`) — DQL-Injection, `000-000-0063`. `getList` zeigt, wie es richtig geht: Es prüft seine `where`-Felder bereits gegen das Schema.
 - 000-000-0057 → in-progress
 - 000-000-0059 task created: "Zwei i18n-Pfade prüfen die Stufe, verengen aber nicht auf Eigentümerschaft"
 - 000-000-0060 task created: "/file/overwrite überschreibt fremde Dateien ohne Eigentümerprüfung"
