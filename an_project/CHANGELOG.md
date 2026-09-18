@@ -3,6 +3,7 @@
 # Changelog
 
 ## 2026-09-18
+- 000-000-0056 umgeplant: **SonarQube Cloud als PR-Check statt einmaliger Erhebung** — seit das Repository öffentlich ist, laut Anbieter ohne Lizenzkosten. **Drei Stellen, an denen ein naiver Einbau falsch misst:** Die Integrationstests führen den Framework-Code im **Testserver** aus, nicht in PHPUnit — ohne serverseitige Coverage (PCOV im Router, `phpcov merge`) wäre die Zahl systematisch zu niedrig, ausgerechnet bei Rechten, Auth und Upload. Das Standard-Gate verlangt **80 % Coverage** — genau die Schwelle, vor der der erste Zuschnitt gewarnt hat; deshalb ein eigenes Gate `Contentfly` nur mit Sicherheitsbedingungen. Und der erforderliche Check ist **unser** Job-Name, nicht der der Anbieter-App. Einrichtung Schritt für Schritt im Task; Gegenprobe: die SQL-Injection aus `0062` versuchsweise zurückbauen — Sonar muss sie finden.
 - 000-000-0063 → done (per Pull Request auf `master`, #20 → #21)
 - 000-000-0060 → done (per Pull Request auf `master`, #19 → #21)
 - 000-000-0061 → done (per Pull Request auf `master`, #18 → #21)
