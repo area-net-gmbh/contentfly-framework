@@ -4,15 +4,15 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "cd993509deb8b64e80f394737d1c8d23",
+    "content-hash": "306a778a696773b4e27eae4511bf38fc",
     "packages": [
         {
             "name": "areanet/contentfly",
-            "version": "2.0.0",
+            "version": "2.1.0",
             "dist": {
                 "type": "path",
                 "url": "lib/contentfly",
-                "reference": "b17caab6bcdf37c1d30144d91556c1ff229ee934"
+                "reference": "29246fe4aa852ebc9092ed84a87e8b6a432a8eea"
             },
             "require": {
                 "doctrine/dbal": "^3.10",
