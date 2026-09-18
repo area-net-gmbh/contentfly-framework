@@ -3,6 +3,7 @@
 # Changelog
 
 ## 2026-09-18
+- 000-000-0061 → done (per Pull Request auf `master`, #18 → #21)
 - 000-000-0062 → done (per Pull Request auf `master`, #17 → #21)
 - 000-000-0057 → done (per Pull Request auf `master`, #16)
 - 000-000-0055 in Arbeit: **Alle Sicherheitsschalter sind an, belegt per API** — Dependabot alerts und security updates, Private vulnerability reporting (damit funktioniert der Verweis in `SECURITY.md`), Secret scanning mit Push protection. Zwei davon gab es erst, als das Repository öffentlich wurde. **Offen bleibt der Zeitplan-Lauf:** fällig seit heute 06:00 UTC, die API zeigt keinen. Bleibt er morgen aus, ist das ein Befund.
