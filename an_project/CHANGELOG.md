@@ -3,6 +3,8 @@
 # Changelog
 
 ## 2026-09-18
+- 000-000-0063 → in-progress
+- 000-000-0063 → review: **Feldnamen aus dem Request gehen nicht mehr ungeprüft in DQL.** `where` in `/api/single`, `order` und `groupBy` in `/api/list` werden gegen das Schema geprüft und bei unbekanntem Namen mit **400** abgelehnt, die Sortierrichtung nur `ASC`/`DESC`; `properties` in `/api/tree` werden verworfen wie in `/api/list`. **Die Annahme im Ticket war falsch:** `getList` wirft bei unbekannten `where`-Feldern nicht, es überspringt sie — daher je Stelle entschieden; bei `where` in `single` wäre Überspringen gefährlich, weil ohne Filter ein anderer Datensatz zurückkommt. Sieben Tests, vorher fünf rot mit 500. Suite 680 grün, PHPStan sauber.
 - 000-000-0060 → in-progress
 - 000-000-0060 → review: **`/file/overwrite` prüft die Eigentümerschaft von Ziel und Quelle.** Vorher genügte das Schreibrecht auf `PIM\File`: Mit `OWN` überschrieb ein Benutzer jede fremde Datei gleichen Namens. **Die Quelle wird mitgeprüft**, weil sie verschoben und nicht kopiert wird — eine fremde Quelle zu benutzen hiesse, sie zu löschen. Verengung wie `Api::doUpdate()`. Vier Tests in `FileApiTest`, geprüft auch am Inhalt auf der Platte; vorher drei rot. Suite 673 grün, PHPStan sauber.
 - 000-000-0061 → in-progress
