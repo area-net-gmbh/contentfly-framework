@@ -253,16 +253,15 @@ class PermissionMatrixApiTest extends IntegrationTestCase
     // framework or the template was translatable, so these paths were unreachable here.
 
     #[DataProvider('i18nInsertCases')]
-    public function testInsertingATranslationOfARecordOutOfReachIsRejected(string $level, string $record, bool $allowed): void
+    public function testInsertingATranslationRespectsTheOwnershipOfTheRecord(string $level, string $record, bool $allowed): void
     {
         // An insert that carries the id of an existing record creates a language variant of
         // THAT record. It used to check only writable != NONE on the entity: with OWN a user
-        // added translations to anyone's records.
+        // added translations to anyone's records (000-000-0059).
         //
-        // ONLY THE REJECTED CASES, FOR NOW. A permitted translation insert does not get through
-        // today at all: `id` is missing from the schema of every BaseI18n entity, and the insert
-        // stops with unknown_property (000-000-0064). The ownership check runs before that, so
-        // the rejections are measurable; the permitted cases join this provider with 0064.
+        // The permitted cases only get through since 000-000-0064: until then `id` was missing
+        // from the schema of every BaseI18n entity, and every translation insert stopped with
+        // unknown_property.
         [$token, $userId, $groupId] = $this->createTestUser(array(self::I18N_ENTITY => array(
             'readable' => Permission::ALL,
             'writable' => self::LEVELS[$level],
@@ -291,11 +290,9 @@ class PermissionMatrixApiTest extends IntegrationTestCase
     /** @return iterable<string, array{0:string,1:string,2:bool}> */
     public static function i18nInsertCases(): iterable
     {
-        foreach (array('OWN', 'GROUP') as $level) {
+        foreach (self::REACHES as $level => $reached) {
             foreach (array('own', 'group', 'foreign') as $record) {
-                if (!in_array($record, self::REACHES[$level], true)) {
-                    yield "writable $level on $record record" => array($level, $record, false);
-                }
+                yield "writable $level on $record record" => array($level, $record, in_array($record, $reached, true));
             }
         }
     }
