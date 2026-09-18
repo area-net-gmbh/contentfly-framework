@@ -68,6 +68,8 @@ CLAUDE.local.md
 # PHPUnit-Ergebniscache: Laufzeitartefakt, gehoert niemandem im Team.
 .phpunit.cache/
 .phpunit.coverage/
+# Coverage-Berichte aus dem lokalen Lauf, runbook.md Abschnitt 4 (000-000-0056)
+/build/coverage/
 
 # Operating system — macOS
 .DS_Store
