@@ -1,7 +1,7 @@
 ---
 id: 000-000-0057
 title: Die Rechtematrix prüfen — Stufe, Operation und Eigentümerschaft
-status: review
+status: done
 depends_on: []
 ---
 

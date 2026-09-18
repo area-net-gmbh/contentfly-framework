@@ -3,6 +3,7 @@
 # Changelog
 
 ## 2026-09-18
+- 000-000-0057 → done (per Pull Request auf `master`, #16)
 - 000-000-0055 in Arbeit: **Alle Sicherheitsschalter sind an, belegt per API** — Dependabot alerts und security updates, Private vulnerability reporting (damit funktioniert der Verweis in `SECURITY.md`), Secret scanning mit Push protection. Zwei davon gab es erst, als das Repository öffentlich wurde. **Offen bleibt der Zeitplan-Lauf:** fällig seit heute 06:00 UTC, die API zeigt keinen. Bleibt er morgen aus, ist das ein Befund.
 - 000-000-0051 → done: **`master` ist geschützt — seit heute, nicht seit gestern.** Ruleset `master-schutz`: aktiv, ohne Ausnahmen, Pull Request Pflicht, nur Merge, alle sechs Checks. **Gegenprobe:** Ein direkter Push wird abgelehnt, und GitHub nennt beide Gründe. **`git.md` und `deployment.md` behaupteten den Schutz seit dem 17.09.** — dokumentiert war er, geschaltet nicht, und in einem privaten Repository ohne GitHub Team wäre er auch nicht durchgesetzt worden. Korrigiert. Dazu ein Abschnitt zu **gestapelten Pull Requests**: #17–#20 waren in ihre Stapel-Basis gemergt worden statt nach `master` — vier Sicherheitsfixes fehlten dort, während ihre Tickets schon öffentlich lagen; nachgeholt mit #21.
 - 000-000-0063 → in-progress
