@@ -31,7 +31,7 @@ use Tests\Integration\IntegrationTestCase;
  * | `Api::getTranslations()` | Counts untranslated records **across all owners**; `getCount()` narrows the same kind of number by `OWN`/`GROUP`. Only counts, no content — but not narrowed. i18n only, not reachable here. **Ticket 000-000-0059.** |
  * | `MultijoinType` (write check, 2 places) | **Not reachable**: only the `mappedBy` branch checks, and it needs `acceptFrom`, which no property carries. WritePermissionApiTest::testTheWriteCheckInMultijoinTypeCannotBeTriggered() fails as soon as that changes — the check has to be narrowed then. |
  * | `FileController::uploadAction()` | **Correct**: an upload creates a new file, nothing to narrow. |
- * | `FileController::overwriteAction()` | **Finding**: replaces the content of `destId` with that of `sourceId` and checks the ownership of neither — with `writable = OWN` on `PIM\File` a user overwrites other users' files. **Ticket 000-000-0060.** |
+ * | `FileController::overwriteAction()` | **Correct since 000-000-0060.** It replaced the content of `destId` with that of `sourceId` and checked the ownership of neither; both are now narrowed like `Api::doUpdate()`. Covered in FileApiTest. |
 
  *
  * OUTSIDE THE SIX — routes that checked no level at all. `Api::getTree()` and `Api::getTree2()`
