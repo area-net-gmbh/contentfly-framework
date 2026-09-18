@@ -3,6 +3,12 @@
 # Changelog
 
 ## 2026-09-18
+- 000-000-0057 → in-progress
+- 000-000-0059 task created: "Zwei i18n-Pfade prüfen die Stufe, verengen aber nicht auf Eigentümerschaft"
+- 000-000-0060 task created: "/file/overwrite überschreibt fremde Dateien ohne Eigentümerprüfung"
+- 000-000-0061 task created: "/api/tree, /api/tree2 und /api/deleted prüfen kein Leserecht"
+- 000-000-0062 task created: "/api/tree2 baut den Parameter lang ungeprüft in SQL ein"
+- 000-000-0057 → review: **Die Rechtematrix steht — 36 Fälle über HTTP, grün, und die Gegenprobe greift.** Stufe × Operation × Eigentümerschaft gegen `/api/single`, `/api/update` und `/api/delete`, geprüft an Statuscode **und** Datenbank; dazu Admin ohne Permission-Zeile, Benutzer ohne Gruppe und `GROUP` als engere Stufe trotz der höheren Zahl 3. Drei Verengungen versuchsweise entfernt: genau sechs Fälle rot, jeder nennt sich selbst. **Der Verdacht zu `getTranslations` ist kleiner als befürchtet** — es fliessen nur Anzahlen (`0059`). **Gefunden wurde Schwereres ausserhalb der sechs Stellen:** `/api/tree` und `/api/tree2` prüfen **kein** Leserecht — ein Benutzer ohne Gruppe bekommt bei `/api/list` 403 und bei den Tree-Routen den fremden Ordner (`0061`); `getTree2()` baut `lang` als String in SQL ein (`0062`); `/file/overwrite` prüft die Eigentümerschaft keiner Datei (`0060`). **Alle drei vor dem Öffentlichmachen beheben.**
 - 000-000-0058 → done (per Pull Request auf `master`): **Die Pentest-Spezifikation ist abgenommen.** `an_project/docs/pentest-spec.md` steht mit neun Abschnitten, alle sieben Acceptance-Kriterien sind eingelöst. Ein Anbieter kann daraus rechnen, ohne nachzufragen. Was jetzt folgt — Beschaffung, Termin, Angebotsvergleich — war ausdrücklich nicht Teil des Tasks und entscheidet der Auftraggeber.
 - 000-000-0052 → done (per Pull Request auf `master`): **Der fehlende Nachweis liegt vor.** Zwei der drei Boxen waren beim Umsetzen zu; die dritte verlangte einen Lauf *ohne* die Annotation „Node.js 20 is deprecated" und konnte erst nach dem Merge belegt werden. Der Lauf des gemergten Pull Requests meldet sie nicht mehr — eingesehen und bestätigt, nicht behauptet. `actions/checkout` steht an allen sechs Stellen auf `@v6`.
 

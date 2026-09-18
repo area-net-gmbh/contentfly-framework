@@ -1,0 +1,265 @@
+<?php
+namespace Tests\Integration\Api;
+
+use Areanet\PIM\Entity\Permission;
+use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Integration\IntegrationTestCase;
+
+/**
+ * The permission matrix: level × operation × ownership of the record (000-000-0057).
+ *
+ * Contentfly has **no roles**. What exists is an `isAdmin` flag, one group per user, and per
+ * group one permission row per entity with three operations, each on one of four levels. The
+ * axis to check is therefore level × operation × ownership — 4 × 3 × 3 = 36 cases, identical for
+ * every entity. One test entity (`PIM\Tag`) is enough; admin bypass and "user without group"
+ * are cases of their own.
+ *
+ * Everything goes through HTTP. What is checked is what a client gets — status code and the
+ * state of the database — not what `Permission::is()` returns.
+ *
+ * THE CONSTANTS ARE NOT ASCENDING: `NONE` 0, `OWN` 1, `ALL` 2, `GROUP` 3. The code compares with
+ * `==` everywhere, so today this does no harm. A single `>=` would: `GROUP` would then be the
+ * widest level instead of a narrower one. `canExport()` fell into exactly this trap (see
+ * Classes/Permission.php). The matrix covers `GROUP` for every operation, and
+ * testGroupIsNarrowerThanAllDespiteTheHigherNumber() names the trap on its own.
+ *
+ * THE SIX PLACES THAT CHECK THE LEVEL ONLY AGAINST 0 — each with a result:
+ *
+ * | Place | Result |
+ * |---|---|
+ * | `Api::doInsert()` | **Correct** for a new record: it has no owner yet, there is nothing to narrow. Its i18n branch (an insert that carries an existing `id` creates a language variant of *that* record) does not narrow — no entity of the framework or the template is i18n, so it cannot be reached here. **Ticket 000-000-0059.** |
+ * | `Api::getTranslations()` | Counts untranslated records **across all owners**; `getCount()` narrows the same kind of number by `OWN`/`GROUP`. Only counts, no content — but not narrowed. i18n only, not reachable here. **Ticket 000-000-0059.** |
+ * | `MultijoinType` (write check, 2 places) | **Not reachable**: only the `mappedBy` branch checks, and it needs `acceptFrom`, which no property carries. WritePermissionApiTest::testTheWriteCheckInMultijoinTypeCannotBeTriggered() fails as soon as that changes — the check has to be narrowed then. |
+ * | `FileController::uploadAction()` | **Correct**: an upload creates a new file, nothing to narrow. |
+ * | `FileController::overwriteAction()` | **Finding**: replaces the content of `destId` with that of `sourceId` and checks the ownership of neither — with `writable = OWN` on `PIM\File` a user overwrites other users' files. **Ticket 000-000-0060.** |
+
+ *
+ * OUTSIDE THE SIX — routes that check no level at all. `Api::getTree()` and `Api::getTree2()` never
+ * call `Permission::isReadable()`: a user without any read right gets the full tree, where
+ * `/api/list` answers 403. `getDeleted()` reports deletions of every entity. **Ticket 000-000-0061.**
+ * `getTree2()` also puts the request's `lang` into its SQL as a string. **Ticket 000-000-0062.**
+ */
+class PermissionMatrixApiTest extends IntegrationTestCase
+{
+    private const LEVELS = array(
+        'NONE'  => Permission::NONE,
+        'OWN'   => Permission::OWN,
+        'ALL'   => Permission::ALL,
+        'GROUP' => Permission::GROUP,
+    );
+
+    /** Which records each level reaches: own, shared with the own group, foreign. */
+    private const REACHES = array(
+        'NONE'  => array(),
+        'OWN'   => array('own'),
+        'ALL'   => array('own', 'group', 'foreign'),
+        'GROUP' => array('own', 'group'),
+    );
+
+    private string $adminId = '';
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->adminId = (string) $this->pdo()
+            ->query("SELECT id FROM pim_user WHERE alias = 'admin'")
+            ->fetchColumn();
+    }
+
+    /** @return iterable<string, array{0:string,1:string,2:string,3:bool}> */
+    public static function matrix(): iterable
+    {
+        foreach (array('readable', 'writable', 'deletable') as $operation) {
+            foreach (self::REACHES as $level => $reached) {
+                foreach (array('own', 'group', 'foreign') as $record) {
+                    $allowed = in_array($record, $reached, true);
+
+                    yield "$operation $level on $record record" => array($operation, $level, $record, $allowed);
+                }
+            }
+        }
+    }
+
+    #[DataProvider('matrix')]
+    public function testLevelOperationAndOwnership(string $operation, string $level, string $record, bool $allowed): void
+    {
+        // Only the operation under test varies. Update and delete load the record through
+        // getSingle() first, which checks the read right — so reading stays at ALL for them,
+        // otherwise a write case would measure the read check.
+        $permissions = array(
+            'readable'  => $operation === 'readable'  ? self::LEVELS[$level] : Permission::ALL,
+            'writable'  => $operation === 'writable'  ? self::LEVELS[$level] : Permission::NONE,
+            'deletable' => $operation === 'deletable' ? self::LEVELS[$level] : Permission::NONE,
+        );
+
+        [$token, $userId, $groupId] = $this->createTestUser(array('PIM\\Tag' => $permissions));
+
+        $tag = match ($record) {
+            'own'     => $this->tag($userId),
+            'group'   => $this->tag($this->adminId, $groupId),
+            'foreign' => $this->tag($this->adminId),
+        };
+
+        $case = "$operation = $level on the $record record";
+
+        $this->assertOperation($operation, $tag, $token, $allowed, $case);
+    }
+
+    public function testGroupIsNarrowerThanAllDespiteTheHigherNumber(): void
+    {
+        // GROUP is 3, ALL is 2. Whoever reads the numbers as an order takes GROUP for the
+        // widest level. It is narrower: a foreign record without a group relation stays out
+        // of reach for all three operations.
+        $this->assertGreaterThan(Permission::ALL, Permission::GROUP,
+            'The premise of this test: the numbers are not in the order of the levels');
+
+        foreach (array('readable', 'writable', 'deletable') as $operation) {
+            [$token] = $this->createTestUser(array('PIM\\Tag' => array(
+                'readable'  => $operation === 'readable'  ? Permission::GROUP : Permission::ALL,
+                'writable'  => $operation === 'writable'  ? Permission::GROUP : Permission::NONE,
+                'deletable' => $operation === 'deletable' ? Permission::GROUP : Permission::NONE,
+            )));
+
+            $foreign = $this->tag($this->adminId);
+
+            $this->assertOperation($operation, $foreign, $token, false,
+                "$operation = GROUP on a foreign record — GROUP must not act like a level above ALL");
+        }
+    }
+
+    public function testAdminBypassesEveryLevelWithoutAPermissionRow(): void
+    {
+        // Permission::is() returns ALL for an admin before any group or permission row is
+        // looked at. The admin has neither for PIM\Tag.
+        foreach (array('readable', 'writable', 'deletable') as $operation) {
+            $foreign = $this->tag($this->anotherUser());
+
+            $this->assertOperation($operation, $foreign, $this->token(), true,
+                "$operation as admin on another user's record");
+        }
+    }
+
+    public function testUserWithoutGroupIsDeniedEveryOperation(): void
+    {
+        // Permission::is() returns NONE as soon as the user has no group — even on a record
+        // the user created.
+        [$token, $userId] = $this->createUserWithoutGroup();
+
+        foreach (array('readable', 'writable', 'deletable') as $operation) {
+            $own = $this->tag($userId);
+
+            $this->assertOperation($operation, $own, $token, false,
+                "$operation without a group, on the user's own record");
+        }
+    }
+
+    /**
+     * Runs one operation and checks the status code **and** the database. A status code alone
+     * does not prove that nothing happened.
+     */
+    private function assertOperation(string $operation, string $tag, string $token, bool $allowed, string $case): void
+    {
+        $expectedStatus = $allowed ? 200 : 403;
+
+        switch ($operation) {
+            case 'readable':
+                [$status, $body] = $this->postJson('/api/single', array('entity' => 'PIM\\Tag', 'id' => $tag), $token);
+
+                $this->assertSame($expectedStatus, $status, "$case: status code");
+                if ($allowed) {
+                    $this->assertSame($tag, $this->assertEnvelope($body)['id'], "$case: the record is returned");
+                } else {
+                    $this->assertErrorEnvelope($body);
+                }
+                break;
+
+            case 'writable':
+                [$status] = $this->postJson(
+                    '/api/update',
+                    array('entity' => 'PIM\\Tag', 'id' => $tag, 'data' => array('title' => "Changed $tag")),
+                    $token
+                );
+
+                $this->assertSame($expectedStatus, $status, "$case: status code");
+                $this->assertSame($allowed ? "Changed $tag" : "Original $tag", $this->title($tag),
+                    "$case: checked against the database");
+                break;
+
+            case 'deletable':
+                [$status] = $this->postJson('/api/delete', array('entity' => 'PIM\\Tag', 'id' => $tag), $token);
+
+                $this->assertSame($expectedStatus, $status, "$case: status code");
+                $this->assertSame(!$allowed, $this->exists($tag), "$case: checked against the database");
+                break;
+        }
+
+        $this->pdo()->prepare('DELETE FROM pim_log WHERE model_id = :id')->execute(array('id' => $tag));
+    }
+
+    /**
+     * Creates a tag titled "Original <id>"; $userCreated and $groups decide whose record it is.
+     * The id is part of the title because `pim_tag.title` is unique.
+     */
+    private function tag(?string $userCreated, ?string $groups = null): string
+    {
+        $id    = 'pm-'.bin2hex(random_bytes(6));
+        $title = "Original $id";
+
+        $this->pdo()->prepare(
+            // `groups` is a reserved word in MySQL 8.
+            'INSERT INTO pim_tag (id, title, created, modified, views, isIntern, usercreated_id, `groups`, users)
+             VALUES (:id, :title, NOW(), NOW(), 0, 0, :uc, :grp, NULL)'
+        )->execute(array('id' => $id, 'title' => $title, 'uc' => $userCreated, 'grp' => $groups));
+
+        $this->deleteAfterTest('pim_tag', $id);
+
+        return $id;
+    }
+
+    private function title(string $tag): ?string
+    {
+        $statement = $this->pdo()->prepare('SELECT title FROM pim_tag WHERE id = :id');
+        $statement->execute(array('id' => $tag));
+
+        $title = $statement->fetchColumn();
+
+        return $title === false ? null : $title;
+    }
+
+    private function exists(string $tag): bool
+    {
+        $statement = $this->pdo()->prepare('SELECT COUNT(*) FROM pim_tag WHERE id = :id');
+        $statement->execute(array('id' => $tag));
+
+        return (int) $statement->fetchColumn() === 1;
+    }
+
+    /** A second, non-admin user, so the admin case is measured on a record that is not the admin's. */
+    private function anotherUser(): string
+    {
+        [, $userId] = $this->createTestUser();
+
+        return $userId;
+    }
+
+    /** @return array{0:string,1:string} token, user id */
+    private function createUserWithoutGroup(): array
+    {
+        $id   = 'pm-nogrp-'.bin2hex(random_bytes(6));
+        $salt = bin2hex(random_bytes(16));
+
+        $this->pdo()->prepare(
+            'INSERT INTO pim_user (id, isAdmin, alias, pass, isActive, salt, created, modified, views, isIntern)
+             VALUES (:id, 0, :alias, :pass, 1, :salt, NOW(), NOW(), 0, 0)'
+        )->execute(array(
+            'id' => $id, 'alias' => $id,
+            'pass' => hash('sha256', self::TEST_PASSWORD.$salt), 'salt' => $salt,
+        ));
+        $this->deleteAfterTest('pim_user', $id);
+
+        [, $login] = $this->postJson('/auth/login', array('alias' => $id, 'pass' => self::TEST_PASSWORD));
+
+        return array($this->assertEnvelope($login)['token'], $id);
+    }
+}
