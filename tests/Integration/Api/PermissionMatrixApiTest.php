@@ -34,10 +34,11 @@ use Tests\Integration\IntegrationTestCase;
  * | `FileController::overwriteAction()` | **Finding**: replaces the content of `destId` with that of `sourceId` and checks the ownership of neither — with `writable = OWN` on `PIM\File` a user overwrites other users' files. **Ticket 000-000-0060.** |
 
  *
- * OUTSIDE THE SIX — routes that check no level at all. `Api::getTree()` and `Api::getTree2()` never
- * call `Permission::isReadable()`: a user without any read right gets the full tree, where
- * `/api/list` answers 403. `getDeleted()` reports deletions of every entity. **Ticket 000-000-0061.**
- * `getTree2()` also puts the request's `lang` into its SQL as a string. **Ticket 000-000-0062.**
+ * OUTSIDE THE SIX — routes that checked no level at all. `Api::getTree()` and `Api::getTree2()`
+ * never called `Permission::isReadable()`: a user without any read right got the full tree, where
+ * `/api/list` answers 403; `getDeleted()` reported deletions of every entity. **Fixed with
+ * 000-000-0061**, covered below. `getTree2()` also put the request's `lang` into its SQL as a
+ * string — **fixed with 000-000-0062** (Tree2LangBindingTest).
  */
 class PermissionMatrixApiTest extends IntegrationTestCase
 {
@@ -154,6 +155,95 @@ class PermissionMatrixApiTest extends IntegrationTestCase
         }
     }
 
+    // ── Whole trees and the deletion log (000-000-0061) ────────────────────────────────
+
+    /** @return iterable<string, array{0:string,1:string}> */
+    public static function treeRoutes(): iterable
+    {
+        foreach (array('tree', 'tree2') as $route) {
+            foreach (array_keys(self::REACHES) as $level) {
+                yield "/api/$route with $level" => array($route, $level);
+            }
+        }
+    }
+
+    #[DataProvider('treeRoutes')]
+    public function testTreeRoutesApplyTheReadLevel(string $route, string $level): void
+    {
+        // Both routes used to check only THAT someone is logged in. A user without any read
+        // right got the full tree, where /api/list answers 403.
+        [$token, $userId, $groupId] = $this->createTestUser(array('PIM\\Folder' => array(
+            'readable' => self::LEVELS[$level],
+        )));
+
+        $records = array(
+            'own'     => $this->folder($userId),
+            'group'   => $this->folder($this->adminId, $groupId),
+            'foreign' => $this->folder($this->adminId),
+        );
+
+        [$status, $body] = $this->postJson("/api/$route", array('entity' => 'PIM\\Folder'), $token);
+
+        if ($level === 'NONE') {
+            $this->assertSame(403, $status, "/api/$route without read right: status code");
+            $this->assertErrorEnvelope($body);
+
+            return;
+        }
+
+        $this->assertSame(200, $status, "/api/$route with $level: status code");
+        $visible = $this->treeIds($this->assertEnvelope($body));
+
+        foreach ($records as $record => $id) {
+            $reached = in_array($record, self::REACHES[$level], true);
+
+            $this->assertSame($reached, in_array($id, $visible, true),
+                "/api/$route with readable = $level: the $record folder is ".($reached ? 'visible' : 'hidden'));
+        }
+    }
+
+    public function testATreeNodeBelowAHiddenParentIsHiddenToo(): void
+    {
+        // Decided with 000-000-0061: both routes build the tree from the visible nodes only. A
+        // node whose parent is out of reach has no place to hang in that tree — it is left out,
+        // not moved to the top level. /api/tree reaches children through their parent anyway.
+        [$token, $userId] = $this->createTestUser(array('PIM\\Folder' => array(
+            'readable' => Permission::OWN,
+        )));
+
+        $foreignRoot = $this->folder($this->adminId);
+        $ownChild    = $this->folder($userId, null, $foreignRoot);
+
+        foreach (array('tree', 'tree2') as $route) {
+            [, $body] = $this->postJson("/api/$route", array('entity' => 'PIM\\Folder'), $token);
+            $visible  = $this->treeIds($this->assertEnvelope($body));
+
+            $this->assertNotContains($foreignRoot, $visible, "/api/$route: the foreign parent is hidden");
+            $this->assertNotContains($ownChild, $visible, "/api/$route: so is the own child below it");
+        }
+    }
+
+    public function testTheDeletionLogReportsOnlyReadableEntities(): void
+    {
+        // /api/deleted used to report the deletions of every entity. Only ids — but ids of
+        // records the user may not know exist.
+        $tag = 'pm-deleted-'.bin2hex(random_bytes(6));
+        $log = 'pm-log-'.bin2hex(random_bytes(6));
+
+        $this->pdo()->prepare(
+            'INSERT INTO pim_log (id, model_id, model_name, mode, created, modified, views, isIntern)
+             VALUES (:id, :modelId, :modelName, \'DEL\', NOW(), NOW(), 0, 0)'
+        )->execute(array('id' => $log, 'modelId' => $tag, 'modelName' => 'PIM\\Tag'));
+        $this->deleteAfterTest('pim_log', $log);
+
+        [$reader]   = $this->createTestUser(array('PIM\\Tag' => array('readable' => Permission::ALL)));
+        [$outsider] = $this->createTestUser(array('PIM\\Folder' => array('readable' => Permission::ALL)));
+
+        $this->assertContains($tag, $this->deletedIds($reader), 'With read right the deletion is reported');
+        $this->assertNotContains($tag, $this->deletedIds($outsider),
+            'Without read right on PIM\\Tag the deletion is not reported');
+    }
+
     /**
      * Runs one operation and checks the status code **and** the database. A status code alone
      * does not prove that nothing happened.
@@ -215,6 +305,55 @@ class PermissionMatrixApiTest extends IntegrationTestCase
         $this->deleteAfterTest('pim_tag', $id);
 
         return $id;
+    }
+
+    /** Creates a folder — a node of the tree entity PIM\Folder — owned like tag() does it. */
+    private function folder(?string $userCreated, ?string $groups = null, ?string $parent = null): string
+    {
+        $id = 'pm-f-'.bin2hex(random_bytes(6));
+
+        $this->pdo()->prepare(
+            'INSERT INTO pim_tree (id, sorting, isActive, created, modified, views, isIntern, dtype, parent_id,
+                                   usercreated_id, `groups`)
+             VALUES (:id, 1, 1, NOW(), NOW(), 0, 0, \'folder\', :parent, :uc, :grp)'
+        )->execute(array('id' => $id, 'parent' => $parent, 'uc' => $userCreated, 'grp' => $groups));
+        $this->pdo()->prepare('INSERT INTO pim_folder (id, title) VALUES (:id, :title)')
+             ->execute(array('id' => $id, 'title' => "Folder $id"));
+
+        // pim_folder goes first on cleanup — pim_tree carries the key it points to.
+        $this->deleteAfterTest('pim_tree', $id);
+        $this->deleteAfterTest('pim_folder', $id);
+
+        return $id;
+    }
+
+    /**
+     * Every id in a tree response, at any depth. /api/tree nests under `treeChilds`, /api/tree2
+     * under `childs` — the two routes return incompatible shapes (see TreeApiTest).
+     *
+     * @param array<int, array<string, mixed>> $tree
+     * @return array<int, string>
+     */
+    private function treeIds(array $tree): array
+    {
+        $ids = array();
+
+        foreach ($tree as $node) {
+            $ids[] = $node['id'];
+            $ids   = array_merge($ids, $this->treeIds($node['treeChilds'] ?? $node['childs'] ?? array()));
+        }
+
+        return $ids;
+    }
+
+    /** @return array<int, string> */
+    private function deletedIds(string $token): array
+    {
+        [$status, $body] = $this->postJson('/api/deleted', array(), $token);
+
+        $this->assertSame(200, $status);
+
+        return array_column($this->assertEnvelope($body), 'model_id');
     }
 
     private function title(string $tag): ?string

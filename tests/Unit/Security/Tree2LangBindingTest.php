@@ -3,6 +3,7 @@ namespace Tests\Unit\Security;
 
 use Areanet\PIM\Classes\Api;
 use Areanet\PIM\Classes\Kernel\Application;
+use Areanet\PIM\Entity\User;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
 
@@ -73,6 +74,11 @@ class Tree2LangBindingTest extends TestCase
             ),
         );
 
-        return new Api($app);
+        // An admin: getTree2() checks the read right since 000-000-0061, and an admin passes
+        // it without narrowing — so this test keeps measuring the binding alone.
+        $admin = new User();
+        $admin->setIsAdmin(true);
+
+        return new Api($app, null, $admin);
     }
 }
