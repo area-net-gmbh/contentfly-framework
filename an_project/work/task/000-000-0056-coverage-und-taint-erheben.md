@@ -2,7 +2,7 @@
 id: 000-000-0056
 title: SonarQube Cloud als PR-Check einführen — Coverage und Datenflüsse dauerhaft erheben
 status: todo
-depends_on: []
+depends_on: [000-000-0065]
 ---
 
 # SonarQube Cloud als PR-Check einführen — Coverage und Datenflüsse dauerhaft erheben
@@ -19,6 +19,30 @@ Empfohlen im Sicherheitsnachweis vom 2026-09-18, Abschnitt 5.
 - **Datenflüsse**: PHPStan findet Typfehler, keine Taint-Pfade. Die Injections aus `000-000-0062`
   und `000-000-0063` und der Upload aus `000-000-0038` waren genau solche Pfade — alle **von
   Hand** gefunden.
+
+## Warum SonarQube Cloud und nicht Gitar
+Gefragt am 2026-09-18. **Gitar** ist ein KI-Code-Review-Agent, den Sonar im Mai 2026 übernommen
+hat. Er prüft Pull Requests mit generativer KI auf Logik und Absicht, schreibt Korrekturen und
+iteriert, bis die CI grün ist. Sonar selbst nennt ihn eine **Ergänzung** zu SonarQube.
+
+| | SonarQube Cloud | Gitar |
+|---|---|---|
+| Art | deterministische statische Analyse | KI-Review, generativ |
+| Taint-Analyse | ja | nein |
+| Coverage | ja | nein |
+| Reproduzierbares Gate | ja | nein — das Urteil kann beim nächsten Lauf anders ausfallen |
+| Einbindung | Pipeline-Job | GitHub-App |
+| Kosten, öffentliches Repo | kostenlos (OSS-Plan) | laut Produktseite $20–40 je Benutzer und Monat; eine OSS-Variante war nicht zu belegen |
+
+**Dieser Task braucht Coverage, Taint und ein Gate, das bei gleichem Code gleich urteilt.** Ein
+erforderlicher Check, der nicht reproduzierbar ist, trainiert das Ignorieren. Gitar kann später
+als **zusätzlicher, nicht erforderlicher** Reviewer Sinn ergeben — ein eigenes Ticket, sobald mehr
+als eine Person committet.
+
+## Voraussetzung: die Lizenz
+Der kostenlose OSS-Plan gilt für öffentliche Projekte **mit Open-Source-Lizenz**. Die Angaben im
+Repo widersprachen sich (Dual-Lizenz in `LICENSE`, „proprietär" in beiden `composer.json`).
+Entschieden am 2026-09-18: **MIT** — umgesetzt in `000-000-0065`, deshalb `depends_on`.
 
 ## Die drei Stellen, an denen ein naiver Einbau falsch misst
 
@@ -63,7 +87,7 @@ Beschriftungen können beim Anbieter leicht abweichen.
 1. **sonarcloud.io** → **Log in** → **With GitHub**.
 2. **Import an organization** → Organisation `area-net-gmbh` wählen → die SonarQube-Cloud-App
    installieren, Zugriff **nur** auf `contentfly-framework` (*Only select repositories*).
-3. Plan **Free** wählen (gilt für öffentliche Projekte).
+3. Plan **Free** bzw. den **OSS-Plan** wählen (öffentliches Projekt mit Open-Source-Lizenz — erst nach dem Merge von `000-000-0065`).
 4. **Analyze new project** → `contentfly-framework` → **Set up**.
 5. Bei der Analyse-Methode **With GitHub Actions** wählen. Den angezeigten **Token** kopieren.
    Prüfen unter *Administration → Analysis Method*, dass **Automatic Analysis aus** ist.
