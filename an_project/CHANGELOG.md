@@ -3,6 +3,7 @@
 # Changelog
 
 ## 2026-09-18
+- 000-000-0065 → done (per Pull Request auf `master`, #26; ausgeliefert mit `v2.1.0`)
 - 000-000-0064 → done (per Pull Request auf `master`, #25; ausgeliefert mit `v2.1.0`)
 - 000-000-0059 → done (per Pull Request auf `master`, #24; ausgeliefert mit `v2.1.0`)
 - 000-000-0066 task created: "Release v2.1.0 — die Sicherheitskorrekturen ausliefern"
