@@ -1,7 +1,7 @@
 ---
 id: 000-000-0057
 title: Die Rechtematrix prüfen — Stufe, Operation und Eigentümerschaft
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -46,12 +46,45 @@ ist schon einmal passiert: `canExport()` las `== 2` und lieferte ausgerechnet f�
 das fest.
 
 ## Acceptance criteria
-- [ ] Ein Test deckt alle vier Stufen × drei Operationen ab, jeweils gegen einen **eigenen**, einen **gruppenfremden** und einen **fremden** Datensatz.
-- [ ] Admin-Bypass und „Benutzer ohne Gruppe" sind eigene Fälle.
-- [ ] `GROUP` ist ausdrücklich abgedeckt — die Stufe, die die nicht-aufsteigenden Konstanten als erste zerlegen würde.
-- [ ] Jede der sechs Stellen ohne Verengung hat ein Ergebnis: **korrekt so** (mit Begründung im Test) oder **Ticket**.
-- [ ] Die Tests laufen in der `integration`-Suite gegen echte HTTP-Aufrufe, nicht gegen `Permission::is()` direkt — geprüft wird, was ein Client bekommt, nicht was eine Methode zurückgibt.
+- [x] Ein Test deckt alle vier Stufen × drei Operationen ab, jeweils gegen einen **eigenen**, einen **gruppenfremden** und einen **fremden** Datensatz.
+- [x] Admin-Bypass und „Benutzer ohne Gruppe" sind eigene Fälle.
+- [x] `GROUP` ist ausdrücklich abgedeckt — die Stufe, die die nicht-aufsteigenden Konstanten als erste zerlegen würde.
+- [x] Jede der sechs Stellen ohne Verengung hat ein Ergebnis: **korrekt so** (mit Begründung im Test) oder **Ticket**.
+- [x] Die Tests laufen in der `integration`-Suite gegen echte HTTP-Aufrufe, nicht gegen `Permission::is()` direkt — geprüft wird, was ein Client bekommt, nicht was eine Methode zurückgibt.
 
 ## Verification
 Gegenprobe: Eine Verengung im Code versuchsweise entfernen (`== OWN` durch `true` ersetzen) — der
 zugehörige Test muss rot werden und den Fall benennen. Wird er es nicht, prüft er nichts.
+
+## Ergebnis
+**`tests/Integration/Api/PermissionMatrixApiTest.php`, 39 Tests, grün.** Die 36 Fälle Stufe ×
+Operation × Eigentümerschaft laufen als ein Data Provider gegen `/api/single`, `/api/update` und
+`/api/delete` — geprüft werden Statuscode **und** Datenbank. Dazu drei eigene Fälle: Admin ohne
+Permission-Zeile, Benutzer ohne Gruppe, und `GROUP` als engere Stufe trotz höherer Zahl.
+
+**Die Gegenprobe hat gegriffen.** Drei Verengungen versuchsweise auf `false` gesetzt (`OWN` beim
+Lesen, `GROUP` beim Schreiben, `OWN` beim Löschen): **genau sechs** Fälle wurden rot und nennen
+sich im Fehlertext selbst, etwa `readable = OWN on the foreign record: status code`. Code danach
+zurückgesetzt.
+
+**Die sechs Stellen:**
+
+| Stelle | Ergebnis |
+|---|---|
+| `Api::doInsert()` | **korrekt** für einen neuen Datensatz; der i18n-Zweig mit übergebener `id` verengt nicht → `000-000-0059` |
+| `Api::getTranslations()` | **Verdacht bestätigt, aber kleiner als befürchtet**: Es fliessen nur **Anzahlen** fremder Datensätze, keine Inhalte → `000-000-0059` |
+| `MultijoinType` (2×) | **nicht auslösbar** — kein Property trägt `acceptFrom`; der bestehende Wächter-Test schlägt an, sobald sich das ändert |
+| `FileController::uploadAction()` | **korrekt** — ein Upload legt eine neue Datei an |
+| `FileController::overwriteAction()` | **Befund**: prüft die Eigentümerschaft keiner der beiden Dateien → `000-000-0060` |
+
+**Zwei schwerere Befunde ausserhalb der sechs Stellen** — sie fielen auf, weil zwischen
+`getTree()` und `getQuery()` keine einzige Rechteprüfung steht:
+
+- **`/api/tree` und `/api/tree2` prüfen überhaupt kein Leserecht.** Gemessen: Ein Benutzer ohne
+  Gruppe bekommt bei `/api/list` 403, bei beiden Tree-Routen 200 **mit** dem fremden Ordner.
+  Dazu `/api/deleted`, das Löschprotokolle aller Entities liefert → `000-000-0061`.
+- **`getTree2()` baut `lang` als String in SQL ein** — SQL-Injection, erreichbar nur mit einer
+  i18n-Tree-Entity; nicht aktiv ausgenutzt, nur gelesen → `000-000-0062`.
+
+**Beides vor dem Öffentlichmachen des Repositories beheben.** Die Tickets beschreiben die
+Lücken so genau, dass sie als Anleitung taugen.
