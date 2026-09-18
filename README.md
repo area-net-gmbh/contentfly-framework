@@ -73,7 +73,8 @@ auf PHP 8.3 und 8.4, und den Bezugsweg von aussen. **Alle blockierend.** Die Sch
 
 ## Lizenz
 
-Proprietär, siehe `LICENSE`.
+**MIT**, siehe `LICENSE`. Das gilt für dieses Framework (Contentfly 2.x); das frühere
+Contentfly CMS 1.x ist ein eigenes Produkt mit eigener Codebase und nicht betroffen.
 
 ---
 

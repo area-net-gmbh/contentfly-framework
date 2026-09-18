@@ -3,6 +3,8 @@
 # Changelog
 
 ## 2026-09-18
+- 000-000-0065 task created: "Contentfly 2 unter MIT stellen — Lizenzangaben vereinheitlichen"
+- 000-000-0065 → review: **Contentfly 2 steht unter MIT.** Die Angaben widersprachen sich: `LICENSE` sprach von einer Dual-Lizenz mit MIT-Teil, beide `composer.json` und beide READMEs von „proprietär", und dem veröffentlichten Paket fehlte die `LICENSE` ganz. Jetzt überall MIT, Copyright 2019–2026, und `lib/contentfly/LICENSE` reist mit dem Split. Entschieden vom Auftraggeber. Wirksam für das Paket mit dem nächsten Tag. **Nebenbefund:** Der Composer-Lock gilt schon auf `master` als veraltet — unabhängig von dieser Änderung.
 - 000-000-0063 → done (per Pull Request auf `master`, #20 → #21)
 - 000-000-0060 → done (per Pull Request auf `master`, #19 → #21)
 - 000-000-0061 → done (per Pull Request auf `master`, #18 → #21)

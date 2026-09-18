@@ -2,7 +2,7 @@
     "name": "areanet/contentfly-skeleton",
     "description": "Contentfly — project skeleton and development repository. Pulls in the framework as the package areanet/contentfly.",
     "type": "project",
-    "license": "proprietary",
+    "license": "MIT",
     "repositories": [
         {
             "type": "path",
