@@ -1,7 +1,7 @@
 ---
 id: 000-000-0056
 title: SonarQube Cloud als PR-Check einführen — Coverage und Datenflüsse dauerhaft erheben
-status: todo
+status: in-progress
 depends_on: [000-000-0065]
 ---
 
@@ -104,8 +104,8 @@ Beschriftungen können beim Anbieter leicht abweichen.
 ## Acceptance criteria
 - [ ] `sonar-project.properties` im Repo: Quellen `lib`, `custom`, `bin`; Tests `tests`; Coverage-Pfad; Ausschlüsse (`vendor`, generierte Proxies) begründet.
 - [ ] Der Job `analyse: SonarQube Cloud` läuft bei jedem PR und Push auf `master`, nicht im Zeitplan-Lauf, nicht bei Forks und Dependabot; er wird rot, wenn das Gate rot ist.
-- [ ] Die Coverage enthält **beide** Suiten: `tests/router.php` sammelt serverseitig, wenn `CONTENTFLY_COVERAGE_DIR` gesetzt ist; ohne die Variable ist das Verhalten unverändert (belegt durch die bestehende Suite).
-- [ ] Die Gesamtzahl liegt vor, und die **drei am schwächsten abgedeckten Bereiche** sind benannt, je mit Entscheidung: Test nachziehen (Ticket) oder begründet nicht abdecken.
+- [x] Die Coverage enthält **beide** Suiten: `tests/router.php` sammelt serverseitig, wenn `CONTENTFLY_COVERAGE_DIR` gesetzt ist; ohne die Variable ist das Verhalten unverändert (belegt durch die bestehende Suite).
+- [x] Die Gesamtzahl liegt vor, und die **drei am schwächsten abgedeckten Bereiche** sind benannt, je mit Entscheidung: Test nachziehen (Ticket) oder begründet nicht abdecken.
 - [ ] Die Befunde des ersten Laufs sind eingeordnet — Vulnerabilities und Security Hotspots **einzeln** als „echt" (eigenes Ticket) oder „falsch positiv" (mit Begründung, in Sonar markiert). Dieser Task behebt keine Befunde.
 - [ ] `deployment.md` (Gate-Tabelle) und der Sicherheitsnachweis kennen den neuen Check; `git.md` nennt ihn nach Phase 2 als siebten erforderlichen.
 
@@ -121,3 +121,47 @@ dass Stelle 1 wirklich greift.
 ## Abgrenzung
 **PHPStan über Level 0 zu heben ist ein eigener Task.** Sonar ersetzt das nicht — beide sehen
 Verschiedenes.
+
+## Stand — Teil 1: die Messung (2026-09-18)
+**Unabhängig von SonarQube Cloud umgesetzt, weil es die Voraussetzung ist:** Ohne richtige
+Coverage zeigt auch Sonar eine falsche Zahl.
+
+**Die erste Coverage-Zahl dieses Projekts:** 60,2 % der Zeilen, 59,1 % der Methoden, 129 Dateien —
+Unit- und Integration-Suite zusammen.
+
+**Stelle 1 bestätigt, und deutlicher als erwartet.** Nur der PHPUnit-Prozess: **19,5 %**. Mit dem
+Anteil des Testservers: **60,2 %**. Ein naiver Einbau hätte ein Drittel der Wahrheit gemeldet.
+
+**Ein Befund, den erst die Messung sichtbar gemacht hat — und der über Coverage hinausgeht:**
+`<source>` in `phpunit.xml.dist` schloss `vendor` aus. Ein Ausschluss durchläuft das Verzeichnis und
+folgt Symlinks; `vendor/areanet/contentfly` zeigt auf `lib/contentfly`. **Aus 122 Framework-Dateien
+wurden 0** — „Quellcode" hiess für PHPUnit nur `custom/Classes`. Das verbog zweierlei: Coverage
+hätte nur die Vorlage gemessen, und **`restrictDeprecations/Notices/Warnings` meldeten nur Probleme
+aus `custom/Classes`** — `failOnWarning` hat den Framework-Code nie gesehen. Ausschluss entfernt
+(keines der eingeschlossenen Verzeichnisse enthält `vendor`); die Suite bleibt grün, es kam also
+nichts Verstecktes zum Vorschein. Das war nicht garantiert.
+
+**Umgesetzt:**
+- `tests/router.php` sammelt je Request einen Teilbericht, nur wenn `CONTENTFLY_COVERAGE_DIR`
+  gesetzt und PCOV geladen ist. Welcher Code zählt, liest er aus `<source>` in `phpunit.xml.dist`.
+  Ohne Variable unverändert — belegt durch die volle Suite (699 grün).
+- `phpunit/phpcov` 9 als Entwicklungsabhängigkeit, zum Zusammenführen.
+- `runbook.md`: der lokale Coverage-Lauf.
+
+**Die drei schwächsten Bereiche — alle drei mit Ticket:**
+
+| Bereich | Quote | offen | Entscheidung |
+|---|---|---|---|
+| `Classes/Types` | 34 % | 541 Zeilen | Test nachziehen → `000-000-0067`. Keine Entity von Framework oder Vorlage benutzt Multifile, Checkbox, Radio, Onejoin — Projekte schon. |
+| `Classes/File` (Bildverarbeitung) | 23 % | 280 Zeilen | Test nachziehen → `000-000-0068`. Verarbeitet **hochgeladene** Dateien; `ImageMagick.php` 0 %. |
+| `Api.php` | 59 % | 514 Zeilen | Einordnen → `000-000-0069`. Grösste absolute Lücke; zuerst zeilengenau aufschlüsseln. |
+
+Am besten abgedeckt: `Classes/Security` mit **90,5 %**.
+
+**Kosten der Messung:** Die Suite läuft mit PCOV rund 4 statt 1 Minute; ~700 Teilberichte, zusammen
+~200 MB, zusammengeführt in 3 Sekunden. Für einen eigenen Pipeline-Job vertretbar, für die sechs
+bestehenden nicht — dort bleibt kein Treiber.
+
+**Offen — Teil 2, wartet auf Organization Key und Project Key:** `sonar-project.properties`, der Job
+`analyse: SonarQube Cloud`, das Quality Gate, die Gegenprobe mit der SQL-Injection, die Einordnung
+der ersten Befunde, die Doku.

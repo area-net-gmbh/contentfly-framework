@@ -46,10 +46,14 @@
             <directory>lib/contentfly/Controller</directory>
             <directory>custom/Classes</directory>
         </include>
-        <exclude>
-            <directory>custom/vendor</directory>
-            <directory>vendor</directory>
-        </exclude>
+        <!-- NO EXCLUDE FOR vendor (000-000-0056). It stood here and emptied the list: excluding a
+             directory walks it and follows symlinks, and vendor/areanet/contentfly is a symlink
+             to lib/contentfly. Every framework file was resolved and excluded — 122 files became
+             0, and "source" meant custom/Classes alone. That bent two things at once: coverage
+             would have measured only the template, and restrictDeprecations/Notices/Warnings
+             reported issues from custom/Classes only, so failOnWarning never saw the framework.
+             Neither vendor nor custom/vendor lies inside an included directory; there is
+             nothing to exclude. -->
     </source>
 
     <!-- No hard-wired coverage reports: they request a coverage driver on EVERY run, and

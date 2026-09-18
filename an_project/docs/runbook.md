@@ -288,6 +288,25 @@ Für Abdeckung wird ein Treiber gebraucht (Xdebug oder PCOV) und der Schalter `-
 Die Konfiguration fordert bewusst keinen Bericht bei jedem Lauf an — sonst endet die Suite ohne
 installierten Treiber mit Exit-Code 1, obwohl jeder Test grün ist.
 
+**Die Abdeckung der Integrationstests entsteht im Testserver, nicht in PHPUnit** (`000-000-0056`).
+Ohne dessen Anteil zeigt der Bericht rund 19 % statt rund 60 % — die Integrationstests schicken
+HTTP, und der Framework-Code läuft im anderen Prozess. Für die ganze Zahl:
+
+```sh
+mkdir -p build/coverage/server
+# Testserver mit PCOV und Sammelverzeichnis — sonst wie in tests/README.md, Schritt 3
+CONTENTFLY_COVERAGE_DIR=$PWD/build/coverage/server \
+  php -d pcov.enabled=1 -d pcov.directory=$PWD -S 127.0.0.1:8145 tests/router.php &
+# Suite mit PCOV, Bericht im PHP-Format
+php -d pcov.enabled=1 -d pcov.directory=$PWD ./vendor/bin/phpunit --coverage-php build/coverage/server/phpunit.cov
+# Zusammenführen
+./vendor/bin/phpcov merge --clover build/coverage/clover.xml --text build/coverage/summary.txt build/coverage/server
+```
+
+`tests/router.php` schreibt je Request einen Teilbericht, **nur** wenn `CONTENTFLY_COVERAGE_DIR` gesetzt
+und PCOV geladen ist. Welcher Code zählt, liest er aus `<source>` in `phpunit.xml.dist` — eine Liste
+für beide Hälften.
+
 ## 5. Zugriff
 <!-- URLs/Ports: Backend-API, DB, Mailhog … -->
 - Backend-API: http://localhost:8000
