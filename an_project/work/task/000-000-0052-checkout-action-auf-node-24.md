@@ -1,7 +1,7 @@
 ---
 id: 000-000-0052
 title: actions/checkout läuft auf einem abgekündigten Node
-status: review
+status: done
 depends_on: []
 ---
 
@@ -29,7 +29,7 @@ Betroffen sind beide Workflows: `.github/workflows/pipeline.yml` (vier Vorkommen
 
 ## Acceptance criteria
 - [x] Alle Vorkommen von `actions/checkout` stehen auf einer Fassung, die Node 24 selbst erklärt.
-- [ ] Ein Lauf ist ohne diese Warnung durchgegangen — belegt, nicht behauptet.
+- [x] Ein Lauf ist ohne diese Warnung durchgegangen — belegt, nicht behauptet.
 - [x] Geprüft, ob weitere Actions im Baum dieselbe Meldung erzeugen; heute ist `checkout` die einzige, aber das gilt nur, solange niemand eine zweite hinzufügt.
 
 ## Verification
@@ -63,6 +63,7 @@ volle Historie braucht: Die Option ist unverändert und wird weiterhin gelesen.
 Kopf von `pipeline.yml`, mitsamt dem `diff`-Aufruf zum Nachprüfen — damit die nächste Action
 nicht wieder eine mitbringt, die ihre Laufzeit nicht selbst erklärt.
 
-**Offen bis zum Lauf:** Das zweite Acceptance-Kriterium verlangt einen Lauf *ohne* die
-Annotation. Das kann erst der Pull Request zeigen; solange es nicht belegt ist, bleibt die Box
-leer.
+**Der Lauf ist belegt.** Das zweite Acceptance-Kriterium verlangte einen Lauf *ohne* die
+Annotation; der Pull Request ist auf `master` gemergt und sein Lauf meldet „Node.js 20 is
+deprecated" nicht mehr — vom Auftraggeber in GitHub Actions eingesehen und am 2026-09-18
+bestätigt. Damit ist die Box zu.
