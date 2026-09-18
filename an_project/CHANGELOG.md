@@ -3,6 +3,8 @@
 # Changelog
 
 ## 2026-09-18
+- 000-000-0064 → in-progress
+- 000-000-0064 → review: **Übersetzungen lassen sich wieder anlegen.** Der Schema-Aufbau las nur die Attribute der Deklaration selbst; `BaseI18n` deklariert `id` neu, aber ohne `Column` (ORM 3 lehnt die doppelte ab) — also fiel `id` aus dem Schema jeder übersetzbaren Entity, und jeder Übersetzungs-Insert scheiterte. `MetadataReader` erbt jetzt die `Column` der Vorfahren-Deklaration, **nur** die Spalte; der eigene Generator bleibt. Ohne `APP_LANGUAGES` keine Warnung mehr, sondern ein begründeter Rückfall. Die Rechtematrix enthält alle zwölf Übersetzungs-Fälle, auch die erlaubten. Suite 699 grün, PHPStan sauber.
 - 000-000-0059 → in-progress
 - 000-000-0064 task created: "Übersetzungen lassen sich nicht anlegen — id fehlt im Schema jeder i18n-Entity"
 - 000-000-0059 → review: **Beide i18n-Pfade verengen auf Eigentümerschaft** — der Übersetzungs-Insert prüft den Eigentümer des bestehenden Datensatzes, `/api/translations` zählt wie `getCount()`. Dafür steht in der Vorlage die **erste übersetzbare Entity** dieses Baums (`Core\ExampleI18n`); ohne sie waren die Pfade für die Tests unerreichbar. Vorher rot: 500 statt 403 bei den abgelehnten Inserts, `OWN` zählte 3 statt 1. **Dabei gefunden, und grösser als der Task:** Eine erlaubte Übersetzung lässt sich gar nicht anlegen — `id` fehlt im Schema jeder `BaseI18n`-Entity, vermutlich seit `010-003-0002`, als die doppelte `Column` für ORM 3 entfernt wurde. Die vermutete Lücke war also nicht ausnutzbar, der Pfad war kaputt → `000-000-0064`.
