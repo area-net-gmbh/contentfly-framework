@@ -1,7 +1,7 @@
 ---
 id: 000-000-0061
 title: /api/tree, /api/tree2 und /api/deleted prüfen kein Leserecht
-status: review
+status: done
 depends_on: []
 ---
 
