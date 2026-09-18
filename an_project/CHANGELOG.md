@@ -3,6 +3,7 @@
 # Changelog
 
 ## 2026-09-18
+- 000-000-0051 → done: **`master` ist geschützt — seit heute, nicht seit gestern.** Ruleset `master-schutz`: aktiv, ohne Ausnahmen, Pull Request Pflicht, nur Merge, alle sechs Checks. **Gegenprobe:** Ein direkter Push wird abgelehnt, und GitHub nennt beide Gründe. **`git.md` und `deployment.md` behaupteten den Schutz seit dem 17.09.** — dokumentiert war er, geschaltet nicht, und in einem privaten Repository ohne GitHub Team wäre er auch nicht durchgesetzt worden. Korrigiert. Dazu ein Abschnitt zu **gestapelten Pull Requests**: #17–#20 waren in ihre Stapel-Basis gemergt worden statt nach `master` — vier Sicherheitsfixes fehlten dort, während ihre Tickets schon öffentlich lagen; nachgeholt mit #21.
 - 000-000-0063 → in-progress
 - 000-000-0063 → review: **Feldnamen aus dem Request gehen nicht mehr ungeprüft in DQL.** `where` in `/api/single`, `order` und `groupBy` in `/api/list` werden gegen das Schema geprüft und bei unbekanntem Namen mit **400** abgelehnt, die Sortierrichtung nur `ASC`/`DESC`; `properties` in `/api/tree` werden verworfen wie in `/api/list`. **Die Annahme im Ticket war falsch:** `getList` wirft bei unbekannten `where`-Feldern nicht, es überspringt sie — daher je Stelle entschieden; bei `where` in `single` wäre Überspringen gefährlich, weil ohne Filter ein anderer Datensatz zurückkommt. Sieben Tests, vorher fünf rot mit 500. Suite 680 grün, PHPStan sauber.
 - 000-000-0060 → in-progress

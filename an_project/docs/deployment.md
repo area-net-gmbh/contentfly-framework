@@ -107,7 +107,8 @@ ausdrücklich.
 - **`CONTENTFLY_TEST_ADMIN_PASS`** als Repository-Secret (Settings → Secrets and variables →
   Actions). Bewusst nicht in der YAML: Auch für eine flüchtige Datenbank gehört ein Passwort
   nicht ins Repo.
-- **`master` ist geschützt** — seit `000-000-0051` (2026-09-17). Ein direkter Push wird
+- **`master` ist geschützt** — seit 2026-09-18, über das Ruleset `master-schutz`
+  (`000-000-0051`; hier stand bis dahin fälschlich der 17.09.). Ein direkter Push wird
   abgelehnt; alle sechs Jobs dieser Tabelle sind **erforderliche Checks**, und die Regel gilt
   auch für Administratoren. Das ist die Voraussetzung, unter der die Pipeline überhaupt etwas
   zusichert: Vorher war sie eine Konvention, an der ein `git push origin master` vorbeischrieb.

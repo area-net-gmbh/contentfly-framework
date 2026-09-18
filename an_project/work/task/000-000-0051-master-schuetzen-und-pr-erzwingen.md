@@ -1,7 +1,7 @@
 ---
 id: 000-000-0051
 title: master schützen und den Pull Request zur Regel machen
-status: in-progress
+status: done
 depends_on: [011-002-0002]
 ---
 
@@ -30,13 +30,13 @@ es grüne Läufe gibt, sperrt das Repository aus. Seit dem 2026-09-17 liegt der 
   und das sollte sie auch.
 
 ## Acceptance criteria
-- [ ] `master` ist gegen direkten Push geschützt; Änderungen gehen über einen Pull Request.
-- [ ] Die Pipeline ist als erforderlicher Check eingetragen, mit der entschiedenen Auswahl.
+- [x] `master` ist gegen direkten Push geschützt; Änderungen gehen über einen Pull Request.
+- [x] Die Pipeline ist als erforderlicher Check eingetragen, mit der entschiedenen Auswahl.
 - [x] Die Entscheidungen oben sind in `an_project/docs/git.md` festgehalten — es ist die Datei, die
       die Framework-Baseline für dieses Projekt verengt, und der Abschnitt *Integration branch* ist
       heute leer.
 - [x] `deployment.md` nennt die Regel bei den Voraussetzungen.
-- [ ] **Gegenprobe:** Ein direkter Push auf `master` wird abgelehnt, und die Meldung sagt warum.
+- [x] **Gegenprobe:** Ein direkter Push auf `master` wird abgelehnt, und die Meldung sagt warum.
 
 ## Verification
 `git push origin master` mit einem belanglosen Commit auf einem Wegwerf-Branch, der auf `master`
@@ -98,3 +98,28 @@ Settings → Branches → Add branch ruleset (oder Add rule) für `master`:
 
 Danach die Gegenprobe aus *Verification* — die trägt das fünfte Kriterium, und erst dann geht
 dieses Ticket auf `review`.
+
+## Ergebnis — geschaltet am 2026-09-18
+**`master` ist geschützt, über das Ruleset `master-schutz`**, eingerichtet vom Auftraggeber am
+2026-09-18 und per API gegengelesen: aktiv, *Bypass list* leer, Ziel ist der Standard-Branch;
+Löschen und Force-Push gesperrt; Pull Request Pflicht mit 0 Freigaben, nur Merge als Methode;
+die sechs Checks **wörtlich** wie oben.
+
+**Warum ein Ruleset und warum erst jetzt:** Weder klassischer Branch-Schutz noch Rulesets werden
+in einem **privaten** Repository ohne GitHub Team durchgesetzt — die API antwortete *„Upgrade to
+GitHub Pro or make this repository public"*. Das Repository sollte ohnehin öffentlich werden; mit
+dem Wechsel greift das Ruleset.
+
+**Zwei Abweichungen von den Schritten oben, beide bewusst:**
+- *Settings → Rulesets* statt *Branches* — ein Regelwerk, nicht zwei.
+- **„Require branches to be up to date" ist aus**, nicht an. Sonst müsste jeder Branch vor dem
+  Merge neu auf `master` gesetzt werden; die Checks laufen ohnehin gegen den Merge-Stand.
+
+**Gegenprobe, 2026-09-18:** Ein leerer Commit, direkt auf `master` gepusht — abgelehnt mit
+*„Changes must be made through a pull request"* und *„6 of 6 required status checks are
+expected"*. `master` blieb unverändert. Dass ein Pull Request erst mit grünen Checks durchgeht,
+zeigte #21: sechs Checks grün, dann gemergt.
+
+**Korrigiert:** `git.md` und `deployment.md` nannten den 17.09. als Beginn des Schutzes. Das
+stimmte nie — dokumentiert war er, geschaltet nicht. Dazu in `git.md` ein neuer Abschnitt zu
+gestapelten Pull Requests: #17–#20 waren in ihre Stapel-Basis gemergt worden statt nach `master`.

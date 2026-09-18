@@ -17,8 +17,16 @@ Commit-Scopes sind fachliche Module *dieses* Projekts, keine Dateinamen.
 
 ## Integration branch
 
-**`master` — und er ist geschützt** (`000-000-0051`, 2026-09-17). Ein direkter Push wird
-abgelehnt; jede Änderung geht über einen Pull Request.
+**`master` — und er ist geschützt**, seit **2026-09-18**, über das Ruleset `master-schutz`
+(`000-000-0051`). Ein direkter Push wird abgelehnt; jede Änderung geht über einen Pull Request.
+Gegenprobe am selben Tag: GitHub lehnt einen direkten Push ab mit *„Changes must be made through a
+pull request"* und *„6 of 6 required status checks are expected"*.
+
+> **Korrektur.** Bis 2026-09-18 stand hier „geschützt seit 2026-09-17". Das stimmte nicht: Die
+> Entscheidungen waren getroffen und aufgeschrieben, geschaltet war nichts — und hätte es nicht
+> sein können. Branch-Schutz **und** Rulesets werden in einem **privaten** Repository erst mit
+> GitHub Team durchgesetzt. Wirksam wurde die Regel erst, als das Repository öffentlich wurde.
+> Wer eine Schutzregel dokumentiert, prüft sie mit einem abgelehnten Push, nicht mit der Doku.
 
 ### Was die Regel verlangt
 
@@ -26,8 +34,11 @@ abgelehnt; jede Änderung geht über einen Pull Request.
 |---|---|
 | Erforderliche Checks | **alle sechs** — `check: Vorlagen-Konfiguration`, `check: composer audit`, `check: PHPStan`, `check: Bezugsweg von aussen`, `test: PHP 8.3`, `test: PHP 8.4` |
 | Freigabe | **keine** — bei dieser Teamgrösse wäre sie ein Hindernis ohne Nutzen, und GitHub lässt niemanden den eigenen Pull Request freigeben |
-| Gilt für Administratoren | **ja** — „Do not allow bypassing the above settings" |
+| Gilt für Administratoren | **ja** — die *Bypass list* des Rulesets ist leer |
 | Force-Push und Löschen | **verboten** |
+| Merge-Methode | **nur Merge** — Squash und Rebase sind abgeschaltet. Ein Merge-Commit hält einen Task als eine revertierbare Einheit zusammen, und eine Story behält ihre Commits je Task. |
+| „Require branches to be up to date" | **aus** — sonst müsste jeder Branch vor dem Merge neu auf `master` gesetzt werden, auch wenn sich nichts überschneidet. Die Checks laufen ohnehin gegen den Merge-Stand. |
+| Wo eingestellt | *Settings → Rulesets* — **nicht** unter *Branches*; zwei Regelwerke nebeneinander widersprechen sich irgendwann |
 
 **Warum alle sechs und nicht nur die drei schnellen:** Die beiden teuersten Jobs sind genau die,
 die in Epic `011` vier Defekte gefunden haben, welche lokal **alle** unsichtbar waren. Sie
@@ -35,6 +46,17 @@ wegzulassen hätte den Schutz auf das reduziert, was ohnehin jeder lokal sieht.
 
 **Die Freigabe-Frage bleibt offen, nicht beantwortet für immer.** Sie wird nachgezogen, sobald
 mehr als eine Person committet — dann ist sie wirksam statt blockierend.
+
+### Gestapelte Pull Requests
+
+**Einen gestapelten Pull Request erst mergen, wenn seine Basis `master` ist.** Am 2026-09-18
+wurden #17–#20 — jeder auf den vorigen Branch aufgesetzt — in ihre Stapel-Basis gemergt statt
+nach `master`. GitHub stellt die Basis erst um, wenn der Branch darunter **gelöscht** ist, nicht
+schon, wenn er gemergt ist. Folge: Vier Sicherheitsfixes fehlten auf `master`, während die
+Tickets, die die Lücken beschreiben, dort schon öffentlich lagen. Nachgeholt mit #21.
+
+Deshalb: unteren PR mergen → **seinen Branch löschen** → prüfen, dass der nächste PR jetzt
+`base: master` zeigt → erst dann mergen.
 
 ## Wie ein Work Item geschlossen wird — `/done` gilt hier NICHT vollständig
 
