@@ -27,8 +27,8 @@ use Tests\Integration\IntegrationTestCase;
  *
  * | Place | Result |
  * |---|---|
- * | `Api::doInsert()` | **Correct** for a new record: it has no owner yet, there is nothing to narrow. Its i18n branch (an insert that carries an existing `id` creates a language variant of *that* record) does not narrow — no entity of the framework or the template is i18n, so it cannot be reached here. **Ticket 000-000-0059.** |
- * | `Api::getTranslations()` | Counts untranslated records **across all owners**; `getCount()` narrows the same kind of number by `OWN`/`GROUP`. Only counts, no content — but not narrowed. i18n only, not reachable here. **Ticket 000-000-0059.** |
+ * | `Api::doInsert()` | **Correct** for a new record: it has no owner yet, there is nothing to narrow. Its i18n branch (an insert that carries an existing `id` creates a language variant of *that* record) **narrows since 000-000-0059** by the ownership of the existing record. |
+ * | `Api::getTranslations()` | **Narrowed since 000-000-0059** like `getCount()`; it used to count untranslated records across all owners. |
  * | `MultijoinType` (write check, 2 places) | **Not reachable**: only the `mappedBy` branch checks, and it needs `acceptFrom`, which no property carries. WritePermissionApiTest::testTheWriteCheckInMultijoinTypeCannotBeTriggered() fails as soon as that changes — the check has to be narrowed then. |
  * | `FileController::uploadAction()` | **Correct**: an upload creates a new file, nothing to narrow. |
  * | `FileController::overwriteAction()` | **Correct since 000-000-0060.** It replaced the content of `destId` with that of `sourceId` and checked the ownership of neither; both are now narrowed like `Api::doUpdate()`. Covered in FileApiTest. |
@@ -56,6 +56,9 @@ class PermissionMatrixApiTest extends IntegrationTestCase
         'ALL'   => array('own', 'group', 'foreign'),
         'GROUP' => array('own', 'group'),
     );
+
+    /** The template's translatable entity, see custom/Entity/Core/ExampleI18n.php. */
+    private const I18N_ENTITY = 'Core\\ExampleI18n';
 
     private string $adminId = '';
 
@@ -244,6 +247,98 @@ class PermissionMatrixApiTest extends IntegrationTestCase
             'Without read right on PIM\\Tag the deletion is not reported');
     }
 
+    // ── Translatable entities (000-000-0059) ─────────────────────────────────────────
+    //
+    // Measured on the template's Core\ExampleI18n — until 000-000-0059 no entity of the
+    // framework or the template was translatable, so these paths were unreachable here.
+
+    #[DataProvider('i18nInsertCases')]
+    public function testInsertingATranslationOfARecordOutOfReachIsRejected(string $level, string $record, bool $allowed): void
+    {
+        // An insert that carries the id of an existing record creates a language variant of
+        // THAT record. It used to check only writable != NONE on the entity: with OWN a user
+        // added translations to anyone's records.
+        //
+        // ONLY THE REJECTED CASES, FOR NOW. A permitted translation insert does not get through
+        // today at all: `id` is missing from the schema of every BaseI18n entity, and the insert
+        // stops with unknown_property (000-000-0064). The ownership check runs before that, so
+        // the rejections are measurable; the permitted cases join this provider with 0064.
+        [$token, $userId, $groupId] = $this->createTestUser(array(self::I18N_ENTITY => array(
+            'readable' => Permission::ALL,
+            'writable' => self::LEVELS[$level],
+        )));
+
+        $id = match ($record) {
+            'own'     => $this->i18nRecord($userId),
+            'group'   => $this->i18nRecord($this->adminId, $groupId),
+            'foreign' => $this->i18nRecord($this->adminId),
+        };
+
+        [$status] = $this->postJson('/api/insert', array(
+            'entity' => self::I18N_ENTITY,
+            'lang'   => 'en',
+            'data'   => array('id' => $id, 'title' => "Translation $id"),
+        ), $token);
+
+        $case = "insert of an en variant with writable = $level on the $record record";
+
+        $this->assertSame($allowed ? 200 : 403, $status, "$case: status code");
+        $this->assertSame($allowed, $this->i18nRowExists($id, 'en'), "$case: checked against the database");
+
+        $this->pdo()->prepare('DELETE FROM pim_log WHERE model_id = :id')->execute(array('id' => $id));
+    }
+
+    /** @return iterable<string, array{0:string,1:string,2:bool}> */
+    public static function i18nInsertCases(): iterable
+    {
+        foreach (array('OWN', 'GROUP') as $level) {
+            foreach (array('own', 'group', 'foreign') as $record) {
+                if (!in_array($record, self::REACHES[$level], true)) {
+                    yield "writable $level on $record record" => array($level, $record, false);
+                }
+            }
+        }
+    }
+
+    #[DataProvider('translationCountCases')]
+    public function testTranslationCountsAreNarrowedLikeGetCount(string $level, int $expected): void
+    {
+        // /api/translations counts the records not yet translated into a language. It counted
+        // across all owners — only numbers, no content, but numbers about records the user may
+        // not know exist. getCount() has always narrowed the same kind of number.
+        [$token, $userId, $groupId] = $this->createTestUser(array(self::I18N_ENTITY => array(
+            'readable' => self::LEVELS[$level],
+        )));
+
+        $this->i18nRecord($userId);
+        $this->i18nRecord($this->adminId, $groupId);
+        $this->i18nRecord($this->adminId);
+
+        [$status, $body] = $this->postJson('/api/translations', array(
+            'entity' => self::I18N_ENTITY,
+            'lang'   => 'en',
+        ), $token);
+
+        $this->assertSame(200, $status);
+        $counts = array_column($this->assertEnvelope($body), 'records', 'lang');
+
+        if ($level === 'ALL') {
+            // Other rows may exist in the table; ALL sees at least the three made here.
+            $this->assertGreaterThanOrEqual($expected, (int) ($counts['de'] ?? 0));
+        } else {
+            $this->assertSame($expected, (int) ($counts['de'] ?? 0),
+                "readable = $level counts only the records the level reaches");
+        }
+    }
+
+    /** @return iterable<string, array{0:string,1:int}> */
+    public static function translationCountCases(): iterable
+    {
+        yield 'OWN counts the own record'                  => array('OWN', 1);
+        yield 'GROUP counts own and group-shared records'  => array('GROUP', 2);
+        yield 'ALL counts every record'                    => array('ALL', 3);
+    }
+
     /**
      * Runs one operation and checks the status code **and** the database. A status code alone
      * does not prove that nothing happened.
@@ -354,6 +449,30 @@ class PermissionMatrixApiTest extends IntegrationTestCase
         $this->assertSame(200, $status);
 
         return array_column($this->assertEnvelope($body), 'model_id');
+    }
+
+    /** Creates a record of the translatable example entity in the main language `de`. */
+    private function i18nRecord(?string $userCreated, ?string $groups = null): string
+    {
+        $id = 'pm-i18n-'.bin2hex(random_bytes(6));
+
+        $this->pdo()->prepare(
+            'INSERT INTO example_i18n (id, lang, created, modified, views, isIntern, usercreated_id, `groups`, title)
+             VALUES (:id, \'de\', NOW(), NOW(), 0, 0, :uc, :grp, :title)'
+        )->execute(array('id' => $id, 'uc' => $userCreated, 'grp' => $groups, 'title' => "Record $id"));
+
+        // Removes every language variant — they share the id.
+        $this->deleteAfterTest('example_i18n', $id);
+
+        return $id;
+    }
+
+    private function i18nRowExists(string $id, string $lang): bool
+    {
+        $statement = $this->pdo()->prepare('SELECT COUNT(*) FROM example_i18n WHERE id = :id AND lang = :lang');
+        $statement->execute(array('id' => $id, 'lang' => $lang));
+
+        return (int) $statement->fetchColumn() === 1;
     }
 
     private function title(string $tag): ?string
