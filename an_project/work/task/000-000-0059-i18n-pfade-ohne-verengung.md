@@ -1,7 +1,7 @@
 ---
 id: 000-000-0059
 title: Zwei i18n-Pfade prüfen die Stufe, verengen aber nicht auf Eigentümerschaft
-status: review
+status: done
 depends_on: []
 ---
 
