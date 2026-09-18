@@ -4,7 +4,7 @@
 
 **Dieser Leitfaden ist der Weg. `an_project/docs/breaking-changes.md` ist das Register.**
 
-Das Register hat **119 Einträge in 14 Abschnitten** (Stand 2026-09-17, nachgezählt mit `011-004-0002`) und ist nach Epic und
+Das Register hat **124 Einträge in 14 Abschnitten** (Stand 2026-09-18, nachgezählt mit `000-000-0066`) und ist nach Epic und
 Story geordnet — also danach, *wann wir etwas geändert haben*. Das ist die richtige Ordnung zum
 Nachschlagen und die falsche zum Arbeiten. Hier steht die andere: **was ein Projekt tut, und in
 welcher Reihenfolge.**
@@ -29,6 +29,33 @@ beschrieben. Die Stellen, an denen das passiert ist, tragen den Verweis auf `007
 
 **Was UFP nicht geprüft hat**, weil es das nicht benutzt: eigene `Type`-Klassen, Plugins, Sprachen und
 i18n, verschlüsselte Felder. Dort gilt der Leitfaden, wie er an der Vorlage erprobt ist.
+
+---
+
+## Von 2.0 auf 2.1 — für Projekte, die schon auf Contentfly 2 laufen
+
+**`v2.1.0` ist ein Sicherheits-Release.** Es schliesst eine SQL-Injection, eine DQL-Injection,
+zwei Routen ohne Rechteprüfung und eine fehlende Eigentümerprüfung beim Überschreiben von
+Dateien. **Das Update ist dringend** — die Lücken sind im öffentlichen Repository beschrieben.
+
+Wer von 1.x kommt, folgt den neun Phasen unten; die Änderungen von 2.1 stecken dort schon drin.
+Wer auf `v2.0.0` steht, braucht nur diese Schritte:
+
+1. **Beziehen.** Die Constraint `^2.0` nimmt `2.1.0` mit: `composer update areanet/contentfly`.
+2. **Rechte prüfen — der eine Schritt, der still etwas wegnehmen kann.** `/api/tree` und
+   `/api/tree2` verlangen jetzt ein Leserecht, wie `/api/list`. Jede Gruppe, deren Clients einen
+   Baum lesen, braucht eine `Permission`-Zeile mit `readable` für diese Entity. Ohne sie antwortet
+   die Route 403 statt des Baums.
+3. **Clients auf die neuen Statuscodes prüfen.** Unbekannte Feldnamen in `where`, `order` und
+   `groupBy` antworten 400 statt 500; `/file/overwrite` antwortet 403, wenn eine der beiden
+   Dateien dem Benutzer nicht gehört. Ein korrekter Client merkt davon nichts.
+4. **Kein Schema-Update nötig.** Die neue Tabelle `example_i18n` gehört zur Vorlage, nicht zum
+   Framework; ein Bestandsprojekt hat die Datei nicht.
+
+**Was 2.1 zusätzlich bringt:** Übersetzungen lassen sich über die API wieder anlegen — in `v2.0.0`
+scheiterte das immer. Und Contentfly steht jetzt unter der **MIT-Lizenz**.
+
+Die Einzelheiten stehen im Register unter *API*, jeweils mit „ausgeliefert mit `v2.1.0`".
 
 ---
 
@@ -380,7 +407,7 @@ nötig, um wie bisher weiterzuarbeiten.
 
 ## Phase 8 — Den API-Vertrag prüfen
 
-**Was die Clients merken.** 24 Einträge unter *API* — der grösste Abschnitt des Registers, und
+**Was die Clients merken.** 33 Einträge unter *API* — der grösste Abschnitt des Registers, und
 der einzige, den ein Projekt nicht allein durch Codeänderungen erledigt: Ein Teil davon betrifft
 Clients, die es nicht besitzt.
 
@@ -407,6 +434,10 @@ eine Aufzeichnung direkt danach bekommt `429`, und `record-api.php` meldet die S
 **Die Statuscodes, die sich geändert haben, zuerst:** 404 bei unbekannter Id, 405 statt 302 auf
 unbekannten Pfaden, 409 bei einer `unique`-Verletzung, 429 bei zu vielen Anmeldeversuchen. Sie
 stehen ab jetzt **nur noch** in der HTTP-Antwort — `status` ist aus dem Fehlerrumpf verschwunden.
+
+**Seit `v2.1.0` dazu:** `/api/tree` und `/api/tree2` antworten ohne Leserecht 403 und liefern
+bei `OWN`/`GROUP` nur die erreichbaren Knoten; unbekannte Feldnamen in `where`, `order` und
+`groupBy` antworten 400. Wer einen Baum ohne `Permission`-Zeile gelesen hat, sieht das hier zuerst.
 
 **Und die Formänderungen:** Der `frontend`-Block schrumpft, in `/api/config` fällt er ganz weg;
 `export` und `extended` verschwinden aus dem `permissions`-Block.

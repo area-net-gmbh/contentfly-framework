@@ -1,7 +1,7 @@
 ---
 id: 000-000-0064
 title: Übersetzungen lassen sich nicht anlegen — id fehlt im Schema jeder i18n-Entity
-status: review
+status: done
 depends_on: []
 ---
 
