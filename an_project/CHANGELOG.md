@@ -3,6 +3,11 @@
 # Changelog
 
 ## 2026-09-18
+- 000-000-0056 → in-progress
+- 000-000-0067 task created: "Feldtypen testen, die Framework und Vorlage selbst nicht benutzen"
+- 000-000-0068 task created: "Die Bildverarbeitung testen — sie verarbeitet hochgeladene Dateien"
+- 000-000-0069 task created: "Die ungetesteten Zweige in Api.php einordnen"
+- 000-000-0056 Teil 1: **Die erste Coverage-Zahl des Projekts: 60,2 % der Zeilen.** Nur im PHPUnit-Prozess gemessen wären es **19,5 %** — die Integrationstests führen den Framework-Code im Testserver aus; `tests/router.php` sammelt dort jetzt mit, wenn man es verlangt. **Dabei gefunden:** `phpunit.xml.dist` schloss `vendor` aus, der Ausschluss folgte dem Symlink `vendor/areanet/contentfly → lib/contentfly` und leerte die Quellen-Liste: **122 Framework-Dateien wurden 0.** Damit meldete `failOnWarning` nie eine Warnung aus Framework-Code. Behoben; es kam nichts Verstecktes zum Vorschein. Schwächste Bereiche: Feldtypen 34 %, Bildverarbeitung 23 %, `Api.php` mit 514 offenen Zeilen — je ein Ticket. Teil 2 (SonarQube Cloud) wartet auf die Keys.
 - 000-000-0065 task created: "Contentfly 2 unter MIT stellen — Lizenzangaben vereinheitlichen"
 - 000-000-0065 → review: **Contentfly 2 steht unter MIT.** Die Angaben widersprachen sich: `LICENSE` sprach von einer Dual-Lizenz mit MIT-Teil, beide `composer.json` und beide READMEs von „proprietär", und dem veröffentlichten Paket fehlte die `LICENSE` ganz. Jetzt überall MIT, Copyright 2019–2026, und `lib/contentfly/LICENSE` reist mit dem Split. Entschieden vom Auftraggeber. Wirksam für das Paket mit dem nächsten Tag. **Nebenbefund:** Der Composer-Lock gilt schon auf `master` als veraltet — unabhängig von dieser Änderung.
 - 000-000-0064 → in-progress
