@@ -1,7 +1,7 @@
 ---
 id: 000-000-0063
 title: Feldnamen aus dem Request gehen ungeprüft in DQL
-status: review
+status: done
 depends_on: []
 ---
 
