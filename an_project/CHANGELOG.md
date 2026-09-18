@@ -3,6 +3,7 @@
 # Changelog
 
 ## 2026-09-18
+- 000-000-0058 → done (per Pull Request auf `master`): **Die Pentest-Spezifikation ist abgenommen.** `an_project/docs/pentest-spec.md` steht mit neun Abschnitten, alle sieben Acceptance-Kriterien sind eingelöst. Ein Anbieter kann daraus rechnen, ohne nachzufragen. Was jetzt folgt — Beschaffung, Termin, Angebotsvergleich — war ausdrücklich nicht Teil des Tasks und entscheidet der Auftraggeber.
 - 000-000-0052 → done (per Pull Request auf `master`): **Der fehlende Nachweis liegt vor.** Zwei der drei Boxen waren beim Umsetzen zu; die dritte verlangte einen Lauf *ohne* die Annotation „Node.js 20 is deprecated" und konnte erst nach dem Merge belegt werden. Der Lauf des gemergten Pull Requests meldet sie nicht mehr — eingesehen und bestätigt, nicht behauptet. `actions/checkout` steht an allen sechs Stellen auf `@v6`.
 
 ## 2026-09-17
