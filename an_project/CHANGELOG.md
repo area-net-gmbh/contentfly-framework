@@ -3,6 +3,7 @@
 # Changelog
 
 ## 2026-09-18
+- 000-000-0059 → done (per Pull Request auf `master`, #24; ausgeliefert mit `v2.1.0`)
 - 000-000-0066 task created: "Release v2.1.0 — die Sicherheitskorrekturen ausliefern"
 - 000-000-0066 in Arbeit: **`v2.1.0` ist vorbereitet** — Version an allen Stellen, fünf neue Einträge im Register unter *API* (jetzt 124 in 14 Abschnitten), im Leitfaden ein Weg *Von 2.0 auf 2.1*. Dessen wichtigster Schritt: **die Rechte prüfen**, weil ein Baum ohne `Permission`-Zeile jetzt 403 liefert statt still Daten. Nebenbei geklärt: Der Composer-Lock war auch für den aktuellen Composer veraltet — er kopiert das Paket-Manifest, und jede Änderung daran liess ihn veralten; jetzt aktuell, nur dieser Eintrag geändert. Offen: Merge, Tag, Abnahme.
 - 000-000-0065 task created: "Contentfly 2 unter MIT stellen — Lizenzangaben vereinheitlichen"
