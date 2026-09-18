@@ -3,6 +3,7 @@
 # Changelog
 
 ## 2026-09-18
+- 000-000-0060 → done (per Pull Request auf `master`, #19 → #21)
 - 000-000-0061 → done (per Pull Request auf `master`, #18 → #21)
 - 000-000-0062 → done (per Pull Request auf `master`, #17 → #21)
 - 000-000-0057 → done (per Pull Request auf `master`, #16)
