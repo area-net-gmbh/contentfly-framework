@@ -3,6 +3,9 @@
 # Changelog
 
 ## 2026-09-18
+- 000-000-0059 → in-progress
+- 000-000-0064 task created: "Übersetzungen lassen sich nicht anlegen — id fehlt im Schema jeder i18n-Entity"
+- 000-000-0059 → review: **Beide i18n-Pfade verengen auf Eigentümerschaft** — der Übersetzungs-Insert prüft den Eigentümer des bestehenden Datensatzes, `/api/translations` zählt wie `getCount()`. Dafür steht in der Vorlage die **erste übersetzbare Entity** dieses Baums (`Core\ExampleI18n`); ohne sie waren die Pfade für die Tests unerreichbar. Vorher rot: 500 statt 403 bei den abgelehnten Inserts, `OWN` zählte 3 statt 1. **Dabei gefunden, und grösser als der Task:** Eine erlaubte Übersetzung lässt sich gar nicht anlegen — `id` fehlt im Schema jeder `BaseI18n`-Entity, vermutlich seit `010-003-0002`, als die doppelte `Column` für ORM 3 entfernt wurde. Die vermutete Lücke war also nicht ausnutzbar, der Pfad war kaputt → `000-000-0064`.
 - 000-000-0063 → done (per Pull Request auf `master`, #20 → #21)
 - 000-000-0060 → done (per Pull Request auf `master`, #19 → #21)
 - 000-000-0061 → done (per Pull Request auf `master`, #18 → #21)
