@@ -3,6 +3,8 @@
 # Changelog
 
 ## 2026-09-18
+- 000-000-0066 task created: "Release v2.1.0 — die Sicherheitskorrekturen ausliefern"
+- 000-000-0066 in Arbeit: **`v2.1.0` ist vorbereitet** — Version an allen Stellen, fünf neue Einträge im Register unter *API* (jetzt 124 in 14 Abschnitten), im Leitfaden ein Weg *Von 2.0 auf 2.1*. Dessen wichtigster Schritt: **die Rechte prüfen**, weil ein Baum ohne `Permission`-Zeile jetzt 403 liefert statt still Daten. Nebenbei geklärt: Der Composer-Lock war auch für den aktuellen Composer veraltet — er kopiert das Paket-Manifest, und jede Änderung daran liess ihn veralten; jetzt aktuell, nur dieser Eintrag geändert. Offen: Merge, Tag, Abnahme.
 - 000-000-0065 task created: "Contentfly 2 unter MIT stellen — Lizenzangaben vereinheitlichen"
 - 000-000-0065 → review: **Contentfly 2 steht unter MIT.** Die Angaben widersprachen sich: `LICENSE` sprach von einer Dual-Lizenz mit MIT-Teil, beide `composer.json` und beide READMEs von „proprietär", und dem veröffentlichten Paket fehlte die `LICENSE` ganz. Jetzt überall MIT, Copyright 2019–2026, und `lib/contentfly/LICENSE` reist mit dem Split. Entschieden vom Auftraggeber. Wirksam für das Paket mit dem nächsten Tag. **Nebenbefund:** Der Composer-Lock gilt schon auf `master` als veraltet — unabhängig von dieser Änderung.
 - 000-000-0064 → in-progress

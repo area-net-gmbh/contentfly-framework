@@ -832,6 +832,78 @@ die drei anderen Fälle in derselben Methode es immer schon taten.
 *Was zu tun ist:* Auf 409 prüfen statt auf 500. Ein Client, der den 500 als „gibt es schon"
 gelesen hat, liest ihn jetzt falsch.
 
+
+### `/api/tree` und `/api/tree2` prüfen das Leserecht
+**Seit `000-000-0061` (2026-09-18), ausgeliefert mit `v2.1.0`.**
+
+Beide Routen prüften nur, **ob** jemand angemeldet ist — nicht, was er lesen darf. Gemessen: Ein
+Benutzer ohne jedes Leserecht bekam bei `/api/list` 403, bei beiden Tree-Routen 200 **mit** den
+fremden Daten. Jetzt gilt dieselbe Regel wie bei `/api/list`: ohne Leserecht **403**, bei `OWN`
+und `GROUP` nur die erreichbaren Knoten. **Ein Knoten unter einem unsichtbaren Elternknoten ist
+ebenfalls unsichtbar** — bei beiden Routen gleich.
+
+*Was zu tun ist:* Jede Gruppe, deren Clients einen Baum lesen, braucht eine `Permission`-Zeile mit
+`readable` für diese Entity (z. B. `PIM\Folder`). **Das ist die Stelle, an der ein Update still
+etwas wegnimmt:** Wer bisher ohne Recht gelesen hat, bekommt jetzt 403 oder einen kleineren Baum.
+
+### `/api/deleted` meldet nur noch Entities, die der Benutzer lesen darf
+**Seit `000-000-0061` (2026-09-18), ausgeliefert mit `v2.1.0`.**
+
+Das Löschprotokoll lieferte die gelöschten Ids **aller** Entities. Jetzt fehlen die Entities ohne
+Leserecht. Verengt wird auf Entity-Ebene, nicht auf Eigentümerschaft — der Datensatz ist gelöscht,
+die Log-Zeile ist alles, was von ihm übrig ist.
+
+*Was zu tun ist:* Nichts, solange ein Sync-Client nur Entities synchronisiert, die er auch lesen
+darf — und nur solche kann er über `/api/all` überhaupt bekommen.
+
+### Unbekannte Feldnamen in `where`, `order` und `groupBy` antworten mit 400
+**Seit `000-000-0063` (2026-09-18), ausgeliefert mit `v2.1.0`.**
+
+Feldnamen aus dem Request gingen **ungeprüft als Text** in die Abfrage — DQL-Injection. Jetzt
+müssen sie ein Property der Entity benennen:
+
+| Stelle | unbekannter Name |
+|---|---|
+| `where` in `/api/single` | **400** `contentfly_general_unknown_property` |
+| `order` in `/api/list` | **400** `contentfly_general_unknown_property`; die Richtung nur `ASC`/`DESC` (Gross-/Kleinschreibung egal), sonst **400** `contentfly_general_invalid_sort_direction` |
+| `groupBy` in `/api/list` | **400** `contentfly_general_unknown_property` |
+| `properties` in `/api/tree` | wird **verworfen**, wie es `/api/list` mit `properties` immer tat |
+
+Vorher endeten dieselben Aufrufe mit **500**.
+
+*Was zu tun ist:* Nichts für einen korrekten Client. Ein Tippfehler in einem Feldnamen, der bisher
+als 500 durchging, zeigt sich jetzt als 400 mit dem Namen in `errors[0].context.value`.
+
+### `/file/overwrite` prüft die Eigentümerschaft von Ziel und Quelle
+**Seit `000-000-0060` (2026-09-18), ausgeliefert mit `v2.1.0`.**
+
+Das Schreibrecht auf `PIM\File` genügte: Mit `writable = OWN` überschrieb ein Benutzer jede fremde
+Datei gleichen Namens — und liess eine fremde Quelle verschwinden, weil sie verschoben und nicht
+kopiert wird. Jetzt müssen **beide** Dateien für den Benutzer schreibbar sein, nach der Regel von
+`/api/update`; sonst **403**.
+
+*Was zu tun ist:* Nichts, solange Clients nur eigene oder freigegebene Dateien überschreiben.
+
+### Übersetzungen: wieder anlegbar, und auf Eigentümerschaft verengt
+**Seit `000-000-0059` und `000-000-0064` (2026-09-18), ausgeliefert mit `v2.1.0`.**
+
+**Eine Übersetzung liess sich in `v2.0.0` nicht anlegen.** Jeder Insert mit der `id` eines
+bestehenden Datensatzes scheiterte mit `unknown_property …::id`: `id` fehlte im Schema **jeder**
+übersetzbaren Entity (`BaseI18n`, `BaseI18nSortable`, `BaseI18nTree`) — eine Folge des Umbaus auf
+ORM 3. `/api/schema` führt `id` für diese Entities jetzt wieder.
+
+Dabei gilt jetzt, was vorher nur hätte gelten sollen: Die Übersetzung eines Datensatzes darf nur
+anlegen, wer **diesen** Datensatz schreiben darf (`OWN`/`GROUP` wie bei `/api/update`), sonst
+**403**. Und `/api/translations` zählt nur noch Datensätze, die der Benutzer erreicht, wie
+`/api/count`.
+
+**Ohne konfiguriertes `APP_LANGUAGES`** gibt es keine Hauptsprache; eine Übersetzung erbt dann
+keine `i18n_universal`-Felder und trägt genau, was gesendet wurde. Die Warnung
+`Undefined array key 0`, die dabei vorher entstand, ist weg.
+
+*Was zu tun ist:* Ein Projekt mit übersetzbaren Entities kann Übersetzungen wieder über die API
+anlegen. Wer das in `v2.0.0` anders gelöst hat, prüft, ob der Umweg noch nötig ist.
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —
