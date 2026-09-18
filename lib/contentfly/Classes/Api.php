@@ -992,6 +992,16 @@ class Api
                 continue;
             }
 
+            /*
+             * Only entities the user may read (000-000-0061). The log used to report the
+             * deletions of every entity — only ids, but ids of records the user may not know
+             * exist. There is no owner to narrow by: the record is gone, the log row is all
+             * that is left of it.
+             */
+            if(!Permission::isReadable($this->app['auth.user'], $entityName)){
+                continue;
+            }
+
             $query = "SELECT model_name, model_id FROM `pim_log` WHERE model_name = ? AND (mode = 'DEL' OR (mode = 'USERDEL' AND users = ?))";
 
             $params  = array($entityName, $this->app['auth.user']->getId());
@@ -1356,15 +1366,29 @@ class Api
             ;
         }
 
+        /*
+         * Field names and the direction come from the request and go into DQL as text, so each
+         * must name a property of the entity (000-000-0063). They used to go in unchecked — DQL
+         * injection. An unknown name is rejected, not dropped: a sort or grouping the client
+         * asked for must not silently disappear.
+         */
         if($order !== null){
             foreach($order as $orderBy => $orderSort){
-                $queryBuilder->addOrderBy($entityNameAlias.'.'.$orderBy, $orderSort);
+                $this->assertProperty($entityShortName, $orderBy);
+
+                $direction = strtoupper((string) $orderSort);
+                if(!in_array($direction, array('ASC', 'DESC'), true)){
+                    throw new ContentflyException(Messages::contentfly_general_invalid_sort_direction, "$entityShortName::$orderBy", Messages::contentfly_status_bad_request);
+                }
+
+                $queryBuilder->addOrderBy($entityNameAlias.'.'.$orderBy, $direction);
             }
         }else{
             $queryBuilder->orderBy($entityNameAlias.'.id', 'DESC');
         }
 
         if($groupBy){
+            $this->assertProperty($entityShortName, $groupBy);
             $queryBuilder->groupBy($entityNameAlias.".".$groupBy);
         }
 
@@ -1756,6 +1780,10 @@ class Api
                 ->setParameter('id', $id);
         }elseif($where){
             foreach($where as $field => $value){
+                // The key is a field name that goes into DQL as text (000-000-0063). Rejected
+                // when unknown, not dropped: without the filter a DIFFERENT record comes back.
+                $this->assertProperty($entityShortName, $field);
+
                 $queryBuilder
                     ->andWhere("$entityNameAlias.$field = :$field")
                     ->setParameter($field, $value);
@@ -1939,6 +1967,19 @@ class Api
         return $returnObject ? $object : $object->toValueObject($this->app, $entityShortName, false);
     }
 
+    /**
+     * A field name from the request must name a property of the entity before it goes into DQL
+     * as text (000-000-0063).
+     *
+     * @throws ContentflyException
+     */
+    protected function assertProperty(string $entityShortName, mixed $field): void
+    {
+        if(!is_string($field) || !isset($this->app['schema'][$entityShortName]['properties'][$field])){
+            throw new ContentflyException(Messages::contentfly_general_unknown_property, $entityShortName.'::'.(is_scalar($field) ? $field : gettype($field)), Messages::contentfly_status_bad_request);
+        }
+    }
+
     protected function getTableName($entityName, $tablename){
 
         if(empty($this->app['schema'][$entityName])){
@@ -2011,12 +2052,38 @@ class Api
             throw new ContentflyException(Messages::contentfly_general_unknown_entity, $entityShortName, Messages::contentfly_status_not_found);
         }
 
+        /*
+         * The read right, as in getList() (000-000-0061). This route used to check only THAT
+         * someone is logged in: a user without any read right got the full tree.
+         *
+         * Narrowed by OWN/GROUP on every level of the recursion. A child is only fetched
+         * through its parent, so a node below a hidden parent stays hidden — getTree2() does
+         * the same.
+         */
+        if(!($permission = Permission::isReadable($this->app['auth.user'], $entityShortName))){
+            throw new ContentflyException(Messages::contentfly_general_permission_denied, $entityShortName, Messages::contentfly_status_access_denied);
+        }
+
         $i18n               = $schema[$entityShortName]['settings']['i18n'];
 
         $queryBuilder = $this->em->createQueryBuilder();
         $queryBuilder->from($entityFullName, $entityNameAlias)
             ->where("$entityNameAlias.isIntern = false")
             ->orderBy($entityNameAlias.'.sorting', 'ASC');
+
+        if($permission == \Areanet\PIM\Entity\Permission::OWN){
+            $queryBuilder->andWhere("$entityNameAlias.userCreated = :userCreated OR FIND_IN_SET(:userCreated, $entityNameAlias.users) > 0");
+            $queryBuilder->setParameter('userCreated', $this->app['auth.user']);
+        }elseif($permission == \Areanet\PIM\Entity\Permission::GROUP){
+            $group = $this->app['auth.user']->getGroup();
+            if(!$group){
+                $queryBuilder->andWhere("$entityNameAlias.userCreated = :userCreated");
+            }else{
+                $queryBuilder->andWhere("$entityNameAlias.userCreated = :userCreated OR FIND_IN_SET(:userCreated, $entityNameAlias.users) > 0 OR FIND_IN_SET(:userGroup, $entityNameAlias.groups) > 0");
+                $queryBuilder->setParameter('userGroup', $group);
+            }
+            $queryBuilder->setParameter('userCreated', $this->app['auth.user']);
+        }
 
         if($i18n){
             $queryBuilder->andWhere("$entityNameAlias.lang = :lang");
@@ -2036,6 +2103,15 @@ class Api
         }else{
             $queryBuilder->andWhere("$entityNameAlias.treeParent IS NULL");
         }
+
+        /*
+         * Only names of properties go into the partial select (000-000-0063); they used to go
+         * into DQL unchecked. Unknown ones are dropped — exactly what getList() has always done
+         * with its `properties`.
+         */
+        $properties = array_values(array_filter($properties, function($name) use ($schema, $entityShortName){
+            return is_string($name) && isset($schema[$entityShortName]['properties'][$name]);
+        }));
 
         if(count($properties)){
             $properties[] = 'id';
@@ -2078,6 +2154,11 @@ class Api
             throw new ContentflyException(Messages::contentfly_general_unknown_entity, $entityShortName, Messages::contentfly_status_not_found);
         }
 
+        // The read right, as in getTree() (000-000-0061).
+        if(!($permission = Permission::isReadable($this->app['auth.user'], $entityShortName))){
+            throw new ContentflyException(Messages::contentfly_general_permission_denied, $entityShortName, Messages::contentfly_status_access_denied);
+        }
+
         $i18n       = $schema[$entityShortName]['settings']['i18n'];
         $tblName    = $schema[$entityShortName]['settings']['dbname'];
         $dbFields   = array();
@@ -2111,10 +2192,17 @@ class Api
 
         $tblTreeName  = 'pim_tree';
         $joinI18NCond = '';
+        $params       = array();
 
+        /*
+         * `lang` is BOUND, not written into the statement (000-000-0062). It comes unchanged
+         * from the request body of /api/tree2; it used to be placed between quotes here, which
+         * made it an SQL injection for every logged-in user.
+         */
         if($i18n){
             $tblTreeName  = 'pim_i18n_tree';
-            $joinI18NCond = "AND t.lang = e.lang AND t.lang = '$lang'";
+            $joinI18NCond = 'AND t.lang = e.lang AND t.lang = ?';
+            $params[]     = $lang;
         }
 
         /*
@@ -2126,15 +2214,40 @@ class Api
             array_keys($dbFields)
         ));
 
+        /*
+         * Narrowed by OWN/GROUP like getTree() (000-000-0061). The owner columns live in the
+         * tree table, not in the entity's own one. treeSort() builds the tree from the root
+         * down, so a node whose parent is filtered out is left out as well — the same result
+         * as getTree(), which reaches children only through their parent.
+         */
+        $where = '';
+        if($permission == \Areanet\PIM\Entity\Permission::OWN){
+            $where    = 'WHERE (t.usercreated_id = ? OR FIND_IN_SET(?, t.users) > 0)';
+            $params[] = $this->app['auth.user']->getId();
+            $params[] = $this->app['auth.user']->getId();
+        }elseif($permission == \Areanet\PIM\Entity\Permission::GROUP){
+            $group = $this->app['auth.user']->getGroup();
+            if(!$group){
+                $where    = 'WHERE t.usercreated_id = ?';
+                $params[] = $this->app['auth.user']->getId();
+            }else{
+                $where    = 'WHERE (t.usercreated_id = ? OR FIND_IN_SET(?, t.users) > 0 OR FIND_IN_SET(?, t.`groups`) > 0)';
+                $params[] = $this->app['auth.user']->getId();
+                $params[] = $this->app['auth.user']->getId();
+                $params[] = $group->getId();
+            }
+        }
+
         $statement = "
             SELECT t.id, ".$columns.", t.sorting, t.parent_id 
             FROM $tblName e 
             INNER JOIN $tblTreeName t 
               on e.id = t.id $joinI18NCond
+            $where
             ORDER BY t.parent_id, t.sorting ";
 
         // fetchAll() was removed in DBAL 3 (009-005-0002).
-        $records = $this->app['database']->fetchAllAssociative($statement);
+        $records = $this->app['database']->fetchAllAssociative($statement, $params);
 
         return $this->treeSort($records, $dbFields, null);
     }

@@ -1,6 +1,7 @@
 <?php
 namespace Tests\Integration\Api;
 
+use Areanet\PIM\Entity\Permission;
 use Tests\Integration\IntegrationTestCase;
 
 /**
@@ -332,6 +333,88 @@ class FileApiTest extends IntegrationTestCase
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────────────
+
+    // ── Overwrite and ownership (000-000-0060) ─────────────────────────────────────────
+    //
+    // Overwriting used to check only the write right on PIM\File, not whose files source and
+    // target are. With writable = OWN a user replaced the content of any file carrying the same
+    // name — and made a foreign source disappear, because the source is moved, not copied.
+
+    public function testWithLevelOwnAForeignTargetIsNotOverwritten(): void
+    {
+        [$token] = $this->fileUser(Permission::OWN);
+
+        $source = $this->upload('owned.txt', "intruder\n", $token)['data']['id'];
+        $target = $this->upload('owned.txt', "original\n", $this->token())['data']['id'];
+
+        [$status] = $this->postJson('/file/overwrite', array('sourceId' => $source, 'destId' => $target), $token);
+
+        $this->assertSame(403, $status, 'The target belongs to the admin');
+        $this->assertSame("original\n", file_get_contents(self::dataDir().'/files/'.$target.'/owned.txt'),
+            'The target on disk is unchanged');
+        $this->assertDirectoryExists(self::dataDir().'/files/'.$source, 'Nothing was moved');
+    }
+
+    public function testWithLevelOwnAForeignSourceIsNotMovedAway(): void
+    {
+        [$token] = $this->fileUser(Permission::OWN);
+
+        $source = $this->upload('owned.txt', "foreign\n", $this->token())['data']['id'];
+        $target = $this->upload('owned.txt', "mine\n", $token)['data']['id'];
+
+        [$status] = $this->postJson('/file/overwrite', array('sourceId' => $source, 'destId' => $target), $token);
+
+        $this->assertSame(403, $status, 'The source belongs to the admin — overwriting would delete it');
+        $this->assertDirectoryExists(self::dataDir().'/files/'.$source, 'The foreign source is still there');
+        $this->assertSame("mine\n", file_get_contents(self::dataDir().'/files/'.$target.'/owned.txt'));
+    }
+
+    public function testWithLevelOwnTheOwnFilesAreOverwritten(): void
+    {
+        [$token] = $this->fileUser(Permission::OWN);
+
+        $source = $this->upload('owned.txt', "new\n", $token)['data']['id'];
+        $target = $this->upload('owned.txt', "old\n", $token)['data']['id'];
+
+        [$status] = $this->postJson('/file/overwrite', array('sourceId' => $source, 'destId' => $target), $token);
+
+        $this->assertSame(200, $status);
+        $this->assertSame("new\n", file_get_contents(self::dataDir().'/files/'.$target.'/owned.txt'));
+    }
+
+    public function testWithLevelGroupAFileSharedWithTheGroupIsOverwritten(): void
+    {
+        [$token, , $groupId] = $this->fileUser(Permission::GROUP);
+
+        $source   = $this->upload('shared.txt', "new\n", $token)['data']['id'];
+        $shared   = $this->upload('shared.txt', "old\n", $this->token())['data']['id'];
+        $unshared = $this->upload('shared.txt', "untouched\n", $this->token())['data']['id'];
+
+        $this->pdo()->prepare('UPDATE pim_file SET `groups` = :grp WHERE id = :id')
+             ->execute(array('grp' => $groupId, 'id' => $shared));
+
+        [$statusUnshared] = $this->postJson('/file/overwrite', array('sourceId' => $source, 'destId' => $unshared), $token);
+        [$statusShared]   = $this->postJson('/file/overwrite', array('sourceId' => $source, 'destId' => $shared), $token);
+
+        $this->assertSame(403, $statusUnshared, 'Without a group relation the file stays out of reach');
+        $this->assertSame("untouched\n", file_get_contents(self::dataDir().'/files/'.$unshared.'/shared.txt'));
+
+        $this->assertSame(200, $statusShared, 'The own group is listed in groups');
+        $this->assertSame("new\n", file_get_contents(self::dataDir().'/files/'.$shared.'/shared.txt'));
+    }
+
+    /**
+     * A user who may read every file and write on the given level.
+     *
+     * @return array{0:string,1:string,2:string} token, user id, group id
+     */
+    private function fileUser(int $writable): array
+    {
+        return $this->createTestUser(array('PIM\\File' => array(
+            'readable' => Permission::ALL,
+            'writable' => $writable,
+        )));
+    }
 
     private function upload(string $name, string $content, ?string $token): array
     {
