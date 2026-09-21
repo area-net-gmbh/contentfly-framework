@@ -247,8 +247,8 @@ Ein Eintrag trägt **vier feste Schlüssel**:
 | Feld | Inhalt |
 |---|---|
 | `code` | Worauf verzweigt wird: der `Messages`-Schlüssel — `null`, wenn es keinen gibt |
-| `detail` | Für einen Menschen: `getMessage()` |
-| `type` | Die Ausnahmeklasse |
+| `detail` | Für einen Menschen: `getMessage()` — bei einem unvorhergesehenen Fehler ohne Debug der feste Schlüssel `contentfly_general_internal_error` (`000-000-0073`) |
+| `type` | Die Ausnahmeklasse — bei einem unvorhergesehenen Fehler ohne Debug `InternalServerError` (`000-000-0073`) |
 | `context` | `{"value": …}` bzw. `{"entity": …, "lang": …}`, sonst `null` |
 
 Entschieden dabei:

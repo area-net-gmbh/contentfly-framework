@@ -3,6 +3,8 @@
 # Changelog
 
 ## 2026-09-21
+- 000-000-0073 → in-progress
+- 000-000-0073 → review: **Ohne Debug zeigt ein unvorhergesehener Fehler nur noch `contentfly_general_internal_error`** statt Meldung und Klasse der Ausnahme — vorher standen dort z. B. MySQL-Meldung und Abfrageausschnitt. Der volle Text geht ins Server-Log. `/system/do` antwortet auf Eingabefehler jetzt mit 400/404/409 und Schlüssel statt mit 500. Test am ungeparsten Rumpf, ohne Fix rot; neun Tests mit Begründung angepasst.
 - 000-000-0072 → in-progress
 - 000-000-0072 → review: **`/api/count` und `/api/query` funktionieren wieder für Benutzer mit Rechtestufe `GROUP`** — vorher 500, weil `groups` (in MySQL 8 reserviert) im rohen SQL ohne Backticks stand. Zwei Tests in beide Richtungen, ohne Fix rot. Alle 21 `FIND_IN_SET` durchgesehen, keine weitere Stelle betroffen.
 - 000-000-0067 → done (per Pull Request auf `master`, #33)
