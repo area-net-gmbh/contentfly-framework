@@ -198,6 +198,24 @@ vor ihrer ersten fachlichen Zeile. **Ein API-Token liess sich über die API nich
 *Was zu tun ist:* Nichts. Wer einen Workaround gebaut hat — etwa Löschen direkt in der
 Datenbank —, kann ihn ablegen.
 
+### Der ImageMagick-Prozessor entfällt, `FILE_IMAGE_MAX_PIXELS` ist neu
+**Seit `000-000-0068` (2026-09-21), noch nicht ausgeliefert.**
+
+**`Classes\File\Processing\ImageMagick` und `IMAGEMAGICK_EXECUTABLE` sind entfernt.** Der Prozessor
+war mit der Voreinstellung nicht lauffähig — `is_executable('convert')` ist für einen relativen Namen
+immer falsch, jeder Bild-Upload endete damit in einer Exception —, und er baute seine Aufrufe als
+Shell-Zeile ohne `escapeshellarg()`. Kein Test erreichte ihn (0 %). Den Standard-Prozessor `Image`
+(GD) betrifft das nicht.
+
+**Neu: `FILE_IMAGE_MAX_PIXELS`**, Voreinstellung `24000000` (24 Megapixel, etwa 6000 × 4000). Ein Bild
+mit mehr Pixeln lehnt der Upload mit **413** ab, bevor es dekodiert wird; `null` hebt die Grenze auf.
+GD braucht rund vier Byte je Pixel, unabhängig von der Dateigrösse.
+
+*Was zu tun ist:* Wer `FILE_PROCESSORS` auf den ImageMagick-Prozessor gesetzt hatte, stellt auf
+`\Areanet\PIM\Classes\File\Processing\Image` zurück oder bringt einen eigenen Prozessor mit.
+Wer grössere Bilder annehmen muss, setzt `FILE_IMAGE_MAX_PIXELS` hoch und `memory_limit` mit —
+rund fünf Byte je zugelassenem Pixel.
+
 ## API
 
 ### `@PIM\Select` prüft jetzt beim Schreiben
@@ -2362,17 +2380,23 @@ dessen, was entfallen ist und wodurch es ersetzt wird, steht in
 `an_project/docs/pim-annotationen-migration.md` — sie ist die Grundlage für die Rector-Regel
 aus Epic `007`.
 
-### Beziehungsfelder: `onejoin` in Listen, `multifile` und `permissions` mit den richtigen Ids
-**Seit `000-000-0067` (2026-09-21), noch nicht ausgeliefert.**
+### Bild-Uploads: kaputte und getarnte Bilder antworten 415 statt 500, GIF funktioniert wieder
+**Seit `000-000-0068` (2026-09-21), noch nicht ausgeliefert.**
 
-Vier Fehler in Feldtypen, die bis dahin kein Test erreichte:
+Was ein Bildprozessor verarbeiten würde (`image/jpeg`, `image/png`, `image/gif`), prüft der Upload
+jetzt am Dateikopf, **bevor** etwas gespeichert wird:
 
-| Aufruf | vorher | jetzt |
+| Upload | vorher | jetzt |
 |---|---|---|
-| `/api/list` auf eine Entity mit `OneToOne`-Feld | das Feld ist **immer `null`**, `/api/single` liefert es | das Feld enthält den verknüpften Datensatz, mit `flatten` `{"id": …}` |
-| `/api/list` mit `properties` auf ein `multifile`-Feld | je Datei ein leeres Objekt `{}` | je Datei der Datensatz aus `PIM\File` |
-| `permissions` von `PIM\Group` mit `flatten` bzw. `properties` | je Rechtezeile die **Id der Gruppe** | die Id der Rechtezeile |
-| `/api/list` auf `PIM\Group` mit `properties: ["permissions"]` | **500** | 200 |
+| Kopf nicht als Bild lesbar (z. B. Text als `image/jpeg`) | **500**, Datensatz und Datei blieben liegen | **415** `contentfly_file_invalid_type`, nichts gespeichert |
+| anderer Typ als gemeldet (PNG als `image/jpeg`) | **500** | **415** |
+| mehr Pixel als `FILE_IMAGE_MAX_PIXELS` | GD versucht, den Speicher zu belegen | **413** `contentfly_file_too_large` |
+| Kopf lesbar, Bilddaten kaputt | **500** | **415**, der neue Datensatz samt Verzeichnis wird entfernt |
+| jedes **GIF** | **500** (`imagegif()` nimmt seit PHP 8 keine Qualität) | 200 mit Vorschaubildern |
 
-*Was zu tun ist:* Nichts für einen korrekten Client. Wer die Lücken umgangen hat — etwa jedes
-`OneToOne`-Feld über `/api/single` nachgeladen —, kann den Umweg streichen.
+Dateien ohne Bildprozessor (`.txt`, `.pdf` …) sind nicht betroffen.
+
+*Was zu tun ist:* Ein Client, der auf 500 geprüft hat, prüft auf 415 bzw. 413. **Offen bleibt ein
+Fall:** Beim erneuten Upload auf eine bestehende Id (`id` im Request) wird eine Datei mit lesbarem
+Kopf und kaputten Daten nicht zurückgerollt — der Kopf-Check greift auch dort, nur dieser Rest nicht.
+

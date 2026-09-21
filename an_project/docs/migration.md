@@ -4,7 +4,7 @@
 
 **Dieser Leitfaden ist der Weg. `an_project/docs/breaking-changes.md` ist das Register.**
 
-Das Register hat **125 Einträge in 14 Abschnitten** (Stand 2026-09-21, nachgezählt mit `000-000-0067`) und ist nach Epic und
+Das Register hat **126 Einträge in 14 Abschnitten** (Stand 2026-09-21, nachgezählt mit `000-000-0068`) und ist nach Epic und
 Story geordnet — also danach, *wann wir etwas geändert haben*. Das ist die richtige Ordnung zum
 Nachschlagen und die falsche zum Arbeiten. Hier steht die andere: **was ein Projekt tut, und in
 welcher Reihenfolge.**

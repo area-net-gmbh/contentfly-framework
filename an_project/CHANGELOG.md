@@ -3,6 +3,8 @@
 # Changelog
 
 ## 2026-09-21
+- 000-000-0068 → in-progress
+- 000-000-0068 → review: **Die Bildverarbeitung hat 14 Integrationstests**, echte Bilder und manipulierte. **Drei Lücken geschlossen:** Eine Datei, die nur behauptet, ein Bild zu sein, endete mit 500 und blieb liegen — jetzt 415 vor dem Speichern; ein Kopf mit 50.000 × 50.000 Pixeln hätte GD ~10 GB anfordern lassen — jetzt 413, neu `FILE_IMAGE_MAX_PIXELS`; lesbarer Kopf mit kaputten Daten — jetzt 415, der Datensatz wird entfernt. **Jeder GIF-Upload endete mit 500** (`imagegif()` unter PHP 8) — behoben. `ImageMagick.php` entfernt: mit der Voreinstellung nicht lauffähig, Shell-Zeile ohne Escaping, 0 %. Gegenprobe: ohne die Änderungen genau die sechs betroffenen Tests rot.
 - 000-000-0070 task created: "Gruppenrechte schreiben, ohne PIM\Tag stillschweigend freizugeben"
 - 000-000-0071 task created: "Die Kollision zweier php-parser-Versionen in der Suite beheben"
 - 000-000-0067 → in-progress
