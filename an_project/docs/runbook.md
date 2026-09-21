@@ -298,8 +298,7 @@ mkdir -p build/coverage/server
 CONTENTFLY_COVERAGE_DIR=$PWD/build/coverage/server \
   php -d pcov.enabled=1 -d pcov.directory=$PWD -S 127.0.0.1:8145 tests/router.php &
 # Suite mit PCOV, Bericht im PHP-Format
-# --order-by=default: sonst kann eine zweite php-parser-Kopie aus Rector den Lauf abbrechen (000-000-0071)
-php -d pcov.enabled=1 -d pcov.directory=$PWD ./vendor/bin/phpunit --order-by=default --coverage-php build/coverage/server/phpunit.cov
+php -d pcov.enabled=1 -d pcov.directory=$PWD ./vendor/bin/phpunit --coverage-php build/coverage/server/phpunit.cov
 # Zusammenführen
 ./vendor/bin/phpcov merge --clover build/coverage/clover.xml --text build/coverage/summary.txt build/coverage/server
 ```
