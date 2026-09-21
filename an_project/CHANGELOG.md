@@ -3,6 +3,14 @@
 # Changelog
 
 ## 2026-09-21
+- 000-000-0069 → in-progress
+- 000-000-0072 task created: "Rechtestufe GROUP — /api/count und /api/query enden mit 500"
+- 000-000-0073 task created: "Unerwartete Fehler nicht mit ihrem Ausnahmetext an den Client geben"
+- 000-000-0074 task created: "Die Rechte-Zweige in Api.php testen, die kein Test erreicht"
+- 000-000-0075 task created: "Die Lesepfade in Api.php testen — Filter, Übersetzungen, Sync"
+- 000-000-0076 task created: "/api/query — die Array-Syntax testen oder streichen"
+- 000-000-0077 task created: "Toten Code in Api.php entfernen — eigene Navigation und altes Löschkennzeichen"
+- 000-000-0069 → review: **Die 514 offenen Zeilen in `Api.php` sind nach Methode eingeordnet** — fünf Tickets, toter Code, begründete Ausnahmen. **Die Prüfung der Rechte-Stellen fand zwei echte Fehler:** `/api/count` und `/api/query` enden für jeden Benutzer mit Stufe `GROUP` mit 500 (`groups` ohne Backticks, MySQL 8) → `0072`; die 500er-Antwort trägt den SQL-Fehlertext im `detail`, auch ohne Debug → `0073`. Beide über die API bestätigt.
 - 000-000-0068 → in-progress
 - 000-000-0068 → review: **Die Bildverarbeitung hat 14 Integrationstests**, echte Bilder und manipulierte. **Drei Lücken geschlossen:** Eine Datei, die nur behauptet, ein Bild zu sein, endete mit 500 und blieb liegen — jetzt 415 vor dem Speichern; ein Kopf mit 50.000 × 50.000 Pixeln hätte GD ~10 GB anfordern lassen — jetzt 413, neu `FILE_IMAGE_MAX_PIXELS`; lesbarer Kopf mit kaputten Daten — jetzt 415, der Datensatz wird entfernt. **Jeder GIF-Upload endete mit 500** (`imagegif()` unter PHP 8) — behoben. `ImageMagick.php` entfernt: mit der Voreinstellung nicht lauffähig, Shell-Zeile ohne Escaping, 0 %. Gegenprobe: ohne die Änderungen genau die sechs betroffenen Tests rot.
 - 000-000-0070 task created: "Gruppenrechte schreiben, ohne PIM\Tag stillschweigend freizugeben"
