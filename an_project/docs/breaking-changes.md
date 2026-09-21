@@ -2380,6 +2380,21 @@ dessen, was entfallen ist und wodurch es ersetzt wird, steht in
 `an_project/docs/pim-annotationen-migration.md` — sie ist die Grundlage für die Rector-Regel
 aus Epic `007`.
 
+### Beziehungsfelder: `onejoin` in Listen, `multifile` und `permissions` mit den richtigen Ids
+**Seit `000-000-0067` (2026-09-21), noch nicht ausgeliefert.**
+
+Vier Fehler in Feldtypen, die bis dahin kein Test erreichte:
+
+| Aufruf | vorher | jetzt |
+|---|---|---|
+| `/api/list` auf eine Entity mit `OneToOne`-Feld | das Feld ist **immer `null`**, `/api/single` liefert es | das Feld enthält den verknüpften Datensatz, mit `flatten` `{"id": …}` |
+| `/api/list` mit `properties` auf ein `multifile`-Feld | je Datei ein leeres Objekt `{}` | je Datei der Datensatz aus `PIM\File` |
+| `permissions` von `PIM\Group` mit `flatten` bzw. `properties` | je Rechtezeile die **Id der Gruppe** | die Id der Rechtezeile |
+| `/api/list` auf `PIM\Group` mit `properties: ["permissions"]` | **500** | 200 |
+
+*Was zu tun ist:* Nichts für einen korrekten Client. Wer die Lücken umgangen hat — etwa jedes
+`OneToOne`-Feld über `/api/single` nachgeladen —, kann den Umweg streichen.
+
 ### Bild-Uploads: kaputte und getarnte Bilder antworten 415 statt 500, GIF funktioniert wieder
 **Seit `000-000-0068` (2026-09-21), noch nicht ausgeliefert.**
 
