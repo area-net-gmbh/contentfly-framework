@@ -2,6 +2,9 @@
 
 # Changelog
 
+## 2026-09-21
+- 000-000-0055 → done (Buchführung per Pull Request auf `master`): Der Zeitplan-Lauf ist gelaufen. Das war der letzte offene Nachweis — der tägliche `composer audit` prüft jetzt auch ohne Commit.
+
 ## 2026-09-18
 - 000-000-0066 → done: **`v2.1.0` ist veröffentlicht und abgenommen.** Tag auf `84f7e658`, Veröffentlichungslauf grün, Paket-Repository trägt ihn; ein frisches Projekt mit `^2.0` bezieht `v2.1.0`, Lizenz MIT, 51 Pakete, keine Advisories. **Die Abnahme scheiterte zweimal an der Maschine:** Ein veralteter Composer-Cache bot still nur `v2.0.0` an — ohne Fehlermeldung, die Auflösung sah einfach so aus —, und ausserhalb dieses Repos fehlte dessen eigener SSH-Schlüssel. Beides steht im Task, für die nächste Abnahme.
 - 000-000-0056 → in-progress
