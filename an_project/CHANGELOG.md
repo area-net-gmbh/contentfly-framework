@@ -2,6 +2,9 @@
 
 # Changelog
 
+## 2026-09-21
+- 000-000-0055 → done (Buchführung per Pull Request auf `master`): Der Zeitplan-Lauf ist gelaufen. Das war der letzte offene Nachweis — der tägliche `composer audit` prüft jetzt auch ohne Commit.
+
 ## 2026-09-18
 - 000-000-0056 → in-progress
 - 000-000-0067 task created: "Feldtypen testen, die Framework und Vorlage selbst nicht benutzen"
