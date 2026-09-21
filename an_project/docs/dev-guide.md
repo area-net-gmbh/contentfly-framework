@@ -94,18 +94,41 @@ dieselbe Aussage laufen irgendwann auseinander. Die vollständige Begründung un
 Endpunkt stehen in `an_project/docs/api-envelope.md`.
 
 ## API-Dokumentation
-**Generiert aus den `@api`-Annotationen in den Controllern**, nicht von Hand gepflegt. 27 davon
-stehen heute in `lib/contentfly/Controller/`.
+**Generiert aus den `@api`-Annotationen in den Controllern**, nicht von Hand gepflegt. 21 davon
+stehen in `lib/contentfly/Controller/`, einer je Endpunkt, alle mit `@apiVersion 2.0.0`.
 
 | | |
 |---|---|
-| Generator | [apidoc](https://apidocjs.com/) — **kein Composer-Paket**, muss global installiert sein (`npm i -g apidoc`) |
+| Generator | [apidoc](https://apidocjs.com/) 1.x — **kein Composer-Paket**, läuft über `npx`, eine globale Installation ist nicht nötig |
 | Konfiguration | `apidoc.json` im Wurzelverzeichnis |
-| Befehl | `ant apidoc` (Ziel in `build.xml`) oder `apidoc -i lib/contentfly/Controller/` |
+| Befehl | `npx apidoc@1 -i lib/contentfly/Controller/ -o build/apidoc` |
+| Ergebnis | `build/apidoc/index.html` — ignoriert, ein Build-Ergebnis |
+| Gate | `tests/Unit/ApiDocExamplesTest.php` |
 
-**Zwei Einschränkungen, die man kennen sollte:** Der Generator liest nur
-`lib/contentfly/Controller/` — Routen eines Projekts aus `custom/` sind **nicht** enthalten. Und
-die `@api`-Blöcke tragen noch die Antwortbeispiele von vor Epic `011`; sie nachzuziehen ist offen.
+**Das Gate hält die Beispiele an der echten Form fest** (`000-000-0053`). Jedes Beispiel mit
+`{json}` muss gültiges JSON sein, jedes Antwortbeispiel der Envelope (`data`/`errors`/`meta`, Fehler
+mit den vier festen Schlüsseln). Die Statuszeile steht vor dem Rumpf, nicht in ihm. Keine
+1.x-Version, nur Header, die der Server liest. Bis `000-000-0053` zeigte jedes Beispiel die Form
+von vor Epic `011`, und die genannten Token-Header `APPMS-TOKEN` und `X-Token` beantwortet der
+Server mit `401`. Aufgefallen ist das niemandem, weil nichts die Beispiele las.
+
+**Die Versionshistorie von 1.x ist entfernt.** apidoc kann ältere Fassungen eines Endpunkts neben
+der aktuellen zeigen; die sechs übrigen Blöcke mit `1.4.2` beschrieben aber Antwortformen, die es
+nicht mehr gibt. Wer 1.x braucht, findet sie im Stand vor `v2.0.0`.
+
+**Die erzeugte Doku beschreibt nur das Framework — entschieden mit `000-000-0053`.** `custom/` wird
+nicht mitgelesen. Die Vorlage hat dort keinen einzigen `@api`-Block, und hätte sie einen, stünden
+Beispielrouten in der Doku, die kein echtes Projekt hat. Ein Projekt, das seine eigenen Routen
+dokumentiert, schreibt `@api`-Blöcke in seine Controller und nennt das Verzeichnis zusätzlich:
+`npx apidoc@1 -i lib/contentfly/Controller/ -i custom/Controller/ -o build/apidoc`.
+
+**`build.xml` ist nicht der Weg.** Das Ziel `apidoc` dort stammt aus dem Build von Contentfly 1.x
+(Ant, siehe README unter *Historie*). Genannt wird nur noch der direkte Aufruf oben. Ob
+`build.xml` bleibt, ist eine eigene Frage.
+
+**apidoc warnt beim Erzeugen**, dass `@apiParam` bei `POST`-Routen nicht in der URL vorkommt. apidoc
+1.x erwartet für den Rumpf `@apiBody`. Die Doku entsteht trotzdem vollständig; die Umstellung ist
+eine Formsache und nicht Teil von `000-000-0053`.
 
 ## Die zugesicherten `$app[...]`-Schlüssel
 
