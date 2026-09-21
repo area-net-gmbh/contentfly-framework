@@ -113,3 +113,6 @@ credentials.json
 # credential globs above would otherwise drop from `.an_framework/`. This line
 # must stay LAST — later patterns win in .gitignore.
 !.an_framework/**
+
+# Die erzeugte API-Dokumentation (000-000-0053) - ein Build-Ergebnis, kein Quelltext.
+/build/apidoc/

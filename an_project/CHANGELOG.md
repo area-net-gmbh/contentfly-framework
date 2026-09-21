@@ -2,6 +2,10 @@
 
 # Changelog
 
+## 2026-09-21
+- 000-000-0053 → in-progress
+- 000-000-0053 → review: **Die API-Doku beschreibt wieder das Contentfly, das es gibt.** Jedes Antwortbeispiel ist jetzt der Envelope, abgegriffen vom laufenden Testserver; dazu erstmals Fehlerbeispiele. 10 von 23 Anfragebeispielen waren kein gültiges JSON. **Nebenbefund, mit behoben:** Die genannten Token-Header `APPMS-TOKEN` und `X-Token` beantwortet der Server mit `401`. Ein Block je Endpunkt (21 statt 27), die 1.x-Historie ist entfernt, `custom/` wird bewusst nicht mitgelesen. Neues Gate `ApiDocExamplesTest` — auf dem alten Stand 4 von 5 rot. 14 Beispiele gegen echte Aufrufe gehalten, Suite 704 grün, PHPStan sauber.
+
 ## 2026-09-18
 - 000-000-0056 → in-progress
 - 000-000-0067 task created: "Feldtypen testen, die Framework und Vorlage selbst nicht benutzen"
