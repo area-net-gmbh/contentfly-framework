@@ -188,11 +188,13 @@ class SystemControllerApiTest extends IntegrationTestCase
         // another piece of 000-000-0006.
         [$status, $body] = $this->systemDo('noSuchMethod');
 
-        $this->assertSame(500, $status);
-        // 011-001-0003: a bare \Exception has no Messages key, so `code` is null and the text
-        // stands in `detail` — the field meant for a human.
-        $this->assertSame('Method noSuchMethod is not available.', $this->assertErrorEnvelope($body, null)['detail'],
-            'The exception message now reaches the client as JSON');
+        // 000-000-0073: an unknown method is the caller's error, not the server's. As a bare
+        // \Exception it answered 500 with its sentence in `detail`; since an unforeseen fault no
+        // longer shows its text, it is a ContentflyException: 400, a key to branch on, the
+        // rejected name in `context.value`.
+        $this->assertSame(400, $status);
+        $entry = $this->assertErrorEnvelope($body, 'contentfly_general_invalid_params');
+        $this->assertSame(array('value' => 'noSuchMethod'), $entry['context']);
     }
 
     public function testMissingMethodAlsoEndsInError(): void
@@ -202,7 +204,7 @@ class SystemControllerApiTest extends IntegrationTestCase
         // will be then, but for a different reason. Relevant for the target platform PHP 8.5.
         [$status] = $this->postJson('/system/do', array(), $this->token());
 
-        $this->assertSame(500, $status);
+        $this->assertSame(400, $status, '000-000-0073: rejected at the allowlist as a request error, no longer 500');
     }
 
     /**
@@ -223,13 +225,14 @@ class SystemControllerApiTest extends IntegrationTestCase
         [$statusSetEm]     = $this->systemDo('setEM');
         [$statusConstruct] = $this->systemDo('__construct');
 
-        $this->assertSame(500, $statusSetEm, 'Rejected at the gate, not by the type');
-        $this->assertSame(500, $statusConstruct);
+        // 400 since 000-000-0073 (500 before): the gate rejects a request, the server did not fail.
+        $this->assertSame(400, $statusSetEm, 'Rejected at the gate, not by the type');
+        $this->assertSame(400, $statusConstruct);
 
-        // The difference to before is in the message: it now comes from doAction, not from
-        // a type check deep in the base class.
+        // The difference to before is in the answer: it now comes from doAction's allowlist, not
+        // from a type check deep in the base class.
         [, $body] = $this->postJson('/system/do', array('method' => 'setEM'), $this->token());
-        $this->assertSame('Method setEM is not available.', $this->assertErrorEnvelope($body)['detail']); // 011-001-0003
+        $this->assertSame(array('value' => 'setEM'), $this->assertErrorEnvelope($body, 'contentfly_general_invalid_params')['context']);
     }
 
     /**
@@ -252,9 +255,9 @@ class SystemControllerApiTest extends IntegrationTestCase
 
         [$status, $body] = $this->postJson('/system/do', array('method' => 'doAction'), $this->token());
 
-        $this->assertSame(500, $status);
-        $this->assertSame('Method doAction is not available.', $this->assertErrorEnvelope($body)['detail'],
-            'Rejected instead of calling itself'); // 011-001-0003
+        $this->assertSame(400, $status); // 400 since 000-000-0073
+        $this->assertSame(array('value' => 'doAction'), $this->assertErrorEnvelope($body, 'contentfly_general_invalid_params')['context'],
+            'Rejected instead of calling itself');
     }
 
     // ── C: The token management ────────────────────────────────────────────────────────
@@ -360,9 +363,10 @@ class SystemControllerApiTest extends IntegrationTestCase
         [$withoutUser]     = $this->systemDo('addToken', array('referrer' => 'https://x.example', 'token' => 'test-'.bin2hex(random_bytes(16))));
         [$withoutReferrer] = $this->systemDo('addToken', array('user' => $this->adminId()));
 
-        $this->assertSame(500, $withoutAnything);
-        $this->assertSame(500, $withoutUser);
-        $this->assertSame(500, $withoutReferrer);
+        // 400 since 000-000-0073 (500 before): a missing parameter is the caller's error.
+        $this->assertSame(400, $withoutAnything);
+        $this->assertSame(400, $withoutUser);
+        $this->assertSame(400, $withoutReferrer);
         $this->assertSame($before, $this->pdo()->query('SELECT COUNT(*) FROM pim_token')->fetchColumn(),
             'An incomplete call leaves nothing behind');
     }
@@ -396,7 +400,9 @@ class SystemControllerApiTest extends IntegrationTestCase
             ));
 
             $this->assertSame(400, $status, "Rejected as a client error ($why)");
-            $this->assertStringContainsString('too weak', $this->assertErrorEnvelope($body)['detail'], // 011-001-0003
+            // 000-000-0073: a key to branch on; the rule itself stays readable in context.value.
+            $entry = $this->assertErrorEnvelope($body, 'contentfly_general_token_too_weak');
+            $this->assertStringContainsString('At least', (string) $entry['context']['value'],
                 "The response says why ($why)");
         }
 
@@ -451,7 +457,7 @@ class SystemControllerApiTest extends IntegrationTestCase
             'user'     => 'this-user-does-not-exist',
         ));
 
-        $this->assertSame(500, $status);
+        $this->assertSame(404, $status, '000-000-0073: an unknown user is a 404, no longer a 500');
     }
 
     public function testAlreadyAssignedTokenIsRejected(): void
@@ -467,7 +473,7 @@ class SystemControllerApiTest extends IntegrationTestCase
             'user'     => $this->adminId(),
         ));
 
-        $this->assertSame(500, $second, 'pim_token.token is unique — the second attempt fails');
+        $this->assertSame(409, $second, 'pim_token.token is unique — the second attempt fails, with 409 since 000-000-0073');
     }
 
     public function testListTokensShowsOnlyTokensWithReferrer(): void
@@ -566,8 +572,10 @@ class SystemControllerApiTest extends IntegrationTestCase
             $this->token()
         );
 
-        $this->assertSame(500, $status);
-        $this->assertSame('Invalid token', $this->assertErrorEnvelope($body)['detail']); // 011-001-0003
+        // 000-000-0073: 404 with contentfly_general_not_found and the id, instead of 500 with the
+        // sentence "Invalid token" — which an unforeseen fault would no longer show.
+        $this->assertSame(404, $status);
+        $this->assertErrorEnvelope($body, 'contentfly_general_not_found');
     }
 
     public function testLoginTokenOfTestRunSurvivesTokenMethods(): void
@@ -802,7 +810,7 @@ class SystemControllerApiTest extends IntegrationTestCase
             'updateDatabase stays — a broken schema must be repairable');
 
         [$status] = $this->systemDo('validateORM');
-        $this->assertSame(500, $status, 'and is rejected as an unknown method');
+        $this->assertSame(400, $status, 'and is rejected as an unknown method (400 since 000-000-0073)');
     }
 
     public function testEmergencyLockOnlyTriggersOnInvalidFieldNameException(): void

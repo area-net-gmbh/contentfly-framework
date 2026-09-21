@@ -47,8 +47,10 @@ class ErrorResponseApiTest extends IntegrationTestCase
 
         $this->assertNull($entry['code'],
             'A TypeError has no Messages key — null says: nothing stable to branch on here');
-        $this->assertNotSame('', $entry['detail'], 'The response is JSON — previously HTML');
-        $this->assertSame('TypeError', $entry['type']);
+        // 000-000-0073: without debug an unforeseen fault no longer shows its text or class. The
+        // TypeError's message named the method, its signature and a server path.
+        $this->assertSame('contentfly_general_internal_error', $entry['detail'], 'The response is JSON — previously HTML');
+        $this->assertSame('InternalServerError', $entry['type']);
         $this->assertNull($entry['context']);
     }
 
@@ -121,5 +123,45 @@ class ErrorResponseApiTest extends IntegrationTestCase
         $this->assertStringNotContainsString('Whoops', $raw);
         $this->assertStringNotContainsString('<!DOCTYPE html>', $raw);
         $this->assertNotNull(json_decode($raw, true), 'The body is valid JSON');
+    }
+
+    public function testAnUnforeseenFaultDoesNotShowItsInternals(): void
+    {
+        /*
+         * 000-000-0073. An unknown column in /api/query makes DBAL throw — an exception that is
+         * neither a Contentfly nor an HTTP exception. Its message carried the MySQL error and a
+         * slice of the query into `detail`, with APP_DEBUG off (the test server runs without it).
+         * Checked against the raw body, not the decoded one: nothing of it may appear anywhere.
+         */
+        [$status, $raw] = $this->postRaw('/api/query', array('select' => 'no_such_column', 'from' => 'PIM\\Tag'), $this->token());
+
+        $this->assertSame(500, $status);
+
+        $body  = json_decode($raw, true);
+        $entry = $this->assertErrorEnvelope($body);
+
+        $this->assertNull($entry['code'], 'Nothing stable to branch on — as the envelope says for every unforeseen fault');
+        $this->assertSame('contentfly_general_internal_error', $entry['detail']);
+        $this->assertSame('InternalServerError', $entry['type']);
+
+        foreach (array('SQLSTATE', 'no_such_column', 'pim_tag', 'Doctrine', 'DBAL') as $internal) {
+            $this->assertStringNotContainsString($internal, $raw, "The response names $internal");
+        }
+    }
+
+    /** @return array{0:int,1:string} status and the undecoded body */
+    private function postRaw(string $path, array $data, string $token): array
+    {
+        $ch = curl_init(self::$baseUrl.$path);
+        curl_setopt_array($ch, array(
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POSTFIELDS     => json_encode($data),
+            CURLOPT_HTTPHEADER     => array('Content-Type: application/json', 'appcms-token: '.$token),
+        ));
+        $raw    = (string) curl_exec($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+
+        return array($status, $raw);
     }
 }

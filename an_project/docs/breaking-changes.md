@@ -2425,3 +2425,34 @@ ohne Backticks — in MySQL 8 ein reserviertes Wort. Jetzt 200, verengt auf eige
 freigegebene Datensätze, wie `/api/list`.
 
 *Was zu tun ist:* Nichts. Wer für `GROUP`-Benutzer auf `/api/list` ausgewichen ist, kann zurück.
+
+### Unerwartete Fehler zeigen ihren Text nicht mehr — `/system/do` antwortet mit 4xx
+**Seit `000-000-0073` (2026-09-21), noch nicht ausgeliefert.**
+
+**Ohne Debug** antwortet ein unvorhergesehener Serverfehler — jede Ausnahme, die weder eine
+`ContentflyException` noch eine HTTP-Ausnahme ist — jetzt mit festem Inhalt:
+
+```json
+{"code": null, "detail": "contentfly_general_internal_error", "type": "InternalServerError", "context": null}
+```
+
+Vorher standen dort die Meldung und die Klasse der Ausnahme — gemessen: bei einem DBAL-Fehler die
+MySQL-Meldung samt Ausschnitt der Abfrage, bei einem `TypeError` Methode, Signatur und Server-Pfad.
+Der volle Text steht jetzt im Server-Log (`Contentfly: unexpected …`). **Mit `APP_DEBUG` bleibt alles
+wie bisher.**
+
+`/system/do` warf für Fehler des Aufrufers eine nackte `\Exception` und antwortete mit **500**. Die
+Sätze wären mit der Regel oben verschwunden; stattdessen sind es jetzt Fehler mit Schlüssel:
+
+| Fall | vorher | jetzt |
+|---|---|---|
+| unbekannte oder nicht erlaubte Methode | 500 „Method … is not available." | **400** `contentfly_general_invalid_params`, Methode in `context.value` |
+| `addToken` ohne `referrer`/`user` | 500 | **400** `contentfly_general_missing_params` |
+| `addToken` mit unbekanntem Benutzer | 500 | **404** `contentfly_general_not_found` |
+| `addToken` mit schon vergebenem Token | 500 | **409** `contentfly_general_ressource_already_exists` |
+| `addToken` mit zu schwachem Token | 400 mit Satz in `detail` | **400** `contentfly_general_token_too_weak`, die Regel in `context.value` |
+| `deleteToken` mit unbekannter Id | 500 „Invalid token" | **404** `contentfly_general_not_found` |
+
+*Was zu tun ist:* Ein Client, der den Text in `detail` angezeigt oder ausgewertet hat, verzweigt auf
+`code` bzw. zeigt bei `contentfly_general_internal_error` eine allgemeine Meldung. Wer Fehler
+analysiert, liest das Server-Log statt der Antwort.
