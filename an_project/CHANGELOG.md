@@ -3,6 +3,10 @@
 # Changelog
 
 ## 2026-09-21
+- 000-000-0070 task created: "Gruppenrechte schreiben, ohne PIM\Tag stillschweigend freizugeben"
+- 000-000-0071 task created: "Die Kollision zweier php-parser-Versionen in der Suite beheben"
+- 000-000-0067 → in-progress
+- 000-000-0067 → review: **Die Vorlage zeigt die fünf Beziehungstypen** (`Core\ExampleRelations`), 19 Integrationstests schreiben und lesen sie über HTTP, auch ohne Leserecht auf das Ziel. **Vier Fehler dabei gefunden und behoben:** `onejoin` war in jeder Liste `null`, `multifile` mit `properties` lieferte `{}`, `permissions` gab die Id der Gruppe statt der Rechtezeile zurück, `properties: ["permissions"]` endete mit 500 — Gegenprobe: ohne die Korrekturen genau diese vier rot. Der `onejoin`-Wächter in `ConstraintApiTest` schlug an und ist jetzt der Nachweis der Lösch-Kaskade. `Classes/Types` von 34 % auf 65,9 %. Zwei Befunde mit Ticket: `0070`, `0071`.
 - 000-000-0053 → in-progress
 - 000-000-0053 → review: **Die API-Doku beschreibt wieder das Contentfly, das es gibt.** Jedes Antwortbeispiel ist jetzt der Envelope, abgegriffen vom laufenden Testserver; dazu erstmals Fehlerbeispiele. 10 von 23 Anfragebeispielen waren kein gültiges JSON. **Nebenbefund, mit behoben:** Die genannten Token-Header `APPMS-TOKEN` und `X-Token` beantwortet der Server mit `401`. Ein Block je Endpunkt (21 statt 27), die 1.x-Historie ist entfernt, `custom/` wird bewusst nicht mitgelesen. Neues Gate `ApiDocExamplesTest` — auf dem alten Stand 4 von 5 rot. 14 Beispiele gegen echte Aufrufe gehalten, Suite 704 grün, PHPStan sauber.
 - 000-000-0053 → done (per Pull Request auf `master`, #31)
