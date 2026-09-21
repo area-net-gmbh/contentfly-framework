@@ -3,6 +3,10 @@
 # Changelog
 
 ## 2026-09-21
+- 000-000-0067 → done (per Pull Request auf `master`, #33)
+- 000-000-0068 → done (per Pull Request auf `master`, #34)
+- 000-000-0069 → done (per Pull Request auf `master`, #35)
+- an_project/docs/breaking-changes.md updated: Der Eintrag „Beziehungsfelder" aus `000-000-0067` ging beim Merge von `0068` verloren — wiederhergestellt; `migration.md` zählt jetzt 127 Einträge.
 - 000-000-0069 → in-progress
 - 000-000-0072 task created: "Rechtestufe GROUP — /api/count und /api/query enden mit 500"
 - 000-000-0073 task created: "Unerwartete Fehler nicht mit ihrem Ausnahmetext an den Client geben"

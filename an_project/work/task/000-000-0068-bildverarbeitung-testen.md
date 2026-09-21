@@ -1,7 +1,7 @@
 ---
 id: 000-000-0068
 title: Die Bildverarbeitung testen — sie verarbeitet hochgeladene Dateien
-status: review
+status: done
 depends_on: []
 ---
 
