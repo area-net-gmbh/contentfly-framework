@@ -3,6 +3,8 @@
 # Changelog
 
 ## 2026-09-21
+- 000-000-0071 → in-progress
+- 000-000-0071 → review: **Der Coverage-Lauf bricht nicht mehr ab.** Ursache bestätigt: `DeadImportTest` lud per `class_exists()` eine Rector-Klasse, Rectors Bootstrap stellte dessen Autoloader samt `nikic/php-parser` 4 vor den des Projekts (5.8) — mit Coverage und kaltem Cache knallte es. Jetzt werden Rector-Namen in Rectors Classmap nachgeschlagen, geladen wird nichts. Gegenprobe mit erzwungener Reihenfolge; der volle Lauf ohne Ausnahmen und ohne `--order-by` ist grün. Gesamt-Coverage jetzt 70,5 %.
 - 000-000-0073 → in-progress
 - 000-000-0073 → review: **Ohne Debug zeigt ein unvorhergesehener Fehler nur noch `contentfly_general_internal_error`** statt Meldung und Klasse der Ausnahme — vorher standen dort z. B. MySQL-Meldung und Abfrageausschnitt. Der volle Text geht ins Server-Log. `/system/do` antwortet auf Eingabefehler jetzt mit 400/404/409 und Schlüssel statt mit 500. Test am ungeparsten Rumpf, ohne Fix rot; neun Tests mit Begründung angepasst.
 - 000-000-0072 → in-progress

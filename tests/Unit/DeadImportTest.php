@@ -23,6 +23,15 @@ use PHPUnit\Framework\TestCase;
  *
  * `tests/` is not scanned: fixtures there contain imports on purpose, inside strings and in files
  * that describe a state before a migration.
+ *
+ * **`Rector\` IS LOOKED UP, NOT LOADED (000-000-0071).** `class_exists()` on the `Rector\` imports
+ * of `Migration/RemovedAttributeFieldsRector` triggered Rector's `bootstrap.php`, which PREPENDS
+ * Rector's own Composer autoloader — and Rector ships an unprefixed nikic/php-parser 4 next to the
+ * project's 5. From then on every `PhpParser\` class not yet loaded came from the old copy. As soon
+ * as php-code-coverage parsed a source file with the project's parser, PHPUnit died ("Undefined
+ * constant List_::KIND_LIST", "Class_::verifyModifier() undefined") — depending on test order and on
+ * a cold coverage cache. A separate process did not help: the child collects coverage too.
+ * Rector's classmap is a plain array; reading it loads nothing.
  */
 class DeadImportTest extends TestCase
 {
@@ -98,6 +107,16 @@ PHP;
         $dead = array();
 
         foreach ($this->imports($source) as $name) {
+            // Rector's own classes and the libraries it bundles (Symplify\RuleDocGenerator) —
+            // looked up in its classmap. A `Rector\` name must never reach class_exists().
+            if ($this->rectorDeclares($name)) {
+                continue;
+            }
+            if (str_starts_with($name, 'Rector\\')) {
+                $dead[] = $name;
+                continue;
+            }
+
             if (class_exists($name) || interface_exists($name) || trait_exists($name) || enum_exists($name)) {
                 continue;
             }
@@ -110,6 +129,24 @@ PHP;
         }
 
         return $dead;
+    }
+
+    /**
+     * Whether Rector declares a class — its own or one of the libraries it bundles —, answered from
+     * Rector's classmap — see the class comment
+     * for why `class_exists()` must not be asked. Without Rector installed there is nothing to
+     * declare it, and the import counts as dead, as any other would.
+     */
+    private function rectorDeclares(string $name): bool
+    {
+        static $classmap = null;
+
+        if ($classmap === null) {
+            $file     = CONTENTFLY_PROJECT_DIR.'/vendor/rector/rector/vendor/composer/autoload_classmap.php';
+            $classmap = is_file($file) ? (array) require $file : array();
+        }
+
+        return isset($classmap[$name]) && is_file($classmap[$name]);
     }
 
     /**
