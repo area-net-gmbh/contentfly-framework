@@ -8,10 +8,11 @@ use Tests\Integration\IntegrationTestCase;
  * Characterisation tests for the remaining side effects of the write side —
  * `unique` violations and the sorting of `BaseSortable` entities.
  *
- * Plus honest bookkeeping for two side effects that **have nothing to check today**: the
- * `encoded` encryption and the OneJoin cascade on delete. For both there is a test on the
- * *precondition* instead of on the effect — it fires as soon as someone creates a matching
- * entity, and thereby demands the missing proof instead of silently dropping it.
+ * Plus honest bookkeeping for side effects that had nothing to check: the `encoded` encryption
+ * and the OneJoin cascade on delete. For both there was a test on the *precondition* instead of
+ * on the effect — it fires as soon as someone creates a matching entity, and thereby demands the
+ * missing proof instead of silently dropping it. The OneJoin guard fired with 000-000-0067 and is
+ * now the proof; the encryption guard is still waiting.
  *
  * The same pattern as with `excludeFromSync` and `i18n_universal` in story `008-001`. That it
  * keeps recurring is a finding in itself: the framework carries features whose only users were
@@ -129,7 +130,7 @@ class ConstraintApiTest extends IntegrationTestCase
             'PIM\\Nav does inherit from BaseSortable, but does not restrict');
     }
 
-    // ── The two gaps ───────────────────────────────────────────────────────────────────
+    // ── The encryption gap, and the OneJoin proof that replaced its guard ──────────────
 
     public function testNoEntityUsesEncodedEncryption(): void
     {
@@ -159,29 +160,40 @@ class ConstraintApiTest extends IntegrationTestCase
             .'encryption belongs in this test.');
     }
 
-    public function testThereIsNoOnejoinPropertyForTheDeleteCascade(): void
+    public function testDeletingARecordAlsoDeletesItsOnejoinRecord(): void
     {
-        // Api::delete() also removes joined objects of type onejoin. There is not a
-        // single @ORM\OneToOne relation in the framework or in the template — the code path
-        // has no trigger.
-        //
-        // If such a relation appears, this test fires. Then this is where the proof belongs
-        // that the joined object disappears along with the parent object when it is deleted.
-        $onejoins = array();
+        // Api::delete() also removes joined objects of type onejoin. Until 000-000-0067 there was
+        // not a single @ORM\OneToOne relation in the framework or in the template, and this test
+        // only asserted that — as a guard: "if such a relation appears, the proof belongs here".
+        // The template's Core\ExampleRelations brought one, so here is the proof, checked against
+        // the database rather than against a response.
+        $token = $this->token();
 
-        foreach ($this->schema() as $entity => $entry) {
-            if ($entity === '_hash' || !isset($entry['properties'])) {
-                continue;
-            }
-            foreach ($entry['properties'] as $name => $config) {
-                if (($config['type'] ?? null) === 'onejoin') {
-                    $onejoins[] = $entity.'.'.$name;
-                }
-            }
+        [$status, $body] = $this->postJson('/api/insert', array(
+            'entity' => 'Core\\ExampleRelations',
+            'data'   => array('example' => array('name' => 'Cascade')),
+        ), $token);
+        $this->assertSame(200, $status);
+
+        $record = $body['data']['id'];
+        [, $single] = $this->postJson('/api/single', array('entity' => 'Core\\ExampleRelations', 'id' => $record), $token);
+        $inner = $single['data']['example']['id'];
+
+        // Registered in case the cascade fails — the joined record first, it references nothing.
+        $this->deleteAfterTest('example_relations', $record);
+        $this->deleteAfterTest('example_entity', $inner);
+
+        [$deleted] = $this->postJson('/api/delete', array('entity' => 'Core\\ExampleRelations', 'id' => $record), $token);
+        $this->assertSame(200, $deleted);
+
+        $remaining = $this->pdo()->prepare('SELECT COUNT(*) FROM example_entity WHERE id = :id');
+        $remaining->execute(array('id' => $inner));
+
+        $this->assertSame(0, (int) $remaining->fetchColumn(),
+            'The joined record disappears with the record that owns it');
+
+        foreach (array($record, $inner) as $id) {
+            $this->pdo()->prepare('DELETE FROM pim_log WHERE model_id = :id')->execute(array('id' => $id));
         }
-
-        $this->assertSame(array(), $onejoins,
-            'Today there is no onejoin property. If that changes, the proof of '
-            .'the delete cascade belongs in this test.');
     }
 }
