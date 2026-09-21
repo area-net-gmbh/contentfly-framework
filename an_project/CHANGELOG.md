@@ -3,6 +3,14 @@
 # Changelog
 
 ## 2026-09-21
+- 000-000-0069 → in-progress
+- 000-000-0072 task created: "Rechtestufe GROUP — /api/count und /api/query enden mit 500"
+- 000-000-0073 task created: "Unerwartete Fehler nicht mit ihrem Ausnahmetext an den Client geben"
+- 000-000-0074 task created: "Die Rechte-Zweige in Api.php testen, die kein Test erreicht"
+- 000-000-0075 task created: "Die Lesepfade in Api.php testen — Filter, Übersetzungen, Sync"
+- 000-000-0076 task created: "/api/query — die Array-Syntax testen oder streichen"
+- 000-000-0077 task created: "Toten Code in Api.php entfernen — eigene Navigation und altes Löschkennzeichen"
+- 000-000-0069 → review: **Die 514 offenen Zeilen in `Api.php` sind nach Methode eingeordnet** — fünf Tickets, toter Code, begründete Ausnahmen. **Die Prüfung der Rechte-Stellen fand zwei echte Fehler:** `/api/count` und `/api/query` enden für jeden Benutzer mit Stufe `GROUP` mit 500 (`groups` ohne Backticks, MySQL 8) → `0072`; die 500er-Antwort trägt den SQL-Fehlertext im `detail`, auch ohne Debug → `0073`. Beide über die API bestätigt.
 - 000-000-0053 → in-progress
 - 000-000-0053 → review: **Die API-Doku beschreibt wieder das Contentfly, das es gibt.** Jedes Antwortbeispiel ist jetzt der Envelope, abgegriffen vom laufenden Testserver; dazu erstmals Fehlerbeispiele. 10 von 23 Anfragebeispielen waren kein gültiges JSON. **Nebenbefund, mit behoben:** Die genannten Token-Header `APPMS-TOKEN` und `X-Token` beantwortet der Server mit `401`. Ein Block je Endpunkt (21 statt 27), die 1.x-Historie ist entfernt, `custom/` wird bewusst nicht mitgelesen. Neues Gate `ApiDocExamplesTest` — auf dem alten Stand 4 von 5 rot. 14 Beispiele gegen echte Aufrufe gehalten, Suite 704 grün, PHPStan sauber.
 - 000-000-0053 → done (per Pull Request auf `master`, #31)
