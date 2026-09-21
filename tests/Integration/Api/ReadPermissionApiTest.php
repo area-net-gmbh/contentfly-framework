@@ -115,6 +115,46 @@ class ReadPermissionApiTest extends IntegrationTestCase
         $this->assertNotContains($unrelated, $visible, 'Without a relation it stays invisible');
     }
 
+    public function testWithLevelGroupCountCountsOwnAndGroupSharedObjectsOnly(): void
+    {
+        // Red before 000-000-0072: 500 for every GROUP user. getCount() builds raw SQL and wrote
+        // `groups` without backticks — a reserved word in MySQL 8. /api/list and /api/all go
+        // through DQL and were never affected.
+        [$token, $userId, $groupId] = $this->createTestUser(array('PIM\\Tag' => array('readable' => Permission::GROUP)));
+
+        $this->tag('Own', $userId);
+        $this->tag('For the group', $this->adminId, $groupId);
+        $this->tag('Unrelated', $this->adminId);
+
+        [$status, $body] = $this->postJson('/api/count', array('entity' => 'PIM\\Tag'), $token);
+
+        $this->assertSame(200, $status, json_encode($body['errors'] ?? null));
+        $this->assertSame(2, $body['data']['details']['PIM\\Tag'],
+            'The own tag and the one shared with the group — the unrelated one is not counted');
+    }
+
+    public function testWithLevelGroupQueryReturnsOwnAndGroupSharedObjectsOnly(): void
+    {
+        // Red before 000-000-0072, same cause as the count above, in getQuery().
+        [$token, $userId, $groupId] = $this->createTestUser(
+            array('PIM\\Tag' => array('readable' => Permission::GROUP)),
+            array('apiQueryEnabled' => 'enabled')
+        );
+
+        $own       = $this->tag('Own', $userId);
+        $groupTag  = $this->tag('For the group', $this->adminId, $groupId);
+        $unrelated = $this->tag('Unrelated', $this->adminId);
+
+        [$status, $body] = $this->postJson('/api/query', array('select' => 'id', 'from' => 'PIM\\Tag'), $token);
+
+        $this->assertSame(200, $status, json_encode($body['errors'] ?? null));
+
+        $ids = array_column($body['data'], 'id');
+        $this->assertContains($own, $ids);
+        $this->assertContains($groupTag, $ids);
+        $this->assertNotContains($unrelated, $ids, 'The other direction');
+    }
+
     // ── No permission ──────────────────────────────────────────────────────────────────
 
     public function testWithoutReadPermissionListThrowsInsteadOfReturningAnEmptySet(): void

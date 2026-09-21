@@ -1,7 +1,7 @@
 ---
 id: 000-000-0072
 title: Rechtestufe GROUP — /api/count und /api/query enden mit 500
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -18,9 +18,24 @@ es als rohes SQL ohne Backticks ein; `getTree2()` und `getTranslations()` tun es
 (`` `groups` ``). Kein Test lief mit `GROUP` über diese beiden Routen.
 
 ## Acceptance criteria
-- [ ] `/api/count` und `/api/query` liefern mit `GROUP` 200 — mit und ohne Gruppe des Benutzers.
-- [ ] Das Ergebnis ist verengt: eigene und der eigenen Gruppe freigegebene Datensätze, keine anderen — geprüft in beide Richtungen, wie in `ReadPermissionApiTest`.
-- [ ] Eine Suche nach weiteren rohen `groups` ohne Backticks in `lib/` ist gemacht und festgehalten.
+- [x] `/api/count` und `/api/query` liefern mit `GROUP` 200 — mit und ohne Gruppe des Benutzers.
+- [x] Das Ergebnis ist verengt: eigene und der eigenen Gruppe freigegebene Datensätze, keine anderen — geprüft in beide Richtungen, wie in `ReadPermissionApiTest`.
+- [x] Eine Suche nach weiteren rohen `groups` ohne Backticks in `lib/` ist gemacht und festgehalten.
 
 ## Verification
 Neue Tests in `ReadPermissionApiTest` bzw. `QueryApiTest`; vorher rot, danach grün.
+
+## Ergebnis (2026-09-21)
+**Zwei Backticks, zwei Tests.** `getCount()` und `getQuery()` schreiben jetzt `` `groups` ``.
+
+- **Tests** in `ReadPermissionApiTest`: `/api/count` zählt für einen `GROUP`-Benutzer genau den
+  eigenen und den der Gruppe freigegebenen Tag, nicht den fremden; `/api/query` liefert die beiden
+  und nicht den dritten. **Gegenprobe:** ohne die Backticks beide rot (500).
+- **„Ohne Gruppe" ist kein erreichbarer Fall.** Die Rechte eines Benutzers kommen über seine Gruppe;
+  ohne Gruppe hat er keine `Permission`-Zeile und bekommt 403, bevor der `GROUP`-Zweig läuft. Die
+  Zweige `if(!$group)` in `Api.php` sind für Nicht-Admins toter Code — vermerkt für `0074`.
+- **Suche nach weiteren Stellen:** alle 21 Aufrufe von `FIND_IN_SET` in `lib/` und `custom/` durchgesehen. Nur
+  diese zwei setzten `groups` roh und unqualifiziert ein. Qualifiziert (`t.groups`, `alias.groups`) ist
+  es in MySQL erlaubt; die DQL-Stellen übersetzt Doctrine selbst.
+- Registereintrag „Rechtestufe `GROUP`: `/api/count` und `/api/query` antworten wieder".
+
