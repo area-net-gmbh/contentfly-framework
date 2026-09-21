@@ -5,8 +5,10 @@
 ## 2026-09-21
 - 000-000-0053 → in-progress
 - 000-000-0053 → review: **Die API-Doku beschreibt wieder das Contentfly, das es gibt.** Jedes Antwortbeispiel ist jetzt der Envelope, abgegriffen vom laufenden Testserver; dazu erstmals Fehlerbeispiele. 10 von 23 Anfragebeispielen waren kein gültiges JSON. **Nebenbefund, mit behoben:** Die genannten Token-Header `APPMS-TOKEN` und `X-Token` beantwortet der Server mit `401`. Ein Block je Endpunkt (21 statt 27), die 1.x-Historie ist entfernt, `custom/` wird bewusst nicht mitgelesen. Neues Gate `ApiDocExamplesTest` — auf dem alten Stand 4 von 5 rot. 14 Beispiele gegen echte Aufrufe gehalten, Suite 704 grün, PHPStan sauber.
+- 000-000-0055 → done (Buchführung per Pull Request auf `master`): Der Zeitplan-Lauf ist gelaufen. Das war der letzte offene Nachweis — der tägliche `composer audit` prüft jetzt auch ohne Commit.
 
 ## 2026-09-18
+- 000-000-0066 → done: **`v2.1.0` ist veröffentlicht und abgenommen.** Tag auf `84f7e658`, Veröffentlichungslauf grün, Paket-Repository trägt ihn; ein frisches Projekt mit `^2.0` bezieht `v2.1.0`, Lizenz MIT, 51 Pakete, keine Advisories. **Die Abnahme scheiterte zweimal an der Maschine:** Ein veralteter Composer-Cache bot still nur `v2.0.0` an — ohne Fehlermeldung, die Auflösung sah einfach so aus —, und ausserhalb dieses Repos fehlte dessen eigener SSH-Schlüssel. Beides steht im Task, für die nächste Abnahme.
 - 000-000-0056 → in-progress
 - 000-000-0067 task created: "Feldtypen testen, die Framework und Vorlage selbst nicht benutzen"
 - 000-000-0068 task created: "Die Bildverarbeitung testen — sie verarbeitet hochgeladene Dateien"
