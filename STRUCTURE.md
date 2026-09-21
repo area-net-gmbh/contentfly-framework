@@ -194,7 +194,7 @@ Doctrine's own `vendor/bin/doctrine` tool.
 | `Metadata/` | `MetadataReader` — single point for reading entity attribute metadata |
 | `ORM/` | `EntityManagerFactory` (attribute drivers, proxies, caches), `Id/UuidGenerator`, quote strategy, the DQL function `FIND_IN_SET`, spatial `Point` type |
 | `Events/` | `LoadMetadata` — Doctrine listener that adds an index on `modified` |
-| `File/` | Storage backend (`Backend/FileSystem` → `data/files/`) and image processors (`Processing/Image` with GD, `Processing/ImageMagick`, `Processing/Standard`) |
+| `File/` | Storage backend (`Backend/FileSystem` → `data/files/`) and image processors (`Processing/Image` with GD, `Processing/Standard` for everything else) |
 | `Exceptions/` | Exception types (`ContentflyException`, not-found, duplicate, …) |
 | `Command/` | `CustomCommand` — base class for project commands |
 | `Helper.php` | Entity name helpers and the seeding of base data |
@@ -439,7 +439,7 @@ checks permissions.
 | Tokens | `APP_TOKEN_TIMEOUT`, `APP_CHECK_TOKEN_TIMEOUT`, `SECURITY_JWT_SECRET`, `SECURITY_JWT_TTL`, `SECURITY_JWT_KEY_ID`, `SECURITY_JWT_SECRET_PREVIOUS`, `SECURITY_JWT_KEY_ID_PREVIOUS` |
 | Encryption | `SECURITY_CIPHER_KEY` |
 | Login providers | `SECURITY_PROVIDER_GROUPS`, `SECURITY_LDAP_*`, `SECURITY_OIDC_*` |
-| Files | `FILE_PROCESSORS`, `IMAGEMAGICK_EXECUTABLE` |
+| Files | `FILE_PROCESSORS`, `FILE_IMAGE_MAX_PIXELS` |
 
 ---
 
