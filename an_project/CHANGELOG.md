@@ -3,6 +3,8 @@
 # Changelog
 
 ## 2026-09-21
+- 000-000-0072 → in-progress
+- 000-000-0072 → review: **`/api/count` und `/api/query` funktionieren wieder für Benutzer mit Rechtestufe `GROUP`** — vorher 500, weil `groups` (in MySQL 8 reserviert) im rohen SQL ohne Backticks stand. Zwei Tests in beide Richtungen, ohne Fix rot. Alle 21 `FIND_IN_SET` durchgesehen, keine weitere Stelle betroffen.
 - 000-000-0067 → done (per Pull Request auf `master`, #33)
 - 000-000-0068 → done (per Pull Request auf `master`, #34)
 - 000-000-0069 → done (per Pull Request auf `master`, #35)

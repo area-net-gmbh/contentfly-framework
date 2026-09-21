@@ -2415,3 +2415,13 @@ Dateien ohne Bildprozessor (`.txt`, `.pdf` …) sind nicht betroffen.
 Fall:** Beim erneuten Upload auf eine bestehende Id (`id` im Request) wird eine Datei mit lesbarem
 Kopf und kaputten Daten nicht zurückgerollt — der Kopf-Check greift auch dort, nur dieser Rest nicht.
 
+
+### Rechtestufe `GROUP`: `/api/count` und `/api/query` antworten wieder
+**Seit `000-000-0072` (2026-09-21), noch nicht ausgeliefert.**
+
+Für jeden Benutzer, dessen Gruppe eine Entity mit `readable = GROUP` liest, endeten `/api/count` und
+`/api/query` mit **500** (`SQLSTATE[42000] … 1064`): Beide bauen rohes SQL und schrieben `groups`
+ohne Backticks — in MySQL 8 ein reserviertes Wort. Jetzt 200, verengt auf eigene und der Gruppe
+freigegebene Datensätze, wie `/api/list`.
+
+*Was zu tun ist:* Nichts. Wer für `GROUP`-Benutzer auf `/api/list` ausgewichen ist, kann zurück.
