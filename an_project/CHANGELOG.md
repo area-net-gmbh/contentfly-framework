@@ -11,6 +11,10 @@
 - 000-000-0081 task created: "loadJoinedLang findet über den zweispaltigen Schlüssel keinen Datensatz"
 - 000-000-0082 task created: "untranslatedLang liefert leer, sobald die Entity auf eine übersetzbare joint"
 - 000-000-0083 task created: "Ein nicht lesbares lastModified in /api/list mit 400 statt 500 beantworten"
+- 000-000-0083 → in-progress
+- 000-000-0083 → review: **Nicht lesbares `lastModified` → 400 `contentfly_general_invalid_date`** in `/api/list`, `/api/all`, `/api/count` und `/api/deleted` (vorher 500 bzw. bei `/api/all` stillschweigend alles). Registereintrag, sieben Fälle getestet, Gegenprobe ohne Fix rot. Suite 790 grün, PHPStan ohne Fehler.
+- 000-000-0083 → done: Buchführung vor dem Merge des Pull Requests (Integration über PR, `git.md`)
+- an_project/docs/migration.md updated: Registergrösse auf 130 Einträge nachgezogen (Eintrag aus `000-000-0083`)
 - 000-000-0082 → in-progress
 - 000-000-0082 → review: **`untranslatedLang` liefert wieder Treffer.** Der i18n-Join in `getList()` hat einen eigenen Parameter statt `:lang` neu zu binden; er liest in der Sprache der gelisteten Zeilen. Zwei Tests, Gegenprobe ohne Fix rot. Suite 784 grün, PHPStan ohne Fehler.
 - 000-000-0082 → done: Buchführung vor dem Merge des Pull Requests (Integration über PR, `git.md`)
