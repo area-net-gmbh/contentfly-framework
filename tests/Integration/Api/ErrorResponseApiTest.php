@@ -149,6 +149,56 @@ class ErrorResponseApiTest extends IntegrationTestCase
         }
     }
 
+    /**
+     * 000-000-0079. A value too long for its column makes the flush of doInsert() fail. That path
+     * caught every exception and threw a ContentflyException with the exception's text as its
+     * message — which put the text of MySQL into `code` and `detail`, with APP_DEBUG off: a
+     * ContentflyException is an expected error, and the rule of 000-000-0073 lets it through.
+     */
+    public function testAFailedInsertDoesNotShowItsInternals(): void
+    {
+        [$status, $raw] = $this->postRaw('/api/insert', array(
+            'entity' => 'Core\\ExampleI18n',
+            'lang'   => 'de',
+            'data'   => array('title' => 'Too long', 'code' => str_repeat('x', 200)),
+        ), $this->token());
+
+        $this->assertInternalsHidden($status, $raw);
+    }
+
+    public function testAFailedUpdateDoesNotShowItsInternals(): void
+    {
+        $id = 'err-'.bin2hex(random_bytes(6));
+        $this->pdo()->prepare(
+            "INSERT INTO example_i18n (id, lang, title, created, modified, views, isIntern) VALUES (?, 'de', 'Before', NOW(), NOW(), 0, 0)"
+        )->execute(array($id));
+        $this->deleteAfterTest('example_i18n', $id);
+
+        [$status, $raw] = $this->postRaw('/api/update', array(
+            'entity' => 'Core\\ExampleI18n',
+            'id'     => $id,
+            'lang'   => 'de',
+            'data'   => array('code' => str_repeat('x', 200)),
+        ), $this->token());
+
+        $this->assertInternalsHidden($status, $raw);
+        $this->pdo()->prepare('DELETE FROM pim_log WHERE model_id = ?')->execute(array($id));
+    }
+
+    private function assertInternalsHidden(int $status, string $raw): void
+    {
+        $this->assertSame(500, $status, $raw);
+
+        $entry = $this->assertErrorEnvelope(json_decode($raw, true));
+
+        $this->assertNull($entry['code'], 'Handled as an unforeseen fault since 000-000-0079');
+        $this->assertSame('contentfly_general_internal_error', $entry['detail']);
+
+        foreach (array('SQLSTATE', 'Data too long', 'example_i18n', 'Doctrine', 'DBAL') as $internal) {
+            $this->assertStringNotContainsString($internal, $raw, "The response names $internal");
+        }
+    }
+
     /** @return array{0:int,1:string} status and the undecoded body */
     private function postRaw(string $path, array $data, string $token): array
     {

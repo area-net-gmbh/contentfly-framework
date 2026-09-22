@@ -2456,3 +2456,21 @@ Sätze wären mit der Regel oben verschwunden; stattdessen sind es jetzt Fehler 
 *Was zu tun ist:* Ein Client, der den Text in `detail` angezeigt oder ausgewertet hat, verzweigt auf
 `code` bzw. zeigt bei `contentfly_general_internal_error` eine allgemeine Meldung. Wer Fehler
 analysiert, liest das Server-Log statt der Antwort.
+
+### `/api/insert` und `/api/update`: Datenbankfehler ohne ihren Text
+**Seit `000-000-0079` (2026-09-22), noch nicht ausgeliefert.**
+
+Die Regel aus `0073` griff hier nicht: `doInsert()` und `doUpdate()` verpackten jeden Fehler beim
+Speichern in eine `ContentflyException` mit dem Ausnahmetext als Meldung, und die gilt als erwartet.
+**Ohne Debug** gilt jetzt auch hier:
+
+| Fall | vorher | jetzt |
+|---|---|---|
+| Datenbankfehler beim Speichern (z. B. Wert zu lang, Pflichtspalte leer) | 500, Text von Doctrine/MySQL in `code` **und** `detail` | 500, `code` = `null`, `detail` = `contentfly_general_internal_error`, `type` = `InternalServerError` |
+| Unique-Verletzung beim Anlegen | `context.value` endete mit der MySQL-Meldung (`SQLSTATE[23000] … Duplicate entry …`) | ohne diesen Anhang |
+
+Der volle Text steht im Server-Log (`Contentfly: unexpected …` bzw. `Contentfly: unique violation on
+<Entity>: …`). **Mit `APP_DEBUG` bleibt alles wie bisher.**
+
+*Was zu tun ist:* Ein Client, der auf den Text in `code` oder `detail` verzweigt hat, verzweigt auf
+`contentfly_general_internal_error` bzw. zeigt eine allgemeine Meldung.
