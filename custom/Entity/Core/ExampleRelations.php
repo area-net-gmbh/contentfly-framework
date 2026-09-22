@@ -76,4 +76,22 @@ class ExampleRelations extends Base {
 	#[ORM\JoinColumn(onDelete: 'SET NULL')]
 	protected $example;
 
+	/**
+	 * One record of another entity — `ManyToOne` selects the `join` type (000-000-0075).
+	 *
+	 * `/api/list` filters on it with `where: {"owner": <id>}`, and with `-1` on records that have none.
+	 */
+	#[ORM\ManyToOne(targetEntity: 'Custom\\Entity\\Core\\Example')]
+	#[ORM\JoinColumn(onDelete: 'SET NULL')]
+	protected $owner;
+
+	/**
+	 * Several records of another entity — `ManyToMany` selects the `multijoin` type (000-000-0075).
+	 *
+	 * Filtered like `owner`: `where: {"examples": <id>}`, or `-1` for records without any.
+	 */
+	#[ORM\ManyToMany(targetEntity: 'Custom\\Entity\\Core\\Example')]
+	#[ORM\JoinTable(name: 'example_relations_examples')]
+	protected $examples;
+
 }

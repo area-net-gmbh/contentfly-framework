@@ -329,6 +329,47 @@ and story `008-001` is explicitly not supposed to depend on `008-002`. The crede
 > the mapping lived in the **project** manifest and pointed to `Custom\Tests\`, a namespace that
 > no test file ever used.
 
+### Tests that need a different configuration
+
+Some paths only run under a switch the suite's server does not set — the schema cache
+(`APP_ENABLE_SCHEMA_CACHE`) and a main language (`APP_LANGUAGES`). Such a test class starts a
+second server of its own with `Tests\Integration\ExtraServer` (000-000-0075): same tree, same
+database, same router, a free port, and only the switch that differs. `onServer()` sends requests
+there; the token of the suite's server is not taken along, so log in inside the call:
+
+```php
+public static function setUpBeforeClass(): void
+{
+    parent::setUpBeforeClass();
+
+    if (self::$baseUrl !== null) {
+        self::$server = ExtraServer::start(array('APP_LANGUAGES' => 'de,en'));
+    }
+}
+
+public static function tearDownAfterClass(): void
+{
+    self::$server?->stop();   // fails on a deprecation or warning in its log
+    self::$server = null;
+
+    parent::tearDownAfterClass();
+}
+
+// in a test
+[$status, $body] = $this->onServer(self::$server->url(), fn () => $this->postJson('/api/insert', $data, $this->login()));
+```
+
+Nothing has to be started by hand, in the pipeline or locally. With `CONTENTFLY_COVERAGE_DIR` set,
+the extra server contributes to the coverage like the suite's server. Its log is not the one the
+pipeline's deprecation gate reads, so `stop()` checks it itself.
+
+> **After changing an entity, flush the metadata cache of a running server.** It runs with
+> `APP_ENV=production` and keeps Doctrine's mapping in `data/cache/metadata`. The schema of
+> `/api/schema` is built from the entity files on every request, so a new field shows up there at
+> once — but a query on it ends in `500` until the mapping is read again:
+> `POST /system/do {"method": "flushSchemaCache"}`. A fresh installation, as in the pipeline,
+> does not have the problem.
+
 ## What `tests/bootstrap.php` does — and what it does not
 
 It does **not** load `lib/contentfly/bootstrap.php`. That file builds the complete application,

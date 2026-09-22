@@ -2,6 +2,10 @@
 
 # Changelog
 
+## 2026-09-22
+- 000-000-0075 → in-progress
+- 000-000-0075 → review: **Lesepfade in `Api.php` getestet — 75,6 % statt 59 %.** `ReadPathApiTest` (Filter, i18n-Joins, `loadJoinedLang`/`compareToLang`, `/api/all` mit `filedata`, `lastModified`, Löschprotokoll, `/api/count`, Unique-Verletzung); `MainLanguageApiTest` und `SchemaCacheApiTest` gegen einen zweiten Server, den die Klasse selbst startet (`ExtraServer`). `filedata` nimmt nur noch bekannte Grössennamen — `../` las Dateien fremder Datensätze (Gegenprobe rot ohne Fix). Sechs Befunde als Ist-Zustand festgehalten, darunter: Mit `APP_LANGUAGES` scheitert jede Übersetzung mit `id` (ORM 3 `clear()`), und `doInsert()` gibt Doctrine-/SQL-Text ohne Debug heraus. Suite 783 Tests grün, PHPStan ohne Fehler, Coverage gesamt 74,7 %.
+
 ## 2026-09-21
 - 000-000-0071 → in-progress
 - 000-000-0071 → review: **Der Coverage-Lauf bricht nicht mehr ab.** Ursache bestätigt: `DeadImportTest` lud per `class_exists()` eine Rector-Klasse, Rectors Bootstrap stellte dessen Autoloader samt `nikic/php-parser` 4 vor den des Projekts (5.8) — mit Coverage und kaltem Cache knallte es. Jetzt werden Rector-Namen in Rectors Classmap nachgeschlagen, geladen wird nichts. Gegenprobe mit erzwungener Reihenfolge; der volle Lauf ohne Ausnahmen und ohne `--order-by` ist grün. Gesamt-Coverage jetzt 70,5 %.
