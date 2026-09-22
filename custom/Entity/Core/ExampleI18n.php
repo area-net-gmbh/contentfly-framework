@@ -44,8 +44,13 @@ class ExampleI18n extends BaseI18n {
 	 * A translatable target has a key of two columns, so the reference needs two as well: the
 	 * target's `id` and its `lang`, as `BaseI18nTree::$parent` does. The API reads it in the
 	 * language of the request, or in `loadJoinedLang`.
+	 *
+	 * Universal like the parent of a tree (000-000-0078): every language points to the same
+	 * record, each to its own translation of it. A new translation takes it from the main
+	 * language and binds it to the language being written.
 	 */
 	#[ORM\ManyToOne(targetEntity: 'Custom\\Entity\\Core\\ExampleI18n')]
+	#[PIM\Config(i18n_universal: true)]
 	#[ORM\JoinColumn(name: 'related_id', referencedColumnName: 'id', onDelete: 'SET NULL')]
 	#[ORM\JoinColumn(name: 'related_lang', referencedColumnName: 'lang', onDelete: 'SET NULL')]
 	protected $related;
