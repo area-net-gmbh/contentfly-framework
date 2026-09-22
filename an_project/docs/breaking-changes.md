@@ -2474,3 +2474,21 @@ Der volle Text steht im Server-Log (`Contentfly: unexpected …` bzw. `Contentfl
 
 *Was zu tun ist:* Ein Client, der auf den Text in `code` oder `detail` verzweigt hat, verzweigt auf
 `contentfly_general_internal_error` bzw. zeigt eine allgemeine Meldung.
+
+### `/api/insert`: jede Unique-Verletzung antwortet mit 409
+**Seit `000-000-0080` (2026-09-22), noch nicht ausgeliefert.**
+
+Nur Felder mit `unique` im Schema werden vor dem Speichern geprüft. Was erst die Datenbank ablehnte,
+lief in einen Zweig mit zwei Fehlern:
+
+| Fall | vorher | jetzt |
+|---|---|---|
+| Schlüssel, den nur die Datenbank kennt (`UniqueConstraint` auf der Tabelle) | **500** `contentfly_general_unknown_perror`, `context.value` nannte ein falsches Feld | **409** `contentfly_general_ressource_already_exists`, `context.value` = die Entity |
+| Kollision auf einem Schema-Feld, die erst die Datenbank bemerkt (zwei gleichzeitige Anfragen) | **200 mit dem bereits vorhandenen Datensatz**, als sei er neu angelegt | **409** wie oben |
+| dasselbe bei `PIM\User` | 500 `contentfly_general_user_already_exists` | **409**, wie in `/api/update` |
+
+Welcher Schlüssel kollidierte, steht nur im Text von MySQL und damit seit `0079` im Server-Log.
+
+*Was zu tun ist:* Ein Client, der auf 500 geprüft hat, prüft auf 409. Wer nach einem 200 die Id des
+angeblich neuen Datensatzes weiterverwendet hat, bekommt im Kollisionsfall jetzt einen Fehler statt
+eines fremden Datensatzes — das ist die Absicht.

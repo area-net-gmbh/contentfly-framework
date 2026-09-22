@@ -751,15 +751,14 @@ class ReadPathApiTest extends IntegrationTestCase
 
     // ── doInsert: unique per field, universal fields ───────────────────────────────────
 
-    public function testADuplicateOnAUniqueColumnTheSchemaDoesNotKnowIsAServerError(): void
+    public function testADuplicateOnAUniqueColumnTheSchemaDoesNotKnowIsAConflict(): void
     {
         // Core\Example.slug is unique in the database (a UniqueConstraint), not in the schema: the
-        // check before the insert does not see it, the database does. doInsert() then looks for the
-        // field marked unique in the schema, finds none and reports an unknown error.
+        // check before the insert does not see it, the database does.
         //
-        // Current state, and a finding: the answer is 500 instead of 409, and it names the last
-        // field of the loop instead of `slug` (000-000-0080). Until 000-000-0079 `context.value`
-        // carried MySQL's message as well.
+        // Inverted with 000-000-0080. It recorded 500 with `unknown_perror`, naming the last field
+        // of an earlier loop instead of `slug`; until 000-000-0079 `context.value` carried MySQL's
+        // message as well.
         $slug = 'rp-slug-'.$this->run;
 
         [$first, $body] = $this->postJson('/api/insert', array('entity' => 'Core\\Example', 'data' => array('slug' => $slug)), $this->token());
@@ -769,9 +768,10 @@ class ReadPathApiTest extends IntegrationTestCase
 
         [$second, $body] = $this->postJson('/api/insert', array('entity' => 'Core\\Example', 'data' => array('slug' => $slug)), $this->token());
 
-        $this->assertSame(500, $second, 'Current state');
-        $entry = $this->assertErrorEnvelope($body);
-        $this->assertSame('contentfly_general_unknown_perror', $entry['code']);
+        $this->assertSame(409, $second, 'A conflict, like the check before the insert reports it');
+        $entry = $this->assertErrorEnvelope($body, 'contentfly_general_ressource_already_exists');
+        $this->assertSame(array('value' => 'Core\\Example'), $entry['context'],
+            'It names the entity: which key collided is only in MySQL\'s text');
         $this->assertStringNotContainsString('SQLSTATE', json_encode($entry), 'MySQL\'s text goes to the log, not to the client (000-000-0079)');
         $this->assertStringNotContainsString($slug, json_encode($entry), 'nor the value that collided');
         $this->assertSame(1, $this->scalar('SELECT COUNT(*) FROM example_entity WHERE slug = ?', array($slug)),

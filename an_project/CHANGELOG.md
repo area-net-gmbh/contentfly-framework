@@ -19,6 +19,11 @@
 - 000-000-0079 → done: Buchführung vor dem Merge des Pull Requests (Integration über PR, `git.md`)
 - an_project/docs/migration.md updated: Registergrösse auf 130 Einträge nachgezogen (Eintrag aus `000-000-0079`)
 - an_project/docs/breaking-changes.md updated: Eintrag zu `000-000-0079` — Datenbankfehler in insert/update ohne ihren Text
+- 000-000-0080 → in-progress
+- 000-000-0080 → review: **Unique-Verletzungen in `doInsert()` sind 409.** Auch ein Schlüssel, den nur die Datenbank kennt (war 500 mit falschem Feld). Entfernt: der Zweig, der bei einer Kollision den vorhandenen Datensatz mit 200 zurückgab, als sei er neu. Test umgedreht, Gegenprobe ohne Fix rot. Suite 785 grün, PHPStan ohne Fehler.
+- 000-000-0080 → done: Buchführung vor dem Merge des Pull Requests (Integration über PR, `git.md`)
+- an_project/docs/migration.md updated: Registergrösse auf 131 Einträge nachgezogen (Eintrag aus `000-000-0080`)
+- an_project/docs/breaking-changes.md updated: Eintrag zu `000-000-0080` — jede Unique-Verletzung in insert antwortet mit 409
 - 000-000-0081 → in-progress
 - 000-000-0081 → review: **`loadJoinedLang` entfernt** (Entscheidung: entfernen statt reparieren). `/api/single` lehnt ihn mit 400 `contentfly_general_invalid_params` ab; der Zweig „neu übersetzen" von `compareToLang` entfällt. Registereintrag, drei Tests, Gegenprobe ohne Fix rot. Suite 784 grün, PHPStan ohne Fehler.
 - 000-000-0081 → done: Buchführung vor dem Merge des Pull Requests (Integration über PR, `git.md`)
