@@ -13,6 +13,7 @@
 - 000-000-0083 task created: "Ein nicht lesbares lastModified in /api/list mit 400 statt 500 beantworten"
 - 000-000-0079 → in-progress
 - 000-000-0079 → review: **Kein Doctrine-/SQL-Text mehr in Antworten von insert und update.** `catch(Exception)` in `doInsert()`/`doUpdate()` entfernt (er verpackte den Text als Meldung einer `ContentflyException`); die Unique-Verletzung loggt die MySQL-Meldung statt sie an `context.value` zu hängen. Zwei neue Tests in `ErrorResponseApiTest`, Gegenprobe ohne Fix rot. Suite 785 grün, PHPStan ohne Fehler.
+- an_project/docs/breaking-changes.md updated: Eintrag zu `000-000-0079` — Datenbankfehler in insert/update ohne ihren Text
 
 ## 2026-09-21
 - 000-000-0071 → in-progress
