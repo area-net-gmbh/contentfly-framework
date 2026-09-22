@@ -1,7 +1,7 @@
 ---
 id: 000-000-0079
 title: doInsert() gibt Doctrine- und SQL-Texte ohne Debug an den Client
-status: review
+status: done
 depends_on: []
 ---
 
