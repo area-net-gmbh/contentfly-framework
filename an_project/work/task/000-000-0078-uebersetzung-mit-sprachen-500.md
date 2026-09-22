@@ -1,7 +1,7 @@
 ---
 id: 000-000-0078
 title: Übersetzung anlegen scheitert mit APP_LANGUAGES — EntityManager::clear() leert alles
-status: review
+status: done
 depends_on: []
 ---
 
