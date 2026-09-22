@@ -733,9 +733,9 @@ class ReadPathApiTest extends IntegrationTestCase
         // check before the insert does not see it, the database does. doInsert() then looks for the
         // field marked unique in the schema, finds none and reports an unknown error.
         //
-        // Current state, and a finding: the answer is 500 instead of 409, it names the last field
-        // of the loop instead of `slug`, and `context.value` carries MySQL's message — the text
-        // 000-000-0073 keeps out of every other answer without debug.
+        // Current state, and a finding: the answer is 500 instead of 409, and it names the last
+        // field of the loop instead of `slug` (000-000-0080). Until 000-000-0079 `context.value`
+        // carried MySQL's message as well.
         $slug = 'rp-slug-'.$this->run;
 
         [$first, $body] = $this->postJson('/api/insert', array('entity' => 'Core\\Example', 'data' => array('slug' => $slug)), $this->token());
@@ -746,7 +746,10 @@ class ReadPathApiTest extends IntegrationTestCase
         [$second, $body] = $this->postJson('/api/insert', array('entity' => 'Core\\Example', 'data' => array('slug' => $slug)), $this->token());
 
         $this->assertSame(500, $second, 'Current state');
-        $this->assertSame('contentfly_general_unknown_perror', $this->assertErrorEnvelope($body)['code']);
+        $entry = $this->assertErrorEnvelope($body);
+        $this->assertSame('contentfly_general_unknown_perror', $entry['code']);
+        $this->assertStringNotContainsString('SQLSTATE', json_encode($entry), 'MySQL\'s text goes to the log, not to the client (000-000-0079)');
+        $this->assertStringNotContainsString($slug, json_encode($entry), 'nor the value that collided');
         $this->assertSame(1, $this->scalar('SELECT COUNT(*) FROM example_entity WHERE slug = ?', array($slug)),
             'The second record with the same slug is not written');
     }

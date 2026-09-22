@@ -2457,23 +2457,20 @@ Sätze wären mit der Regel oben verschwunden; stattdessen sind es jetzt Fehler 
 `code` bzw. zeigt bei `contentfly_general_internal_error` eine allgemeine Meldung. Wer Fehler
 analysiert, liest das Server-Log statt der Antwort.
 
-### `/api/single`: `loadJoinedLang` entfällt und wird mit 400 abgelehnt
-**Seit `000-000-0081` (2026-09-22), noch nicht ausgeliefert.**
+### `/api/insert` und `/api/update`: Datenbankfehler ohne ihren Text
+**Seit `000-000-0079` (2026-09-22), noch nicht ausgeliefert.**
 
-`loadJoinedLang` sollte die Joins auf übersetzbare Datensätze in einer anderen Sprache lesen. Ein
-solcher Verweis hat aber zwei Schlüsselspalten, und `<feld>_lang` legt die Sprache schon fest — in
-jeder anderen Sprache kam der Join als **`null`**, obwohl das Ziel existierte. Der Modus
-„neu übersetzen" von `compareToLang`, der darauf aufbaute, meldete deshalb **jedes Mal** fehlende
-Übersetzungen (`contentfly_i18n_missing_translations`).
+Die Regel aus `0073` griff hier nicht: `doInsert()` und `doUpdate()` verpackten jeden Fehler beim
+Speichern in eine `ContentflyException` mit dem Ausnahmetext als Meldung, und die gilt als erwartet.
+**Ohne Debug** gilt jetzt auch hier:
 
-| Aufruf | vorher | jetzt |
+| Fall | vorher | jetzt |
 |---|---|---|
-| `/api/single` mit `loadJoinedLang` | 200, Joins in anderer Sprache `null` | **400** `contentfly_general_invalid_params`, `context.value` = `loadJoinedLang` |
-| `/api/single` mit `compareToLang` **und** `loadJoinedLang` | Fehler „fehlende Übersetzung" | **400** wie oben |
-| `/api/single` mit `compareToLang` allein | unverändert | unverändert |
+| Datenbankfehler beim Speichern (z. B. Wert zu lang, Pflichtspalte leer) | 500, Text von Doctrine/MySQL in `code` **und** `detail` | 500, `code` = `null`, `detail` = `contentfly_general_internal_error`, `type` = `InternalServerError` |
+| Unique-Verletzung beim Anlegen | `context.value` endete mit der MySQL-Meldung (`SQLSTATE[23000] … Duplicate entry …`) | ohne diesen Anhang |
 
-Ein leerer Wert gilt als nicht gesendet. Einziger bekannter Nutzer war die mit Epic `012` gelöschte
-PIM-Oberfläche.
+Der volle Text steht im Server-Log (`Contentfly: unexpected …` bzw. `Contentfly: unique violation on
+<Entity>: …`). **Mit `APP_DEBUG` bleibt alles wie bisher.**
 
-*Was zu tun ist:* Den Parameter weglassen. Joins kommen in der Sprache des Requests (`lang`); wer ein
-Ziel in einer anderen Sprache braucht, liest es mit `/api/single` in dieser Sprache nach.
+*Was zu tun ist:* Ein Client, der auf den Text in `code` oder `detail` verzweigt hat, verzweigt auf
+`contentfly_general_internal_error` bzw. zeigt eine allgemeine Meldung.
