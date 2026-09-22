@@ -2,6 +2,11 @@
 
 # Changelog
 
+## 2026-09-22
+- 000-000-0072 → done (per Pull Request auf `master`, #36)
+- 000-000-0073 → done (per Pull Request auf `master`, #37)
+- 000-000-0071 → done (per Pull Request auf `master`, #38)
+
 ## 2026-09-21
 - 000-000-0071 → in-progress
 - 000-000-0071 → review: **Der Coverage-Lauf bricht nicht mehr ab.** Ursache bestätigt: `DeadImportTest` lud per `class_exists()` eine Rector-Klasse, Rectors Bootstrap stellte dessen Autoloader samt `nikic/php-parser` 4 vor den des Projekts (5.8) — mit Coverage und kaltem Cache knallte es. Jetzt werden Rector-Namen in Rectors Classmap nachgeschlagen, geladen wird nichts. Gegenprobe mit erzwungener Reihenfolge; der volle Lauf ohne Ausnahmen und ohne `--order-by` ist grün. Gesamt-Coverage jetzt 70,5 %.
