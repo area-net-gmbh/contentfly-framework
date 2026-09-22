@@ -1,6 +1,7 @@
 <?php
 namespace Tests\Integration\Api;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Integration\IntegrationTestCase;
 
 /**
@@ -282,21 +283,46 @@ class ReadPathApiTest extends IntegrationTestCase
         )));
     }
 
-    public function testAnUnreadableLastModifiedEndsInAServerError(): void
+    /**
+     * Inverted with 000-000-0083. It recorded a 500: getList() tried to read the value as a date,
+     * swallowed the failure and handed the raw string on to the query, which MySQL rejected.
+     *
+     * @return array<string,array{0:string,1:array<string,mixed>}>
+     */
+    public static function unreadableLastModified(): array
     {
-        // Current state, and a finding: getList() tries to read the value as a date, swallows the
-        // failure and hands the raw string on to the query. MySQL rejects it, and the caller gets
-        // 500 for a wrong parameter. /api/all reads the value in the controller and drops it.
-        $this->createRelations($this->run);
+        return array(
+            '/api/list'                 => array('/api/list', array('entity' => 'Core\\ExampleRelations', 'lastModified' => 'not a date')),
+            '/api/all'                  => array('/api/all', array('lastModified' => 'not a date')),
+            '/api/count'                => array('/api/count', array('lastModified' => 'not a date')),
+            '/api/count, per entity'    => array('/api/count', array('lastModified' => array('PIM\\Tag' => 'not a date'))),
+            '/api/deleted'              => array('/api/deleted', array('lastModified' => 'not a date')),
+            '/api/deleted, per entity'  => array('/api/deleted', array('lastModified' => array('PIM\\Tag' => 'not a date'))),
+            '/api/count, a number'      => array('/api/count', array('lastModified' => 1790000000)),
+        );
+    }
 
-        [$status, $body] = $this->postJson('/api/list', array(
+    #[DataProvider('unreadableLastModified')]
+    public function testAnUnreadableLastModifiedIsTheCallersMistake(string $path, array $request): void
+    {
+        // /api/all dropped the value without a word and delivered everything; /api/count and
+        // /api/deleted handed it on to SQL and answered 500 like /api/list.
+        [$status, $body] = $this->postJson($path, $request, $this->token());
+
+        $this->assertSame(400, $status, json_encode($body));
+        $entry = $this->assertErrorEnvelope($body, 'contentfly_general_invalid_date');
+        $this->assertSame(array('value' => 'lastModified'), $entry['context'], 'The answer names the parameter');
+    }
+
+    public function testAnEmptyLastModifiedMeansNone(): void
+    {
+        $this->createRelations($this->run, null, array(), "'2020-01-01 00:00:00'");
+
+        $this->assertCount(1, $this->listIds(array(
             'entity'       => 'Core\\ExampleRelations',
             'where'        => array('title' => $this->run),
-            'lastModified' => 'not a date',
-        ), $this->token());
-
-        $this->assertSame(500, $status, 'Current state: a wrong parameter is a server error');
-        $this->assertErrorEnvelope($body);
+            'lastModified' => '',
+        )), 'An empty string is no point in time, not a wrong one');
     }
 
     public function testUntranslatedLangFindsNothingWhileTheEntityJoinsATranslatableOne(): void

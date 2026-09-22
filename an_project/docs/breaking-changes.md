@@ -2456,3 +2456,20 @@ Sätze wären mit der Regel oben verschwunden; stattdessen sind es jetzt Fehler 
 *Was zu tun ist:* Ein Client, der den Text in `detail` angezeigt oder ausgewertet hat, verzweigt auf
 `code` bzw. zeigt bei `contentfly_general_internal_error` eine allgemeine Meldung. Wer Fehler
 analysiert, liest das Server-Log statt der Antwort.
+
+### Ein nicht lesbares `lastModified` antwortet mit 400
+**Seit `000-000-0083` (2026-09-22), noch nicht ausgeliefert.**
+
+| Endpunkt | vorher | jetzt |
+|---|---|---|
+| `/api/list` | **500** (MySQL lehnte den Wert ab) | **400** `contentfly_general_invalid_date` |
+| `/api/count`, `/api/deleted` — auch je Entity | **500** | **400** |
+| `/api/all` | **200 mit allem**, als wäre kein Zeitpunkt angegeben | **400** |
+
+`context.value` nennt `lastModified`. Eine Zahl statt einer Zeichenkette gilt ebenfalls als nicht
+lesbar; bei `/api/count` war sie bisher wirkungslos (MySQL verglich sie mit der Ziffernfolge des
+Datums). Ein leerer Wert heisst weiterhin: kein Zeitpunkt.
+
+*Was zu tun ist:* Nichts für einen Client, der den Wert aus `meta.lastModified` zurückschickt. Wer
+bei `/api/all` einen falschen Wert geschickt und sich auf den vollen Bestand verlassen hat, lässt
+`lastModified` weg.
