@@ -40,6 +40,9 @@
 - 000-000-0072 → done (per Pull Request auf `master`, #36)
 - 000-000-0073 → done (per Pull Request auf `master`, #37)
 - 000-000-0071 → done (per Pull Request auf `master`, #38)
+- 000-000-0084 task created: "Release v2.2.0 — die Korrekturen seit v2.1.0 ausliefern"
+- 000-000-0084 → in-progress
+- 000-000-0084: Release vorbereitet — Version `2.2.0` an allen Stellen, neun Registereinträge „ausgeliefert mit `v2.2.0`", acht Einträge von *Annotationen* nach *API* verschoben, Leitfaden *Von 2.1 auf 2.2*, `pentest-spec.md` auf `v2.2.0`. Tag folgt nach dem Merge.
 
 ## 2026-09-21
 - 000-000-0071 → in-progress

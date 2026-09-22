@@ -199,7 +199,7 @@ vor ihrer ersten fachlichen Zeile. **Ein API-Token liess sich über die API nich
 Datenbank —, kann ihn ablegen.
 
 ### Der ImageMagick-Prozessor entfällt, `FILE_IMAGE_MAX_PIXELS` ist neu
-**Seit `000-000-0068` (2026-09-21), noch nicht ausgeliefert.**
+**Seit `000-000-0068` (2026-09-21), ausgeliefert mit `v2.2.0`.**
 
 **`Classes\File\Processing\ImageMagick` und `IMAGEMAGICK_EXECUTABLE` sind entfernt.** Der Prozessor
 war mit der Voreinstellung nicht lauffähig — `is_executable('convert')` ist für einen relativen Namen
@@ -921,6 +921,157 @@ keine `i18n_universal`-Felder und trägt genau, was gesendet wurde. Die Warnung
 
 *Was zu tun ist:* Ein Projekt mit übersetzbaren Entities kann Übersetzungen wieder über die API
 anlegen. Wer das in `v2.0.0` anders gelöst hat, prüft, ob der Umweg noch nötig ist.
+
+### Beziehungsfelder: `onejoin` in Listen, `multifile` und `permissions` mit den richtigen Ids
+**Seit `000-000-0067` (2026-09-21), ausgeliefert mit `v2.2.0`.**
+
+Vier Fehler in Feldtypen, die bis dahin kein Test erreichte:
+
+| Aufruf | vorher | jetzt |
+|---|---|---|
+| `/api/list` auf eine Entity mit `OneToOne`-Feld | das Feld ist **immer `null`**, `/api/single` liefert es | das Feld enthält den verknüpften Datensatz, mit `flatten` `{"id": …}` |
+| `/api/list` mit `properties` auf ein `multifile`-Feld | je Datei ein leeres Objekt `{}` | je Datei der Datensatz aus `PIM\File` |
+| `permissions` von `PIM\Group` mit `flatten` bzw. `properties` | je Rechtezeile die **Id der Gruppe** | die Id der Rechtezeile |
+| `/api/list` auf `PIM\Group` mit `properties: ["permissions"]` | **500** | 200 |
+
+*Was zu tun ist:* Nichts für einen korrekten Client. Wer die Lücken umgangen hat — etwa jedes
+`OneToOne`-Feld über `/api/single` nachgeladen —, kann den Umweg streichen.
+
+### Bild-Uploads: kaputte und getarnte Bilder antworten 415 statt 500, GIF funktioniert wieder
+**Seit `000-000-0068` (2026-09-21), ausgeliefert mit `v2.2.0`.**
+
+Was ein Bildprozessor verarbeiten würde (`image/jpeg`, `image/png`, `image/gif`), prüft der Upload
+jetzt am Dateikopf, **bevor** etwas gespeichert wird:
+
+| Upload | vorher | jetzt |
+|---|---|---|
+| Kopf nicht als Bild lesbar (z. B. Text als `image/jpeg`) | **500**, Datensatz und Datei blieben liegen | **415** `contentfly_file_invalid_type`, nichts gespeichert |
+| anderer Typ als gemeldet (PNG als `image/jpeg`) | **500** | **415** |
+| mehr Pixel als `FILE_IMAGE_MAX_PIXELS` | GD versucht, den Speicher zu belegen | **413** `contentfly_file_too_large` |
+| Kopf lesbar, Bilddaten kaputt | **500** | **415**, der neue Datensatz samt Verzeichnis wird entfernt |
+| jedes **GIF** | **500** (`imagegif()` nimmt seit PHP 8 keine Qualität) | 200 mit Vorschaubildern |
+
+Dateien ohne Bildprozessor (`.txt`, `.pdf` …) sind nicht betroffen.
+
+*Was zu tun ist:* Ein Client, der auf 500 geprüft hat, prüft auf 415 bzw. 413. **Offen bleibt ein
+Fall:** Beim erneuten Upload auf eine bestehende Id (`id` im Request) wird eine Datei mit lesbarem
+Kopf und kaputten Daten nicht zurückgerollt — der Kopf-Check greift auch dort, nur dieser Rest nicht.
+
+
+### Rechtestufe `GROUP`: `/api/count` und `/api/query` antworten wieder
+**Seit `000-000-0072` (2026-09-21), ausgeliefert mit `v2.2.0`.**
+
+Für jeden Benutzer, dessen Gruppe eine Entity mit `readable = GROUP` liest, endeten `/api/count` und
+`/api/query` mit **500** (`SQLSTATE[42000] … 1064`): Beide bauen rohes SQL und schrieben `groups`
+ohne Backticks — in MySQL 8 ein reserviertes Wort. Jetzt 200, verengt auf eigene und der Gruppe
+freigegebene Datensätze, wie `/api/list`.
+
+*Was zu tun ist:* Nichts. Wer für `GROUP`-Benutzer auf `/api/list` ausgewichen ist, kann zurück.
+
+### Unerwartete Fehler zeigen ihren Text nicht mehr — `/system/do` antwortet mit 4xx
+**Seit `000-000-0073` (2026-09-21), ausgeliefert mit `v2.2.0`.**
+
+**Ohne Debug** antwortet ein unvorhergesehener Serverfehler — jede Ausnahme, die weder eine
+`ContentflyException` noch eine HTTP-Ausnahme ist — jetzt mit festem Inhalt:
+
+```json
+{"code": null, "detail": "contentfly_general_internal_error", "type": "InternalServerError", "context": null}
+```
+
+Vorher standen dort die Meldung und die Klasse der Ausnahme — gemessen: bei einem DBAL-Fehler die
+MySQL-Meldung samt Ausschnitt der Abfrage, bei einem `TypeError` Methode, Signatur und Server-Pfad.
+Der volle Text steht jetzt im Server-Log (`Contentfly: unexpected …`). **Mit `APP_DEBUG` bleibt alles
+wie bisher.**
+
+`/system/do` warf für Fehler des Aufrufers eine nackte `\Exception` und antwortete mit **500**. Die
+Sätze wären mit der Regel oben verschwunden; stattdessen sind es jetzt Fehler mit Schlüssel:
+
+| Fall | vorher | jetzt |
+|---|---|---|
+| unbekannte oder nicht erlaubte Methode | 500 „Method … is not available." | **400** `contentfly_general_invalid_params`, Methode in `context.value` |
+| `addToken` ohne `referrer`/`user` | 500 | **400** `contentfly_general_missing_params` |
+| `addToken` mit unbekanntem Benutzer | 500 | **404** `contentfly_general_not_found` |
+| `addToken` mit schon vergebenem Token | 500 | **409** `contentfly_general_ressource_already_exists` |
+| `addToken` mit zu schwachem Token | 400 mit Satz in `detail` | **400** `contentfly_general_token_too_weak`, die Regel in `context.value` |
+| `deleteToken` mit unbekannter Id | 500 „Invalid token" | **404** `contentfly_general_not_found` |
+
+*Was zu tun ist:* Ein Client, der den Text in `detail` angezeigt oder ausgewertet hat, verzweigt auf
+`code` bzw. zeigt bei `contentfly_general_internal_error` eine allgemeine Meldung. Wer Fehler
+analysiert, liest das Server-Log statt der Antwort.
+
+### `/api/insert` und `/api/update`: Datenbankfehler ohne ihren Text
+**Seit `000-000-0079` (2026-09-22), ausgeliefert mit `v2.2.0`.**
+
+Die Regel aus `0073` griff hier nicht: `doInsert()` und `doUpdate()` verpackten jeden Fehler beim
+Speichern in eine `ContentflyException` mit dem Ausnahmetext als Meldung, und die gilt als erwartet.
+**Ohne Debug** gilt jetzt auch hier:
+
+| Fall | vorher | jetzt |
+|---|---|---|
+| Datenbankfehler beim Speichern (z. B. Wert zu lang, Pflichtspalte leer) | 500, Text von Doctrine/MySQL in `code` **und** `detail` | 500, `code` = `null`, `detail` = `contentfly_general_internal_error`, `type` = `InternalServerError` |
+| Unique-Verletzung beim Anlegen | `context.value` endete mit der MySQL-Meldung (`SQLSTATE[23000] … Duplicate entry …`) | ohne diesen Anhang |
+
+Der volle Text steht im Server-Log (`Contentfly: unexpected …` bzw. `Contentfly: unique violation on
+<Entity>: …`). **Mit `APP_DEBUG` bleibt alles wie bisher.**
+
+*Was zu tun ist:* Ein Client, der auf den Text in `code` oder `detail` verzweigt hat, verzweigt auf
+`contentfly_general_internal_error` bzw. zeigt eine allgemeine Meldung.
+
+### `/api/insert`: jede Unique-Verletzung antwortet mit 409
+**Seit `000-000-0080` (2026-09-22), ausgeliefert mit `v2.2.0`.**
+
+Nur Felder mit `unique` im Schema werden vor dem Speichern geprüft. Was erst die Datenbank ablehnte,
+lief in einen Zweig mit zwei Fehlern:
+
+| Fall | vorher | jetzt |
+|---|---|---|
+| Schlüssel, den nur die Datenbank kennt (`UniqueConstraint` auf der Tabelle) | **500** `contentfly_general_unknown_perror`, `context.value` nannte ein falsches Feld | **409** `contentfly_general_ressource_already_exists`, `context.value` = die Entity |
+| Kollision auf einem Schema-Feld, die erst die Datenbank bemerkt (zwei gleichzeitige Anfragen) | **200 mit dem bereits vorhandenen Datensatz**, als sei er neu angelegt | **409** wie oben |
+| dasselbe bei `PIM\User` | 500 `contentfly_general_user_already_exists` | **409**, wie in `/api/update` |
+
+Welcher Schlüssel kollidierte, steht nur im Text von MySQL und damit seit `0079` im Server-Log.
+
+*Was zu tun ist:* Ein Client, der auf 500 geprüft hat, prüft auf 409. Wer nach einem 200 die Id des
+angeblich neuen Datensatzes weiterverwendet hat, bekommt im Kollisionsfall jetzt einen Fehler statt
+eines fremden Datensatzes — das ist die Absicht.
+
+### `/api/single`: `loadJoinedLang` entfällt und wird mit 400 abgelehnt
+**Seit `000-000-0081` (2026-09-22), ausgeliefert mit `v2.2.0`.**
+
+`loadJoinedLang` sollte die Joins auf übersetzbare Datensätze in einer anderen Sprache lesen. Ein
+solcher Verweis hat aber zwei Schlüsselspalten, und `<feld>_lang` legt die Sprache schon fest — in
+jeder anderen Sprache kam der Join als **`null`**, obwohl das Ziel existierte. Der Modus
+„neu übersetzen" von `compareToLang`, der darauf aufbaute, meldete deshalb **jedes Mal** fehlende
+Übersetzungen (`contentfly_i18n_missing_translations`).
+
+| Aufruf | vorher | jetzt |
+|---|---|---|
+| `/api/single` mit `loadJoinedLang` | 200, Joins in anderer Sprache `null` | **400** `contentfly_general_invalid_params`, `context.value` = `loadJoinedLang` |
+| `/api/single` mit `compareToLang` **und** `loadJoinedLang` | Fehler „fehlende Übersetzung" | **400** wie oben |
+| `/api/single` mit `compareToLang` allein | unverändert | unverändert |
+
+Ein leerer Wert gilt als nicht gesendet. Einziger bekannter Nutzer war die mit Epic `012` gelöschte
+PIM-Oberfläche.
+
+*Was zu tun ist:* Den Parameter weglassen. Joins kommen in der Sprache des Requests (`lang`); wer ein
+Ziel in einer anderen Sprache braucht, liest es mit `/api/single` in dieser Sprache nach.
+
+### Ein nicht lesbares `lastModified` antwortet mit 400
+**Seit `000-000-0083` (2026-09-22), ausgeliefert mit `v2.2.0`.**
+
+| Endpunkt | vorher | jetzt |
+|---|---|---|
+| `/api/list` | **500** (MySQL lehnte den Wert ab) | **400** `contentfly_general_invalid_date` |
+| `/api/count`, `/api/deleted` — auch je Entity | **500** | **400** |
+| `/api/all` | **200 mit allem**, als wäre kein Zeitpunkt angegeben | **400** |
+
+`context.value` nennt `lastModified`. Eine Zahl statt einer Zeichenkette gilt ebenfalls als nicht
+lesbar; bei `/api/count` war sie bisher wirkungslos (MySQL verglich sie mit der Ziffernfolge des
+Datums). Ein leerer Wert heisst weiterhin: kein Zeitpunkt.
+
+*Was zu tun ist:* Nichts für einen Client, der den Wert aus `meta.lastModified` zurückschickt. Wer
+bei `/api/all` einen falschen Wert geschickt und sich auf den vollen Bestand verlassen hat, lässt
+`lastModified` weg.
 
 ## Paketgrenze (Epic `007`)
 
@@ -2379,154 +2530,3 @@ Die `@PIM`-Annotationen sind mit Epic `012` stark reduziert worden. Die vollstä
 dessen, was entfallen ist und wodurch es ersetzt wird, steht in
 `an_project/docs/pim-annotationen-migration.md` — sie ist die Grundlage für die Rector-Regel
 aus Epic `007`.
-
-### Beziehungsfelder: `onejoin` in Listen, `multifile` und `permissions` mit den richtigen Ids
-**Seit `000-000-0067` (2026-09-21), noch nicht ausgeliefert.**
-
-Vier Fehler in Feldtypen, die bis dahin kein Test erreichte:
-
-| Aufruf | vorher | jetzt |
-|---|---|---|
-| `/api/list` auf eine Entity mit `OneToOne`-Feld | das Feld ist **immer `null`**, `/api/single` liefert es | das Feld enthält den verknüpften Datensatz, mit `flatten` `{"id": …}` |
-| `/api/list` mit `properties` auf ein `multifile`-Feld | je Datei ein leeres Objekt `{}` | je Datei der Datensatz aus `PIM\File` |
-| `permissions` von `PIM\Group` mit `flatten` bzw. `properties` | je Rechtezeile die **Id der Gruppe** | die Id der Rechtezeile |
-| `/api/list` auf `PIM\Group` mit `properties: ["permissions"]` | **500** | 200 |
-
-*Was zu tun ist:* Nichts für einen korrekten Client. Wer die Lücken umgangen hat — etwa jedes
-`OneToOne`-Feld über `/api/single` nachgeladen —, kann den Umweg streichen.
-
-### Bild-Uploads: kaputte und getarnte Bilder antworten 415 statt 500, GIF funktioniert wieder
-**Seit `000-000-0068` (2026-09-21), noch nicht ausgeliefert.**
-
-Was ein Bildprozessor verarbeiten würde (`image/jpeg`, `image/png`, `image/gif`), prüft der Upload
-jetzt am Dateikopf, **bevor** etwas gespeichert wird:
-
-| Upload | vorher | jetzt |
-|---|---|---|
-| Kopf nicht als Bild lesbar (z. B. Text als `image/jpeg`) | **500**, Datensatz und Datei blieben liegen | **415** `contentfly_file_invalid_type`, nichts gespeichert |
-| anderer Typ als gemeldet (PNG als `image/jpeg`) | **500** | **415** |
-| mehr Pixel als `FILE_IMAGE_MAX_PIXELS` | GD versucht, den Speicher zu belegen | **413** `contentfly_file_too_large` |
-| Kopf lesbar, Bilddaten kaputt | **500** | **415**, der neue Datensatz samt Verzeichnis wird entfernt |
-| jedes **GIF** | **500** (`imagegif()` nimmt seit PHP 8 keine Qualität) | 200 mit Vorschaubildern |
-
-Dateien ohne Bildprozessor (`.txt`, `.pdf` …) sind nicht betroffen.
-
-*Was zu tun ist:* Ein Client, der auf 500 geprüft hat, prüft auf 415 bzw. 413. **Offen bleibt ein
-Fall:** Beim erneuten Upload auf eine bestehende Id (`id` im Request) wird eine Datei mit lesbarem
-Kopf und kaputten Daten nicht zurückgerollt — der Kopf-Check greift auch dort, nur dieser Rest nicht.
-
-
-### Rechtestufe `GROUP`: `/api/count` und `/api/query` antworten wieder
-**Seit `000-000-0072` (2026-09-21), noch nicht ausgeliefert.**
-
-Für jeden Benutzer, dessen Gruppe eine Entity mit `readable = GROUP` liest, endeten `/api/count` und
-`/api/query` mit **500** (`SQLSTATE[42000] … 1064`): Beide bauen rohes SQL und schrieben `groups`
-ohne Backticks — in MySQL 8 ein reserviertes Wort. Jetzt 200, verengt auf eigene und der Gruppe
-freigegebene Datensätze, wie `/api/list`.
-
-*Was zu tun ist:* Nichts. Wer für `GROUP`-Benutzer auf `/api/list` ausgewichen ist, kann zurück.
-
-### Unerwartete Fehler zeigen ihren Text nicht mehr — `/system/do` antwortet mit 4xx
-**Seit `000-000-0073` (2026-09-21), noch nicht ausgeliefert.**
-
-**Ohne Debug** antwortet ein unvorhergesehener Serverfehler — jede Ausnahme, die weder eine
-`ContentflyException` noch eine HTTP-Ausnahme ist — jetzt mit festem Inhalt:
-
-```json
-{"code": null, "detail": "contentfly_general_internal_error", "type": "InternalServerError", "context": null}
-```
-
-Vorher standen dort die Meldung und die Klasse der Ausnahme — gemessen: bei einem DBAL-Fehler die
-MySQL-Meldung samt Ausschnitt der Abfrage, bei einem `TypeError` Methode, Signatur und Server-Pfad.
-Der volle Text steht jetzt im Server-Log (`Contentfly: unexpected …`). **Mit `APP_DEBUG` bleibt alles
-wie bisher.**
-
-`/system/do` warf für Fehler des Aufrufers eine nackte `\Exception` und antwortete mit **500**. Die
-Sätze wären mit der Regel oben verschwunden; stattdessen sind es jetzt Fehler mit Schlüssel:
-
-| Fall | vorher | jetzt |
-|---|---|---|
-| unbekannte oder nicht erlaubte Methode | 500 „Method … is not available." | **400** `contentfly_general_invalid_params`, Methode in `context.value` |
-| `addToken` ohne `referrer`/`user` | 500 | **400** `contentfly_general_missing_params` |
-| `addToken` mit unbekanntem Benutzer | 500 | **404** `contentfly_general_not_found` |
-| `addToken` mit schon vergebenem Token | 500 | **409** `contentfly_general_ressource_already_exists` |
-| `addToken` mit zu schwachem Token | 400 mit Satz in `detail` | **400** `contentfly_general_token_too_weak`, die Regel in `context.value` |
-| `deleteToken` mit unbekannter Id | 500 „Invalid token" | **404** `contentfly_general_not_found` |
-
-*Was zu tun ist:* Ein Client, der den Text in `detail` angezeigt oder ausgewertet hat, verzweigt auf
-`code` bzw. zeigt bei `contentfly_general_internal_error` eine allgemeine Meldung. Wer Fehler
-analysiert, liest das Server-Log statt der Antwort.
-
-### `/api/insert` und `/api/update`: Datenbankfehler ohne ihren Text
-**Seit `000-000-0079` (2026-09-22), noch nicht ausgeliefert.**
-
-Die Regel aus `0073` griff hier nicht: `doInsert()` und `doUpdate()` verpackten jeden Fehler beim
-Speichern in eine `ContentflyException` mit dem Ausnahmetext als Meldung, und die gilt als erwartet.
-**Ohne Debug** gilt jetzt auch hier:
-
-| Fall | vorher | jetzt |
-|---|---|---|
-| Datenbankfehler beim Speichern (z. B. Wert zu lang, Pflichtspalte leer) | 500, Text von Doctrine/MySQL in `code` **und** `detail` | 500, `code` = `null`, `detail` = `contentfly_general_internal_error`, `type` = `InternalServerError` |
-| Unique-Verletzung beim Anlegen | `context.value` endete mit der MySQL-Meldung (`SQLSTATE[23000] … Duplicate entry …`) | ohne diesen Anhang |
-
-Der volle Text steht im Server-Log (`Contentfly: unexpected …` bzw. `Contentfly: unique violation on
-<Entity>: …`). **Mit `APP_DEBUG` bleibt alles wie bisher.**
-
-*Was zu tun ist:* Ein Client, der auf den Text in `code` oder `detail` verzweigt hat, verzweigt auf
-`contentfly_general_internal_error` bzw. zeigt eine allgemeine Meldung.
-
-### `/api/insert`: jede Unique-Verletzung antwortet mit 409
-**Seit `000-000-0080` (2026-09-22), noch nicht ausgeliefert.**
-
-Nur Felder mit `unique` im Schema werden vor dem Speichern geprüft. Was erst die Datenbank ablehnte,
-lief in einen Zweig mit zwei Fehlern:
-
-| Fall | vorher | jetzt |
-|---|---|---|
-| Schlüssel, den nur die Datenbank kennt (`UniqueConstraint` auf der Tabelle) | **500** `contentfly_general_unknown_perror`, `context.value` nannte ein falsches Feld | **409** `contentfly_general_ressource_already_exists`, `context.value` = die Entity |
-| Kollision auf einem Schema-Feld, die erst die Datenbank bemerkt (zwei gleichzeitige Anfragen) | **200 mit dem bereits vorhandenen Datensatz**, als sei er neu angelegt | **409** wie oben |
-| dasselbe bei `PIM\User` | 500 `contentfly_general_user_already_exists` | **409**, wie in `/api/update` |
-
-Welcher Schlüssel kollidierte, steht nur im Text von MySQL und damit seit `0079` im Server-Log.
-
-*Was zu tun ist:* Ein Client, der auf 500 geprüft hat, prüft auf 409. Wer nach einem 200 die Id des
-angeblich neuen Datensatzes weiterverwendet hat, bekommt im Kollisionsfall jetzt einen Fehler statt
-eines fremden Datensatzes — das ist die Absicht.
-
-### `/api/single`: `loadJoinedLang` entfällt und wird mit 400 abgelehnt
-**Seit `000-000-0081` (2026-09-22), noch nicht ausgeliefert.**
-
-`loadJoinedLang` sollte die Joins auf übersetzbare Datensätze in einer anderen Sprache lesen. Ein
-solcher Verweis hat aber zwei Schlüsselspalten, und `<feld>_lang` legt die Sprache schon fest — in
-jeder anderen Sprache kam der Join als **`null`**, obwohl das Ziel existierte. Der Modus
-„neu übersetzen" von `compareToLang`, der darauf aufbaute, meldete deshalb **jedes Mal** fehlende
-Übersetzungen (`contentfly_i18n_missing_translations`).
-
-| Aufruf | vorher | jetzt |
-|---|---|---|
-| `/api/single` mit `loadJoinedLang` | 200, Joins in anderer Sprache `null` | **400** `contentfly_general_invalid_params`, `context.value` = `loadJoinedLang` |
-| `/api/single` mit `compareToLang` **und** `loadJoinedLang` | Fehler „fehlende Übersetzung" | **400** wie oben |
-| `/api/single` mit `compareToLang` allein | unverändert | unverändert |
-
-Ein leerer Wert gilt als nicht gesendet. Einziger bekannter Nutzer war die mit Epic `012` gelöschte
-PIM-Oberfläche.
-
-*Was zu tun ist:* Den Parameter weglassen. Joins kommen in der Sprache des Requests (`lang`); wer ein
-Ziel in einer anderen Sprache braucht, liest es mit `/api/single` in dieser Sprache nach.
-
-### Ein nicht lesbares `lastModified` antwortet mit 400
-**Seit `000-000-0083` (2026-09-22), noch nicht ausgeliefert.**
-
-| Endpunkt | vorher | jetzt |
-|---|---|---|
-| `/api/list` | **500** (MySQL lehnte den Wert ab) | **400** `contentfly_general_invalid_date` |
-| `/api/count`, `/api/deleted` — auch je Entity | **500** | **400** |
-| `/api/all` | **200 mit allem**, als wäre kein Zeitpunkt angegeben | **400** |
-
-`context.value` nennt `lastModified`. Eine Zahl statt einer Zeichenkette gilt ebenfalls als nicht
-lesbar; bei `/api/count` war sie bisher wirkungslos (MySQL verglich sie mit der Ziffernfolge des
-Datums). Ein leerer Wert heisst weiterhin: kein Zeitpunkt.
-
-*Was zu tun ist:* Nichts für einen Client, der den Wert aus `meta.lastModified` zurückschickt. Wer
-bei `/api/all` einen falschen Wert geschickt und sich auf den vollen Bestand verlassen hat, lässt
-`lastModified` weg.

@@ -1,6 +1,6 @@
 {
   "name": "Contentfly",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "API-Dokumentation Contentfly — erzeugt aus den @api-Annotationen in lib/contentfly/Controller/",
   "title": "API-Dokumentation Contentfly"
 }
