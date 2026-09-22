@@ -1,6 +1,7 @@
 <?php
 namespace Tests\Integration\Api;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Integration\IntegrationTestCase;
 
 /**
@@ -282,51 +283,100 @@ class ReadPathApiTest extends IntegrationTestCase
         )));
     }
 
-    public function testAnUnreadableLastModifiedEndsInAServerError(): void
+    /**
+     * Inverted with 000-000-0083. It recorded a 500: getList() tried to read the value as a date,
+     * swallowed the failure and handed the raw string on to the query, which MySQL rejected.
+     *
+     * @return array<string,array{0:string,1:array<string,mixed>}>
+     */
+    public static function unreadableLastModified(): array
     {
-        // Current state, and a finding: getList() tries to read the value as a date, swallows the
-        // failure and hands the raw string on to the query. MySQL rejects it, and the caller gets
-        // 500 for a wrong parameter. /api/all reads the value in the controller and drops it.
-        $this->createRelations($this->run);
-
-        [$status, $body] = $this->postJson('/api/list', array(
-            'entity'       => 'Core\\ExampleRelations',
-            'where'        => array('title' => $this->run),
-            'lastModified' => 'not a date',
-        ), $this->token());
-
-        $this->assertSame(500, $status, 'Current state: a wrong parameter is a server error');
-        $this->assertErrorEnvelope($body);
+        return array(
+            '/api/list'                 => array('/api/list', array('entity' => 'Core\\ExampleRelations', 'lastModified' => 'not a date')),
+            '/api/all'                  => array('/api/all', array('lastModified' => 'not a date')),
+            '/api/count'                => array('/api/count', array('lastModified' => 'not a date')),
+            '/api/count, per entity'    => array('/api/count', array('lastModified' => array('PIM\\Tag' => 'not a date'))),
+            '/api/deleted'              => array('/api/deleted', array('lastModified' => 'not a date')),
+            '/api/deleted, per entity'  => array('/api/deleted', array('lastModified' => array('PIM\\Tag' => 'not a date'))),
+            '/api/count, a number'      => array('/api/count', array('lastModified' => 1790000000)),
+        );
     }
 
-    public function testUntranslatedLangFindsNothingWhileTheEntityJoinsATranslatableOne(): void
+    #[DataProvider('unreadableLastModified')]
+    public function testAnUnreadableLastModifiedIsTheCallersMistake(string $path, array $request): void
     {
-        // Current state, and a finding. untranslatedLang binds `:lang` to the language to
-        // translate FROM; the join loop further down binds the same parameter again, to the
-        // language of the request, as soon as the entity joins a translatable entity. The query
-        // then asks for records in English that have no English version — never any.
-        //
-        // Core\ExampleI18n joins itself through `related`, and it is the only translatable entity
-        // of the template. So the path that works — an entity without such a join — has no
-        // entity left to be shown on.
+        // /api/all dropped the value without a word and delivered everything; /api/count and
+        // /api/deleted handed it on to SQL and answered 500 like /api/list.
+        [$status, $body] = $this->postJson($path, $request, $this->token());
+
+        $this->assertSame(400, $status, json_encode($body));
+        $entry = $this->assertErrorEnvelope($body, 'contentfly_general_invalid_date');
+        $this->assertSame(array('value' => 'lastModified'), $entry['context'], 'The answer names the parameter');
+    }
+
+    public function testAnEmptyLastModifiedMeansNone(): void
+    {
+        $this->createRelations($this->run, null, array(), "'2020-01-01 00:00:00'");
+
+        $this->assertCount(1, $this->listIds(array(
+            'entity'       => 'Core\\ExampleRelations',
+            'where'        => array('title' => $this->run),
+            'lastModified' => '',
+        )), 'An empty string is no point in time, not a wrong one');
+    }
+
+    /**
+     * Inverted with 000-000-0082. It recorded an empty list: untranslatedLang binds `:lang` to the
+     * language to translate FROM, and the join loop further down bound the same parameter again, to
+     * the language of the request, as soon as the entity joins a translatable one — Core\ExampleI18n
+     * does, through `related`.
+     */
+    public function testUntranslatedLangListsTheRecordsWithoutThatTranslation(): void
+    {
+        $target       = 'rp-i18n-'.bin2hex(random_bytes(6));
         $translated   = 'rp-i18n-'.bin2hex(random_bytes(6));
         $untranslated = 'rp-i18n-'.bin2hex(random_bytes(6));
 
+        $this->createTranslation($target, 'de', 'Target (de)');
         $this->createTranslation($translated, 'de', 'Translated (de)');
         $this->createTranslation($translated, 'en', 'Translated');
+        $this->createTranslation($untranslated, 'de', 'Not translated (de)', null, $target);
+
+        $rows = $this->untranslated(array());
+
+        $this->assertArrayHasKey($untranslated, $rows, 'The German record without an English version is listed');
+        $this->assertSame('de', $rows[$untranslated]['lang'], 'in the language it exists in — the one to translate from');
+        $this->assertSame('Target (de)', $rows[$untranslated]['related']['title'], 'and so is its join');
+        $this->assertArrayNotHasKey($translated, $rows, 'A record that has an English version is not listed');
+    }
+
+    public function testUntranslatedLangIgnoresWhereAndLastModified(): void
+    {
+        $untranslated = 'rp-i18n-'.bin2hex(random_bytes(6));
         $this->createTranslation($untranslated, 'de', 'Not translated (de)');
 
-        [$status, $body] = $this->postJson('/api/list', array(
+        $rows = $this->untranslated(array(
+            'where'        => array('title' => 'matches nothing'),
+            'lastModified' => '2999-01-01 00:00:00',
+        ));
+
+        $this->assertArrayHasKey($untranslated, $rows,
+            'Current state: with untranslatedLang, where and lastModified are dropped without a word');
+    }
+
+    /** @return array<string,array<string,mixed>> the rows /api/list returns for lang en, untranslated from de, by id */
+    private function untranslated(array $request): array
+    {
+        [$status, $body] = $this->postJson('/api/list', array_merge(array(
             'entity'           => 'Core\\ExampleI18n',
             'lang'             => 'en',
             'untranslatedLang' => 'de',
             'itemsPerPage'     => 1000,
-        ), $this->token());
+        ), $request), $this->token());
 
         $this->assertSame(200, $status, json_encode($body));
-        $this->assertNotContains($untranslated, array_column($body['data'], 'id'),
-            'Current state: the German record without an English version is not found');
-        $this->assertNotContains($translated, array_column($body['data'], 'id'));
+
+        return array_column($body['data'], null, 'id');
     }
 
     public function testAJoinToATranslatableEntityComesInTheLanguageOfTheList(): void
@@ -395,19 +445,15 @@ class ReadPathApiTest extends IntegrationTestCase
         $this->assertSame('Target', $body['data']['related']['title']);
     }
 
-    public function testLoadJoinedLangFindsNoJoinedRecordInAnotherLanguage(): void
+    /**
+     * Replaced with 000-000-0081: loadJoinedLang is gone. It recorded that the joined record came
+     * back as null in every other language — the reference to a translatable record carries its
+     * language in its key, so a join narrowed to another one could never match.
+     */
+    public function testLoadJoinedLangIsRejected(): void
     {
-        // Current state, and a finding. loadJoinedLang narrows the join to a language — but the
-        // reference to a translatable record has two columns, `related_id` AND `related_lang`,
-        // and the second one already names the language the reference was written in. Asked for
-        // another language, the join has two conditions on `lang` that cannot both hold, and the
-        // joined record comes back as null although it exists in that language.
-        $target = 'rp-i18n-'.bin2hex(random_bytes(6));
         $source = 'rp-i18n-'.bin2hex(random_bytes(6));
-
-        $this->createTranslation($target, 'de', 'Target (de)');
-        $this->createTranslation($target, 'en', 'Target');
-        $this->createTranslation($source, 'en', 'Source', null, $target);
+        $this->createTranslation($source, 'en', 'Source');
 
         [$status, $body] = $this->postJson('/api/single', array(
             'entity'         => 'Core\\ExampleI18n',
@@ -416,10 +462,9 @@ class ReadPathApiTest extends IntegrationTestCase
             'loadJoinedLang' => 'de',
         ), $this->token());
 
-        $this->assertSame(200, $status, json_encode($body));
-        $this->assertSame('Source', $body['data']['title'], 'The record itself stays in the language of the request');
-        $this->assertNull($body['data']['related'],
-            'Current state: the German version of the target exists and is not found');
+        $this->assertSame(400, $status, 'Rejected instead of silently answering the join with null');
+        $entry = $this->assertErrorEnvelope($body, 'contentfly_general_invalid_params');
+        $this->assertSame(array('value' => 'loadJoinedLang'), $entry['context']);
     }
 
     public function testCompareToLangAcceptsATranslationWhoseJoinsAreTranslatedToo(): void
@@ -463,14 +508,12 @@ class ReadPathApiTest extends IntegrationTestCase
         $this->assertErrorEnvelope($body);
     }
 
-    public function testCompareToLangWithLoadJoinedLangReportsAJoinMissingInThatLanguage(): void
+    public function testCompareToLangWithLoadJoinedLangIsRejectedToo(): void
     {
-        $target = 'rp-i18n-'.bin2hex(random_bytes(6));
+        // Its mode "translate anew" built on loadJoinedLang and went with it (000-000-0081); it
+        // reported missing translations every time.
         $source = 'rp-i18n-'.bin2hex(random_bytes(6));
-
-        // The target exists in English only: read in German, the join comes back empty.
-        $this->createTranslation($target, 'en', 'Target');
-        $this->createTranslation($source, 'en', 'Source', null, $target);
+        $this->createTranslation($source, 'en', 'Source');
 
         [$status, $body] = $this->postJson('/api/single', array(
             'entity'         => 'Core\\ExampleI18n',
@@ -480,8 +523,23 @@ class ReadPathApiTest extends IntegrationTestCase
             'loadJoinedLang' => 'de',
         ), $this->token());
 
-        $this->assertNotSame(200, $status, 'Translating anew needs every joined record in the new language');
-        $this->assertErrorEnvelope($body);
+        $this->assertSame(400, $status);
+        $this->assertErrorEnvelope($body, 'contentfly_general_invalid_params');
+    }
+
+    public function testAnEmptyLoadJoinedLangIsNone(): void
+    {
+        $source = 'rp-i18n-'.bin2hex(random_bytes(6));
+        $this->createTranslation($source, 'en', 'Source');
+
+        [$status, $body] = $this->postJson('/api/single', array(
+            'entity'         => 'Core\\ExampleI18n',
+            'id'             => $source,
+            'lang'           => 'en',
+            'loadJoinedLang' => '',
+        ), $this->token());
+
+        $this->assertSame(200, $status, json_encode($body));
     }
 
     public function testCompareToLangOnAPlainEntityComparesTheRecordWithItself(): void
@@ -719,15 +777,14 @@ class ReadPathApiTest extends IntegrationTestCase
 
     // ── doInsert: unique per field, universal fields ───────────────────────────────────
 
-    public function testADuplicateOnAUniqueColumnTheSchemaDoesNotKnowIsAServerError(): void
+    public function testADuplicateOnAUniqueColumnTheSchemaDoesNotKnowIsAConflict(): void
     {
         // Core\Example.slug is unique in the database (a UniqueConstraint), not in the schema: the
-        // check before the insert does not see it, the database does. doInsert() then looks for the
-        // field marked unique in the schema, finds none and reports an unknown error.
+        // check before the insert does not see it, the database does.
         //
-        // Current state, and a finding: the answer is 500 instead of 409, it names the last field
-        // of the loop instead of `slug`, and `context.value` carries MySQL's message — the text
-        // 000-000-0073 keeps out of every other answer without debug.
+        // Inverted with 000-000-0080. It recorded 500 with `unknown_perror`, naming the last field
+        // of an earlier loop instead of `slug`; until 000-000-0079 `context.value` carried MySQL's
+        // message as well.
         $slug = 'rp-slug-'.$this->run;
 
         [$first, $body] = $this->postJson('/api/insert', array('entity' => 'Core\\Example', 'data' => array('slug' => $slug)), $this->token());
@@ -737,8 +794,12 @@ class ReadPathApiTest extends IntegrationTestCase
 
         [$second, $body] = $this->postJson('/api/insert', array('entity' => 'Core\\Example', 'data' => array('slug' => $slug)), $this->token());
 
-        $this->assertSame(500, $second, 'Current state');
-        $this->assertSame('contentfly_general_unknown_perror', $this->assertErrorEnvelope($body)['code']);
+        $this->assertSame(409, $second, 'A conflict, like the check before the insert reports it');
+        $entry = $this->assertErrorEnvelope($body, 'contentfly_general_ressource_already_exists');
+        $this->assertSame(array('value' => 'Core\\Example'), $entry['context'],
+            'It names the entity: which key collided is only in MySQL\'s text');
+        $this->assertStringNotContainsString('SQLSTATE', json_encode($entry), 'MySQL\'s text goes to the log, not to the client (000-000-0079)');
+        $this->assertStringNotContainsString($slug, json_encode($entry), 'nor the value that collided');
         $this->assertSame(1, $this->scalar('SELECT COUNT(*) FROM example_entity WHERE slug = ?', array($slug)),
             'The second record with the same slug is not written');
     }
