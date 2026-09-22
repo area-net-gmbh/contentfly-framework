@@ -1,7 +1,7 @@
 ---
 id: 000-000-0071
 title: Die Kollision zweier php-parser-Versionen in der Suite beheben
-status: review
+status: done
 depends_on: []
 ---
 

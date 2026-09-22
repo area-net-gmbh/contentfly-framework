@@ -11,6 +11,9 @@
 - 000-000-0081 task created: "loadJoinedLang findet über den zweispaltigen Schlüssel keinen Datensatz"
 - 000-000-0082 task created: "untranslatedLang liefert leer, sobald die Entity auf eine übersetzbare joint"
 - 000-000-0083 task created: "Ein nicht lesbares lastModified in /api/list mit 400 statt 500 beantworten"
+- 000-000-0072 → done (per Pull Request auf `master`, #36)
+- 000-000-0073 → done (per Pull Request auf `master`, #37)
+- 000-000-0071 → done (per Pull Request auf `master`, #38)
 
 ## 2026-09-21
 - 000-000-0071 → in-progress
