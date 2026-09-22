@@ -5,6 +5,12 @@
 ## 2026-09-22
 - 000-000-0075 → in-progress
 - 000-000-0075 → review: **Lesepfade in `Api.php` getestet — 75,6 % statt 59 %.** `ReadPathApiTest` (Filter, i18n-Joins, `loadJoinedLang`/`compareToLang`, `/api/all` mit `filedata`, `lastModified`, Löschprotokoll, `/api/count`, Unique-Verletzung); `MainLanguageApiTest` und `SchemaCacheApiTest` gegen einen zweiten Server, den die Klasse selbst startet (`ExtraServer`). `filedata` nimmt nur noch bekannte Grössennamen — `../` las Dateien fremder Datensätze (Gegenprobe rot ohne Fix). Sechs Befunde als Ist-Zustand festgehalten, darunter: Mit `APP_LANGUAGES` scheitert jede Übersetzung mit `id` (ORM 3 `clear()`), und `doInsert()` gibt Doctrine-/SQL-Text ohne Debug heraus. Suite 783 Tests grün, PHPStan ohne Fehler, Coverage gesamt 74,7 %.
+- 000-000-0078 task created: "Übersetzung anlegen scheitert mit APP_LANGUAGES — EntityManager::clear() leert alles"
+- 000-000-0079 task created: "doInsert() gibt Doctrine- und SQL-Texte ohne Debug an den Client"
+- 000-000-0080 task created: "Unique-Verletzung, die nur die Datenbank kennt, mit 409 und dem richtigen Feld beantworten"
+- 000-000-0081 task created: "loadJoinedLang findet über den zweispaltigen Schlüssel keinen Datensatz"
+- 000-000-0082 task created: "untranslatedLang liefert leer, sobald die Entity auf eine übersetzbare joint"
+- 000-000-0083 task created: "Ein nicht lesbares lastModified in /api/list mit 400 statt 500 beantworten"
 
 ## 2026-09-21
 - 000-000-0071 → in-progress

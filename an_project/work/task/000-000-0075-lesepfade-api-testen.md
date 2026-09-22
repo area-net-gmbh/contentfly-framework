@@ -54,25 +54,27 @@ Die neuen Tests und der Coverage-Lauf aus `0056`.
   **Gegenprobe:** ohne die Änderung sind beide Tests rot.
 
 ### Befunde — als Ist-Zustand festgehalten, nicht behoben
-1. **Mit `APP_LANGUAGES` lässt sich keine Übersetzung mit `id` anlegen** — 500, auch ohne Datensatz
+Tickets: `0078`–`0083`, in dieser Reihenfolge.
+
+1. (`0078`) **Mit `APP_LANGUAGES` lässt sich keine Übersetzung mit `id` anlegen** — 500, auch ohne Datensatz
    in der Hauptsprache. `getSingle(…, clearEM: true)` ruft `$this->em->clear($entityFullName)`;
    seit ORM 3 (Epic `010`) nimmt `clear()` kein Argument mehr und leert den ganzen EntityManager,
    samt angemeldetem Benutzer. Die Übernahme der `i18n_universal`-Felder aus der Hauptsprache ist
    deshalb nicht erreichbar. **Schwerster Befund:** Betrifft jedes Projekt mit Sprachen.
-2. **Fehlertexte von Doctrine/MySQL erreichen den Client ohne Debug.** `doInsert()` verpackt jede
+2. (`0079`) **Fehlertexte von Doctrine/MySQL erreichen den Client ohne Debug.** `doInsert()` verpackt jede
    Ausnahme in eine `ContentflyException` mit ihrem Text (Befund 1: Text in `code` und `detail`)
    und hängt bei einer Unique-Verletzung die SQL-Meldung an `context.value`. Dieselbe Art Leck wie
    in `0073`, an einer Stelle, die dessen Regel nicht erfasst.
-3. **Unique-Verletzung, die nur die Datenbank kennt** (`Core\Example.slug`): 500 statt 409, und die
+3. (`0080`) **Unique-Verletzung, die nur die Datenbank kennt** (`Core\Example.slug`): 500 statt 409, und die
    Meldung nennt das letzte Feld der Schleife (`groups`) statt `slug`.
-4. **`loadJoinedLang` findet nie etwas.** Der Verweis auf eine übersetzbare Entity hat zwei Spalten,
+4. (`0081`) **`loadJoinedLang` findet nie etwas.** Der Verweis auf eine übersetzbare Entity hat zwei Spalten,
    `related_lang` legt die Sprache schon fest; eine andere Sprache im Join trifft keinen Datensatz,
    der Join kommt als `null`.
-5. **`untranslatedLang` liefert immer eine leere Liste**, sobald die Entity auf eine übersetzbare
+5. (`0082`) **`untranslatedLang` liefert immer eine leere Liste**, sobald die Entity auf eine übersetzbare
    joint: Die Join-Schleife bindet `:lang` neu. `Core\ExampleI18n` ist die einzige übersetzbare
    Entity der Vorlage und joint über `related` auf sich selbst — der funktionierende Weg ist damit
    nicht mehr zeigbar.
-6. **Ein nicht lesbares `lastModified` in `/api/list` endet mit 500**: `getList()` schluckt den
+6. (`0083`) **Ein nicht lesbares `lastModified` in `/api/list` endet mit 500**: `getList()` schluckt den
    Fehler beim Parsen und gibt die Zeichenkette an MySQL weiter.
 
 ### Nebenbei
