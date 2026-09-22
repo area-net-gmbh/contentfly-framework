@@ -1,7 +1,7 @@
 ---
 id: 000-000-0072
 title: Rechtestufe GROUP — /api/count und /api/query enden mit 500
-status: review
+status: done
 depends_on: []
 ---
 

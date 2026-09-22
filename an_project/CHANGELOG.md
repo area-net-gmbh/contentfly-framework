@@ -14,6 +14,9 @@
 - 000-000-0078 → in-progress
 - 000-000-0078 → review: **Übersetzungen mit `APP_LANGUAGES` funktionieren wieder.** `clearEM` löst nur noch die Objekte der einen Entity (`detach`) statt den ganzen EntityManager zu leeren (ORM 3 ignoriert das Argument von `clear()`). `Core\\ExampleI18n::$related` ist `i18n_universal`; `MainLanguageApiTest` umgedreht, Gegenprobe ohne Fix rot. Suite 785 grün, PHPStan ohne Fehler.
 - 000-000-0078 → done: Buchführung vor dem Merge des Pull Requests (Integration über PR, `git.md`)
+- 000-000-0072 → done (per Pull Request auf `master`, #36)
+- 000-000-0073 → done (per Pull Request auf `master`, #37)
+- 000-000-0071 → done (per Pull Request auf `master`, #38)
 
 ## 2026-09-21
 - 000-000-0071 → in-progress
