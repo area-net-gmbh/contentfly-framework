@@ -395,19 +395,15 @@ class ReadPathApiTest extends IntegrationTestCase
         $this->assertSame('Target', $body['data']['related']['title']);
     }
 
-    public function testLoadJoinedLangFindsNoJoinedRecordInAnotherLanguage(): void
+    /**
+     * Replaced with 000-000-0081: loadJoinedLang is gone. It recorded that the joined record came
+     * back as null in every other language — the reference to a translatable record carries its
+     * language in its key, so a join narrowed to another one could never match.
+     */
+    public function testLoadJoinedLangIsRejected(): void
     {
-        // Current state, and a finding. loadJoinedLang narrows the join to a language — but the
-        // reference to a translatable record has two columns, `related_id` AND `related_lang`,
-        // and the second one already names the language the reference was written in. Asked for
-        // another language, the join has two conditions on `lang` that cannot both hold, and the
-        // joined record comes back as null although it exists in that language.
-        $target = 'rp-i18n-'.bin2hex(random_bytes(6));
         $source = 'rp-i18n-'.bin2hex(random_bytes(6));
-
-        $this->createTranslation($target, 'de', 'Target (de)');
-        $this->createTranslation($target, 'en', 'Target');
-        $this->createTranslation($source, 'en', 'Source', null, $target);
+        $this->createTranslation($source, 'en', 'Source');
 
         [$status, $body] = $this->postJson('/api/single', array(
             'entity'         => 'Core\\ExampleI18n',
@@ -416,10 +412,9 @@ class ReadPathApiTest extends IntegrationTestCase
             'loadJoinedLang' => 'de',
         ), $this->token());
 
-        $this->assertSame(200, $status, json_encode($body));
-        $this->assertSame('Source', $body['data']['title'], 'The record itself stays in the language of the request');
-        $this->assertNull($body['data']['related'],
-            'Current state: the German version of the target exists and is not found');
+        $this->assertSame(400, $status, 'Rejected instead of silently answering the join with null');
+        $entry = $this->assertErrorEnvelope($body, 'contentfly_general_invalid_params');
+        $this->assertSame(array('value' => 'loadJoinedLang'), $entry['context']);
     }
 
     public function testCompareToLangAcceptsATranslationWhoseJoinsAreTranslatedToo(): void
@@ -463,14 +458,12 @@ class ReadPathApiTest extends IntegrationTestCase
         $this->assertErrorEnvelope($body);
     }
 
-    public function testCompareToLangWithLoadJoinedLangReportsAJoinMissingInThatLanguage(): void
+    public function testCompareToLangWithLoadJoinedLangIsRejectedToo(): void
     {
-        $target = 'rp-i18n-'.bin2hex(random_bytes(6));
+        // Its mode "translate anew" built on loadJoinedLang and went with it (000-000-0081); it
+        // reported missing translations every time.
         $source = 'rp-i18n-'.bin2hex(random_bytes(6));
-
-        // The target exists in English only: read in German, the join comes back empty.
-        $this->createTranslation($target, 'en', 'Target');
-        $this->createTranslation($source, 'en', 'Source', null, $target);
+        $this->createTranslation($source, 'en', 'Source');
 
         [$status, $body] = $this->postJson('/api/single', array(
             'entity'         => 'Core\\ExampleI18n',
@@ -480,8 +473,23 @@ class ReadPathApiTest extends IntegrationTestCase
             'loadJoinedLang' => 'de',
         ), $this->token());
 
-        $this->assertNotSame(200, $status, 'Translating anew needs every joined record in the new language');
-        $this->assertErrorEnvelope($body);
+        $this->assertSame(400, $status);
+        $this->assertErrorEnvelope($body, 'contentfly_general_invalid_params');
+    }
+
+    public function testAnEmptyLoadJoinedLangIsNone(): void
+    {
+        $source = 'rp-i18n-'.bin2hex(random_bytes(6));
+        $this->createTranslation($source, 'en', 'Source');
+
+        [$status, $body] = $this->postJson('/api/single', array(
+            'entity'         => 'Core\\ExampleI18n',
+            'id'             => $source,
+            'lang'           => 'en',
+            'loadJoinedLang' => '',
+        ), $this->token());
+
+        $this->assertSame(200, $status, json_encode($body));
     }
 
     public function testCompareToLangOnAPlainEntityComparesTheRecordWithItself(): void
