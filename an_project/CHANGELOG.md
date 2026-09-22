@@ -13,6 +13,7 @@
 - 000-000-0083 task created: "Ein nicht lesbares lastModified in /api/list mit 400 statt 500 beantworten"
 - 000-000-0082 → in-progress
 - 000-000-0082 → review: **`untranslatedLang` liefert wieder Treffer.** Der i18n-Join in `getList()` hat einen eigenen Parameter statt `:lang` neu zu binden; er liest in der Sprache der gelisteten Zeilen. Zwei Tests, Gegenprobe ohne Fix rot. Suite 784 grün, PHPStan ohne Fehler.
+- 000-000-0082 → done: Buchführung vor dem Merge des Pull Requests (Integration über PR, `git.md`)
 
 ## 2026-09-21
 - 000-000-0071 → in-progress

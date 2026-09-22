@@ -1,7 +1,7 @@
 ---
 id: 000-000-0082
 title: untranslatedLang liefert leer, sobald die Entity auf eine übersetzbare joint
-status: review
+status: done
 depends_on: []
 ---
 
