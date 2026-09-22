@@ -1,7 +1,7 @@
 ---
 id: 000-000-0073
 title: Unerwartete Fehler nicht mit ihrem Ausnahmetext an den Client geben
-status: review
+status: done
 depends_on: []
 ---
 
