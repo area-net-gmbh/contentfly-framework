@@ -12,8 +12,8 @@ use Tests\Integration\IntegrationTestCase;
  * so the suite's server has no main language and never reaches this path. This class runs its own
  * server with `APP_LANGUAGES=de,en`.
  *
- * What it found is the current state, not the intended one: on that server a translation with an
- * id cannot be added at all — see testAddingATranslationFailsWhileLanguagesAreConfigured().
+ * Until 000-000-0078 a translation with an id could not be added on that server at all: the read
+ * of the main language cleared the whole entity manager, the logged-in user with it.
  */
 class MainLanguageApiTest extends IntegrationTestCase
 {
@@ -36,12 +36,19 @@ class MainLanguageApiTest extends IntegrationTestCase
         parent::tearDownAfterClass();
     }
 
-    private function createTranslation(string $id, string $lang, string $title, ?string $code = null): void
+    private function createTranslation(string $id, string $lang, string $title, ?string $code = null, ?string $related = null): void
     {
         $this->pdo()->prepare(
-            'INSERT INTO example_i18n (id, lang, title, code, created, modified, views, isIntern)
-             VALUES (:id, :lang, :title, :code, NOW(), NOW(), 0, 0)'
-        )->execute(array('id' => $id, 'lang' => $lang, 'title' => $title, 'code' => $code));
+            'INSERT INTO example_i18n (id, lang, title, code, related_id, related_lang, created, modified, views, isIntern)
+             VALUES (:id, :lang, :title, :code, :related, :relatedLang, NOW(), NOW(), 0, 0)'
+        )->execute(array(
+            'id'          => $id,
+            'lang'        => $lang,
+            'title'       => $title,
+            'code'        => $code,
+            'related'     => $related,
+            'relatedLang' => $related !== null ? $lang : null,
+        ));
 
         // Deleting by id removes every language of the record.
         $this->deleteAfterTest('example_i18n', $id);
@@ -56,9 +63,10 @@ class MainLanguageApiTest extends IntegrationTestCase
             'data'   => $data,
         ), $this->login()));
 
-        if (isset($data['id'])) {
-            $this->deleteAfterTest('example_i18n', $data['id']);
-            $this->pdo()->prepare('DELETE FROM pim_log WHERE model_id = ?')->execute(array($data['id']));
+        $id = $data['id'] ?? $body['data']['id'] ?? null;
+        if ($id !== null) {
+            $this->deleteAfterTest('example_i18n', $id);
+            $this->pdo()->prepare('DELETE FROM pim_log WHERE model_id = ?')->execute(array($id));
         }
 
         return array($status, $body);
@@ -67,7 +75,7 @@ class MainLanguageApiTest extends IntegrationTestCase
     /** @return array<string,mixed>|false */
     private function row(string $id, string $lang): array|false
     {
-        $statement = $this->pdo()->prepare('SELECT code FROM example_i18n WHERE id = ? AND lang = ?');
+        $statement = $this->pdo()->prepare('SELECT code, related_id, related_lang FROM example_i18n WHERE id = ? AND lang = ?');
         $statement->execute(array($id, $lang));
 
         return $statement->fetch(\PDO::FETCH_ASSOC);
@@ -83,50 +91,65 @@ class MainLanguageApiTest extends IntegrationTestCase
     }
 
     /**
-     * Current state, and a finding: with a main language, adding a translation fails.
-     *
-     * Before it copies the universal fields, doInsert() reads the record in the main language
-     * through getSingle(…, clearEM: true), and that calls `$this->em->clear($entityFullName)` —
-     * the partial clear of Doctrine ORM 2. ORM 3 (epic 010) dropped the argument: `clear()` takes
-     * none, PHP ignores the extra one, and the WHOLE entity manager is cleared. The logged-in user
-     * goes with it, and the flush then finds `userCreated` pointing to a user it does not know.
-     *
-     * The path that should copy `code` from the German record is therefore not reached, and a
-     * project with languages cannot add a translation to an existing record at all.
+     * Inverted with 000-000-0078. It recorded a 500: getSingle(…, clearEM: true) called
+     * `$this->em->clear($entityFullName)`, which since ORM 3 clears the whole entity manager.
      */
-    public function testAddingATranslationFailsWhileLanguagesAreConfigured(): void
+    public function testANewTranslationTakesTheUniversalFieldsOfTheMainLanguage(): void
     {
         $id = 'ml-'.bin2hex(random_bytes(6));
         $this->createTranslation($id, 'de', 'German', 'CODE-'.$id);
 
         [$status, $body] = $this->insert(array('id' => $id, 'title' => 'English'), 'en');
 
-        $this->assertSame(500, $status, 'Current state: the insert of the translation fails');
-        $this->assertErrorEnvelope($body);
-        $this->assertFalse($this->row($id, 'en'), 'and writes no row');
+        $this->assertSame(200, $status, json_encode($body));
+        $this->assertSame('CODE-'.$id, $this->row($id, 'en')['code'],
+            'The translation did not send `code` and has the value of the German record');
         $this->assertSame('CODE-'.$id, $this->row($id, 'de')['code'], 'The German record stays as it was');
     }
 
-    public function testItFailsWithoutARecordInTheMainLanguageAsWell(): void
+    public function testAUniversalValueSentWithTheTranslationIsKept(): void
     {
-        // Not the copying fails, the clearing before it: it runs whenever the translation carries
-        // an id, whether a German record exists or not.
         $id = 'ml-'.bin2hex(random_bytes(6));
+        $this->createTranslation($id, 'de', 'German', 'OLD');
 
-        [$status] = $this->insert(array('id' => $id, 'title' => 'English only'), 'en');
+        [$status, $body] = $this->insert(array('id' => $id, 'title' => 'English', 'code' => 'NEW'), 'en');
 
-        $this->assertSame(500, $status, 'Current state');
-        $this->assertFalse($this->row($id, 'en'));
+        $this->assertSame(200, $status, json_encode($body));
+        $this->assertSame('NEW', $this->row($id, 'en')['code'], 'What is sent wins over the main language');
+        $this->assertSame('NEW', $this->row($id, 'de')['code'], 'and, being universal, reaches the main language too');
     }
 
-    public function testANewRecordWithoutAnIdIsNotAffected(): void
+    public function testAJoinTakenFromTheMainLanguagePointsToTheTranslationOfItsTarget(): void
+    {
+        $target = 'ml-'.bin2hex(random_bytes(6));
+        $source = 'ml-'.bin2hex(random_bytes(6));
+
+        $this->createTranslation($target, 'de', 'Target (de)');
+        $this->createTranslation($target, 'en', 'Target');
+        $this->createTranslation($source, 'de', 'Source (de)', null, $target);
+
+        [$status, $body] = $this->insert(array('id' => $source, 'title' => 'Source'), 'en');
+
+        $this->assertSame(200, $status, json_encode($body));
+        $this->assertSame(array('code' => null, 'related_id' => $target, 'related_lang' => 'en'), $this->row($source, 'en'),
+            'The same target, in the language being written — not the German row (000-000-0025)');
+    }
+
+    public function testWithoutARecordInTheMainLanguageNothingIsTaken(): void
+    {
+        $id = 'ml-'.bin2hex(random_bytes(6));
+
+        [$status, $body] = $this->insert(array('id' => $id, 'title' => 'English only'), 'en');
+
+        $this->assertSame(200, $status, json_encode($body));
+        $this->assertSame(array('code' => null, 'related_id' => null, 'related_lang' => null), $this->row($id, 'en'));
+    }
+
+    public function testANewRecordWithoutAnIdTakesNothing(): void
     {
         [$status, $body] = $this->insert(array('title' => 'Brand new'), 'en');
 
         $this->assertSame(200, $status, json_encode($body));
-        $this->deleteAfterTest('example_i18n', $body['data']['id']);
-        $this->pdo()->prepare('DELETE FROM pim_log WHERE model_id = ?')->execute(array($body['data']['id']));
-
         $this->assertNull($this->row($body['data']['id'], 'en')['code'], 'Without an id there is no record to take anything from');
     }
 
