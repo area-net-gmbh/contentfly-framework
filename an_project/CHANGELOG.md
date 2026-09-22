@@ -14,6 +14,7 @@
 - 000-000-0079 → in-progress
 - 000-000-0079 → review: **Kein Doctrine-/SQL-Text mehr in Antworten von insert und update.** `catch(Exception)` in `doInsert()`/`doUpdate()` entfernt (er verpackte den Text als Meldung einer `ContentflyException`); die Unique-Verletzung loggt die MySQL-Meldung statt sie an `context.value` zu hängen. Zwei neue Tests in `ErrorResponseApiTest`, Gegenprobe ohne Fix rot. Suite 785 grün, PHPStan ohne Fehler.
 - 000-000-0079 → done: Buchführung vor dem Merge des Pull Requests (Integration über PR, `git.md`)
+- an_project/docs/migration.md updated: Registergrösse auf 130 Einträge nachgezogen (Eintrag aus `000-000-0079`)
 - an_project/docs/breaking-changes.md updated: Eintrag zu `000-000-0079` — Datenbankfehler in insert/update ohne ihren Text
 
 ## 2026-09-21
