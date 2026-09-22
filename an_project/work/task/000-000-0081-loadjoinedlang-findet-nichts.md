@@ -1,7 +1,7 @@
 ---
 id: 000-000-0081
 title: loadJoinedLang findet über den zweispaltigen Schlüssel keinen Datensatz
-status: review
+status: done
 depends_on: []
 ---
 
@@ -23,7 +23,7 @@ PIM-Oberfläche.
 
 ## Acceptance criteria
 - [x] Entscheidung festgehalten: reparieren oder entfernen (mit Registereintrag in `breaking-changes.md`).
-- [ ] ~~Bei Reparatur:~~ entfällt — Der Test ist umgedreht und liest das Ziel in `loadJoinedLang`; `compareToLang` mit `loadJoinedLang` meldet nur noch echte Lücken.
+- [x] ~~Bei Reparatur:~~ entfällt durch die Entscheidung „entfernen“ — Der Test ist umgedreht und liest das Ziel in `loadJoinedLang`; `compareToLang` mit `loadJoinedLang` meldet nur noch echte Lücken.
 - [x] Bei Entfernung: Der Parameter wird abgelehnt oder ignoriert, und der Test hält das fest.
 
 ## Verification
