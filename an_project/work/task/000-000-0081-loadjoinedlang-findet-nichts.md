@@ -1,7 +1,7 @@
 ---
 id: 000-000-0081
 title: loadJoinedLang findet über den zweispaltigen Schlüssel keinen Datensatz
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -22,9 +22,28 @@ Parameter seit dem zweispaltigen Schlüssel keinen Zweck mehr hat. Wer ihn nutzt
 PIM-Oberfläche.
 
 ## Acceptance criteria
-- [ ] Entscheidung festgehalten: reparieren oder entfernen (mit Registereintrag in `breaking-changes.md`).
-- [ ] Bei Reparatur: Der Test ist umgedreht und liest das Ziel in `loadJoinedLang`; `compareToLang` mit `loadJoinedLang` meldet nur noch echte Lücken.
-- [ ] Bei Entfernung: Der Parameter wird abgelehnt oder ignoriert, und der Test hält das fest.
+- [x] Entscheidung festgehalten: reparieren oder entfernen (mit Registereintrag in `breaking-changes.md`).
+- [ ] ~~Bei Reparatur:~~ entfällt — Der Test ist umgedreht und liest das Ziel in `loadJoinedLang`; `compareToLang` mit `loadJoinedLang` meldet nur noch echte Lücken.
+- [x] Bei Entfernung: Der Parameter wird abgelehnt oder ignoriert, und der Test hält das fest.
 
 ## Verification
 `ReadPathApiTest` grün; die Suite bleibt grün.
+
+## Ergebnis (2026-09-22)
+**Entscheidung (2026-09-22, im Gespräch): entfernen.** Eine Reparatur hätte das Ziel nach dem Laden
+gesondert in der anderen Sprache nachladen müssen — für `join`, `multijoin` und `compareToLang` —,
+für einen Parameter, dessen einziger bekannter Nutzer die gelöschte PIM-Oberfläche war.
+
+- `getSingle()` lehnt einen gesetzten `loadJoinedLang` mit **400**
+  `contentfly_general_invalid_params` ab (`context.value` = `loadJoinedLang`); ein leerer Wert gilt
+  als nicht gesendet. Der Parameter bleibt in der Signatur, damit Aufrufer mit Positionsargumenten
+  (`…, null, $clearEM`) weiterlaufen.
+- Die Joins auf übersetzbare Entities lesen in `lang`; der Parameter `:loadJoinedLang` ist weg.
+- Der Zweig „neu übersetzen" von `compareToLang` ist entfernt; `compareToLang` allein unverändert.
+- Registereintrag in `breaking-changes.md`.
+
+### Belegt
+`ReadPathApiTest::testLoadJoinedLangIsRejected`, `…testCompareToLangWithLoadJoinedLangIsRejectedToo`,
+`…testAnEmptyLoadJoinedLangIsNone`; die bestehenden `compareToLang`-Tests bleiben grün.
+**Gegenprobe:** ohne die Änderung 2 von 3 rot. Suite 784 Tests grün, PHPStan ohne Fehler.
+

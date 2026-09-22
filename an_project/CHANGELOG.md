@@ -11,6 +11,8 @@
 - 000-000-0081 task created: "loadJoinedLang findet über den zweispaltigen Schlüssel keinen Datensatz"
 - 000-000-0082 task created: "untranslatedLang liefert leer, sobald die Entity auf eine übersetzbare joint"
 - 000-000-0083 task created: "Ein nicht lesbares lastModified in /api/list mit 400 statt 500 beantworten"
+- 000-000-0081 → in-progress
+- 000-000-0081 → review: **`loadJoinedLang` entfernt** (Entscheidung: entfernen statt reparieren). `/api/single` lehnt ihn mit 400 `contentfly_general_invalid_params` ab; der Zweig „neu übersetzen" von `compareToLang` entfällt. Registereintrag, drei Tests, Gegenprobe ohne Fix rot. Suite 784 grün, PHPStan ohne Fehler.
 
 ## 2026-09-21
 - 000-000-0071 → in-progress

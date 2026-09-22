@@ -2456,3 +2456,24 @@ Sätze wären mit der Regel oben verschwunden; stattdessen sind es jetzt Fehler 
 *Was zu tun ist:* Ein Client, der den Text in `detail` angezeigt oder ausgewertet hat, verzweigt auf
 `code` bzw. zeigt bei `contentfly_general_internal_error` eine allgemeine Meldung. Wer Fehler
 analysiert, liest das Server-Log statt der Antwort.
+
+### `/api/single`: `loadJoinedLang` entfällt und wird mit 400 abgelehnt
+**Seit `000-000-0081` (2026-09-22), noch nicht ausgeliefert.**
+
+`loadJoinedLang` sollte die Joins auf übersetzbare Datensätze in einer anderen Sprache lesen. Ein
+solcher Verweis hat aber zwei Schlüsselspalten, und `<feld>_lang` legt die Sprache schon fest — in
+jeder anderen Sprache kam der Join als **`null`**, obwohl das Ziel existierte. Der Modus
+„neu übersetzen" von `compareToLang`, der darauf aufbaute, meldete deshalb **jedes Mal** fehlende
+Übersetzungen (`contentfly_i18n_missing_translations`).
+
+| Aufruf | vorher | jetzt |
+|---|---|---|
+| `/api/single` mit `loadJoinedLang` | 200, Joins in anderer Sprache `null` | **400** `contentfly_general_invalid_params`, `context.value` = `loadJoinedLang` |
+| `/api/single` mit `compareToLang` **und** `loadJoinedLang` | Fehler „fehlende Übersetzung" | **400** wie oben |
+| `/api/single` mit `compareToLang` allein | unverändert | unverändert |
+
+Ein leerer Wert gilt als nicht gesendet. Einziger bekannter Nutzer war die mit Epic `012` gelöschte
+PIM-Oberfläche.
+
+*Was zu tun ist:* Den Parameter weglassen. Joins kommen in der Sprache des Requests (`lang`); wer ein
+Ziel in einer anderen Sprache braucht, liest es mit `/api/single` in dieser Sprache nach.
