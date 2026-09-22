@@ -14,6 +14,7 @@
 - 000-000-0083 → in-progress
 - 000-000-0083 → review: **Nicht lesbares `lastModified` → 400 `contentfly_general_invalid_date`** in `/api/list`, `/api/all`, `/api/count` und `/api/deleted` (vorher 500 bzw. bei `/api/all` stillschweigend alles). Registereintrag, sieben Fälle getestet, Gegenprobe ohne Fix rot. Suite 790 grün, PHPStan ohne Fehler.
 - 000-000-0083 → done: Buchführung vor dem Merge des Pull Requests (Integration über PR, `git.md`)
+- an_project/docs/migration.md updated: Registergrösse auf 130 Einträge nachgezogen (Eintrag aus `000-000-0083`)
 
 ## 2026-09-21
 - 000-000-0071 → in-progress
