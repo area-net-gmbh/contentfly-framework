@@ -1,7 +1,7 @@
 ---
 id: 000-000-0083
 title: Ein nicht lesbares lastModified in /api/list mit 400 statt 500 beantworten
-status: review
+status: done
 depends_on: []
 ---
 
