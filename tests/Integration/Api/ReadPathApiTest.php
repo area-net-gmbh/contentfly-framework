@@ -299,34 +299,58 @@ class ReadPathApiTest extends IntegrationTestCase
         $this->assertErrorEnvelope($body);
     }
 
-    public function testUntranslatedLangFindsNothingWhileTheEntityJoinsATranslatableOne(): void
+    /**
+     * Inverted with 000-000-0082. It recorded an empty list: untranslatedLang binds `:lang` to the
+     * language to translate FROM, and the join loop further down bound the same parameter again, to
+     * the language of the request, as soon as the entity joins a translatable one — Core\ExampleI18n
+     * does, through `related`.
+     */
+    public function testUntranslatedLangListsTheRecordsWithoutThatTranslation(): void
     {
-        // Current state, and a finding. untranslatedLang binds `:lang` to the language to
-        // translate FROM; the join loop further down binds the same parameter again, to the
-        // language of the request, as soon as the entity joins a translatable entity. The query
-        // then asks for records in English that have no English version — never any.
-        //
-        // Core\ExampleI18n joins itself through `related`, and it is the only translatable entity
-        // of the template. So the path that works — an entity without such a join — has no
-        // entity left to be shown on.
+        $target       = 'rp-i18n-'.bin2hex(random_bytes(6));
         $translated   = 'rp-i18n-'.bin2hex(random_bytes(6));
         $untranslated = 'rp-i18n-'.bin2hex(random_bytes(6));
 
+        $this->createTranslation($target, 'de', 'Target (de)');
         $this->createTranslation($translated, 'de', 'Translated (de)');
         $this->createTranslation($translated, 'en', 'Translated');
+        $this->createTranslation($untranslated, 'de', 'Not translated (de)', null, $target);
+
+        $rows = $this->untranslated(array());
+
+        $this->assertArrayHasKey($untranslated, $rows, 'The German record without an English version is listed');
+        $this->assertSame('de', $rows[$untranslated]['lang'], 'in the language it exists in — the one to translate from');
+        $this->assertSame('Target (de)', $rows[$untranslated]['related']['title'], 'and so is its join');
+        $this->assertArrayNotHasKey($translated, $rows, 'A record that has an English version is not listed');
+    }
+
+    public function testUntranslatedLangIgnoresWhereAndLastModified(): void
+    {
+        $untranslated = 'rp-i18n-'.bin2hex(random_bytes(6));
         $this->createTranslation($untranslated, 'de', 'Not translated (de)');
 
-        [$status, $body] = $this->postJson('/api/list', array(
+        $rows = $this->untranslated(array(
+            'where'        => array('title' => 'matches nothing'),
+            'lastModified' => '2999-01-01 00:00:00',
+        ));
+
+        $this->assertArrayHasKey($untranslated, $rows,
+            'Current state: with untranslatedLang, where and lastModified are dropped without a word');
+    }
+
+    /** @return array<string,array<string,mixed>> the rows /api/list returns for lang en, untranslated from de, by id */
+    private function untranslated(array $request): array
+    {
+        [$status, $body] = $this->postJson('/api/list', array_merge(array(
             'entity'           => 'Core\\ExampleI18n',
             'lang'             => 'en',
             'untranslatedLang' => 'de',
             'itemsPerPage'     => 1000,
-        ), $this->token());
+        ), $request), $this->token());
 
         $this->assertSame(200, $status, json_encode($body));
-        $this->assertNotContains($untranslated, array_column($body['data'], 'id'),
-            'Current state: the German record without an English version is not found');
-        $this->assertNotContains($translated, array_column($body['data'], 'id'));
+
+        return array_column($body['data'], null, 'id');
     }
 
     public function testAJoinToATranslatableEntityComesInTheLanguageOfTheList(): void
