@@ -4,7 +4,7 @@
 
 **Dieser Leitfaden ist der Weg. `an_project/docs/breaking-changes.md` ist das Register.**
 
-Das Register hat **130 Einträge in 14 Abschnitten** (Stand 2026-09-22, nachgezählt mit `000-000-0083`) und ist nach Epic und
+Das Register hat **133 Einträge in 14 Abschnitten** (Stand 2026-09-22, nachgezählt mit `000-000-0084`) und ist nach Epic und
 Story geordnet — also danach, *wann wir etwas geändert haben*. Das ist die richtige Ordnung zum
 Nachschlagen und die falsche zum Arbeiten. Hier steht die andere: **was ein Projekt tut, und in
 welcher Reihenfolge.**
@@ -29,6 +29,44 @@ beschrieben. Die Stellen, an denen das passiert ist, tragen den Verweis auf `007
 
 **Was UFP nicht geprüft hat**, weil es das nicht benutzt: eigene `Type`-Klassen, Plugins, Sprachen und
 i18n, verschlüsselte Felder. Dort gilt der Leitfaden, wie er an der Vorlage erprobt ist.
+
+---
+
+## Von 2.1 auf 2.2 — für Projekte, die schon auf Contentfly 2 laufen
+
+**`v2.2.0` ist ein Sicherheits- und Korrektur-Release.** Es schliesst ein Path Traversal über
+`filedata` in `/api/all` — eine Grössenangabe wie `../<andere Id>/x` las Dateien fremder Datensätze —
+und hält die Texte von Doctrine und MySQL aus den Fehlerantworten heraus. **Das Update ist
+dringend** — die Lücken sind im öffentlichen Repository beschrieben.
+
+Wer von 1.x kommt, folgt den neun Phasen unten; die Änderungen von 2.2 stecken dort schon drin.
+Wer auf `v2.0.0` steht, geht zuerst die Schritte *Von 2.0 auf 2.1* unten durch. Wer auf `v2.1.0`
+steht, braucht nur diese:
+
+1. **Beziehen.** Die Constraint `^2.0` nimmt `2.2.0` mit: `composer update areanet/contentfly`.
+2. **Konfiguration prüfen.** Der ImageMagick-Prozessor und `IMAGEMAGICK_EXECUTABLE` sind entfernt;
+   wer `FILE_PROCESSORS` darauf gesetzt hatte, stellt auf `\Areanet\PIM\Classes\File\Processing\Image`
+   zurück. **Neu ist `FILE_IMAGE_MAX_PIXELS`** mit 24 Megapixeln als Voreinstellung — wer grössere
+   Bilder annimmt, setzt den Wert und `memory_limit` hoch, sonst antwortet der Upload 413.
+3. **Clients auf die neuen Statuscodes prüfen.**
+   - Unique-Verletzungen beim Anlegen antworten **409** statt 500 — auch für Schlüssel, die nur die
+     Datenbank kennt; der Fall, der einen vorhandenen Datensatz mit 200 zurückgab, ist entfallen.
+   - Ein nicht lesbares `lastModified` antwortet **400** in `/api/list`, `/api/all`, `/api/count` und
+     `/api/deleted`; `/api/all` lieferte vorher stillschweigend alles.
+   - `loadJoinedLang` in `/api/single` antwortet **400** — der Parameter fand nie einen Datensatz.
+   - Kaputte oder getarnte Bilder antworten **415**, zu grosse **413**, jeweils statt 500.
+   - Ohne Debug steht in einem unerwarteten Fehler nur noch `contentfly_general_internal_error`;
+     `/system/do` antwortet bei Fehlern des Aufrufers mit 4xx.
+4. **Kein Schema-Update nötig.** Keine Entity des Frameworks hat sich geändert; die neuen Felder in
+   `Core\ExampleRelations` und `Core\ExampleI18n` gehören zur Vorlage.
+
+**Was 2.2 zusätzlich repariert:** Mit `APP_LANGUAGES` lassen sich Übersetzungen wieder anlegen und
+übernehmen die `i18n_universal`-Felder aus der Hauptsprache; `untranslatedLang` liefert wieder
+Treffer; Benutzer mit Rechtestufe `GROUP` bekommen bei `/api/count` und `/api/query` wieder eine
+Antwort; `OneToOne`-Felder erscheinen in Listen, GIF-Uploads funktionieren.
+
+Die Einzelheiten stehen im Register unter *API* und *Konfiguration*, jeweils mit „ausgeliefert
+mit `v2.2.0`".
 
 ---
 
@@ -407,7 +445,7 @@ nötig, um wie bisher weiterzuarbeiten.
 
 ## Phase 8 — Den API-Vertrag prüfen
 
-**Was die Clients merken.** 33 Einträge unter *API* — der grösste Abschnitt des Registers, und
+**Was die Clients merken.** 41 Einträge unter *API* — der grösste Abschnitt des Registers, und
 der einzige, den ein Projekt nicht allein durch Codeänderungen erledigt: Ein Teil davon betrifft
 Clients, die es nicht besitzt.
 

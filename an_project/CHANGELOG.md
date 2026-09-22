@@ -5,6 +5,8 @@
 ## 2026-09-22
 - 000-000-0075 → in-progress
 - 000-000-0075 → review: **Lesepfade in `Api.php` getestet — 75,6 % statt 59 %.** `ReadPathApiTest` (Filter, i18n-Joins, `loadJoinedLang`/`compareToLang`, `/api/all` mit `filedata`, `lastModified`, Löschprotokoll, `/api/count`, Unique-Verletzung); `MainLanguageApiTest` und `SchemaCacheApiTest` gegen einen zweiten Server, den die Klasse selbst startet (`ExtraServer`). `filedata` nimmt nur noch bekannte Grössennamen — `../` las Dateien fremder Datensätze (Gegenprobe rot ohne Fix). Sechs Befunde als Ist-Zustand festgehalten, darunter: Mit `APP_LANGUAGES` scheitert jede Übersetzung mit `id` (ORM 3 `clear()`), und `doInsert()` gibt Doctrine-/SQL-Text ohne Debug heraus. Suite 783 Tests grün, PHPStan ohne Fehler, Coverage gesamt 74,7 %.
+- 000-000-0075 → done: gemergt auf `master` mit PR #40; Buchführung nachgezogen
+- an_project/docs/breaking-changes.md updated: Die Einträge aus `000-000-0079`, `0080` und `0081` gingen beim Auflösen der Merge-Konflikte (#43, #46) verloren — wiederhergestellt; `migration.md` zählt jetzt 133 Einträge.
 - 000-000-0078 task created: "Übersetzung anlegen scheitert mit APP_LANGUAGES — EntityManager::clear() leert alles"
 - 000-000-0079 task created: "doInsert() gibt Doctrine- und SQL-Texte ohne Debug an den Client"
 - 000-000-0080 task created: "Unique-Verletzung, die nur die Datenbank kennt, mit 409 und dem richtigen Feld beantworten"
@@ -38,6 +40,9 @@
 - 000-000-0072 → done (per Pull Request auf `master`, #36)
 - 000-000-0073 → done (per Pull Request auf `master`, #37)
 - 000-000-0071 → done (per Pull Request auf `master`, #38)
+- 000-000-0084 task created: "Release v2.2.0 — die Korrekturen seit v2.1.0 ausliefern"
+- 000-000-0084 → in-progress
+- 000-000-0084: Release vorbereitet — Version `2.2.0` an allen Stellen, neun Registereinträge „ausgeliefert mit `v2.2.0`", acht Einträge von *Annotationen* nach *API* verschoben, Leitfaden *Von 2.1 auf 2.2*, `pentest-spec.md` auf `v2.2.0`. Tag folgt nach dem Merge.
 
 ## 2026-09-21
 - 000-000-0071 → in-progress

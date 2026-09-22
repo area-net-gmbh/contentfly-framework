@@ -1,7 +1,7 @@
 ---
 id: 000-000-0075
 title: Die Lesepfade in Api.php testen — Filter, Übersetzungen, Sync
-status: review
+status: done
 depends_on: []
 ---
 
