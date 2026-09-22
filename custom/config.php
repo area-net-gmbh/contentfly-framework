@@ -104,7 +104,21 @@ $configDefault->APP_DEBUG = ($appDebugEnv !== false && $appDebugEnv !== null && 
 
 unset($appEnv, $appDebugEnv);
 
-$configDefault->APP_ENABLE_SCHEMA_CACHE = false;
+/*
+ * Schema cache: `/api/schema` is built from the entity files on every request unless this is on.
+ * Off by default, so that a changed entity shows up at once; switch it on in production. Read from
+ * the environment like the other switches, so that a second server can run with it on — the suite
+ * does exactly that to test the cache (000-000-0075).
+ */
+$configDefault->APP_ENABLE_SCHEMA_CACHE = filter_var($_ENV['APP_ENABLE_SCHEMA_CACHE'] ?? getenv('APP_ENABLE_SCHEMA_CACHE') ?: false, FILTER_VALIDATE_BOOLEAN);
+
+/*
+ * Languages of translatable entities, comma-separated; the first is the main language. Empty by
+ * default — the template has no translated content. The main language is where a new translation
+ * takes its `i18n_universal` fields from; the suite runs a second server with languages set to test
+ * that path (000-000-0075).
+ */
+$configDefault->APP_LANGUAGES = array_values(array_filter(array_map('trim', explode(',', (string) ($_ENV['APP_LANGUAGES'] ?? getenv('APP_LANGUAGES') ?: '')))));
 
 /*
  * Time zone. The framework default is 'Europe/Berlin'. Anyone comparing points in time across

@@ -224,6 +224,23 @@ abstract class IntegrationTestCase extends TestCase
         return $this->evaluate($ch, false);
     }
 
+    /**
+     * Sends what `$call` sends to another server — an `ExtraServer` (000-000-0075).
+     *
+     * The token of the suite's server is not taken along: log in inside `$call` with login().
+     */
+    protected function onServer(string $baseUrl, callable $call): mixed
+    {
+        $suiteServer   = self::$baseUrl;
+        self::$baseUrl = $baseUrl;
+
+        try {
+            return $call();
+        } finally {
+            self::$baseUrl = $suiteServer;
+        }
+    }
+
     /** Reads one header from the raw headers of a response. */
     protected function header(string $headers, string $name): ?string
     {

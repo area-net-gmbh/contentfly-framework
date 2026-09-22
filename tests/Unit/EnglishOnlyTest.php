@@ -101,6 +101,7 @@ class EnglishOnlyTest extends TestCase
         // Legacy data: values the old code wrote, which existing installations still hold.
         array('lib/contentfly/Classes/Api.php', 'Gelöscht', 'legacy value stored by Contentfly 1.x in pim_log.mode; kept for existing data by decision of 2026-09-14'),
         array('tests/Integration/Api/SystemControllerApiTest.php', 'Gelöscht', 'the same legacy pim_log.mode value, named where the test explains why old rows keep it'),
+        array('tests/Integration/Api/ReadPathApiTest.php', 'Gelöscht', 'the same legacy pim_log.mode value, written as test data to show /api/all still reports it (000-000-0075)'),
         array('tests/Unit/Security/FieldEncryptionTest.php', 'Bestandswert aus dem alten Format', 'plaintext of the fixed ciphertext produced by the legacy CBC code; changing it would invalidate the vector'),
         array('tests/Unit/Security/FieldEncryptionTest.php', 'ein-schluessel-fuer-den-test-32b', 'key the legacy ciphertext was encrypted with'),
         array('tests/Unit/Security/FieldEncryptionTest.php', 'äöü', 'multi-byte characters are what the round trip is about'),

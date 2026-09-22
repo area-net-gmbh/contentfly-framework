@@ -767,9 +767,9 @@ class SystemControllerApiTest extends IntegrationTestCase
         $template = file_get_contents(CONTENTFLY_PROJECT_DIR.'/custom/config.php');
 
         $this->assertMatchesRegularExpression(
-            '/APP_ENABLE_SCHEMA_CACHE\s*=\s*false;/',
+            '/APP_ENABLE_SCHEMA_CACHE\s*=.*\?:\s*false,/',
             $template,
-            'Precondition: the template switches the schema cache off'
+            'Precondition: the template switches the schema cache off unless the environment says otherwise (000-000-0075)'
         );
 
         $this->assertFileDoesNotExist(self::dataDir().'/cache/schema.cache');
