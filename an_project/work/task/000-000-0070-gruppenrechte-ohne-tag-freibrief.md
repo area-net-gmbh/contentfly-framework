@@ -1,7 +1,7 @@
 ---
 id: 000-000-0070
 title: Gruppenrechte schreiben, ohne PIM\Tag stillschweigend freizugeben
-status: review
+status: done
 depends_on: []
 ---
 
