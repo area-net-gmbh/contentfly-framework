@@ -147,6 +147,34 @@ im Antwortstrom schickte die Header los, bevor Silex den Code setzen konnte — 
 dann `200`, obwohl die Anwendung `405` oder `500` meinte. Beim ersten CI-Lauf sind daran sechs
 Tests gescheitert, die lokal grün waren.
 
+### Das Paket-Repository ist öffentlich — HTTPS statt SSH, `preferred-install` entfällt
+**Seit `000-000-0087` (2026-09-23).**
+
+`area-net-gmbh/contentfly-framework-dist` ist öffentlich. Ein Projekt braucht **keinen Zugang
+mehr** — keinen Deploy Key, kein Organisationskonto, keinen SSH-Schlüssel.
+
+In der `composer.json` eines Projekts steht künftig
+
+```json
+"repositories": [
+    { "type": "vcs", "url": "https://github.com/area-net-gmbh/contentfly-framework-dist.git" }
+],
+"require": { "areanet/contentfly": "^2.0" }
+```
+
+**Betroffen ist jedes Projekt, das Contentfly 2 schon bezieht.** Seine `composer.json` trägt eine
+`git@github.com:…`-URL und einen `config.preferred-install`-Block für `areanet/contentfly`.
+
+*Was zu tun ist:* Die URL auf `https://…` umstellen und den `preferred-install`-Block für
+`areanet/contentfly` streichen — er erzwingt sonst weiterhin einen vollen Klon, wo ein Zip genügt.
+Beides ist keine Eile: Die SSH-URL funktioniert weiter, solange ein Schlüssel vorhanden ist. Wer
+umstellt, kann den Deploy Key für das Paket-Repository aus dem Projekt entfernen.
+
+*Nebenbei gelöst:* Ein `github-oauth`-Token in `~/.composer/auth.json` brach die Installation
+bisher mit `Repository not found` ab, obwohl ein gültiger SSH-Schlüssel vorlag — Composer schrieb
+die SSH-URL auf HTTPS um und meldete sich mit dem Token an, das auf das private Repository keinen
+Zugriff hatte. Bei einem öffentlichen Repository kann das nicht mehr passieren.
+
 ### Der Host-Block entscheidet über `display_errors` und `is_installed`
 **Seit `000-000-0085` (2026-09-23), ausgeliefert mit `v2.2.1`.**
 

@@ -24,9 +24,9 @@ die konkreten Befehle je Stack und ersetzt die Platzhalter unten.
 > **Dieser Abschnitt gilt für ein NEUES Projekt.** Ein Bestandsprojekt, das von Contentfly 1.x
 > kommt, folgt `an_project/docs/migration.md`; Phase 2 dort nennt denselben Bezugsweg.
 
-**Voraussetzung:** Lesezugriff auf `area-net-gmbh/contentfly-framework-dist` — ein Deploy Key oder
-ein Konto in der Organisation. Ohne ihn scheitert `composer install` mit `Permission denied
-(publickey)`, und die Meldung sagt nicht, woran es liegt.
+**Keine Voraussetzung — es braucht keinen Zugang.** `area-net-gmbh/contentfly-framework-dist` ist
+seit `000-000-0087` öffentlich: kein Deploy Key, kein Konto in der Organisation, kein
+SSH-Schlüssel. Ein `git clone` über HTTPS genügt, und genau das macht Composer.
 
 **1. Die Dateien, mit denen ein Projekt startet.** Dieses Repository ist zugleich das Skeleton;
 was ein Projekt braucht, ist die Wurzel abzüglich dessen, was nur der Entwicklung dient:
@@ -43,14 +43,11 @@ dieses Entwicklungs-Repo benutzt:
     "name": "ihre-firma/ihr-projekt",
     "type": "project",
     "repositories": [
-        { "type": "vcs", "url": "git@github.com:area-net-gmbh/contentfly-framework-dist.git" }
+        { "type": "vcs", "url": "https://github.com/area-net-gmbh/contentfly-framework-dist.git" }
     ],
     "require": {
         "areanet/contentfly": "^2.0",
         "vlucas/phpdotenv": "^5.6"
-    },
-    "config": {
-        "preferred-install": { "areanet/contentfly": "source" }
     },
     "autoload": {
         "psr-4": { "Custom\\": "custom/", "Plugins\\": "plugins/" }
@@ -58,22 +55,22 @@ dieses Entwicklungs-Repo benutzt:
 }
 ```
 
-> **`preferred-install: source` ist nicht optional**, und die Meldung ohne diese Zeile führt in die
-> Irre. Composer bezieht ein Paket am liebsten als `dist`, also als Zip, und holt dieses Zip bei
-> GitHub über die **REST-API**. Die kennt einen SSH-Deploy-Key nicht — bei einem privaten
-> Repository antwortet sie mit
+> **`preferred-install: source` stand hier und ist mit `000-000-0087` entfallen.** Solange das
+> Paket-Repository privat war, brauchte es die Zeile: Composer bezieht ein Paket am liebsten als
+> `dist`, also als Zip über die GitHub-**REST-API** — und die kennt keinen SSH-Deploy-Key. Bei
+> einem privaten Repository antwortete sie mit `404 Not Found`, was aussieht, als gäbe es das
+> Paket nicht. `source` hiess *klonen statt herunterladen* und ging über SSH.
 >
-> ```
-> https://api.github.com/repos/…/zipball/<sha>  →  404 Not Found
-> ```
+> Bei einem öffentlichen Repository liefert dieselbe API das Zip ohne Anmeldung. Die Zeile ist
+> damit nicht nur entbehrlich, sondern schädlich: Sie erzwingt einen vollen Klon, wo ein Zip
+> genügt.
 >
-> was aussieht, als gäbe es das Paket nicht. `source` heisst *klonen statt herunterladen*, und das
-> geht über SSH — also mit genau dem Zugang, den Sie ohnehin brauchen. Die Zeile betrifft nur
-> dieses eine Paket; alle anderen kommen von Packagist und weiterhin als Zip.
->
-> Die Alternative wäre ein **API-Token** je Entwickler (`composer config github-oauth.github.com
-> …`). Möglich, aber es hängt an einem Konto statt an einem Repository — dieselbe Abwägung wie bei
-> der Wahl des Deploy Keys.
+> **Ein `github-oauth`-Token in `~/.composer/auth.json` stört jetzt nicht mehr.** Vorher schon:
+> Steht dort eines und `github-protocols` auf der Voreinstellung `["https","ssh"]`, schreibt
+> Composer die SSH-URL auf HTTPS um und meldet sich mit diesem Token an. Hatte es keinen Zugriff
+> auf das private Repository, war das Ergebnis `Repository not found` — bei gültigem
+> SSH-Schlüssel. Gemessen bei der Abnahme von `000-000-0086`. Ein öffentliches Repository darf
+> jedes gültige Token lesen, und die URL oben ist ohnehin HTTPS.
 
 > **Dieselbe Zeichenkette steht in `tools/ci/bezugsweg-pruefen.sh`** — wer eine ändert, ändert
 > beide, sonst prüft das Gate einen anderen Weg als die Doku beschreibt. Und weil das Gate bei

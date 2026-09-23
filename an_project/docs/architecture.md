@@ -21,6 +21,55 @@
 
 <!-- Entscheidung · erwogene Alternativen · warum diese. -->
 
+### 2026-09-23 — Das Paket-Repository wird öffentlich, statt den Zugang zu erklären
+
+**Entscheidung.** `area-net-gmbh/contentfly-framework-dist` ist **öffentlich**. Ein Projekt trägt
+eine HTTPS-URL in `repositories` ein und bezieht Contentfly mit `composer require` — ohne Deploy
+Key, ohne Organisationskonto, ohne `preferred-install: source`.
+
+**Woraus es entstand.** Die Abnahme von `000-000-0086` scheiterte zweimal hintereinander, und
+**beide Male lautete die Meldung `Repository not found`** — bei drei verschiedenen Ursachen:
+
+1. Ein `github-oauth`-Token in `~/.composer/auth.json` und `github-protocols` auf der
+   Voreinstellung `["https","ssh"]`: Composer schreibt die SSH-URL auf HTTPS um und meldet sich
+   mit diesem Token an. Hat es keinen Zugriff auf das private Repository, ist das Ergebnis
+   `Repository not found` — bei gültigem SSH-Schlüssel.
+2. Der passende SSH-Schlüssel stand in einer **repo-lokalen** `core.sshCommand`, und die gilt
+   ausserhalb des Repos nicht. Der CI-Job setzte deshalb `GIT_SSH_COMMAND`; lokal wusste das
+   niemand.
+3. Ohne `preferred-install: source` holt Composer das Zip über die GitHub-REST-API, die einen
+   Deploy Key nicht kennt — `404`.
+
+Drei Stolpersteine, eine Meldung, die auf keinen davon zeigt. Dieselbe Regel wie bei
+`000-000-0029`, `007-001-0002` und der Gegenprobe in `011-002-0004`: Eine irreführende Diagnose
+kostet dieselbe Stunde wie gar keine.
+
+**Der Ausschlag.** Das private Repository schützte nichts. Gemessen am 2026-09-23 über die
+GitHub-API ohne Anmeldung: `contentfly-framework` antwortete mit **200**,
+`contentfly-framework-dist` mit **404** — der Quellcode lag öffentlich, das Erzeugnis daraus
+privat. Ein Abgleich des Tags `v2.2.1` gegen `lib/contentfly` zeigte 161 Dateien, **identisch**,
+ohne `.env`, Schlüssel oder Zugangsdaten. Es gab nichts zu schützen, und es kostete bei jeder
+Installation einen Schlüssel und drei Sonderfälle.
+
+**Erwogene Alternativen.**
+
+- **Privat bleiben und den Zugang dokumentieren.** Verworfen: Das war der Zustand, und er hat
+  genau die Abnahme kosten lassen, für die er gedacht war. Drei Stolpersteine lassen sich nicht
+  wegschreiben — der Runbook beschrieb bereits einen davon, und es half nicht.
+- **Ein `github-oauth`-Token je Entwickler und je CI.** Verworfen, und zwar zum zweiten Mal: Schon
+  bei der Wahl des Deploy Keys (`011-002-0003`) war das Argument, ein Token hänge an einem Konto
+  statt an einem Repository. Hier kommt hinzu, dass gerade ein vorhandenes Token den Fehler
+  auslöste.
+- **Private Packagist.** Verworfen: laufende Kosten und eine weitere Stelle, an der etwas ablaufen
+  kann — für Code, der ohnehin öffentlich einsehbar ist.
+- **Packagist (öffentlich).** **Nicht verworfen, nur noch nicht gemacht.** Damit entfiele der
+  `repositories`-Eintrag ganz, und `composer require areanet/contentfly` genügte. Öffentlichkeit
+  ist die Voraussetzung dafür; der Schritt ist jetzt möglich und bleibt eine eigene Entscheidung.
+
+**Was nicht öffentlich wird.** Der Schreibweg. `paket.yml` schiebt den Split weiterhin mit dem
+Deploy Key ins Paket-Repository — Schreibzugriff braucht ihn auch bei einem öffentlichen
+Repository.
+
 ### 2026-09-17 — Der nächste Sprung ist Symfony 8.4 LTS, und er wird heute vorbereitet
 
 **Entscheidung.** Nach Symfony 7.4 LTS ist **8.4 LTS** der geplante nächste Schritt, erwartet für
