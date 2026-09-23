@@ -12,6 +12,8 @@
 - 000-000-0086 task created: "Release v2.2.1 — den Host-Block-Fix ausliefern"
 - 000-000-0086 → in-progress
 - 000-000-0086: Release vorbereitet — Version `2.2.1` an allen Stellen (`version.php`, `options.versions`, `apidoc.json`, Lock, 25 Beispielantworten), Registereintrag zu `000-000-0085` „ausgeliefert mit `v2.2.1`", neuer Leitfaden-Abschnitt *Von 2.2.0 auf 2.2.1*, `pentest-spec.md` auf `v2.2.1`. Composer 2.6.6 schrieb vier Formatzeilen im Lock mit — zurückgesetzt, geändert sind nur `content-hash`, `version`, `reference`. Suite 327 grün, PHPStan ohne Fehler. Tag folgt nach dem Merge.
+- 000-000-0070 → in-progress
+- 000-000-0070 → review: **Gruppenrechte bekommen keinen stillen Vollzugriff auf `PIM\Tag` mehr.** `PermissionsType::toDatabase()` schrieb bei jedem Speichern eine zusätzliche `PIM\Tag`-Zeile mit `ALL` — ungefragt. Schwerer wog: Sie stand **vor** den angeforderten, und `Permission::is()` nimmt den ersten Treffer; `Group::$permissions` trägt kein `ORDER BY`. Ein ausdrücklich mitgeschicktes `PIM\Tag` wurde damit verdeckt und wurde nie wirksam — eine Voreinstellung, die sich nicht überschreiben liess. Deshalb entfällt die Zeile, statt dokumentiert zu werden. Charakterisierungstest umgedreht, ein zweiter für die Verdeckung; **Gegenprobe ohne Fix: beide rot** (`['PIM\Tag']` statt `[]`, zwei Zeilen statt einer). Integration-Suite lokal gefahren gegen eine eigene Datenbank — Suite 799 Tests grün (3 übersprungen), PHPStan ohne Fehler, Deprecation-Gate 0 Meldungen. Registereintrag unter *API*; Register 135 Einträge, `migration.md` nachgezogen.
 
 ## 2026-09-22
 - 000-000-0075 → in-progress
