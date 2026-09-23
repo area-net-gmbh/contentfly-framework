@@ -1,7 +1,7 @@
 ---
 id: 000-000-0085
 title: Den Host-Block wählen, bevor display_errors und is_installed die Konfiguration lesen
-status: review
+status: done
 depends_on: []
 ---
 

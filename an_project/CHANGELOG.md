@@ -7,6 +7,7 @@
 - 000-000-0085 → in-progress
 - 000-000-0085 → review: **Der Host-Block wird gewählt, bevor etwas die Konfiguration liest.** `Adapter::setHostname(HOST)` steht jetzt direkt hinter `define('HOST', …)` statt 25 Zeilen darunter; bis dahin galt `'default'`, und `display_errors` wie `is_installed` lasen den Default-Block. Ein Server mit `APP_DEBUG = false` im Host-Block lieferte dadurch Fehlerausgabe in der Antwort — samt absoluter Serverpfade, gefunden auf dem UFP-Staging mit `v2.2.0`. Neu `HostBlockSelectionTest` (zwei Fälle, je eigener PHP-Prozess), Gegenprobe ohne Fix rot. Registereintrag in `breaking-changes.md` (jetzt 134 Einträge), `migration.md` nachgezogen. Unit-Suite 327 grün, PHPStan ohne Fehler; Integration-Suite lokal nicht lauffähig, CI fährt sie auf dem PR.
 - an_project/docs/breaking-changes.md updated: Eintrag zu `000-000-0085` — der Host-Block entscheidet über `display_errors` und `is_installed`; `migration.md` auf 134 Einträge nachgezogen
+- 000-000-0085 → done: Buchführung vor dem Merge des Pull Requests (Integration über PR, `git.md`)
 
 ## 2026-09-22
 - 000-000-0075 → in-progress
