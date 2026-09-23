@@ -12,6 +12,7 @@
 - 000-000-0086 task created: "Release v2.2.1 — den Host-Block-Fix ausliefern"
 - 000-000-0086 → in-progress
 - 000-000-0086: Release vorbereitet — Version `2.2.1` an allen Stellen (`version.php`, `options.versions`, `apidoc.json`, Lock, 25 Beispielantworten), Registereintrag zu `000-000-0085` „ausgeliefert mit `v2.2.1`", neuer Leitfaden-Abschnitt *Von 2.2.0 auf 2.2.1*, `pentest-spec.md` auf `v2.2.1`. Composer 2.6.6 schrieb vier Formatzeilen im Lock mit — zurückgesetzt, geändert sind nur `content-hash`, `version`, `reference`. Suite 327 grün, PHPStan ohne Fehler. Tag folgt nach dem Merge.
+- 000-000-0086 → done: Tag `v2.2.1` auf `32d39381` (#49), veröffentlicht nach `contentfly-framework-dist` (`bb8c47b2`); Abnahme mit `tools/ci/bezugsweg-pruefen.sh` — frisches Projekt mit `^2.0` bezieht den Tag `v2.2.1`, Server meldet `meta.version` `2.2.1`. Zwei Fehlschläge davor lagen an der lokalen Umgebung (Composer nahm HTTPS mit gespeichertem Token statt SSH; der passende SSH-Schlüssel steht in der repo-lokalen `core.sshCommand` und greift ausserhalb nicht) — beide im Task festgehalten.
 
 ## 2026-09-22
 - 000-000-0075 → in-progress
