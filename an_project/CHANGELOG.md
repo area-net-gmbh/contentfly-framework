@@ -2,6 +2,12 @@
 
 # Changelog
 
+## 2026-09-23
+- 000-000-0085 task created: "Den Host-Block wählen, bevor display_errors und is_installed die Konfiguration lesen"
+- 000-000-0085 → in-progress
+- 000-000-0085 → review: **Der Host-Block wird gewählt, bevor etwas die Konfiguration liest.** `Adapter::setHostname(HOST)` steht jetzt direkt hinter `define('HOST', …)` statt 25 Zeilen darunter; bis dahin galt `'default'`, und `display_errors` wie `is_installed` lasen den Default-Block. Ein Server mit `APP_DEBUG = false` im Host-Block lieferte dadurch Fehlerausgabe in der Antwort — samt absoluter Serverpfade, gefunden auf dem UFP-Staging mit `v2.2.0`. Neu `HostBlockSelectionTest` (zwei Fälle, je eigener PHP-Prozess), Gegenprobe ohne Fix rot. Registereintrag in `breaking-changes.md` (jetzt 134 Einträge), `migration.md` nachgezogen. Unit-Suite 327 grün, PHPStan ohne Fehler; Integration-Suite lokal nicht lauffähig, CI fährt sie auf dem PR.
+- an_project/docs/breaking-changes.md updated: Eintrag zu `000-000-0085` — der Host-Block entscheidet über `display_errors` und `is_installed`; `migration.md` auf 134 Einträge nachgezogen
+
 ## 2026-09-22
 - 000-000-0075 → in-progress
 - 000-000-0075 → review: **Lesepfade in `Api.php` getestet — 75,6 % statt 59 %.** `ReadPathApiTest` (Filter, i18n-Joins, `loadJoinedLang`/`compareToLang`, `/api/all` mit `filedata`, `lastModified`, Löschprotokoll, `/api/count`, Unique-Verletzung); `MainLanguageApiTest` und `SchemaCacheApiTest` gegen einen zweiten Server, den die Klasse selbst startet (`ExtraServer`). `filedata` nimmt nur noch bekannte Grössennamen — `../` las Dateien fremder Datensätze (Gegenprobe rot ohne Fix). Sechs Befunde als Ist-Zustand festgehalten, darunter: Mit `APP_LANGUAGES` scheitert jede Übersetzung mit `id` (ORM 3 `clear()`), und `doInsert()` gibt Doctrine-/SQL-Text ohne Debug heraus. Suite 783 Tests grün, PHPStan ohne Fehler, Coverage gesamt 74,7 %.

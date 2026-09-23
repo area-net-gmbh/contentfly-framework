@@ -147,6 +147,32 @@ im Antwortstrom schickte die Header los, bevor Silex den Code setzen konnte — 
 dann `200`, obwohl die Anwendung `405` oder `500` meinte. Beim ersten CI-Lauf sind daran sechs
 Tests gescheitert, die lokal grün waren.
 
+### Der Host-Block entscheidet über `display_errors` und `is_installed`
+**Seit `000-000-0085` (2026-09-23).**
+
+Das Versprechen des Eintrags darüber galt bisher nur dem **Default-Block**. `bootstrap.php` wählte
+den Host-Block erst hinter den beiden Stellen, die ihn brauchen; bis dahin stand `Adapter::$host`
+auf `'default'`, und `Factory::getConfig()` fällt für einen unbekannten Host auf den Default-Block
+zurück. Beide Entscheidungen lasen deshalb den falschen Block:
+
+- **`display_errors`** folgte dem `APP_DEBUG` des Default-Blocks. Ein Projekt, das dort für die
+  lokale Entwicklung `true` stehen hat — der Normalfall —, lieferte auf **jedem** Server
+  Fehlerausgabe, auch auf Staging und Live mit eigenem `APP_DEBUG = false`.
+- **`is_installed`** folgte dem `DB_HOST` des Default-Blocks statt dem des Hosts.
+
+Gemessen am Bestandsprojekt UFP (Staging, mittwald, PHP 8.4, `v2.2.0`): `APP_DEBUG` ist im
+Host-Block `false`, `ini_get('display_errors')` war trotzdem `'1'`. Jede Deprecation landete als
+HTML im Antwortrumpf, mit absoluten Serverpfaden; über `output_buffering` gingen die Header
+vorzeitig hinaus, und die Antwort verliess den Server als `200 text/html` ohne `Cache-Control` und
+ohne `Access-Control-Allow-Origin`.
+
+**Betroffen ist jedes Projekt mit Host-Blöcken**, dessen Default-Block `APP_DEBUG = true` setzt.
+
+*Was zu tun ist:* Nichts, wenn das Projekt keine Host-Blöcke benutzt — dann gilt der Default-Block
+wie bisher. Wer Fehlerausgabe auf einem bestimmten Server sehen will, setzt `APP_DEBUG = true`
+**in dessen Block**. Wer sich bisher darauf verlassen hat, dass ein Server trotz `APP_DEBUG = false`
+Fehler in die Antwort schreibt, findet sie ab jetzt nur noch im Log.
+
 ### `error_reporting` steht auf `E_ALL`, auch im Debug-Modus
 **Seit `000-000-0018` (2026-09-09).**
 
