@@ -12,6 +12,7 @@
 - 000-000-0086 task created: "Release v2.2.1 — den Host-Block-Fix ausliefern"
 - 000-000-0086 → in-progress
 - 000-000-0086: Release vorbereitet — Version `2.2.1` an allen Stellen (`version.php`, `options.versions`, `apidoc.json`, Lock, 25 Beispielantworten), Registereintrag zu `000-000-0085` „ausgeliefert mit `v2.2.1`", neuer Leitfaden-Abschnitt *Von 2.2.0 auf 2.2.1*, `pentest-spec.md` auf `v2.2.1`. Composer 2.6.6 schrieb vier Formatzeilen im Lock mit — zurückgesetzt, geändert sind nur `content-hash`, `version`, `reference`. Suite 327 grün, PHPStan ohne Fehler. Tag folgt nach dem Merge.
+- 000-000-0087 task created: "Contentfly mit gewöhnlichem Composer beziehbar machen — ohne Schlüssel, Sonderpfade und Token-Kollisionen" — aus der Abnahme von `000-000-0086`: drei Stolpersteine, die alle `Repository not found` melden (GitHub-Token entführt die URL auf HTTPS, `core.sshCommand` gilt nur im Repo, `preferred-install: source` fehlt). Dazu die Asymmetrie, an der es hängt: `contentfly-framework` ist öffentlich, `contentfly-framework-dist` privat.
 
 ## 2026-09-22
 - 000-000-0075 → in-progress
