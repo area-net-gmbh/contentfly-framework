@@ -8,6 +8,10 @@
 - 000-000-0085 → review: **Der Host-Block wird gewählt, bevor etwas die Konfiguration liest.** `Adapter::setHostname(HOST)` steht jetzt direkt hinter `define('HOST', …)` statt 25 Zeilen darunter; bis dahin galt `'default'`, und `display_errors` wie `is_installed` lasen den Default-Block. Ein Server mit `APP_DEBUG = false` im Host-Block lieferte dadurch Fehlerausgabe in der Antwort — samt absoluter Serverpfade, gefunden auf dem UFP-Staging mit `v2.2.0`. Neu `HostBlockSelectionTest` (zwei Fälle, je eigener PHP-Prozess), Gegenprobe ohne Fix rot. Registereintrag in `breaking-changes.md` (jetzt 134 Einträge), `migration.md` nachgezogen. Unit-Suite 327 grün, PHPStan ohne Fehler; Integration-Suite lokal nicht lauffähig, CI fährt sie auf dem PR.
 - an_project/docs/breaking-changes.md updated: Eintrag zu `000-000-0085` — der Host-Block entscheidet über `display_errors` und `is_installed`; `migration.md` auf 134 Einträge nachgezogen
 - 000-000-0085 → done: Buchführung vor dem Merge des Pull Requests (Integration über PR, `git.md`)
+- 000-000-0085 gemergt mit PR #48 (`d115ef8b`)
+- 000-000-0086 task created: "Release v2.2.1 — den Host-Block-Fix ausliefern"
+- 000-000-0086 → in-progress
+- 000-000-0086: Release vorbereitet — Version `2.2.1` an allen Stellen (`version.php`, `options.versions`, `apidoc.json`, Lock, 25 Beispielantworten), Registereintrag zu `000-000-0085` „ausgeliefert mit `v2.2.1`", neuer Leitfaden-Abschnitt *Von 2.2.0 auf 2.2.1*, `pentest-spec.md` auf `v2.2.1`. Composer 2.6.6 schrieb vier Formatzeilen im Lock mit — zurückgesetzt, geändert sind nur `content-hash`, `version`, `reference`. Suite 327 grün, PHPStan ohne Fehler. Tag folgt nach dem Merge.
 
 ## 2026-09-22
 - 000-000-0075 → in-progress

@@ -32,6 +32,40 @@ i18n, verschlüsselte Felder. Dort gilt der Leitfaden, wie er an der Vorlage erp
 
 ---
 
+## Von 2.2.0 auf 2.2.1 — ein Sicherheits-Patch
+
+**`v2.2.1` schliesst eine Informationspreisgabe auf Servern mit Host-Blöcken.** `bootstrap.php`
+entschied über `display_errors`, bevor feststand, für welchen Host die Entscheidung gilt — bis
+dahin galt der Default-Block. Ein Projekt, das dort für die lokale Entwicklung `APP_DEBUG = true`
+stehen hat, lieferte deshalb auf **jedem** Server Fehlerausgabe: Deprecations und Warnungen samt
+absoluter Serverpfade im Antwortrumpf. Kam die Ausgabe über `output_buffering`, gingen die Header
+vorzeitig hinaus, und eine API-Antwort verliess den Server als `200 text/html` ohne
+`Cache-Control` und ohne `Access-Control-Allow-Origin`.
+
+**Wer keine Host-Blöcke benutzt, ist nicht betroffen** — dort galt immer schon der Default-Block.
+
+1. **Beziehen.** Die Constraint `^2.0` nimmt `2.2.1` mit: `composer update areanet/contentfly`.
+   Das aktualisiert von sich aus **nur dieses Paket**; für die Abhängigkeiten braucht es
+   ausdrücklich `-w` beziehungsweise `-W`.
+2. **Sonst nichts.** Keine Konfiguration, kein Schema, keine geänderten Statuscodes.
+
+**Was sich beobachtbar ändert:** Auf einem Server, dessen Host-Block `APP_DEBUG = false` setzt,
+endet die Fehlerausgabe in der Antwort. Das ist die Absicht. Wer sie auf einem bestimmten Server
+braucht, setzt `APP_DEBUG = true` **in dessen Block**; im Log stehen die Meldungen ohnehin weiter.
+
+Nachzuprüfen ist es an genau einer Stelle:
+
+```sh
+SERVER_NAME=<ihre-domain> php -r 'require "vendor/autoload.php";
+    \Areanet\PIM\Classes\Kernel\Start::console(getcwd());
+    var_dump(ini_get("display_errors"));'
+# erwartet auf einem Host-Block mit APP_DEBUG = false: string(1) "0"
+```
+
+Der Eintrag steht im Register unter *Konfiguration* mit „ausgeliefert mit `v2.2.1`".
+
+---
+
 ## Von 2.1 auf 2.2 — für Projekte, die schon auf Contentfly 2 laufen
 
 **`v2.2.0` ist ein Sicherheits- und Korrektur-Release.** Es schliesst ein Path Traversal über
@@ -43,7 +77,8 @@ Wer von 1.x kommt, folgt den neun Phasen unten; die Änderungen von 2.2 stecken 
 Wer auf `v2.0.0` steht, geht zuerst die Schritte *Von 2.0 auf 2.1* unten durch. Wer auf `v2.1.0`
 steht, braucht nur diese:
 
-1. **Beziehen.** Die Constraint `^2.0` nimmt `2.2.0` mit: `composer update areanet/contentfly`.
+1. **Beziehen.** Die Constraint `^2.0` nimmt `2.2.1` mit: `composer update areanet/contentfly` —
+   also gleich den Patch aus dem Abschnitt darüber, der auf `2.2.0` folgte.
 2. **Konfiguration prüfen.** Der ImageMagick-Prozessor und `IMAGEMAGICK_EXECUTABLE` sind entfernt;
    wer `FILE_PROCESSORS` darauf gesetzt hatte, stellt auf `\Areanet\PIM\Classes\File\Processing\Image`
    zurück. **Neu ist `FILE_IMAGE_MAX_PIXELS`** mit 24 Megapixeln als Voreinstellung — wer grössere

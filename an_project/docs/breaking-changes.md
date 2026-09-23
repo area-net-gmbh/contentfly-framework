@@ -148,7 +148,7 @@ dann `200`, obwohl die Anwendung `405` oder `500` meinte. Beim ersten CI-Lauf si
 Tests gescheitert, die lokal grün waren.
 
 ### Der Host-Block entscheidet über `display_errors` und `is_installed`
-**Seit `000-000-0085` (2026-09-23).**
+**Seit `000-000-0085` (2026-09-23), ausgeliefert mit `v2.2.1`.**
 
 Das Versprechen des Eintrags darüber galt bisher nur dem **Default-Block**. `bootstrap.php` wählte
 den Host-Block erst hinter den beiden Stellen, die ihn brauchen; bis dahin stand `Adapter::$host`
