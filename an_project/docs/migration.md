@@ -4,7 +4,7 @@
 
 **Dieser Leitfaden ist der Weg. `an_project/docs/breaking-changes.md` ist das Register.**
 
-Das Register hat **134 Einträge in 14 Abschnitten** (Stand 2026-09-23, nachgezählt mit `000-000-0085`) und ist nach Epic und
+Das Register hat **135 Einträge in 14 Abschnitten** (Stand 2026-09-23, nachgezählt mit `000-000-0087`) und ist nach Epic und
 Story geordnet — also danach, *wann wir etwas geändert haben*. Das ist die richtige Ordnung zum
 Nachschlagen und die falsche zum Arbeiten. Hier steht die andere: **was ein Projekt tut, und in
 welcher Reihenfolge.**
@@ -259,19 +259,20 @@ Release aus `lib/contentfly` erzeugt wird. In die `composer.json` des Projekts g
 
 ```json
 "repositories": [
-    { "type": "vcs", "url": "git@github.com:area-net-gmbh/contentfly-framework-dist.git" }
+    { "type": "vcs", "url": "https://github.com/area-net-gmbh/contentfly-framework-dist.git" }
 ],
-"require": { "areanet/contentfly": "^2.0" },
-"config": { "preferred-install": { "areanet/contentfly": "source" } }
+"require": { "areanet/contentfly": "^2.0" }
 ```
 
-**Die `config`-Zeile ist nicht optional.** Ohne sie holt Composer das Paket als Zip über die
-GitHub-REST-API, und die kennt einen SSH-Schlüssel nicht: Bei einem privaten Repository antwortet
-sie `404 Not Found` — was aussieht, als gäbe es das Paket nicht. `source` klont stattdessen über
-SSH. Sie betrifft nur dieses eine Paket; alle anderen kommen von Packagist.
+— und sonst nichts; kein Pfad, keine Kopie, **kein Zugang**. Das Repository ist seit
+`000-000-0087` öffentlich.
 
-— und sonst nichts; kein Pfad, keine Kopie. **Voraussetzung ist Lesezugriff** auf dieses
-Repository, per Deploy Key oder Organisationskonto.
+> **Was hier bis `v2.2.1` zusätzlich stand**, und was ein Bestandsprojekt deshalb noch in seiner
+> `composer.json` haben kann: eine `git@…`-URL und
+> `"config": { "preferred-install": { "areanet/contentfly": "source" } }`. Beides war nötig,
+> solange das Repository privat war — der Zip-Download über die GitHub-REST-API kennt keinen
+> SSH-Schlüssel und antwortete `404 Not Found`. Beides kann jetzt weg: Die HTTPS-URL braucht
+> keinen Schlüssel, und `preferred-install: source` erzwingt einen vollen Klon, wo ein Zip genügt.
 
 **Danach ist ein Update `composer update areanet/contentfly`.** Das ist die eigentliche Änderung
 gegenüber 1.x: Der Framework-Baum wird nie wieder angefasst, und eine neue Version überschreibt
