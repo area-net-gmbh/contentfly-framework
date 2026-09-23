@@ -24,15 +24,20 @@
 # Erwartete Umgebung:
 #
 #   CONTENTFLY_TEST_DB_HOST / _PORT / _USER / _PASSWORD   Datenbank für die Installation
-#   GIT_SSH_COMMAND                                       Zugang zum Paket-Repository
 #   PAKET_REPO_URL                                        Vorgabe: die echte URL
+#
+# KEIN ZUGANG NÖTIG (000-000-0087). Bis dahin brauchte dieser Lauf GIT_SSH_COMMAND mit einem
+# Deploy Key, weil das Paket-Repository privat war. Es ist öffentlich; die URL unten ist HTTPS.
+# Damit läuft dieses Gate auch LOKAL, ohne Sondervariablen — und genau das war der Punkt:
+# Zweimal scheiterte die Abnahme in 000-000-0086 an der Umgebung statt am Paket, beide Male
+# mit "Repository not found".
 
 set -eu
 
 . "$(dirname "$0")/schritt.sh"
 
 WURZEL=$(cd "$(dirname "$0")/../.." && pwd)
-PAKET_REPO_URL="${PAKET_REPO_URL:-git@github.com:area-net-gmbh/contentfly-framework-dist.git}"
+PAKET_REPO_URL="${PAKET_REPO_URL:-https://github.com/area-net-gmbh/contentfly-framework-dist.git}"
 DB_NAME="${BEZUGSWEG_DB_NAME:-bezugsweg_probe}"
 ADRESSE="${BEZUGSWEG_ADRESSE:-127.0.0.1:8146}"
 
@@ -82,31 +87,25 @@ cat > "$PROJEKT/composer.json" <<JSON
         "areanet/contentfly": "$CONSTRAINT",
         "vlucas/phpdotenv": "^5.6"
     },
-    "config": {
-        "preferred-install": { "areanet/contentfly": "source" }
-    },
     "autoload": {
         "psr-4": { "Custom\\\\": "custom/", "Plugins\\\\": "plugins/" }
     }
 }
 JSON
 
-# ── preferred-install: source — und warum das keine Bequemlichkeit ist ─────────────────
+# ── preferred-install: source stand hier und ist entfallen (000-000-0087) ──────────────
 #
-# Composer bezieht ein Paket am liebsten als `dist`, also als Zip. Bei einem Repository auf
-# GitHub holt es dieses Zip über die REST-API — und die kennt einen SSH-Deploy-Key NICHT.
-# Bei einem PRIVATEN Repository antwortet sie mit `404 Not Found`, was aussieht, als gäbe es
-# das Paket nicht.
+# Composer bezieht ein Paket am liebsten als `dist`, also als Zip, und holt dieses Zip über
+# die GitHub-REST-API. Die kennt keinen SSH-Deploy-Key: Bei einem PRIVATEN Repository
+# antwortete sie `404 Not Found`, was aussieht, als gäbe es das Paket nicht. `source` hiess
+# klonen statt herunterladen und ging über SSH.
 #
-# `source` heisst: klonen statt herunterladen. Das geht über SSH und damit mit genau dem
-# Zugang, den der Deploy Key gewährt.
+# Das Repository ist öffentlich, die API liefert das Zip ohne Anmeldung. Die Zeile wäre jetzt
+# nicht nur entbehrlich, sondern falsch: Sie erzwänge einen vollen Klon, wo ein Zip genügt —
+# und sie prüfte damit einen Weg, den die Doku nicht mehr beschreibt.
 #
-# DIE ALTERNATIVE WÄRE EIN API-TOKEN je Entwickler und je CI (`composer config
-# github-oauth.github.com …`). Das war schon bei der Wahl des Deploy Keys die verworfene
-# Variante: Ein Token hängt an einem Konto, ein Deploy Key an einem Repository.
-#
-# Die Einschränkung gilt nur für dieses eine Paket — die 54 anderen kommen von Packagist und
-# weiterhin als `dist`.
+# WAS DAS GATE DAMIT MEHR PRÜFT ALS VORHER: Der Lauf braucht keinen Zugang. Scheitert er,
+# liegt es am Paket und nicht an einem Schlüssel.
 
 # ── 2. Beziehen ────────────────────────────────────────────────────────────────────────
 
