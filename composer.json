@@ -9,7 +9,7 @@
             "url": "lib/contentfly",
             "options": {
                 "versions": {
-                    "areanet/contentfly": "2.2.0"
+                    "areanet/contentfly": "2.2.1"
                 }
             }
         }
