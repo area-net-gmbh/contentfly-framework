@@ -1,7 +1,7 @@
 ---
 id: 000-000-0090
 title: Rechte verwalten nur Admins — auch beim Schreiben von Gruppen, Rechte-Zeilen und Benutzern
-status: review
+status: done
 depends_on: []
 ---
 
