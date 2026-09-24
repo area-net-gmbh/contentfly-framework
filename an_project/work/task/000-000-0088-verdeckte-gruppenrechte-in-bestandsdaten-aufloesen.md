@@ -1,7 +1,7 @@
 ---
 id: 000-000-0088
 title: Verdeckte Gruppenrechte in Bestandsdaten auflösen — und doppelte Einträge im Request ablehnen
-status: review
+status: done
 depends_on: [000-000-0070]
 ---
 
