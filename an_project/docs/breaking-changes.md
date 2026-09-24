@@ -272,6 +272,32 @@ rund fünf Byte je zugelassenem Pixel.
 
 ## API
 
+### Gruppenrechte bekommen keinen stillen Vollzugriff auf `PIM\Tag` mehr
+**Seit `000-000-0070` (2026-09-23).**
+
+`PermissionsType::toDatabase()` legte bei **jedem** Schreiben der Rechte einer Gruppe zusätzlich
+eine Zeile für `PIM\Tag` an — lesen, schreiben und löschen auf `ALL`, unabhängig davon, was der
+Request verlangte. Wer eine Gruppe über `/api/insert` oder `/api/update` mit `permissions` anlegte
+oder änderte, gab ihr damit ungefragt vollen Zugriff auf alle Tags.
+
+**Schwerer wog die zweite Wirkung:** Die Zeile wurde **vor** den angeforderten geschrieben, und
+`Classes\Permission::is()` liefert den **ersten** Treffer zum Entitätsnamen. Die Assoziation trägt
+kein `ORDER BY`, die Reihenfolge ist also die der Einfügung — ein ausdrücklich mitgeschicktes
+`PIM\Tag` wurde von der `ALL`-Zeile verdeckt und wurde nie wirksam. Ein Aufrufer konnte Tags
+**auch dann nicht einschränken, wenn er es verlangte**.
+
+Ein Überbleibsel der mit Epic `012` gestrichenen PIM-Oberfläche, die Tags an Dateien brauchte. Die
+Zeile setzte weder `export` noch `extended` — anders als die angeforderten; sie war nie Teil des
+Vertrags.
+
+**Betroffen ist jedes Projekt, das Gruppenrechte über die API schreibt** und sich — wissentlich
+oder nicht — darauf verlassen hat, dass Tags immer lesbar sind.
+
+*Was zu tun ist:* Wer Tag-Zugriff braucht, nimmt `PIM\Tag` ausdrücklich in die `permissions` des
+Requests auf. Ab jetzt wirkt der Wert auch. **Achtung bei Bestandsgruppen:** Ihre vorhandene
+`ALL`-Zeile bleibt in der Datenbank stehen, bis ihre Rechte das nächste Mal geschrieben werden —
+dann verschwindet sie. Wer das nicht will, ergänzt vorher `PIM\Tag` in den Rechten der Gruppe.
+
 ### `@PIM\Select` prüft jetzt beim Schreiben
 **Seit `000-000-0017` (2026-09-09).**
 
