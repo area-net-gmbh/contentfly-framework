@@ -12,6 +12,9 @@
 - 000-000-0088 task created: "Verdeckte Gruppenrechte in Bestandsdaten auflösen — und doppelte Einträge im Request ablehnen"
 - 000-000-0088 → in-progress
 - 000-000-0088 → review: **Mehrere Rechte-Zeilen für dieselbe Entity lösen sich zur restriktivsten auf, und fehlerhafte `permissions` antworten mit 400, ohne die Gruppe anzufassen.** Anlass: Bei GUID-Ids liefert MySQL die Zeilen einer Gruppe nach der Id, nicht in der Reihenfolge der Einfügung (gemessen: 5 von 20). Ob eine ausdrückliche `PIM\Tag`-Einschränkung neben der alten `ALL`-Zeile galt, war je Gruppe Zufall. `Permission::is()` nimmt jetzt je Recht die restriktivste Zeile (`NONE` < `OWN` < `GROUP` < `ALL`); das wirkt ab dem Deployment ohne Bereinigung. `PermissionsType::toDatabase()` prüft vor dem `DELETE`: Pflichtschlüssel, Liste, keine Entity doppelt; `export` ist optional. Vorher: 500 mit gelöschten Rechten bzw. 200 mit Doppelzeilen. Neu `PermissionResolutionTest` (5) und 13 Fälle in `FieldTypeApiTest`; Gegenprobe ohne Fix: 12 + 3 rot. Suite 817 grün (3 übersprungen), PHPStan ohne Fehler, Deprecation-Gate 0. Registereintrag neu, der aus `0070` korrigiert; Register 137 Einträge, `migration.md` nachgezogen.
+- 000-000-0091 task created: "Release v2.3.0 — die Rechte-Korrekturen seit v2.2.1 ausliefern"
+- 000-000-0091 → in-progress
+- 000-000-0091: Release vorbereitet — Version `2.3.0` an allen Stellen (`version.php`, `options.versions`, `apidoc.json`, Lock, 25 Beispielantworten), Registereinträge zu `0070`, `0088`, `0090` „ausgeliefert mit `v2.3.0`", `0087` „wirksam ohne Release", neuer Leitfaden-Abschnitt *Von 2.2 auf 2.3*, `pentest-spec.md` auf `v2.3.0`. Composer-Formatzeilen im Lock zurückgesetzt. Suite 833 grün, PHPStan ohne Fehler. Tag folgt nach dem Merge.
 
 ## 2026-09-23
 - 000-000-0085 task created: "Den Host-Block wählen, bevor display_errors und is_installed die Konfiguration lesen"

@@ -148,7 +148,7 @@ dann `200`, obwohl die Anwendung `405` oder `500` meinte. Beim ersten CI-Lauf si
 Tests gescheitert, die lokal grün waren.
 
 ### Das Paket-Repository ist öffentlich — HTTPS statt SSH, `preferred-install` entfällt
-**Seit `000-000-0087` (2026-09-23).**
+**Seit `000-000-0087` (2026-09-23), wirksam ohne Release — gilt für jede Version im Paket-Repository.**
 
 `area-net-gmbh/contentfly-framework-dist` ist öffentlich. Ein Projekt braucht **keinen Zugang
 mehr** — keinen Deploy Key, kein Organisationskonto, keinen SSH-Schlüssel.
@@ -273,7 +273,7 @@ rund fünf Byte je zugelassenem Pixel.
 ## API
 
 ### Rechte verwalten nur noch Admins — auch beim Schreiben
-**Seit `000-000-0090` (2026-09-24).**
+**Seit `000-000-0090` (2026-09-24), ausgeliefert mit `v2.3.0`.**
 
 Beim Lesen galt das schon lange: Die Rechte einer Gruppe zeigt die API nur Admins. Beim Schreiben
 prüfte sie nichts dergleichen. Ein Nicht-Admin mit Schreibrecht auf einer von drei Entities war
@@ -307,7 +307,7 @@ Projekt, in dem ein Nicht-Admin das tun soll, braucht dafür einen Admin-Zugang 
 gibt es nicht. Wo ein Nicht-Admin bisher fremde Passwörter zurückgesetzt hat, übernimmt das ein Admin.
 
 ### `permissions` einer Gruppe: fehlerhafte Einträge antworten mit 400, ohne die Rechte anzufassen
-**Seit `000-000-0088` (2026-09-24).**
+**Seit `000-000-0088` (2026-09-24), ausgeliefert mit `v2.3.0`.**
 
 `PermissionsType::toDatabase()` prüfte die Einträge nicht, und es **löscht die Rechte der Gruppe,
 bevor es die neuen schreibt**. Was dabei herauskam, erhoben am unveränderten Code:
@@ -329,7 +329,7 @@ Ein Client, der eine Entity zweimal schickt, fasst die Einträge zusammen. Ein C
 `500` geprüft hat, prüft auf `400`.
 
 ### Gruppenrechte bekommen keinen stillen Vollzugriff auf `PIM\Tag` mehr
-**Seit `000-000-0070` (2026-09-23).**
+**Seit `000-000-0070` (2026-09-23), ausgeliefert mit `v2.3.0`.**
 
 `PermissionsType::toDatabase()` legte bei **jedem** Schreiben der Rechte einer Gruppe zusätzlich
 eine Zeile für `PIM\Tag` an — lesen, schreiben und löschen auf `ALL`, unabhängig davon, was der
