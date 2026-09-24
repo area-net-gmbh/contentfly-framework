@@ -15,6 +15,9 @@
 - 000-000-0091 task created: "Release v2.3.0 — die Rechte-Korrekturen seit v2.2.1 ausliefern"
 - 000-000-0091 → in-progress
 - 000-000-0091: Release vorbereitet — Version `2.3.0` an allen Stellen (`version.php`, `options.versions`, `apidoc.json`, Lock, 25 Beispielantworten), Registereinträge zu `0070`, `0088`, `0090` „ausgeliefert mit `v2.3.0`", `0087` „wirksam ohne Release", neuer Leitfaden-Abschnitt *Von 2.2 auf 2.3*, `pentest-spec.md` auf `v2.3.0`. Composer-Formatzeilen im Lock zurückgesetzt. Suite 833 grün, PHPStan ohne Fehler. Tag folgt nach dem Merge.
+- 000-000-0092 task created: "Die falsche Kennung sim <sim@local> per .mailmap der richtigen zuordnen"
+- 000-000-0092 → in-progress
+- 000-000-0092 → review: **`.mailmap` ordnet `sim <sim@local>` der richtigen Kennung zu.** `git shortlog` zeigt kein `sim` mehr (655 statt 648 + 7), `git log --use-mailmap` und `git blame` die richtige Kennung für alle sieben Commits. Nicht erfasst: der Tagger von `v2.3.0` (Git 2.21) und die GitHub-Oberfläche. Nebenbefund: `fs@area-net.de` läuft unter `areanet-foschmid` und `areanet_foschmid` — nicht angefasst.
 - 000-000-0088 → done (per Pull Request auf `master`, #55)
 - 000-000-0090 → done (per Pull Request auf `master`, #56)
 - 000-000-0091 → done: **`v2.3.0` ist veröffentlicht und abgenommen.** Tag auf `bb1b5a2a` (#57) nach grüner Pipeline, Veröffentlichungslauf grün, `contentfly-framework-dist` trägt `v2.3.0` (`58b88c39`); ein frisches Projekt mit `^2.0` bezieht `v2.3.0` über HTTPS, Server meldet `meta.version` `2.3.0`. **Fehler festgehalten:** Tagger von `v2.3.0` und sieben Commits auf `master` tragen `sim <sim@local>` — `git config` in einem Wegwerf-Worktree schrieb in die gemeinsame Repo-Konfiguration; bereinigt, `.mailmap` folgt.

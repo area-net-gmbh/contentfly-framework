@@ -1,0 +1,10 @@
+# Kennungen, die Git der richtigen Person zuordnen soll (000-000-0092).
+#
+# sim <sim@local> ist keine Person, sondern ein Fehler: Eine Merge-Simulation in einem
+# Wegwerf-Worktree setzte user.name/user.email per git config — in einem Worktree schreibt das
+# in die gemeinsame Konfiguration des Repos. Sieben Commits auf master (675cd653 bis b53aa084)
+# und der Tagger von v2.3.0 tragen sie. Umschreiben geht nicht, master ist geschützt.
+#
+# Wirkt in git shortlog und git blame, in git log mit --use-mailmap oder log.mailmap = true
+# (ab Git 2.29 von sich aus). Die GitHub-Oberfläche liest diese Datei nicht.
+areanet_foschmid <fs@area-net.de> sim <sim@local>
