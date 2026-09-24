@@ -6,6 +6,9 @@
 - 000-000-0089 task created: "Merge-Konflikte in der Buchführung entschärfen — CHANGELOG per union mergen, Versandfalle ignorieren"
 - 000-000-0089 → in-progress
 - 000-000-0089 → review: **Der CHANGELOG mergt per `union`, Konflikte in der Buchführung werden lokal aufgelöst.** `.gitattributes` neu (nur `CHANGELOG.md`; bewusst nicht Register und Leitfaden), Abschnitt *Konflikte in der Buchführung* in `git.md`, `/.ci-mailtrap/` in `.gitignore`. Lokal belegt: zwei Branches im selben Tagesabschnitt mergen ohne Konflikt, die Gegenprobe ohne Attribut ergibt ihn; der echte Branch von `0088` mergt ebenfalls ohne Konflikt. **Offen:** ob GitHub `union` beim PR-Merge beachtet — zeigt sich am PR von `0088`, sobald `0089` auf `master` ist. Unit-Suite 327 grün.
+- 000-000-0090 task created: "Rechte verwalten nur Admins — auch beim Schreiben von Gruppen, Rechte-Zeilen und Benutzern"
+- 000-000-0090 → in-progress
+- 000-000-0090 → review: **Rechte verwalten nur noch Admins, auch beim Schreiben.** Ein Nicht-Admin mit Schreibrecht auf `PIM\Group`, `PIM\Permission` oder `PIM\User` konnte sich beliebige Rechte geben, sich zum Admin machen oder das Passwort des Admins setzen und sich als Admin anmelden. Neu `Classes\Security\RightsManagement`, eingehängt in `doInsert()`/`doUpdate()`/`doDelete()`: 403 für `permissions` an Gruppen, jede Änderung an `PIM\Permission`, `isAdmin`/`group` eines Benutzers und Zugangsdaten fremder Benutzer; unveränderte Werte bleiben erlaubt. `RightsManagementApiTest` (16), Gegenprobe ohne Fix: 13 rot. Suite 815 grün (3 übersprungen), PHPStan ohne Fehler, Deprecation-Gate 0. Registereintrag unter *API*; Register 137 Einträge.
 
 ## 2026-09-23
 - 000-000-0085 task created: "Den Host-Block wählen, bevor display_errors und is_installed die Konfiguration lesen"

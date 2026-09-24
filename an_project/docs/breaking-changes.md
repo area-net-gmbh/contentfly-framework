@@ -272,6 +272,38 @@ rund fünf Byte je zugelassenem Pixel.
 
 ## API
 
+### Rechte verwalten nur noch Admins — auch beim Schreiben
+**Seit `000-000-0090` (2026-09-24).**
+
+Beim Lesen galt das schon lange: Die Rechte einer Gruppe zeigt die API nur Admins. Beim Schreiben
+prüfte sie nichts dergleichen. Ein Nicht-Admin mit Schreibrecht auf einer von drei Entities war
+damit faktisch Admin:
+
+| Schreibrecht auf | Weg | Wirkung |
+|---|---|---|
+| `PIM\Group` | `permissions` der eigenen Gruppe setzen | beliebige Rechte |
+| `PIM\Permission` | eine Rechte-Zeile für die eigene Gruppe anlegen | beliebige Rechte |
+| `PIM\User` | am eigenen Datensatz `isAdmin` setzen — `OWN` genügt | Admin |
+| `PIM\User` | das Passwort eines **anderen** Benutzers setzen, bestätigt wird nur das eigene | Anmeldung als dieser Benutzer, auch als Admin |
+
+Jetzt antwortet die API einem Nicht-Admin mit `403` `contentfly_general_permission_denied`, wenn er
+
+- `permissions` an `PIM\Group` schreibt, beim Anlegen wie beim Ändern,
+- `PIM\Permission` anlegt, ändert oder löscht,
+- `isAdmin` oder `group` eines Benutzers ändert, auch beim Anlegen,
+- `pass`, `salt`, `loginManager` oder `externalId` eines **anderen** Benutzers ändert.
+
+`context.value` nennt Entity und Feld. Ein Wert, der sich nicht ändert, ist keine Änderung: Wer
+seinen eigenen Datensatz so zurückschickt, wie er ihn gelesen hat, bekommt weiter `200`. Das gilt
+für `/api/insert`, `/api/update`, `/api/multiupdate` und `/api/delete`.
+
+**Weiterhin erlaubt:** eine Gruppe umbenennen, das eigene Passwort mit Bestätigung des aktuellen
+ändern, einen Benutzer ohne Gruppe und ohne Admin-Recht anlegen.
+
+*Was zu tun ist:* Nichts, solange Benutzer, Gruppen und Rechte nur von Admins verwaltet werden. Ein
+Projekt, in dem ein Nicht-Admin das tun soll, braucht dafür einen Admin-Zugang — eine feinere Regel
+gibt es nicht. Wo ein Nicht-Admin bisher fremde Passwörter zurückgesetzt hat, übernimmt das ein Admin.
+
 ### Gruppenrechte bekommen keinen stillen Vollzugriff auf `PIM\Tag` mehr
 **Seit `000-000-0070` (2026-09-23).**
 
