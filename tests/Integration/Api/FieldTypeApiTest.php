@@ -275,18 +275,38 @@ class FieldTypeApiTest extends IntegrationTestCase
         $this->assertSame($expected, $ids, 'properties: ["permissions"] answered 500 before — the collection went into the partial select');
     }
 
-    public function testWritingGroupPermissionsAlsoGrantsFullAccessToTags(): void
+    /**
+     * Turned around with `000-000-0070`. Until then this pinned the opposite: every group whose
+     * permissions were written also got a `PIM\Tag` row with read, write and delete at ALL —
+     * whatever the request said.
+     */
+    public function testWritingGroupPermissionsGrantsNothingThatWasNotAskedFor(): void
     {
-        /*
-         * CHARACTERISATION, NOT APPROVAL. PermissionsType::toDatabase() adds a PIM\Tag row with
-         * read, write and delete at ALL to every group whose permissions are written — whatever the
-         * request says. Pinned here so that the change it deserves is a visible one: 000-000-0070.
-         */
         $group = $this->group(array());
 
-        $tag = $this->pdo()->query("SELECT readable, writable, deletable FROM pim_permission WHERE entityName = 'PIM\\\\Tag' AND group_id = ".$this->pdo()->quote($group))->fetch(\PDO::FETCH_ASSOC);
+        $rows = $this->pdo()->query('SELECT entityName FROM pim_permission WHERE group_id = '.$this->pdo()->quote($group))->fetchAll(\PDO::FETCH_COLUMN);
 
-        $this->assertSame(array('readable' => 2, 'writable' => 2, 'deletable' => 2), array_map('intval', $tag));
+        $this->assertSame(array(), $rows, 'An empty permissions list must write no row at all.');
+    }
+
+    /**
+     * The worse half of `000-000-0070`, and the reason the row could not simply stay.
+     *
+     * The hard-wired entry was persisted BEFORE the requested ones, and `Classes\Permission::is()`
+     * returns the FIRST entry matching the entity name. The association carries no `ORDER BY`, so
+     * the order is the insertion order — an explicit `PIM\Tag` entry was shadowed by the ALL row
+     * and never took effect. A caller could not restrict tags even by asking for it.
+     */
+    public function testAnExplicitTagPermissionIsTheOneThatCounts(): void
+    {
+        $group = $this->group(array(
+            array('name' => 'PIM\\Tag', 'readable' => 1, 'writable' => 0, 'deletable' => 0, 'export' => 0),
+        ));
+
+        $rows = $this->pdo()->query("SELECT readable, writable, deletable FROM pim_permission WHERE entityName = 'PIM\\\\Tag' AND group_id = ".$this->pdo()->quote($group).' ORDER BY id')->fetchAll(\PDO::FETCH_ASSOC);
+
+        $this->assertCount(1, $rows, 'Exactly one row for PIM\Tag — a second one would shadow this.');
+        $this->assertSame(array('readable' => 1, 'writable' => 0, 'deletable' => 0), array_map('intval', $rows[0]));
     }
 
     public function testGroupPermissionsAreHiddenFromNonAdmins(): void

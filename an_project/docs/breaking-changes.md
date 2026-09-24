@@ -147,6 +147,34 @@ im Antwortstrom schickte die Header los, bevor Silex den Code setzen konnte — 
 dann `200`, obwohl die Anwendung `405` oder `500` meinte. Beim ersten CI-Lauf sind daran sechs
 Tests gescheitert, die lokal grün waren.
 
+### Das Paket-Repository ist öffentlich — HTTPS statt SSH, `preferred-install` entfällt
+**Seit `000-000-0087` (2026-09-23).**
+
+`area-net-gmbh/contentfly-framework-dist` ist öffentlich. Ein Projekt braucht **keinen Zugang
+mehr** — keinen Deploy Key, kein Organisationskonto, keinen SSH-Schlüssel.
+
+In der `composer.json` eines Projekts steht künftig
+
+```json
+"repositories": [
+    { "type": "vcs", "url": "https://github.com/area-net-gmbh/contentfly-framework-dist.git" }
+],
+"require": { "areanet/contentfly": "^2.0" }
+```
+
+**Betroffen ist jedes Projekt, das Contentfly 2 schon bezieht.** Seine `composer.json` trägt eine
+`git@github.com:…`-URL und einen `config.preferred-install`-Block für `areanet/contentfly`.
+
+*Was zu tun ist:* Die URL auf `https://…` umstellen und den `preferred-install`-Block für
+`areanet/contentfly` streichen — er erzwingt sonst weiterhin einen vollen Klon, wo ein Zip genügt.
+Beides ist keine Eile: Die SSH-URL funktioniert weiter, solange ein Schlüssel vorhanden ist. Wer
+umstellt, kann den Deploy Key für das Paket-Repository aus dem Projekt entfernen.
+
+*Nebenbei gelöst:* Ein `github-oauth`-Token in `~/.composer/auth.json` brach die Installation
+bisher mit `Repository not found` ab, obwohl ein gültiger SSH-Schlüssel vorlag — Composer schrieb
+die SSH-URL auf HTTPS um und meldete sich mit dem Token an, das auf das private Repository keinen
+Zugriff hatte. Bei einem öffentlichen Repository kann das nicht mehr passieren.
+
 ### Der Host-Block entscheidet über `display_errors` und `is_installed`
 **Seit `000-000-0085` (2026-09-23), ausgeliefert mit `v2.2.1`.**
 
@@ -243,6 +271,32 @@ Wer grössere Bilder annehmen muss, setzt `FILE_IMAGE_MAX_PIXELS` hoch und `memo
 rund fünf Byte je zugelassenem Pixel.
 
 ## API
+
+### Gruppenrechte bekommen keinen stillen Vollzugriff auf `PIM\Tag` mehr
+**Seit `000-000-0070` (2026-09-23).**
+
+`PermissionsType::toDatabase()` legte bei **jedem** Schreiben der Rechte einer Gruppe zusätzlich
+eine Zeile für `PIM\Tag` an — lesen, schreiben und löschen auf `ALL`, unabhängig davon, was der
+Request verlangte. Wer eine Gruppe über `/api/insert` oder `/api/update` mit `permissions` anlegte
+oder änderte, gab ihr damit ungefragt vollen Zugriff auf alle Tags.
+
+**Schwerer wog die zweite Wirkung:** Die Zeile wurde **vor** den angeforderten geschrieben, und
+`Classes\Permission::is()` liefert den **ersten** Treffer zum Entitätsnamen. Die Assoziation trägt
+kein `ORDER BY`, die Reihenfolge ist also die der Einfügung — ein ausdrücklich mitgeschicktes
+`PIM\Tag` wurde von der `ALL`-Zeile verdeckt und wurde nie wirksam. Ein Aufrufer konnte Tags
+**auch dann nicht einschränken, wenn er es verlangte**.
+
+Ein Überbleibsel der mit Epic `012` gestrichenen PIM-Oberfläche, die Tags an Dateien brauchte. Die
+Zeile setzte weder `export` noch `extended` — anders als die angeforderten; sie war nie Teil des
+Vertrags.
+
+**Betroffen ist jedes Projekt, das Gruppenrechte über die API schreibt** und sich — wissentlich
+oder nicht — darauf verlassen hat, dass Tags immer lesbar sind.
+
+*Was zu tun ist:* Wer Tag-Zugriff braucht, nimmt `PIM\Tag` ausdrücklich in die `permissions` des
+Requests auf. Ab jetzt wirkt der Wert auch. **Achtung bei Bestandsgruppen:** Ihre vorhandene
+`ALL`-Zeile bleibt in der Datenbank stehen, bis ihre Rechte das nächste Mal geschrieben werden —
+dann verschwindet sie. Wer das nicht will, ergänzt vorher `PIM\Tag` in den Rechten der Gruppe.
 
 ### `@PIM\Select` prüft jetzt beim Schreiben
 **Seit `000-000-0017` (2026-09-09).**
