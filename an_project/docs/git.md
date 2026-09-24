@@ -86,6 +86,38 @@ git merge-base --is-ancestor <branch-tip> master
 Pull Request gemergt wurde, bevor ein Push gelandet war — und das Löschen des Branches nahm die
 letzte Referenz mit. Wiederhergestellt per `git cherry-pick`, aber nur, weil es auffiel.
 
+## Konflikte in der Buchführung
+
+**Konflikte in `CHANGELOG.md`, `breaking-changes.md` und `migration.md` werden lokal aufgelöst und
+mit der Unit-Suite geprüft, nicht im Web-Editor von GitHub.** Seit `000-000-0089`.
+
+Dreimal hat eine Auflösung von Hand die Buchführung beschädigt: Beim Merge von `0068` ging der
+Registereintrag aus `0067` verloren, bei #43 und #46 die aus `0079`–`0081`. Bei #52 liess der
+Web-Editor die Registerzahl in `migration.md` auf 135 stehen, obwohl es 136 waren —
+`MigrationGuideTest` wurde rot, und mit ihm die CI. Lokal läuft dieser Test vor dem Push; im
+Web-Editor läuft nichts.
+
+**Der CHANGELOG mergt per `union`** (`.gitattributes`). Seine Konflikte sind immer dieselben: Zwei
+Branches hängen im selben Tagesabschnitt Zeilen an dieselbe Stelle, und die richtige Auflösung ist
+„beide behalten“. Lokal belegt, am 2026-09-24:
+
+- Zwei Branches mit je einer neuen Zeile im selben Tagesabschnitt: kein Konflikt, beide Zeilen da.
+  Die Gegenprobe ohne das Attribut ergibt den Konflikt.
+- Der echte Branch von `0088` in den Stand von `0089`: kein Konflikt. Beide legen einen Abschnitt
+  `2026-09-24` an, er steht danach nur einmal da, mit den Zeilen beider Tasks.
+
+Der Preis: Die Zeilen stehen in der Reihenfolge „unsere, dann ihre“, nicht zeitlich. Fügen beide
+Seiten dieselbe Zeile an, steht sie zweimal da. Beides ist sichtbar und harmlos; eine verlorene
+Zeile ist es nicht.
+
+**Nicht für `breaking-changes.md` und `migration.md`.** Registereinträge sind mehrzeilige
+Abschnitte, die `union` ineinanderschieben würde. Die Zahl in `migration.md` ist abgeleitet, über
+sie wacht `MigrationGuideTest`.
+
+**Ob GitHub `union` beim Merge eines Pull Requests beachtet, ist noch nicht belegt.** Lokale
+Merges tun es. Der erste Pull Request mit einem CHANGELOG-Konflikt nach dem Merge von `0089`
+zeigt es; bis dahin gilt die Regel oben ohne Ausnahme.
+
 ## Commit language
 
 <!-- de | en — die Baseline ist de. Nur ausfüllen, wenn dieses Projekt auf Englisch
@@ -102,6 +134,8 @@ letzte Referenz mit. Wiederhergestellt per `git cherry-pick`, aber nur, weil es 
 
 - **`/done` mergt hier nicht** — siehe *Wie ein Work Item geschlossen wird* oben. Die Buchführung
   bleibt, der lokale Merge entfällt.
+- **Konflikte in der Buchführung werden lokal aufgelöst**, der CHANGELOG mergt per `union` — siehe
+  *Konflikte in der Buchführung* oben.
 
 <!-- Nicht ausgefüllt, weil dieses Projekt die Baseline dort nicht verengt: Scopes, Branch
      names, Commit language (de), Ticket URL base (kein externer Tracker). -->

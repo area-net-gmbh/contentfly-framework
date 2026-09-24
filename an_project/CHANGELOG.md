@@ -2,6 +2,11 @@
 
 # Changelog
 
+## 2026-09-24
+- 000-000-0089 task created: "Merge-Konflikte in der Buchführung entschärfen — CHANGELOG per union mergen, Versandfalle ignorieren"
+- 000-000-0089 → in-progress
+- 000-000-0089 → review: **Der CHANGELOG mergt per `union`, Konflikte in der Buchführung werden lokal aufgelöst.** `.gitattributes` neu (nur `CHANGELOG.md`; bewusst nicht Register und Leitfaden), Abschnitt *Konflikte in der Buchführung* in `git.md`, `/.ci-mailtrap/` in `.gitignore`. Lokal belegt: zwei Branches im selben Tagesabschnitt mergen ohne Konflikt, die Gegenprobe ohne Attribut ergibt ihn; der echte Branch von `0088` mergt ebenfalls ohne Konflikt. **Offen:** ob GitHub `union` beim PR-Merge beachtet — zeigt sich am PR von `0088`, sobald `0089` auf `master` ist. Unit-Suite 327 grün.
+
 ## 2026-09-23
 - 000-000-0085 task created: "Den Host-Block wählen, bevor display_errors und is_installed die Konfiguration lesen"
 - 000-000-0085 → in-progress
