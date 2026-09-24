@@ -2,6 +2,7 @@
 namespace Tests\Integration\Api;
 
 use Areanet\PIM\Entity\Permission;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Integration\IntegrationTestCase;
 
 /**
@@ -292,10 +293,11 @@ class FieldTypeApiTest extends IntegrationTestCase
     /**
      * The worse half of `000-000-0070`, and the reason the row could not simply stay.
      *
-     * The hard-wired entry was persisted BEFORE the requested ones, and `Classes\Permission::is()`
-     * returns the FIRST entry matching the entity name. The association carries no `ORDER BY`, so
-     * the order is the insertion order — an explicit `PIM\Tag` entry was shadowed by the ALL row
-     * and never took effect. A caller could not restrict tags even by asking for it.
+     * The hard-wired entry was written next to the requested ones, and `Classes\Permission::is()`
+     * returned the FIRST entry matching the entity name. The association carries no `ORDER BY`;
+     * with GUID ids the database returns the rows in id order, so it was chance per group whether
+     * an explicit `PIM\Tag` entry or the ALL row counted. Since `000-000-0088` the most restrictive
+     * row counts — see the tests on existing data below.
      */
     public function testAnExplicitTagPermissionIsTheOneThatCounts(): void
     {
@@ -307,6 +309,142 @@ class FieldTypeApiTest extends IntegrationTestCase
 
         $this->assertCount(1, $rows, 'Exactly one row for PIM\Tag — a second one would shadow this.');
         $this->assertSame(array('readable' => 1, 'writable' => 0, 'deletable' => 0), array_map('intval', $rows[0]));
+    }
+
+    /**
+     * EXISTING DATA (000-000-0088). A group written before `000-000-0070` with an explicit
+     * `PIM\Tag` entry has two rows: the old ALL row and the restriction. The restriction must count
+     * without the group being saved again.
+     *
+     * The rows are written by SQL with ids that put the ALL row first, and the test checks that the
+     * database really returns it first — otherwise it would pass by the same chance that decided
+     * these groups until now.
+     */
+    public function testALegacyAllRowNoLongerShadowsAnExplicitTagRestriction(): void
+    {
+        [$token, , $group] = $this->createTestUser();
+        $this->legacyTagRows($group, array(
+            array(Permission::ALL, Permission::ALL, Permission::ALL),
+            array(Permission::NONE, Permission::NONE, Permission::NONE),
+        ));
+
+        $first = $this->pdo()->query("SELECT readable FROM pim_permission WHERE entityName = 'PIM\\\\Tag' AND group_id = ".$this->pdo()->quote($group))->fetchColumn();
+        $this->assertSame(Permission::ALL, (int) $first, 'Precondition: the database returns the ALL row first.');
+
+        [$status] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'), $token);
+
+        $this->assertSame(403, $status, 'The explicit restriction counts, not the old ALL row.');
+    }
+
+    /**
+     * A group with ONLY the old row keeps its tag access. Nobody asked for that access, but taking
+     * it away without the group being written would change a working installation on deploy.
+     * `0070` announced that the row goes when the group's permissions are written next.
+     */
+    public function testAGroupWithOnlyTheLegacyAllRowKeepsItsTagAccess(): void
+    {
+        [$token, , $group] = $this->createTestUser();
+        $this->legacyTagRows($group, array(array(Permission::ALL, Permission::ALL, Permission::ALL)));
+
+        [$status] = $this->postJson('/api/list', array('entity' => 'PIM\\Tag'), $token);
+
+        $this->assertSame(200, $status);
+    }
+
+    public function testDuplicateEntityNamesAreRejectedAndLeaveThePermissionsAlone(): void
+    {
+        $group  = $this->group(array($this->entry('Core\\Example')));
+        $before = $this->permissionRows($group);
+
+        [$status, $body] = $this->postJson('/api/update', array(
+            'entity' => 'PIM\\Group', 'id' => $group, 'data' => array('permissions' => array(
+                $this->entry('PIM\\Tag', Permission::ALL),
+                $this->entry('PIM\\Tag', Permission::NONE),
+            )),
+        ), $this->token());
+
+        $this->assertSame(400, $status);
+        $this->assertErrorEnvelope($body, 'contentfly_general_invalid_params');
+        $this->assertSame($before, $this->permissionRows($group), 'A rejected write must not have deleted the existing rows.');
+    }
+
+    public function testDuplicateEntityNamesOnInsertCreateNoGroup(): void
+    {
+        $name = 'Types '.bin2hex(random_bytes(4));
+
+        [$status] = $this->postJson('/api/insert', array(
+            'entity' => 'PIM\\Group',
+            'data'   => array('name' => $name, 'tokenTimeout' => 60, 'permissions' => array(
+                $this->entry('Core\\Example'),
+                $this->entry('Core\\Example'),
+            )),
+        ), $this->token());
+
+        $created = $this->pdo()->query('SELECT id FROM pim_group WHERE name = '.$this->pdo()->quote($name))->fetchColumn();
+        if ($created !== false) {
+            $this->deleteAfterTest('pim_group', $created);
+            foreach (array_keys($this->permissionRows($created)) as $row) {
+                $this->deleteAfterTest('pim_permission', $row);
+            }
+        }
+
+        $this->assertSame(400, $status);
+        $this->assertFalse($created, 'The group must not exist half-written.');
+    }
+
+    /**
+     * Before `000-000-0088` each of these answered 500 — and on update the group had lost all its
+     * permissions by then, because the old rows were deleted before the new ones were read.
+     * `null` and a string answered 200 with the same loss and a PHP warning in the log.
+     *
+     * @param mixed $permissions
+     */
+    #[DataProvider('malformedPermissions')]
+    public function testAMalformedPermissionsValueIsRejectedAndLeavesThePermissionsAlone($permissions): void
+    {
+        $group  = $this->group(array($this->entry('Core\\Example')));
+        $before = $this->permissionRows($group);
+
+        [$status, $body] = $this->postJson('/api/update', array(
+            'entity' => 'PIM\\Group', 'id' => $group, 'data' => array('permissions' => $permissions),
+        ), $this->token());
+
+        $this->assertSame(400, $status);
+        $this->assertErrorEnvelope($body, 'contentfly_general_invalid_params');
+        $this->assertSame($before, $this->permissionRows($group));
+    }
+
+    /** @return array<string, array{0:mixed}> */
+    public static function malformedPermissions(): array
+    {
+        $entry = array('name' => 'Core\\Example', 'readable' => Permission::ALL, 'writable' => 0, 'deletable' => 0, 'export' => 0);
+
+        return array(
+            'without name'      => array(array(array_diff_key($entry, array('name' => 1)))),
+            'empty name'        => array(array(array('name' => '') + $entry)),
+            'without readable'  => array(array(array_diff_key($entry, array('readable' => 1)))),
+            'without writable'  => array(array(array_diff_key($entry, array('writable' => 1)))),
+            'without deletable' => array(array(array_diff_key($entry, array('deletable' => 1)))),
+            'entry is a string' => array(array('Core\\Example')),
+            'null'              => array(null),
+            'a string'          => array('Core\\Example'),
+        );
+    }
+
+    /**
+     * `export` has had no effect since `000-000-0012`. Requiring it would force clients to send a
+     * field that does nothing — it was only ever required by accident, as an undefined index.
+     */
+    public function testExportMayBeOmitted(): void
+    {
+        $entry = $this->entry('Core\\Example');
+        unset($entry['export']);
+
+        $group = $this->group(array($entry));
+        $rows  = array_values($this->permissionRows($group));
+
+        $this->assertSame(array('Core\\Example'), array_column($rows, 'entityName'));
+        $this->assertSame(0, (int) $rows[0]['export']);
     }
 
     public function testGroupPermissionsAreHiddenFromNonAdmins(): void
@@ -440,6 +578,42 @@ class FieldTypeApiTest extends IntegrationTestCase
         }
 
         return $id;
+    }
+
+    /** One entry of a `permissions` request. */
+    private function entry(string $entity, int $readable = Permission::ALL): array
+    {
+        return array('name' => $entity, 'readable' => $readable, 'writable' => 0, 'deletable' => 0, 'export' => 0);
+    }
+
+    /** @return array<string, array<string, string>> the group's rows by id, as the database has them */
+    private function permissionRows(string $group): array
+    {
+        $rows = $this->pdo()->query('SELECT id, entityName, readable, writable, deletable, export FROM pim_permission WHERE group_id = '.$this->pdo()->quote($group).' ORDER BY id')->fetchAll(\PDO::FETCH_ASSOC);
+
+        return array_column($rows, null, 'id');
+    }
+
+    /**
+     * Writes `PIM\Tag` rows the way the code before `000-000-0070` left them: `export` 0 and
+     * `extended` NULL. The ids sort in the order given, so the first row is the one the database
+     * returns first.
+     *
+     * @param list<array{0:int,1:int,2:int}> $levels readable, writable, deletable per row
+     */
+    private function legacyTagRows(string $group, array $levels): void
+    {
+        $run = bin2hex(random_bytes(6));
+
+        foreach ($levels as $number => [$readable, $writable, $deletable]) {
+            $id = 'tlegacy-'.$run.'-'.$number;
+            $this->pdo()->prepare(
+                "INSERT INTO pim_permission (id, entityName, readable, writable, deletable, export, extended,
+                                             created, modified, views, isIntern, group_id)
+                 VALUES (:id, 'PIM\\\\Tag', :readable, :writable, :deletable, 0, NULL, NOW(), NOW(), 0, 0, :grp)"
+            )->execute(array('id' => $id, 'readable' => $readable, 'writable' => $writable, 'deletable' => $deletable, 'grp' => $group));
+            $this->deleteAfterTest('pim_permission', $id);
+        }
     }
 
     private function groupRow(string $group, array $options): array
