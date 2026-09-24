@@ -1,7 +1,7 @@
 ---
 id: 000-000-0087
 title: Contentfly mit gewöhnlichem Composer beziehbar machen — ohne Schlüssel, Sonderpfade und Token-Kollisionen
-status: review
+status: done
 depends_on: []
 ---
 
