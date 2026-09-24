@@ -32,6 +32,40 @@ i18n, verschlüsselte Felder. Dort gilt der Leitfaden, wie er an der Vorlage erp
 
 ---
 
+## Von 2.2 auf 2.3 — wer Rechte verwalten darf
+
+**`v2.3.0` ist ein Sicherheits-Release.** Es schliesst eine Rechteausweitung: Ein Nicht-Admin mit
+Schreibrecht auf `PIM\Group`, `PIM\Permission` oder `PIM\User` konnte sich zum Admin machen — über
+die Rechte seiner Gruppe, eine eigene Rechte-Zeile, `isAdmin` am eigenen Datensatz oder das
+Passwort des Admins. **Das Update ist dringend** — die Lücke ist im öffentlichen Repository
+beschrieben.
+
+Für `v2.2.0` und `v2.2.1` gilt derselbe Weg; der Patch aus `v2.2.1` steckt in `v2.3.0` und braucht
+keinen eigenen Schritt.
+
+1. **Beziehen.** Die Constraint `^2.0` nimmt `2.3.0` mit: `composer update areanet/contentfly`.
+2. **Rechte prüfen — hier kann still etwas wegfallen.**
+   - Benutzer, Gruppen und Rechte verwalten nur noch Admins. Ein Nicht-Admin, der das bisher tat,
+     bekommt `403` und braucht einen Admin-Zugang.
+   - Gruppen, deren Rechte ab jetzt geschrieben werden, verlieren den stillen Vollzugriff auf
+     `PIM\Tag`, den das Framework bis `000-000-0070` bei jedem Speichern anlegte. Wer Tags braucht,
+     nimmt `PIM\Tag` ausdrücklich auf. Welche Gruppen doppelte Zeilen tragen, zeigt die Abfrage im
+     Registereintrag.
+   - Eine ausdrückliche Einschränkung auf `PIM\Tag` wirkt ab dem Update, auch in Bestandsgruppen.
+3. **Clients auf die neuen Statuscodes prüfen.**
+   - Rechteverwaltung als Nicht-Admin antwortet **403**.
+   - Fehlerhafte `permissions` antworten **400** statt 500 oder 200. `permissions: null` leert die
+     Rechte einer Gruppe nicht mehr — dafür `[]` schicken.
+4. **Bezugsweg vereinfachen — keine Eile.** Das Paket-Repository ist öffentlich: URL auf `https://`
+   umstellen, den `preferred-install`-Block für `areanet/contentfly` streichen. Die SSH-URL
+   funktioniert weiter.
+5. **Kein Schema-Update nötig.** Keine Entity des Frameworks hat sich geändert.
+
+Die Einzelheiten stehen im Register unter *API* mit „ausgeliefert mit `v2.3.0`", der Bezugsweg
+unter *Konfiguration*.
+
+---
+
 ## Von 2.2.0 auf 2.2.1 — ein Sicherheits-Patch
 
 **`v2.2.1` schliesst eine Informationspreisgabe auf Servern mit Host-Blöcken.** `bootstrap.php`
@@ -44,7 +78,8 @@ vorzeitig hinaus, und eine API-Antwort verliess den Server als `200 text/html` o
 
 **Wer keine Host-Blöcke benutzt, ist nicht betroffen** — dort galt immer schon der Default-Block.
 
-1. **Beziehen.** Die Constraint `^2.0` nimmt `2.2.1` mit: `composer update areanet/contentfly`.
+1. **Beziehen.** Die Constraint `^2.0` nimmt heute `2.3.0` mit: `composer update areanet/contentfly`
+   — dann gelten zusätzlich die Schritte aus *Von 2.2 auf 2.3* oben.
    Das aktualisiert von sich aus **nur dieses Paket**; für die Abhängigkeiten braucht es
    ausdrücklich `-w` beziehungsweise `-W`.
 2. **Sonst nichts.** Keine Konfiguration, kein Schema, keine geänderten Statuscodes.
@@ -77,8 +112,9 @@ Wer von 1.x kommt, folgt den neun Phasen unten; die Änderungen von 2.2 stecken 
 Wer auf `v2.0.0` steht, geht zuerst die Schritte *Von 2.0 auf 2.1* unten durch. Wer auf `v2.1.0`
 steht, braucht nur diese:
 
-1. **Beziehen.** Die Constraint `^2.0` nimmt `2.2.1` mit: `composer update areanet/contentfly` —
-   also gleich den Patch aus dem Abschnitt darüber, der auf `2.2.0` folgte.
+1. **Beziehen.** Die Constraint `^2.0` nimmt heute `2.3.0` mit: `composer update areanet/contentfly`
+   — also gleich die Releases aus den Abschnitten darüber; die Schritte aus *Von 2.2 auf 2.3*
+   gelten zusätzlich.
 2. **Konfiguration prüfen.** Der ImageMagick-Prozessor und `IMAGEMAGICK_EXECUTABLE` sind entfernt;
    wer `FILE_PROCESSORS` darauf gesetzt hatte, stellt auf `\Areanet\PIM\Classes\File\Processing\Image`
    zurück. **Neu ist `FILE_IMAGE_MAX_PIXELS`** mit 24 Megapixeln als Voreinstellung — wer grössere
