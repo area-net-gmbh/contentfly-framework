@@ -1,0 +1,11 @@
+# Der CHANGELOG wird per union gemergt (000-000-0089).
+#
+# Zwei Branches hängen im selben Tagesabschnitt Zeilen an dieselbe Stelle an, und die richtige
+# Auflösung ist jedes Mal „beide behalten“. Von Hand aufgelöst, gingen dabei Registereinträge
+# verloren (0067, 0079–0081), und eine Zahl blieb falsch stehen (#52). union behält beide Seiten
+# ohne Konflikt. Der Preis: Die Zeilen stehen in der Reihenfolge „unsere, dann ihre“, nicht zeitlich.
+#
+# Bewusst NUR für den CHANGELOG. breaking-changes.md hat mehrzeilige Einträge, die union
+# ineinanderschieben würde. Die Zahl in migration.md ist abgeleitet, darüber wacht MigrationGuideTest.
+# Konflikte dort werden lokal aufgelöst — siehe an_project/docs/git.md.
+an_project/CHANGELOG.md merge=union

@@ -70,6 +70,9 @@ CLAUDE.local.md
 .phpunit.coverage/
 # Coverage-Berichte aus dem lokalen Lauf, runbook.md Abschnitt 4 (000-000-0056)
 /build/coverage/
+# Versandfalle der Integration-Suite, wenn jemand den Pfad der Pipeline lokal nachstellt
+# (CONTENTFLY_TEST_MAIL_TRAP in pipeline.yml). tests/README.md legt sie unter /tmp an (000-000-0089).
+/.ci-mailtrap/
 
 # Operating system — macOS
 .DS_Store
