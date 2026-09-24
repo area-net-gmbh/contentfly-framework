@@ -15,6 +15,9 @@
 - 000-000-0091 task created: "Release v2.3.0 — die Rechte-Korrekturen seit v2.2.1 ausliefern"
 - 000-000-0091 → in-progress
 - 000-000-0091: Release vorbereitet — Version `2.3.0` an allen Stellen (`version.php`, `options.versions`, `apidoc.json`, Lock, 25 Beispielantworten), Registereinträge zu `0070`, `0088`, `0090` „ausgeliefert mit `v2.3.0`", `0087` „wirksam ohne Release", neuer Leitfaden-Abschnitt *Von 2.2 auf 2.3*, `pentest-spec.md` auf `v2.3.0`. Composer-Formatzeilen im Lock zurückgesetzt. Suite 833 grün, PHPStan ohne Fehler. Tag folgt nach dem Merge.
+- 000-000-0092 task created: "Die falsche Kennung sim <sim@local> per .mailmap der richtigen zuordnen"
+- 000-000-0092 → in-progress
+- 000-000-0092 → review: **`.mailmap` ordnet `sim <sim@local>` der richtigen Kennung zu.** `git shortlog` zeigt kein `sim` mehr (655 statt 648 + 7), `git log --use-mailmap` und `git blame` die richtige Kennung für alle sieben Commits. Nicht erfasst: der Tagger von `v2.3.0` (Git 2.21) und die GitHub-Oberfläche. Nebenbefund: `fs@area-net.de` läuft unter `areanet-foschmid` und `areanet_foschmid` — nicht angefasst.
 
 ## 2026-09-23
 - 000-000-0085 task created: "Den Host-Block wählen, bevor display_errors und is_installed die Konfiguration lesen"
