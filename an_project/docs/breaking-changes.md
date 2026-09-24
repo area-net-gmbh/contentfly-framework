@@ -272,6 +272,28 @@ rund fünf Byte je zugelassenem Pixel.
 
 ## API
 
+### `permissions` einer Gruppe: fehlerhafte Einträge antworten mit 400, ohne die Rechte anzufassen
+**Seit `000-000-0088` (2026-09-24).**
+
+`PermissionsType::toDatabase()` prüfte die Einträge nicht, und es **löscht die Rechte der Gruppe,
+bevor es die neuen schreibt**. Was dabei herauskam, erhoben am unveränderten Code:
+
+| Request | vorher | jetzt |
+|---|---|---|
+| Eintrag ohne `name`, `readable`, `writable` oder `deletable`, oder kein Objekt | 500 — beim Update **alle Rechte der Gruppe gelöscht** | 400 |
+| `permissions: null` oder ein String | 200 — alle Rechte gelöscht, PHP-Warnung im Log | 400 |
+| dieselbe Entity zweimal | 200 — zwei Zeilen, welche galt, war Zufall | 400 |
+| Eintrag ohne `export` | 500 — wie oben | 200, `export` = 0 |
+
+Jede Ablehnung ist `400` `contentfly_general_invalid_params`, `context.value` nennt den Eintrag. Geprüft
+wird der ganze Request, bevor etwas geschrieben wird: Die Rechte bleiben unverändert, und ein
+abgelehnter Insert legt keine Gruppe an. `export` wirkt seit `000-000-0012` nicht mehr und ist
+deshalb optional; Pflicht war es nur aus Versehen, als fehlender Array-Schlüssel.
+
+*Was zu tun ist:* Wer die Rechte einer Gruppe leeren will, schickt `permissions: []` statt `null`.
+Ein Client, der eine Entity zweimal schickt, fasst die Einträge zusammen. Ein Client, der auf
+`500` geprüft hat, prüft auf `400`.
+
 ### Gruppenrechte bekommen keinen stillen Vollzugriff auf `PIM\Tag` mehr
 **Seit `000-000-0070` (2026-09-23).**
 
@@ -280,11 +302,15 @@ eine Zeile für `PIM\Tag` an — lesen, schreiben und löschen auf `ALL`, unabh�
 Request verlangte. Wer eine Gruppe über `/api/insert` oder `/api/update` mit `permissions` anlegte
 oder änderte, gab ihr damit ungefragt vollen Zugriff auf alle Tags.
 
-**Schwerer wog die zweite Wirkung:** Die Zeile wurde **vor** den angeforderten geschrieben, und
-`Classes\Permission::is()` liefert den **ersten** Treffer zum Entitätsnamen. Die Assoziation trägt
-kein `ORDER BY`, die Reihenfolge ist also die der Einfügung — ein ausdrücklich mitgeschicktes
-`PIM\Tag` wurde von der `ALL`-Zeile verdeckt und wurde nie wirksam. Ein Aufrufer konnte Tags
-**auch dann nicht einschränken, wenn er es verlangte**.
+**Schwerer wog die zweite Wirkung:** Die Zeile stand neben einem ausdrücklich mitgeschickten
+`PIM\Tag`, und `Classes\Permission::is()` lieferte den **ersten** Treffer zum Entitätsnamen. Die
+Assoziation trägt kein `ORDER BY`. Bei GUID-Ids liefert MySQL die Zeilen einer Gruppe nach der Id,
+also zufällig: Je Gruppe entschied der Zufall, ob die Einschränkung oder die `ALL`-Zeile galt.
+Gemessen mit `000-000-0088` an 20 Gruppen mit denselben zwei Zeilen: Die zuerst eingefügte kam in 5
+Fällen zuerst. Ein Aufrufer konnte Tags **nicht verlässlich einschränken, auch wenn er es verlangte**.
+
+> **Korrektur.** Bis `000-000-0088` stand hier, die Reihenfolge sei „die der Einfügung“ und die
+> Einschränkung damit **nie** wirksam. Das gilt nur für ganzzahlige Ids; mit GUIDs war es Zufall.
 
 Ein Überbleibsel der mit Epic `012` gestrichenen PIM-Oberfläche, die Tags an Dateien brauchte. Die
 Zeile setzte weder `export` noch `extended` — anders als die angeforderten; sie war nie Teil des
@@ -293,10 +319,22 @@ Vertrags.
 **Betroffen ist jedes Projekt, das Gruppenrechte über die API schreibt** und sich — wissentlich
 oder nicht — darauf verlassen hat, dass Tags immer lesbar sind.
 
+**Bestandsgruppen mit ausdrücklichem `PIM\Tag`** hatten zwei Zeilen — die `ALL`-Zeile und die
+Einschränkung. Seit `000-000-0088` gilt bei mehreren Zeilen für dieselbe Entity die
+**restriktivste** (`NONE` vor `OWN` vor `GROUP` vor `ALL`), je Recht einzeln. Die Einschränkung
+wirkt damit ab dem Deployment, ohne dass die Gruppe neu gespeichert werden muss. Die Zeilen selbst
+bleiben stehen, bis die Rechte der Gruppe das nächste Mal geschrieben werden.
+
 *Was zu tun ist:* Wer Tag-Zugriff braucht, nimmt `PIM\Tag` ausdrücklich in die `permissions` des
-Requests auf. Ab jetzt wirkt der Wert auch. **Achtung bei Bestandsgruppen:** Ihre vorhandene
-`ALL`-Zeile bleibt in der Datenbank stehen, bis ihre Rechte das nächste Mal geschrieben werden —
-dann verschwindet sie. Wer das nicht will, ergänzt vorher `PIM\Tag` in den Rechten der Gruppe.
+Requests auf. Ab jetzt wirkt der Wert auch. **Achtung bei Bestandsgruppen ohne ausdrückliches
+`PIM\Tag`:** Ihre vorhandene `ALL`-Zeile ist ihre einzige und gilt weiter, bis ihre Rechte das
+nächste Mal geschrieben werden — dann verschwindet sie. Wer das nicht will, ergänzt vorher
+`PIM\Tag` in den Rechten der Gruppe. Welche Gruppen zwei Zeilen tragen, zeigt:
+
+```sql
+SELECT group_id, entityName, COUNT(*) FROM pim_permission
+GROUP BY group_id, entityName HAVING COUNT(*) > 1;
+```
 
 ### `@PIM\Select` prüft jetzt beim Schreiben
 **Seit `000-000-0017` (2026-09-09).**
