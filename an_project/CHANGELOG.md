@@ -25,6 +25,7 @@
 - 000-000-0094 task created: "/api/deleted meldet Alt-Löschungen mit 'Gelöscht' wie /api/all"
 - 000-000-0095 task created: "Eine i18n-Sperre antwortet mit 403 statt 550"
 - 000-000-0096 task created: "PHP 8.5 in die Pipeline: wirkungslose Aufrufe streichen, Spalte test: PHP 8.5"
+- 000-000-0097 → done (per Pull Request auf `master`, #65)
 
 ## 2026-09-24
 - 000-000-0089 task created: "Merge-Konflikte in der Buchführung entschärfen — CHANGELOG per union mergen, Versandfalle ignorieren"
