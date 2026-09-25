@@ -1,7 +1,7 @@
 ---
 id: 000-000-0054
 title: Den Lauf auf PHP 8.5 vorbereiten und die Zielplattform einlösen
-status: review
+status: done
 depends_on: []
 ---
 
