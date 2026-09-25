@@ -1,7 +1,7 @@
 ---
 id: 000-000-0099
 title: git.md korrigieren — der Merge-Button beachtet union nicht, Update branch schon
-status: review
+status: done
 depends_on: []
 ---
 
