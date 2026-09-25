@@ -216,7 +216,8 @@ All framework routes are declared in `lib/contentfly/Classes/Controller/Provider
 | POST | `/api/single`, `/api/list`, `/api/tree`, `/api/tree2`, `/api/translations` | yes |
 | POST | `/api/all`, `/api/deleted` (synchronisation) | yes |
 | POST | `/api/insert`, `/api/update`, `/api/replace`, `/api/multiupdate`, `/api/delete` | yes |
-| POST | `/api/query`, `/api/count` | yes |
+| POST | `/api/count` | yes |
+| POST | `/api/query` — admins only (000-000-0097) | yes |
 | GET | `/api/schema` | yes |
 | GET | `/api/config` | no |
 
@@ -387,7 +388,7 @@ All other keys are internal wiring.
 | `Base`, `BaseSortable`, `BaseI18n`, `BaseI18nSortable`, `BaseUID` | — | Mapped superclasses. `Base` provides `id`, `created`, `modified`, owner and access fields. |
 | `BaseTree`, `BaseI18nTree` | `pim_tree`, `pim_i18n_tree` | Tree base classes (joined inheritance) |
 | `User` | `pim_user` | Accounts: alias, password hash, `isAdmin`, `isActive`, group, login provider |
-| `Group` | `pim_group` | User groups, token timeout, query permission |
+| `Group` | `pim_group` | User groups, token timeout, language permissions |
 | `Permission` | `pim_permission` | Per-entity rights of a group |
 | `Token` | `pim_token` | Opaque and refresh tokens (hash only) |
 | `RevokedToken` | `pim_revoked_token` | Revoked JWT ids |

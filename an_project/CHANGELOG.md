@@ -18,6 +18,9 @@
 - 000-000-0076 → done (per Pull Request auf `master`, #60)
 - 000-000-0077 → done (per Pull Request auf `master`, #60)
 - 000-000-0054 → done (per Pull Request auf `master`, #61)
+- 000-000-0097 task created: "/api/query nur noch für Admins"
+- 000-000-0097 → in-progress
+- 000-000-0097 → review: **`/api/query` nur noch für Admins.** Nicht-Admins bekommen 403, auch mit `apiQueryEnabled` (vorher erreichbar; die Verengung nach Leserecht war keine Grenze, weil die Abfrageteile als SQL durchgehen). Rechte-Verengung in `getQuery()` gestrichen, `apiQueryEnabled` bleibt als Spalte ohne Wirkung (kein Schema-Update). Die Ablehnung antwortet 403 statt 500. Gegenprobe: Mit der alten Sperre werden die drei `enabled`-Fälle rot. Registereintrag, Leitfaden 140 Einträge, volle Suite 859 grün.
 
 ## 2026-09-24
 - 000-000-0089 task created: "Merge-Konflikte in der Buchführung entschärfen — CHANGELOG per union mergen, Versandfalle ignorieren"
