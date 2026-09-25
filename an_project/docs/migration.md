@@ -32,6 +32,35 @@ i18n, verschlüsselte Felder. Dort gilt der Leitfaden, wie er an der Vorlage erp
 
 ---
 
+## Von 2.3 auf 2.4 — `/api/query` nur für Admins, die Navigation entfällt
+
+**`v2.4.0` enthält einen Sicherheitsfix.** Eine Gruppe mit `apiQueryEnabled` konnte über `/api/query`
+Daten lesen, auf die ihre Rechte keinen Zugriff geben. Seit `v2.4.0` steht der Endpunkt nur Admins
+offen. **Das Update ist dringend** — die Lücke ist im öffentlichen Repository beschrieben.
+
+Für `v2.2.x` gilt derselbe Weg, dazu die Schritte aus *Von 2.2 auf 2.3* darunter.
+
+1. **Vorher nachsehen, was wegfällt.**
+   ```sql
+   SELECT name FROM pim_group WHERE apiQueryEnabled = 'enabled';
+   SELECT COUNT(*) FROM pim_nav;
+   SELECT COUNT(*) FROM pim_navItem;
+   ```
+   Kein Treffer und keine Zeilen: Die Schritte 3 und 4 betreffen das Projekt nicht.
+2. **Beziehen.** Die Constraint `^2.0` nimmt `2.4.0` mit: `composer update areanet/contentfly`.
+3. **Navigation — das Schema-Update erst lesen.** `orm:schema-tool:update --dump-sql` plant
+   `DROP TABLE pim_nav` und `DROP TABLE pim_navItem`. Wer die Zeilen braucht, übernimmt **vorher**
+   beide Entities nach `custom/Entity/` (Register unter *API*); dann meldet `--dump-sql` für sie
+   nichts mehr. Sonst `--force`. `FRONTEND_CUSTOM_NAVIGATION` aus `custom/config.php` streichen, und
+   ein Client, der `frontend.customNavigation` liest, baut seine Menüs selbst.
+4. **`/api/query` — Clients der Gruppen aus Schritt 1** bekommen `403`. Sie fragen über `/api/list`,
+   `/api/single` oder `/api/count` ab, die nach dem Leserecht verengen, oder über einen eigenen
+   Endpunkt im Projekt. `apiQueryEnabled` bleibt in der Datenbank stehen und wirkt nicht mehr.
+
+Die Einzelheiten stehen im Register unter *API* mit „ausgeliefert mit `v2.4.0`".
+
+---
+
 ## Von 2.2 auf 2.3 — wer Rechte verwalten darf
 
 **`v2.3.0` ist ein Sicherheits-Release.** Es schliesst eine Rechteausweitung: Ein Nicht-Admin mit
@@ -43,7 +72,8 @@ beschrieben.
 Für `v2.2.0` und `v2.2.1` gilt derselbe Weg; der Patch aus `v2.2.1` steckt in `v2.3.0` und braucht
 keinen eigenen Schritt.
 
-1. **Beziehen.** Die Constraint `^2.0` nimmt `2.3.0` mit: `composer update areanet/contentfly`.
+1. **Beziehen.** Die Constraint `^2.0` nimmt heute `2.4.0` mit: `composer update areanet/contentfly`
+   — dann gelten zusätzlich die Schritte aus *Von 2.3 auf 2.4* oben.
 2. **Rechte prüfen — hier kann still etwas wegfallen.**
    - Benutzer, Gruppen und Rechte verwalten nur noch Admins. Ein Nicht-Admin, der das bisher tat,
      bekommt `403` und braucht einen Admin-Zugang.
@@ -78,8 +108,8 @@ vorzeitig hinaus, und eine API-Antwort verliess den Server als `200 text/html` o
 
 **Wer keine Host-Blöcke benutzt, ist nicht betroffen** — dort galt immer schon der Default-Block.
 
-1. **Beziehen.** Die Constraint `^2.0` nimmt heute `2.3.0` mit: `composer update areanet/contentfly`
-   — dann gelten zusätzlich die Schritte aus *Von 2.2 auf 2.3* oben.
+1. **Beziehen.** Die Constraint `^2.0` nimmt heute `2.4.0` mit: `composer update areanet/contentfly`
+   — dann gelten zusätzlich die Schritte aus *Von 2.3 auf 2.4* und *Von 2.2 auf 2.3* oben.
    Das aktualisiert von sich aus **nur dieses Paket**; für die Abhängigkeiten braucht es
    ausdrücklich `-w` beziehungsweise `-W`.
 2. **Sonst nichts.** Keine Konfiguration, kein Schema, keine geänderten Statuscodes.
@@ -112,9 +142,9 @@ Wer von 1.x kommt, folgt den neun Phasen unten; die Änderungen von 2.2 stecken 
 Wer auf `v2.0.0` steht, geht zuerst die Schritte *Von 2.0 auf 2.1* unten durch. Wer auf `v2.1.0`
 steht, braucht nur diese:
 
-1. **Beziehen.** Die Constraint `^2.0` nimmt heute `2.3.0` mit: `composer update areanet/contentfly`
-   — also gleich die Releases aus den Abschnitten darüber; die Schritte aus *Von 2.2 auf 2.3*
-   gelten zusätzlich.
+1. **Beziehen.** Die Constraint `^2.0` nimmt heute `2.4.0` mit: `composer update areanet/contentfly`
+   — also gleich die Releases aus den Abschnitten darüber; die Schritte aus *Von 2.3 auf 2.4* und
+   *Von 2.2 auf 2.3* gelten zusätzlich.
 2. **Konfiguration prüfen.** Der ImageMagick-Prozessor und `IMAGEMAGICK_EXECUTABLE` sind entfernt;
    wer `FILE_PROCESSORS` darauf gesetzt hatte, stellt auf `\Areanet\PIM\Classes\File\Processing\Image`
    zurück. **Neu ist `FILE_IMAGE_MAX_PIXELS`** mit 24 Megapixeln als Voreinstellung — wer grössere

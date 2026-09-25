@@ -274,7 +274,7 @@ rund fünf Byte je zugelassenem Pixel.
 ## API
 
 ### `/api/query` nur noch für Admins — `apiQueryEnabled` wirkt nicht mehr
-**Seit `000-000-0097` (2026-09-25).**
+**Seit `000-000-0097` (2026-09-25), ausgeliefert mit `v2.4.0`.**
 
 **Ein Sicherheitsfix.** `/api/query` baut die Abfrage aus den Teilen des Requests und reicht sie als SQL
 an die Datenbank. Bisher erreichten ihn Nicht-Admins, deren Gruppe `apiQueryEnabled = 'enabled'` trug;
@@ -296,7 +296,7 @@ durchgereichten Teile konnte eine solche Gruppe Daten lesen, auf die ihre Rechte
 die Abfrage ausführt, die er braucht. Eine Abfrage über `/api/query` braucht einen Admin-Zugang.
 
 ### `customNavigation` entfällt — mit `PIM\Nav`, `PIM\NavItem` und `FRONTEND_CUSTOM_NAVIGATION`
-**Seit `000-000-0077` (2026-09-25).**
+**Seit `000-000-0077` (2026-09-25), ausgeliefert mit `v2.4.0`.**
 
 **Der letzte Rest der gestrichenen Oberfläche im Schema.** `customNavigation` baute die Menüs der
 PIM-Oberfläche aus `PIM\Nav` und `PIM\NavItem`: Routen `#/list/<entity>`, Glyphicon-Icons. Mit Epic
