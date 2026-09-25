@@ -1,6 +1,7 @@
 <?php
 namespace Tests\Integration\Api;
 
+use Areanet\PIM\Entity\Permission;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Integration\IntegrationTestCase;
 
@@ -665,6 +666,47 @@ class ReadPathApiTest extends IntegrationTestCase
         $this->assertSame(array('id' => $deleted, 'isDeleted' => true), $this->row($rows, $deleted));
         $this->assertSame(array('id' => $legacy, 'isDeleted' => true), $this->row($rows, $legacy),
             'The value Contentfly 1.x wrote still counts as a deletion (014-003-0002)');
+    }
+
+    public function testDeletedReportsLegacyDeletionsLikeAll(): void
+    {
+        // The other half of the sync contract (000-000-0094). getAll() has reported the 1.x value
+        // since 014-003-0002, so that sync clients keep receiving these deletions; getDeleted()
+        // asked for DEL and USERDEL only, and a client syncing through /api/deleted never learned
+        // of them.
+        $deleted = 'rp-gone-'.bin2hex(random_bytes(6));
+        $legacy  = 'rp-gone-'.bin2hex(random_bytes(6));
+
+        $this->logDeletion('PIM\\Tag', $deleted, 'DEL');
+        $this->logDeletion('PIM\\Tag', $legacy, 'Gelöscht');
+
+        [$status, $body] = $this->postJson('/api/deleted', array(), $this->token());
+
+        $this->assertSame(200, $status);
+        $ids = array_column($this->assertEnvelope($body), 'model_id');
+
+        $this->assertContains($deleted, $ids);
+        $this->assertContains($legacy, $ids, 'The value Contentfly 1.x wrote counts as a deletion here too');
+    }
+
+    public function testDeletedReportsLegacyDeletionsOnlyWithReadRight(): void
+    {
+        // The read check of 000-000-0061 applies to the legacy value like to DEL.
+        $legacy = 'rp-gone-'.bin2hex(random_bytes(6));
+        $this->logDeletion('PIM\\Tag', $legacy, 'Gelöscht');
+
+        [$reader]   = $this->createTestUser(array('PIM\\Tag' => array('readable' => Permission::ALL)));
+        [$outsider] = $this->createTestUser(array('PIM\\Folder' => array('readable' => Permission::ALL)));
+
+        $ids = array();
+        foreach (array('reader' => $reader, 'outsider' => $outsider) as $who => $token) {
+            [$status, $body] = $this->postJson('/api/deleted', array(), $token);
+            $this->assertSame(200, $status);
+            $ids[$who] = array_column($this->assertEnvelope($body), 'model_id');
+        }
+
+        $this->assertContains($legacy, $ids['reader'], 'With read right on PIM\\Tag');
+        $this->assertNotContains($legacy, $ids['outsider'], 'Without read right on PIM\\Tag');
     }
 
     public function testAllReportsOnlyTheDeletionsSinceLastModified(): void

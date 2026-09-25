@@ -33,6 +33,10 @@
 - 000-000-0098 → done: **`v2.4.0` ist veröffentlicht und abgenommen.** Tag auf `61830c64` (#67) nach grüner Pipeline, Tagger `areanet_foschmid <fs@area-net.de>`; Veröffentlichungslauf `36115168394` grün, `contentfly-framework-dist` trägt `v2.4.0` (`5bb3430b`); `bezugsweg-pruefen.sh` von aussen grün, Server meldet `2.4.0`. Damit ist der Sicherheitsfix aus `0097` ausgeliefert.
 - 000-000-0093 → in-progress
 - 000-000-0093 → review: **`GROUP` nimmt in `/api/all` und `/api/count` die über `users` freigegebenen Datensätze mit**, wie `reachesRow()` und die übrigen Lese-Endpunkte. Tests für beide Endpunkte, Gegenprobe gegen den alten Code rot. Registereintrag mit Hinweis für Sync-Clients (`lastModified`), Leitfaden 141 Einträge. Volle Suite 860 grün.
+- 000-000-0093 → done (per Pull Request auf `master`, #69)
+- 000-000-0094 → in-progress
+- 000-000-0094 → review: **`/api/deleted` meldet Alt-Löschungen mit `'Gelöscht'` wie `/api/all`.** Leserecht und `lastModified` gelten gleich. Zwei Tests in `ReadPathApiTest`, Gegenprobe gegen den alten Code rot; Begründung im Sprachwächter nachgezogen. Registereintrag, Leitfaden 142 Einträge. Volle Suite 862 grün.
+- 000-000-0094 → done (per Pull Request auf `master`)
 
 ## 2026-09-24
 - 000-000-0089 task created: "Merge-Konflikte in der Buchführung entschärfen — CHANGELOG per union mergen, Versandfalle ignorieren"

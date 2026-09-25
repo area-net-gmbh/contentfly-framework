@@ -1,7 +1,7 @@
 ---
 id: 000-000-0093
 title: GROUP in /api/all und /api/count nimmt über users freigegebene Datensätze mit
-status: review
+status: done
 depends_on: []
 ---
 
