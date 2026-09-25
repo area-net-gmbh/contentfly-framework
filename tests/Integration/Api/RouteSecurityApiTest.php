@@ -59,9 +59,9 @@ class RouteSecurityApiTest extends IntegrationTestCase
         // nothing to do with any of the other seven. For a client, "no hits" and "route does not
         // exist" were thus indistinguishable.
         //
-        // PIM\\Nav is empty after a fresh installation — no deletion needed, which would
-        // touch the data of other tests.
-        [$status, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\Nav'), $this->token());
+        // PIM\\Folder is empty after a fresh installation — no deletion needed, which would
+        // touch the data of other tests. Until 000-000-0077 this was PIM\\Nav.
+        [$status, $body] = $this->postJson('/api/list', array('entity' => 'PIM\\Folder'), $this->token());
 
         $this->assertSame(200, $status);
         $this->assertSame(array(), $this->assertEnvelope($body, array('totalItems')),
@@ -144,6 +144,29 @@ class RouteSecurityApiTest extends IntegrationTestCase
 
         $this->assertArrayNotHasKey('frontend', $config['data'],
             'The public endpoint no longer advertises anything from the deleted UI');
+    }
+
+    public function testTheSchemaNoLongerCarriesTheNavigationOfTheDeletedUi(): void
+    {
+        // 000-000-0077. customNavigation built the menus of the PIM interface from PIM\Nav and
+        // PIM\NavItem — '#/list/<entity>' routes, glyphicon icons. Key, entities and the switch
+        // FRONTEND_CUSTOM_NAVIGATION went together; what stays in frontend is languages.
+        [$status, $raw] = $this->get('/api/schema', $this->token());
+
+        $this->assertSame(200, $status);
+
+        $body = json_decode($raw, true);
+
+        $this->assertSame(array('languages'), array_keys($body['meta']['frontend']),
+            'frontend carries languages and nothing from the deleted UI');
+
+        foreach (array('PIM\\Nav', 'PIM\\NavItem') as $entity) {
+            $this->assertArrayNotHasKey($entity, $body['data'], "$entity is no longer an entity of the framework");
+        }
+
+        [$status] = $this->postJson('/api/list', array('entity' => 'PIM\\Nav'), $this->token());
+
+        $this->assertSame(404, $status, 'Listing it is a request for an unknown entity');
     }
 
     // ── The template's middleware ──────────────────────────────────────────────────────

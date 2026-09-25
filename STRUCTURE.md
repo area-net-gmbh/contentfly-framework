@@ -394,7 +394,6 @@ All other keys are internal wiring.
 | `File`, `Folder`, `Tag` | `pim_file`, `pim_folder`, `pim_tag` | File metadata and organisation |
 | `ThumbnailSetting` | `pim_thumbnail_setting` | Image sizes |
 | `Log` | `pim_log` | Change log (insert, update, delete) |
-| `Nav`, `NavItem` | `pim_nav`, `pim_navItem` | Navigation structures |
 | `Option`, `OptionGroup` | `pim_option`, `pim_optiongroup` | Value lists for checkbox and radio fields |
 | `Serializable` | — | Serialisation base |
 

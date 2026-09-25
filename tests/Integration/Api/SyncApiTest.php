@@ -218,7 +218,7 @@ class SyncApiTest extends IntegrationTestCase
 
     // ── excludeFromSync ────────────────────────────────────────────────────────────────
 
-    public function testSevenEntitiesSetExcludeFromSync(): void
+    public function testFiveEntitiesSetExcludeFromSync(): void
     {
         // Inverted with 000-000-0013, and the old test demanded exactly that: it asserted that no
         // entity sets excludeFromSync and failed as soon as someone set the flag.
@@ -227,6 +227,8 @@ class SyncApiTest extends IntegrationTestCase
         // API". That was only half right — until 000-000-0007 it was checked exclusively in
         // getCount(), so it affected the inventory statistic and never the endpoint it is
         // named after. getAll() has checked it since the fix, getDeleted() since 000-000-0013.
+        //
+        // Seven until 000-000-0077 removed PIM\Nav and PIM\NavItem.
         [$status, $raw] = $this->get('/api/schema', $this->token());
         $this->assertSame(200, $status);
 
@@ -245,7 +247,7 @@ class SyncApiTest extends IntegrationTestCase
         sort($withFlag);
 
         $this->assertSame(
-            array('PIM\\Folder', 'PIM\\Group', 'PIM\\Log', 'PIM\\Nav', 'PIM\\NavItem', 'PIM\\Permission', 'PIM\\ThumbnailSetting'),
+            array('PIM\\Folder', 'PIM\\Group', 'PIM\\Log', 'PIM\\Permission', 'PIM\\ThumbnailSetting'),
             $withFlag,
             'Exactly the entities from the formerly hard-wired list — no more and no fewer'
         );
