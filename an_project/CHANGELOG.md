@@ -2,6 +2,10 @@
 
 # Changelog
 
+## 2026-09-25
+- 000-000-0054 → in-progress
+- 000-000-0054 → review: **PHP 8.5 trägt.** Auf 8.5.11 bauen alle Erweiterungen (`ldap` eingeschlossen), der Lock installiert (`check-platform-reqs` 17 × `success`), `composer audit` ist sauber, und die Suite ist grün (833 Tests, Pipeline-Job mit `CI=true` nachgestellt). **Das Deprecation-Gate wäre rot**, an einer Stelle: `imagedestroy()` im eigenen Code. Im Testprozess kommen `curl_close()` (12 Stellen) und `setAccessible()` (1) dazu; das Gate sieht sie wegen `restrictDeprecations` nicht. Aus Abhängigkeiten kommt keine Deprecation. Alle drei Funktionen bewirken seit PHP 8.0 bzw. 8.1 nichts mehr. Dazu neu mit 8.5: Warnungen aus `list() = getimagesize()` in `FileController`. **Entschieden:** 8.5 kommt als dritte Matrix-Spalte, 8.3 bleibt (`^8.3`); `config.platform.php` bleibt bei 8.3.0, begründet in `LockGuaranteesTest`. Die Umstellung ist ein Folge-Task. Epic `011`: ⚠️ → ✅, mit zutreffendem Grund für die offene Pipeline-Spalte.
+
 ## 2026-09-24
 - 000-000-0089 task created: "Merge-Konflikte in der Buchführung entschärfen — CHANGELOG per union mergen, Versandfalle ignorieren"
 - 000-000-0089 → in-progress

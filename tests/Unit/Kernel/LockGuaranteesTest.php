@@ -19,6 +19,16 @@ class LockGuaranteesTest extends TestCase
      * against, today 8.3. That is deliberately NOT this number: the target is where the project is
      * going, the platform is where it stands. Mixing them would make the gate green for the wrong
      * reason.
+     *
+     * DECIDED ON 2026-09-25 (000-000-0054): `config.platform.php` stays at 8.3.0. It decides what
+     * Composer resolves the lock for, and the package manifest promises `^8.3`. Raised to 8.5, the
+     * lock could take in a package that needs PHP 8.4 or 8.5, and a project on 8.3 could no longer
+     * install it. The platform moves with the lower bound of the manifest, not with the target.
+     *
+     * Measured on the same day, PHP 8.5.11: the lock installs (`check-platform-reqs` succeeds for
+     * every requirement), `composer audit` is clean and the full suite is green. The deprecation
+     * gate is not: `imagedestroy()` in our own code, which has had no effect since PHP 8.0. What
+     * stands between the run and a pipeline column for 8.5 is listed in 000-000-0054.
      */
     private const TARGET_PLATFORM = '8.5';
 
