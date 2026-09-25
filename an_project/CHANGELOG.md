@@ -50,6 +50,9 @@
 - 000-000-0099 → in-progress
 - 000-000-0099 → review: **`git.md` korrigiert:** *Update branch* und lokale Merges beachten `union`, die Konfliktprüfung des Merge-Buttons nicht (belegt an #59, #61, #62 und #65). Bei einem reinen CHANGELOG-Konflikt: *Update branch* drücken oder `master` lokal mergen, nicht im Web-Editor. Korrekturvermerk in `0089`.
 - 000-000-0099 → done (per Pull Request auf `master`)
+- 000-000-0101 task created: "Die Ausgabe von Claude Code Security von Git fernhalten"
+- 000-000-0101 → in-progress
+- 000-000-0101 → review: `/CLAUDE-SECURITY-*/` in `.gitignore` — Scan-Berichte bleiben aus dem öffentlichen Repository. `git check-ignore` belegt die Regel.
 
 ## 2026-09-24
 - 000-000-0089 task created: "Merge-Konflikte in der Buchführung entschärfen — CHANGELOG per union mergen, Versandfalle ignorieren"
