@@ -19,7 +19,7 @@ use Tests\Integration\IntegrationTestCase;
  * | `getAll` | narrowing with `OWN` and `GROUP` | this class |
  * | `getAll`, `getCount`, `getList`, `getTree`, `getTree2`, `getTranslations`, `getQuery` | `GROUP` for a user **without** a group | **unreachable**, see below |
  * | `getDeleted` | entity without read right is left out | PermissionMatrixApiTest::testTheDeletionLogReportsOnlyReadableEntities() (000-000-0061) |
- * | `getCount` | narrowing with `OWN` | this class; `GROUP` in ReadPermissionApiTest (000-000-0072) |
+ * | `getCount` | narrowing with `OWN` and `GROUP` | this class; `GROUP` also in ReadPermissionApiTest (000-000-0072) |
  * | `getTree` / `getTree2` | `OWN`, `GROUP` with a group | PermissionMatrixApiTest::testTreeRoutesApplyTheReadLevel() (000-000-0061) |
  * | `getTranslations` | without read right | this class; `GROUP` in PermissionMatrixApiTest (000-000-0059) |
  * | `doInsert` / `doUpdate` / `doDelete` | a language the group may not write | this class |
@@ -71,17 +71,22 @@ class PermissionBranchApiTest extends IntegrationTestCase
         $this->assertNotContains($foreign, $delivered, 'OWN: a foreign record without a relation stays out');
     }
 
-    public function testAllWithLevelGroupDeliversOwnAndGroupSharedObjectsOnly(): void
+    public function testAllWithLevelGroupDeliversOwnSharedAndGroupSharedObjectsOnly(): void
     {
+        // GROUP reaches what OWN reaches — created or listed in users — plus what is shared with
+        // the group (reachesRow()). Until 000-000-0093 getAll() left the users list out: /api/list
+        // showed the shared tag, /api/all did not, and a sync client never received it.
         [$token, $userId, $groupId] = $this->createTestUser(array('PIM\\Tag' => array('readable' => Permission::GROUP)));
 
         $own       = $this->tag($userId);
+        $shared    = $this->tag($this->adminId, null, $userId);
         $groupTag  = $this->tag($this->adminId, $groupId);
         $unrelated = $this->tag($this->adminId);
 
         $delivered = $this->allIds($token);
 
         $this->assertContains($own, $delivered, 'GROUP: the record the user created');
+        $this->assertContains($shared, $delivered, 'GROUP: a foreign record that lists the user in users');
         $this->assertContains($groupTag, $delivered, 'GROUP: a record that lists the own group');
         $this->assertNotContains($unrelated, $delivered, 'GROUP: a record without a relation stays out');
     }
@@ -130,6 +135,24 @@ class PermissionBranchApiTest extends IntegrationTestCase
         $this->assertSame(200, $status, json_encode($body['errors'] ?? null));
         $this->assertSame(2, $this->assertEnvelope($body)['details']['PIM\\Tag'],
             'The own tag and the one listing the user in users — the foreign one is not counted');
+    }
+
+    public function testCountWithLevelGroupCountsOwnSharedAndGroupSharedObjectsOnly(): void
+    {
+        // The same set as /api/all delivers — until 000-000-0093 the tag listing the user in
+        // users was not counted.
+        [$token, $userId, $groupId] = $this->createTestUser(array('PIM\\Tag' => array('readable' => Permission::GROUP)));
+
+        $this->tag($userId);
+        $this->tag($this->adminId, null, $userId);
+        $this->tag($this->adminId, $groupId);
+        $this->tag($this->adminId);
+
+        [$status, $body] = $this->postJson('/api/count', array('entity' => 'PIM\\Tag'), $token);
+
+        $this->assertSame(200, $status, json_encode($body['errors'] ?? null));
+        $this->assertSame(3, $this->assertEnvelope($body)['details']['PIM\\Tag'],
+            'Own, listed in users and shared with the group — the unrelated one is not counted');
     }
 
     // ── getTranslations() ────────────────────────────────────────────────────────────
