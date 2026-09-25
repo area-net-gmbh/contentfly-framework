@@ -114,11 +114,23 @@ Zeile ist es nicht.
 Abschnitte, die `union` ineinanderschieben würde. Die Zahl in `migration.md` ist abgeleitet, über
 sie wacht `MigrationGuideTest`.
 
-**GitHub beachtet `union` ebenfalls**, belegt am 2026-09-25 (`0089`). *Update branch* auf #59
-erzeugte `aad3fae7`, Committer `GitHub`, ohne Konflikt. Derselbe Merge ohne das Attribut ergibt
-einen Konflikt im `CHANGELOG.md`, und mit dem Attribut ist das Ergebnis byte-gleich mit dem von
-GitHub. Ein CHANGELOG-Konflikt sperrt einen Pull Request also nicht mehr. Für
-`breaking-changes.md` und `migration.md` gilt die Regel oben unverändert: lokal auflösen.
+**GitHub beachtet `union` — aber nicht überall.** Nachgerechnet jeweils ohne das Attribut in einem
+Wegwerf-Klon (`0089`, korrigiert mit `0099`):
+
+| Merge auf GitHub | ohne `union` | auf GitHub |
+|---|---|---|
+| *Update branch* auf #59 (`aad3fae7`), #61 (`d7ac08e7`), #62 (`89479f07`) | Konflikt im `CHANGELOG.md` | durchgelaufen, Committer `GitHub`; bei #59 byte-gleich mit dem lokalen `union`-Merge |
+| #65 gegen `master` | Konflikt im `CHANGELOG.md` | **Merge-Button gesperrt** (`mergeable_state: dirty`), keine CI |
+
+**Die Konfliktprüfung, die den Merge-Button freigibt, beachtet `union` nicht.** Solange sie einen
+Konflikt meldet, startet auch die CI nicht. Bis 2026-09-25 stand hier, ein CHANGELOG-Konflikt sperre
+einen Pull Request nicht mehr — belegt war nur *Update branch*, der Rest war geschlossen, nicht gemessen.
+
+**Was zu tun ist, wenn ein PR nur im `CHANGELOG.md` einen Konflikt meldet:** *Update branch* drücken
+— GitHub mergt `master` dann mit `union` hinein, ohne Konflikt, und der PR wird mergebar. Gleichwertig
+ist ein lokaler Merge von `master` und ein Push. **Nicht** im Web-Editor auflösen.
+
+Für `breaking-changes.md` und `migration.md` gilt die Regel oben unverändert: lokal auflösen.
 
 ## Commit language
 

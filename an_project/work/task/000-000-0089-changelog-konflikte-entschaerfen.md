@@ -101,3 +101,9 @@ konfliktfrei durch. Die beiden Branches berührten den `CHANGELOG.md` also nicht
 es seit #54 keinen Fall mit Konflikt. Beide führen den Merge auf GitHubs Servern aus. Auch die Anzeige
 „This branch has conflicts“, die einen Merge sperrt, stammt von dort. Ein Konflikt, den *Update branch*
 auflöst, blockiert den Merge-Knopf deshalb nicht.
+
+### Korrektur (2026-09-25, `000-000-0099`)
+**Der letzte Absatz oben schliesst zu weit.** Belegt war, dass *Update branch* `union` beachtet — nicht,
+dass der Merge-Button es tut. #65 hat das Gegenteil gezeigt: Derselbe CHANGELOG-Konflikt, den
+*Update branch* ohne Rückfrage auflöst, sperrt den Merge-Button (`mergeable_state: dirty`), und die CI
+startet nicht. `git.md` ist korrigiert und sagt, was dann zu tun ist.
