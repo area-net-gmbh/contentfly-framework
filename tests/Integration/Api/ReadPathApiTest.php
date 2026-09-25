@@ -505,8 +505,10 @@ class ReadPathApiTest extends IntegrationTestCase
             'compareToLang' => 'de',
         ), $this->token());
 
-        $this->assertNotSame(200, $status, 'The English version links a record the German one does not');
-        $this->assertErrorEnvelope($body);
+        // 409 since 000-000-0095: the request is sound, the two languages disagree. Until then the
+        // exception passed 550, which is no HTTP status.
+        $this->assertSame(409, $status, 'The English version links a record the German one does not');
+        $this->assertErrorEnvelope($body, 'contentfly_i18n_missing_translations');
     }
 
     public function testCompareToLangWithLoadJoinedLangIsRejectedToo(): void
