@@ -53,6 +53,7 @@
 - 000-000-0101 task created: "Die Ausgabe von Claude Code Security von Git fernhalten"
 - 000-000-0101 → in-progress
 - 000-000-0101 → review: `/CLAUDE-SECURITY-*/` in `.gitignore` — Scan-Berichte bleiben aus dem öffentlichen Repository. `git check-ignore` belegt die Regel.
+- 000-000-0101 → done (per Pull Request auf `master`)
 
 ## 2026-09-24
 - 000-000-0089 task created: "Merge-Konflikte in der Buchführung entschärfen — CHANGELOG per union mergen, Versandfalle ignorieren"

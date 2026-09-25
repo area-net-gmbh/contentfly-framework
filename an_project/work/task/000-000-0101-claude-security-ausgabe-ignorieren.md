@@ -1,7 +1,7 @@
 ---
 id: 000-000-0101
 title: Die Ausgabe von Claude Code Security von Git fernhalten
-status: review
+status: done
 depends_on: []
 ---
 
