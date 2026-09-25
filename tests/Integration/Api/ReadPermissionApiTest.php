@@ -133,26 +133,24 @@ class ReadPermissionApiTest extends IntegrationTestCase
             'The own tag and the one shared with the group — the unrelated one is not counted');
     }
 
-    public function testWithLevelGroupQueryReturnsOwnAndGroupSharedObjectsOnly(): void
+    public function testWithLevelGroupQueryIsNoLongerReachable(): void
     {
-        // Red before 000-000-0072, same cause as the count above, in getQuery().
+        // INVERTED WITH 000-000-0097. Red before 000-000-0072 (500 for every GROUP user), then
+        // green with own and group-shared tags only. Since 0097 /api/query is for admins only,
+        // and the narrowing this test measured is gone with it: the query itself is SQL, so it
+        // never was a boundary. What is left to check is that the level does not open the door.
         [$token, $userId, $groupId] = $this->createTestUser(
             array('PIM\\Tag' => array('readable' => Permission::GROUP)),
             array('apiQueryEnabled' => 'enabled')
         );
 
-        $own       = $this->tag('Own', $userId);
-        $groupTag  = $this->tag('For the group', $this->adminId, $groupId);
-        $unrelated = $this->tag('Unrelated', $this->adminId);
+        $this->tag('Own', $userId);
+        $this->tag('For the group', $this->adminId, $groupId);
 
         [$status, $body] = $this->postJson('/api/query', array('select' => 'id', 'from' => 'PIM\\Tag'), $token);
 
-        $this->assertSame(200, $status, json_encode($body['errors'] ?? null));
-
-        $ids = array_column($body['data'], 'id');
-        $this->assertContains($own, $ids);
-        $this->assertContains($groupTag, $ids);
-        $this->assertNotContains($unrelated, $ids, 'The other direction');
+        $this->assertSame(403, $status, 'Neither the level nor apiQueryEnabled opens /api/query');
+        $this->assertErrorEnvelope($body, 'contentfly_general_access_denied');
     }
 
     // ── No permission ──────────────────────────────────────────────────────────────────

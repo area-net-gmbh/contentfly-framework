@@ -8,10 +8,11 @@ use Tests\Integration\IntegrationTestCase;
 /**
  * Characterization tests for `/api/query` and `/api/translations`.
  *
- * `/api/query` is the **only reading endpoint with its own permission check**: anyone who is
- * not an admin needs a group with `apiQueryEnabled = 'enabled'`. An endpoint for free-form
- * queries whose gating silently disappears during the kernel swap would be an open
- * database — which is why all three cases are recorded here.
+ * `/api/query` is **for admins only** since 000-000-0097. Until then a group with
+ * `apiQueryEnabled = 'enabled'` reached it, and a read check narrowed the entities of the
+ * schema — no boundary for a query whose parts go to the database as SQL. An admin reads
+ * everything anyway. So the gate is the one thing to record here, for every non-admin and every
+ * shape of request.
  *
  * `/api/translations` serves multilingual content. It is **not configured** in the template
  * (`APP_LANGUAGES` is empty, and there is no concrete `BaseI18n` entity), which is why all
@@ -34,11 +35,10 @@ class QueryApiTest extends IntegrationTestCase
     }
 
     /**
-     * Logs in a non-admin whose group allows the query API or not.
+     * Logs in a non-admin whose group sets apiQueryEnabled or not.
      *
-     * The permission row for PIM\Tag is needed because a non-admin would otherwise already
-     * fail at the entity's read check — i.e. at a different gate than the one this test is
-     * meant to isolate.
+     * The permission row for PIM\Tag gives the user a read right on the queried entity, so a
+     * refusal cannot come from a missing right — it comes from the gate.
      */
     private function loginAsNonAdmin(string $apiQueryEnabled): string
     {
@@ -67,28 +67,32 @@ class QueryApiTest extends IntegrationTestCase
         $this->assertSame(array('select' => 'id', 'from' => 'PIM\\Tag'), $body['meta']['params']);
     }
 
-    public function testQueryForNonAdminWithEnabledGroupIsAllowed(): void
+    /** @return iterable<string, array{0:string, 1:array<string,mixed>}> */
+    public static function nonAdminRequests(): iterable
     {
-        $token = $this->loginAsNonAdmin('enabled');
-
-        [$status] = $this->postJson('/api/query', array('select' => 'id', 'from' => 'PIM\\Tag'), $token);
-
-        $this->assertSame(200, $status,
-            'apiQueryEnabled = "enabled" opens the endpoint for the group — '
-            .'together with a permission row for the queried entity');
+        foreach (array('enabled', 'disabled') as $apiQueryEnabled) {
+            yield "apiQueryEnabled $apiQueryEnabled, simple"       => array($apiQueryEnabled, array('select' => 'id', 'from' => 'PIM\\Tag'));
+            yield "apiQueryEnabled $apiQueryEnabled, list and join" => array($apiQueryEnabled, array(
+                'select' => array('t.id', 'j.title'),
+                'from'   => array('PIM\\Tag' => 't'),
+                'join'   => array('t', 'PIM\\Tag', 'j', 'j.id = t.id'),
+            ));
+        }
     }
 
-    public function testQueryForNonAdminWithoutEnablementIsForbidden(): void
+    #[DataProvider('nonAdminRequests')]
+    public function testQueryIsForbiddenForEveryNonAdmin(string $apiQueryEnabled, array $request): void
     {
-        // The most important case: if this gating disappears during the kernel swap, the
-        // database is open to every logged-in user.
-        $token = $this->loginAsNonAdmin('disabled');
+        // INVERTED WITH 000-000-0097. Until then apiQueryEnabled = "enabled" opened the endpoint
+        // for the group. Now it is for admins only — with or without the flag, whatever the
+        // request looks like, and although the user may read the queried entity.
+        $token = $this->loginAsNonAdmin($apiQueryEnabled);
 
-        [$status, $body] = $this->postJson('/api/query', array('select' => 'id', 'from' => 'PIM\\Tag'), $token);
+        [$status, $body] = $this->postJson('/api/query', $request, $token);
 
-        $this->assertNotSame(200, $status, 'Without apiQueryEnabled the endpoint is locked');
+        $this->assertSame(403, $status, 'Only an admin may query');
         // 011-001-0003: `data` is present and null instead of missing — the stronger statement.
-        $this->assertErrorEnvelope($body);
+        $this->assertErrorEnvelope($body, 'contentfly_general_access_denied');
     }
 
     public function testQueryWithoutSelectIsRejected(): void
@@ -118,9 +122,11 @@ class QueryApiTest extends IntegrationTestCase
     // A parameter given as a LIST is spread into the QueryBuilder call: `"select": ["a", "b"]`
     // becomes select('a', 'b'), `"where": ["x", "y"]` becomes andWhere('x', 'y'). For the join
     // methods the list is the four arguments of one join, or a list of such lists. It is the only
-    // way to express a join — the object syntax passes two arguments, a join needs four — and the
-    // join branch carries its own permission check: every joined entity is narrowed by the read
-    // right of the caller, like the one in `from`.
+    // way to express a join — the object syntax passes two arguments, a join needs four.
+    //
+    // All of this runs as admin: since 000-000-0097 nobody else reaches the endpoint. The tests
+    // of 0076 that narrowed `from` and joined entities by the caller's read right are gone with
+    // that narrowing.
     //
     // Decided on 2026-09-25: the syntax stays. Removing it would take joins and multi-column
     // selects from every client, and the second is in the documentation's own example.
@@ -202,110 +208,6 @@ class QueryApiTest extends IntegrationTestCase
             'Both conditions hold — the intern tag matches the first one only');
     }
 
-    /** @return iterable<string, array{0:int, 1:array<int,string>}> */
-    public static function joinedLevels(): iterable
-    {
-        yield 'OWN reaches the own tag and the one listing the user'      => array(Permission::OWN, array('own', 'shared'));
-        yield 'GROUP reaches own, listed and group-shared tags'            => array(Permission::GROUP, array('own', 'shared', 'group'));
-        yield 'ALL reaches every tag'                                      => array(Permission::ALL, array('own', 'shared', 'group', 'foreign'));
-    }
-
-    #[DataProvider('joinedLevels')]
-    public function testAJoinedEntityIsNarrowedByTheReadRight(int $level, array $reached): void
-    {
-        // The `from` entity is readable in full; only the joined one is narrowed. A cross join
-        // onto this test's tags shows exactly which of them the level lets through.
-        [$token, $userId, $groupId] = $this->createTestUser(
-            array('Core\\Example' => array('readable' => Permission::ALL), 'PIM\\Tag' => array('readable' => $level)),
-            array('apiQueryEnabled' => 'enabled')
-        );
-
-        $run     = bin2hex(random_bytes(6));
-        $example = $this->example();
-        $tags    = array(
-            'own'     => $this->probeTag("q76-$run-own", 0, $userId),
-            'shared'  => $this->probeTag("q76-$run-shared", 0, $this->adminId(), null, $userId),
-            'group'   => $this->probeTag("q76-$run-group", 0, $this->adminId(), $groupId),
-            'foreign' => $this->probeTag("q76-$run-foreign", 0, $this->adminId()),
-        );
-
-        [$status, $body] = $this->postJson('/api/query', array(
-            'select' => array('t.id'),
-            'from'   => array('Core\\Example' => 'e'),
-            'join'   => array(array('e', 'PIM\\Tag', 't', "t.title LIKE 'q76-$run-%'")),
-            'where'  => array('e.id = ?' => $example),
-        ), $token);
-
-        $this->assertSame(200, $status, json_encode($body['errors'] ?? null));
-        $returned = array_column($this->assertEnvelope($body, array('params')), 'id');
-
-        foreach ($tags as $record => $id) {
-            $expected = in_array($record, $reached, true);
-
-            $this->assertSame($expected, in_array($id, $returned, true),
-                "The $record tag is ".($expected ? 'joined' : 'left out'));
-        }
-    }
-
-    /** @return iterable<string, array{0:string, 1:int, 2:array<int,string>}> */
-    public static function fromLevels(): iterable
-    {
-        foreach (array('as a name' => 'name', 'with an alias' => 'alias') as $label => $form) {
-            yield "from $label, OWN"   => array($form, Permission::OWN, array('own', 'shared'));
-            yield "from $label, GROUP" => array($form, Permission::GROUP, array('own', 'shared', 'group'));
-        }
-    }
-
-    #[DataProvider('fromLevels')]
-    public function testTheFromEntityIsNarrowedByTheReadRight(string $form, int $level, array $reached): void
-    {
-        // The same check as for a join, on the `from` side — once as `"from": "PIM\\Tag"`, once
-        // as `"from": {"PIM\\Tag": "t"}`. The two forms run through different branches.
-        [$token, $userId, $groupId] = $this->createTestUser(
-            array('PIM\\Tag' => array('readable' => $level)),
-            array('apiQueryEnabled' => 'enabled')
-        );
-
-        $run  = bin2hex(random_bytes(6));
-        $tags = array(
-            'own'     => $this->probeTag("q76-$run-own", 0, $userId),
-            'shared'  => $this->probeTag("q76-$run-shared", 0, $this->adminId(), null, $userId),
-            'group'   => $this->probeTag("q76-$run-group", 0, $this->adminId(), $groupId),
-            'foreign' => $this->probeTag("q76-$run-foreign", 0, $this->adminId()),
-        );
-
-        $request = $form === 'alias'
-            ? array('select' => 't.id', 'from' => array('PIM\\Tag' => 't'), 'where' => array('t.title LIKE ?' => "q76-$run-%"))
-            : array('select' => 'id', 'from' => 'PIM\\Tag', 'where' => array('title LIKE ?' => "q76-$run-%"));
-
-        [$status, $body] = $this->postJson('/api/query', $request, $token);
-
-        $this->assertSame(200, $status, json_encode($body['errors'] ?? null));
-        $returned = array_column($this->assertEnvelope($body, array('params')), 'id');
-
-        foreach ($tags as $record => $id) {
-            $expected = in_array($record, $reached, true);
-
-            $this->assertSame($expected, in_array($id, $returned, true),
-                "The $record tag is ".($expected ? 'returned' : 'left out'));
-        }
-    }
-
-    public function testAFromEntityWithoutReadRightIsDenied(): void
-    {
-        [$token] = $this->createTestUser(
-            array('Core\\Example' => array('readable' => Permission::ALL)),
-            array('apiQueryEnabled' => 'enabled')
-        );
-
-        foreach (array('PIM\\Tag', 'pim_tag') as $from) {
-            [$status, $body] = $this->postJson('/api/query', array('select' => 'id', 'from' => $from), $token);
-
-            $this->assertSame(403, $status, "from $from — the entity by name or by table");
-            $this->assertErrorEnvelope($body, 'contentfly_general_access_denied');
-        }
-    }
-
     public function testSeveralValuesBindToOneCondition(): void
     {
         // The object form with a list as value: every `?` of the key takes one value, in order.
@@ -327,23 +229,6 @@ class QueryApiTest extends IntegrationTestCase
         sort($expected);
 
         $this->assertSame($expected, $returned);
-    }
-
-    public function testAJoinedEntityWithoutReadRightIsDenied(): void
-    {
-        [$token] = $this->createTestUser(
-            array('Core\\Example' => array('readable' => Permission::ALL)),
-            array('apiQueryEnabled' => 'enabled')
-        );
-
-        [$status, $body] = $this->postJson('/api/query', array(
-            'select' => array('t.id'),
-            'from'   => array('Core\\Example' => 'e'),
-            'join'   => array(array('e', 'PIM\\Tag', 't', '1 = 1')),
-        ), $token);
-
-        $this->assertSame(403, $status, 'The from entity is readable, the joined one is not');
-        $this->assertErrorEnvelope($body, 'contentfly_general_access_denied');
     }
 
     // ── /api/translations ──────────────────────────────────────────────────────────────
@@ -385,40 +270,17 @@ class QueryApiTest extends IntegrationTestCase
 
     // ── Helpers ──────────────────────────────────────────────────────────────────────
 
-    /** A tag titled $title; $userCreated, $groups and $users decide whose record it is. */
-    private function probeTag(string $title, int $isIntern, ?string $userCreated = null, ?string $groups = null, ?string $users = null): string
+    /** A tag titled $title, owned by nobody in particular. */
+    private function probeTag(string $title, int $isIntern): string
     {
         $id = 'q76-'.bin2hex(random_bytes(6));
 
         $this->pdo()->prepare(
-            // `groups` is a reserved word in MySQL 8.
-            'INSERT INTO pim_tag (id, title, created, modified, views, isIntern, usercreated_id, `groups`, users)
-             VALUES (:id, :title, NOW(), NOW(), 0, :intern, :uc, :grp, :usr)'
-        )->execute(array(
-            'id' => $id, 'title' => $title, 'intern' => $isIntern,
-            'uc' => $userCreated, 'grp' => $groups, 'usr' => $users,
-        ));
+            'INSERT INTO pim_tag (id, title, created, modified, views, isIntern)
+             VALUES (:id, :title, NOW(), NOW(), 0, :intern)'
+        )->execute(array('id' => $id, 'title' => $title, 'intern' => $isIntern));
         $this->deleteAfterTest('pim_tag', $id);
 
         return $id;
-    }
-
-    /** One record of the template's Core\Example — the `from` side of the join tests. */
-    private function example(): string
-    {
-        $id = 'q76-e-'.bin2hex(random_bytes(6));
-
-        $this->pdo()->prepare(
-            "INSERT INTO example_entity (id, state, name, slug, boolExample, created, modified, views, isIntern)
-             VALUES (:id, 'active', :name, :slug, 0, NOW(), NOW(), 0, 0)"
-        )->execute(array('id' => $id, 'name' => "Example $id", 'slug' => $id));
-        $this->deleteAfterTest('example_entity', $id);
-
-        return $id;
-    }
-
-    private function adminId(): string
-    {
-        return (string) $this->pdo()->query("SELECT id FROM pim_user WHERE alias = 'admin'")->fetchColumn();
     }
 }

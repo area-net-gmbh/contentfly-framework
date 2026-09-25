@@ -273,6 +273,28 @@ rund fünf Byte je zugelassenem Pixel.
 
 ## API
 
+### `/api/query` nur noch für Admins — `apiQueryEnabled` wirkt nicht mehr
+**Seit `000-000-0097` (2026-09-25).**
+
+**Ein Sicherheitsfix.** `/api/query` baut die Abfrage aus den Teilen des Requests und reicht sie als SQL
+an die Datenbank. Bisher erreichten ihn Nicht-Admins, deren Gruppe `apiQueryEnabled = 'enabled'` trug;
+eine Rechteprüfung verengte dabei die Entities des Schemas. Das war keine Grenze: Über die als SQL
+durchgereichten Teile konnte eine solche Gruppe Daten lesen, auf die ihre Rechte keinen Zugriff geben.
+
+| | Vorher | Jetzt |
+|---|---|---|
+| Admin | darf abfragen | unverändert |
+| Nicht-Admin, Gruppe mit `apiQueryEnabled = 'enabled'` | darf abfragen, verengt nach Leserecht | **403** `contentfly_general_access_denied` |
+| Nicht-Admin ohne das Feld | **500** mit `contentfly_general_access_denied` | **403**, derselbe Code |
+| Feld `apiQueryEnabled` in `pim_group` | öffnete den Endpunkt | bleibt als Spalte, wird **nicht mehr gelesen** — kein Schema-Update |
+
+**Getroffen ist ein Projekt, das `apiQueryEnabled` für eine Gruppe gesetzt hat** — nachsehen mit
+`SELECT name FROM pim_group WHERE apiQueryEnabled = 'enabled'`. Ohne Treffer merkt das Projekt nichts.
+
+*Was zu tun ist:* Clients dieser Gruppen fragen über die Lese-Endpunkte ab (`/api/list`, `/api/single`,
+`/api/count`), die nach dem Leserecht verengen, oder über einen eigenen Endpunkt im Projekt, der genau
+die Abfrage ausführt, die er braucht. Eine Abfrage über `/api/query` braucht einen Admin-Zugang.
+
 ### `customNavigation` entfällt — mit `PIM\Nav`, `PIM\NavItem` und `FRONTEND_CUSTOM_NAVIGATION`
 **Seit `000-000-0077` (2026-09-25).**
 
