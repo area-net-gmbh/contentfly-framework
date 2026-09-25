@@ -1,7 +1,7 @@
 ---
 id: 000-000-0100
 title: Den hohlen Refresh-Test reparieren und die Warnung im Schema-Cache-Test beseitigen
-status: review
+status: done
 depends_on: []
 ---
 
