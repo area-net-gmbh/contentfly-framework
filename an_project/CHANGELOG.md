@@ -30,6 +30,7 @@
 - 000-000-0099 task created: "git.md korrigieren — der Merge-Button beachtet union nicht, Update branch schon"
 - 000-000-0098 → in-progress
 - 000-000-0098: Release vorbereitet — Version `2.4.0` an allen Stellen (25 Beispielantworten, Lock nur `content-hash`/`version`/`reference`), `0077` und `0097` „ausgeliefert mit `v2.4.0`", Leitfaden *Von 2.3 auf 2.4*, `pentest-spec.md` auf `v2.4.0`. Suite 859 grün, Server meldet `2.4.0`. Tag folgt nach dem Merge.
+- 000-000-0098 → done: **`v2.4.0` ist veröffentlicht und abgenommen.** Tag auf `61830c64` (#67) nach grüner Pipeline, Tagger `areanet_foschmid <fs@area-net.de>`; Veröffentlichungslauf `36115168394` grün, `contentfly-framework-dist` trägt `v2.4.0` (`5bb3430b`); `bezugsweg-pruefen.sh` von aussen grün, Server meldet `2.4.0`. Damit ist der Sicherheitsfix aus `0097` ausgeliefert.
 
 ## 2026-09-24
 - 000-000-0089 task created: "Merge-Konflikte in der Buchführung entschärfen — CHANGELOG per union mergen, Versandfalle ignorieren"
