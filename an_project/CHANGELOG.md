@@ -2,6 +2,11 @@
 
 # Changelog
 
+## 2026-09-25
+- 000-000-0092 → done (per Pull Request auf `master`, #59)
+- 000-000-0084 → done: **`v2.2.0` war am 2026-09-22 veröffentlicht; nachgetragen ist nur die Buchführung.** Der Tag auf `05448f19` (#47) wurde nach sechs grünen Checks gesetzt, der Veröffentlichungslauf `35723812590` war grün, und `contentfly-framework-dist` trägt `v2.2.0` (`e5a71766`). Gemessen am 2026-09-25: Ein frisches Projekt mit `2.2.0` bezieht die Version über HTTPS (`APP_VERSION = '2.2.0'`), mit `^2.0` bezieht es inzwischen `v2.3.0`.
+- 000-000-0089 → done: **GitHub beachtet `union`.** *Update branch* auf #59 (`aad3fae7`, Committer `GitHub`) ist ohne Konflikt durchgelaufen, lokal ohne das Attribut ergibt derselbe Merge einen Konflikt im CHANGELOG, und mit dem Attribut ist das Ergebnis byte-gleich. Die übrigen fünf GitHub-Merges seit #54 hätten auch ohne `union` keinen Konflikt gehabt. `git.md` ist nachgezogen.
+
 ## 2026-09-24
 - 000-000-0089 task created: "Merge-Konflikte in der Buchführung entschärfen — CHANGELOG per union mergen, Versandfalle ignorieren"
 - 000-000-0089 → in-progress

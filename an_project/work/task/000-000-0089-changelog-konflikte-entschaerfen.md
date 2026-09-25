@@ -1,7 +1,7 @@
 ---
 id: 000-000-0089
 title: Merge-Konflikte in der Buchführung entschärfen — CHANGELOG per union mergen, Versandfalle ignorieren
-status: review
+status: done
 depends_on: []
 ---
 
@@ -39,7 +39,7 @@ Ein Eintrag in `.gitignore` verhindert, dass er einmal mitcommittet wird.
 ## Acceptance criteria
 - [x] `.gitattributes` enthält `an_project/CHANGELOG.md merge=union`, mit Begründung als Kommentar.
 - [x] Belegt mit einem lokalen Merge zweier Branches, die im selben Tagesabschnitt Zeilen anhängen: kein Konflikt, beide Zeilen vorhanden.
-- [ ] Geprüft und in `an_project/docs/git.md` festgehalten, ob GitHub die Regel beim Merge eines Pull Requests beachtet.
+- [x] Geprüft und in `an_project/docs/git.md` festgehalten, ob GitHub die Regel beim Merge eines Pull Requests beachtet.
 - [x] In `an_project/docs/git.md` steht die Regel: Konflikte in `CHANGELOG.md`, `breaking-changes.md` und `migration.md` werden lokal aufgelöst und mit der Unit-Suite geprüft, nicht im Web-Editor.
 - [x] `/.ci-mailtrap/` steht in `.gitignore`.
 
@@ -76,3 +76,28 @@ bleibt deshalb offen. Belegen lässt es sich erst, wenn das Attribut auf GitHub 
 Merge-Stand des PR von `0088` gegen einen `master`, der `0089` schon enthält. Beide Branches legen
 einen Abschnitt `2026-09-24` an. Zeigt GitHub dort keinen Konflikt, beachtet es die Regel. Das
 Ergebnis kommt in `git.md`; bis dahin gilt die Regel „lokal auflösen“ ohne Ausnahme.
+
+### GitHub — belegt (2026-09-25)
+**GitHub beachtet `union`.** Der Probe-PR war nicht nötig. Die Historie seit #54 enthält den Fall
+bereits.
+
+Die sechs Merges, die GitHub seit #54 erzeugt hat, habe ich lokal nachgerechnet, jeweils ohne das
+Attribut (`an_project/CHANGELOG.md !merge` in `.git/info/attributes` eines Wegwerf-Klons):
+
+| Merge | ohne `union` | auf GitHub |
+|---|---|---|
+| `9ee7e92d` (#55), `71990b72` (#56), `bb1b5a2a` (#57), `b0d10035` (#58), `1ccf8e63` (#59) | kein Konflikt | kein Konflikt |
+| `aad3fae7` — *Update branch* auf #59 | **Konflikt im `CHANGELOG.md`** | **kein Konflikt** |
+
+`aad3fae7` hat **GitHub selbst erzeugt**: Committer `GitHub <noreply@github.com>`, web-flow-signiert.
+Mit dem Attribut ergibt derselbe Merge lokal keinen Konflikt, und sein `CHANGELOG.md` ist
+**byte-gleich** mit dem von GitHub. Beide Seiten hatten im Abschnitt `2026-09-24` Zeilen angehängt,
+genau der Fall, für den die Regel gemacht ist.
+
+**Der Fall `0088`, mit dem der Beleg geplant war, taugte nicht dazu.** #55 kommt ohne das Attribut
+konfliktfrei durch. Die beiden Branches berührten den `CHANGELOG.md` also nicht an derselben Stelle.
+
+**Die Grenze des Belegs:** Belegt ist *Update branch*. Für den Merge-Knopf eines Pull Requests gibt
+es seit #54 keinen Fall mit Konflikt. Beide führen den Merge auf GitHubs Servern aus. Auch die Anzeige
+„This branch has conflicts“, die einen Merge sperrt, stammt von dort. Ein Konflikt, den *Update branch*
+auflöst, blockiert den Merge-Knopf deshalb nicht.

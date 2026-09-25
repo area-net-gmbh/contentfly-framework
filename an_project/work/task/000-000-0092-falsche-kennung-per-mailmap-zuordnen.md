@@ -1,7 +1,7 @@
 ---
 id: 000-000-0092
 title: Die falsche Kennung sim <sim@local> per .mailmap der richtigen zuordnen
-status: review
+status: done
 depends_on: []
 ---
 
