@@ -73,6 +73,10 @@ CLAUDE.local.md
 # Versandfalle der Integration-Suite, wenn jemand den Pfad der Pipeline lokal nachstellt
 # (CONTENTFLY_TEST_MAIL_TRAP in pipeline.yml). tests/README.md legt sie unter /tmp an (000-000-0089).
 /.ci-mailtrap/
+# Ausgabe von Claude Code Security (000-000-0101): Bericht, SARIF und Patch-Vorschlaege eines
+# Scans. Das Repository ist oeffentlich - ein committeter Bericht veroeffentlichte Luecken, bevor
+# sie behoben sind.
+/CLAUDE-SECURITY-*/
 
 # Operating system — macOS
 .DS_Store

@@ -73,6 +73,10 @@
 - 015-000-0020 task created: "Hochgeladenes HTML/SVG wird inline aus dem Web-Root ausgeliefert"
 - 015-000-0021 task created: "/file/overwrite löscht die Quelldatei ohne Löschrecht"
 - 015-000-0022 task created: "/api/replace verrät die Existenz von Datensätzen ohne Leserecht"
+- 000-000-0101 task created: "Die Ausgabe von Claude Code Security von Git fernhalten"
+- 000-000-0101 → in-progress
+- 000-000-0101 → review: `/CLAUDE-SECURITY-*/` in `.gitignore` — Scan-Berichte bleiben aus dem öffentlichen Repository. `git check-ignore` belegt die Regel.
+- 000-000-0101 → done (per Pull Request auf `master`)
 
 ## 2026-09-24
 - 000-000-0089 task created: "Merge-Konflikte in der Buchführung entschärfen — CHANGELOG per union mergen, Versandfalle ignorieren"
