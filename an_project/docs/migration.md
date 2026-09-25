@@ -4,7 +4,7 @@
 
 **Dieser Leitfaden ist der Weg. `an_project/docs/breaking-changes.md` ist das Register.**
 
-Das Register hat **138 Einträge in 14 Abschnitten** (Stand 2026-09-24, nachgezählt mit `000-000-0090` nach dem Merge von `000-000-0088`) und ist nach Epic und
+Das Register hat **139 Einträge in 14 Abschnitten** (Stand 2026-09-25, nachgezählt mit `000-000-0077`) und ist nach Epic und
 Story geordnet — also danach, *wann wir etwas geändert haben*. Das ist die richtige Ordnung zum
 Nachschlagen und die falsche zum Arbeiten. Hier steht die andere: **was ein Projekt tut, und in
 welcher Reihenfolge.**
@@ -399,11 +399,10 @@ php bin/console.php orm:schema-tool:update --force      # erst danach
 
 Bei UFP hat das Lesen Datenverlust verhindert: Geplant waren `DROP` für die Spalten der nicht migrierten
 Traits (Phase 3) und für `pim_file.path` — ohne diese Spalte sind die Dateien aus 1.x unter
-`data/files/JJJJ/MM/<id>/` nicht mehr erreichbar. Ein Projekt, das die
-Tabelle `pim_navItem` umbenannt hat — oder deren Dump von einem Server mit anderem
-`lower_case_table_names` stammt —, sieht dort `DROP` und `CREATE`; der Register-Eintrag unter *Doctrine
-ORM 3* nennt das `RENAME TABLE` davor. **Jede `DROP`-Zeile
-ist entweder erklärt oder ein Grund, anzuhalten.**
+`data/files/JJJJ/MM/<id>/` nicht mehr erreichbar. **`DROP TABLE pim_nav` und `pim_navItem` sind seit
+`000-000-0077` erklärt:** Die Navigation der gestrichenen Oberfläche ist mit ihren Entities entfallen.
+Wer die Zeilen braucht, übernimmt beide Entities vorher nach `custom/` — der Eintrag unter *API* sagt,
+wie. **Jede `DROP`-Zeile ist entweder erklärt oder ein Grund, anzuhalten.**
 
 **Fertig, wenn:** `orm:validate-schema` für Mapping und Datenbank `[OK]` meldet und keine `DROP`-Zeile
 unerklärt angewendet wurde.
@@ -433,7 +432,8 @@ zu einem Präfix.
 führt unter *Konfiguration* den Eintrag *Acht `FRONTEND_*`-Felder entfallen*;
 `pim-annotationen-migration.md`, Abschnitt 6, nennt **zwei weitere**
 (`FRONTEND_SHOW_ID_IN_LIST`, `FRONTEND_SHOW_OWNER_IN_LIST`) samt der beiden daraus abgeleiteten
-Konstanten. Wer nur eine der beiden Listen abarbeitet, lässt Zeilen stehen.
+Konstanten. Wer nur eine der beiden Listen abarbeitet, lässt Zeilen stehen. Dazu kommt seit
+`000-000-0077` `FRONTEND_CUSTOM_NAVIGATION` — im Register unter *API*, weil er mit Entities ging.
 
 **Neu hinzu kommt `SECURITY_JWT_SECRET`,** sobald das Projekt JWT ausstellen will — mindestens
 32 Byte, sonst weist die Bibliothek den Schlüssel ab.
@@ -517,7 +517,7 @@ nötig, um wie bisher weiterzuarbeiten.
 
 ## Phase 8 — Den API-Vertrag prüfen
 
-**Was die Clients merken.** 44 Einträge unter *API* — der grösste Abschnitt des Registers, und
+**Was die Clients merken.** 45 Einträge unter *API* — der grösste Abschnitt des Registers, und
 der einzige, den ein Projekt nicht allein durch Codeänderungen erledigt: Ein Teil davon betrifft
 Clients, die es nicht besitzt.
 

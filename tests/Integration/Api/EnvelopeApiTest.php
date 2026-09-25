@@ -266,9 +266,10 @@ class EnvelopeApiTest extends IntegrationTestCase
          * envelope. `/api/list` gave that up with `000-000-0014`. The two halves of the sync
          * contract now behave the same, and a client needs no special case for "nothing there".
          *
-         * PIM\Nav and PIM\Folder are empty after a fresh installation.
+         * PIM\Folder is empty after a fresh installation. PIM\Nav was the second example until
+         * 000-000-0077 removed it.
          */
-        foreach (array('PIM\\Nav', 'PIM\\Folder') as $entity) {
+        foreach (array('PIM\\Folder') as $entity) {
             [$status, $body] = $this->postJson('/api/list', array('entity' => $entity), $this->token());
 
             $this->assertSame(200, $status, $entity);

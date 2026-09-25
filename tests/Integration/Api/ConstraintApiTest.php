@@ -126,8 +126,9 @@ class ConstraintApiTest extends IntegrationTestCase
             'PIM\\Option carries @PIM\\Config(sortRestrictTo="group") — sorting runs '
             .'per option group, not globally');
 
-        $this->assertNull($this->schema()['PIM\\Nav']['settings']['sortRestrictTo'],
-            'PIM\\Nav does inherit from BaseSortable, but does not restrict');
+        // PIM\Nav was the example here until 000-000-0077 removed it.
+        $this->assertNull($this->schema()['PIM\\Folder']['settings']['sortRestrictTo'],
+            'PIM\\Folder does inherit from BaseSortable (through BaseTree), but does not restrict');
     }
 
     // ── The encryption gap, and the OneJoin proof that replaced its guard ──────────────

@@ -131,6 +131,8 @@ den Zweck:
   bekommt.
 - **`FRONTEND_CUSTOM_NAVIGATION`** — schaltet einen datengetriebenen Zweig frei, der die
   Entities `PIM\Nav` und `PIM\NavItem` ausliest. Beide gibt es, sie gehören zum Datenmodell.
+  **Entfällt seit `000-000-0077` doch**, zusammen mit beiden Entities: Sie bauten die Menüs der
+  gestrichenen Oberfläche (Register unter *API*).
 
 *Was zu tun ist:* Die acht Zeilen aus `custom/config.php` entfernen. Sie werden nicht mehr
 gelesen und stehen sonst als wirkungslose Schalter herum.
