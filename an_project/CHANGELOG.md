@@ -43,6 +43,7 @@
 - 000-000-0096 → in-progress
 - 000-000-0096 → review: **PHP 8.5 in der Pipeline.** Matrix `8.3`/`8.4`/`8.5`, alle blockierend. Gestrichen: `imagedestroy()` (7), `curl_close()` (12), `setAccessible()` (1); `getimagesize()` an drei Stellen gegen `false` abgesichert. Lokal: 8.3 grün, der Pipeline-Job auf 8.5.11 grün mit Gate 0, ungefiltert 0 Deprecations. Doku und `git.md` (sieben Checks) nachgezogen. **Befund:** zwei hohle Tests (`SchemaCacheApiTest`, `AuthApiTest`), sichtbar erst ohne `restrictWarnings`. Offen: CI des PR, Ruleset-Eintrag.
 - 000-000-0096 → done: `test: PHP 8.5` grün auf #72 und auf `master` (`9809370a`); das Ruleset `master-schutz` verlangt jetzt sieben Checks, `test: PHP 8.5` eingeschlossen (über die API gelesen).
+- 000-000-0100 task created: "Den hohlen Refresh-Test reparieren und die Warnung im Schema-Cache-Test beseitigen"
 
 ## 2026-09-24
 - 000-000-0089 task created: "Merge-Konflikte in der Buchführung entschärfen — CHANGELOG per union mergen, Versandfalle ignorieren"
