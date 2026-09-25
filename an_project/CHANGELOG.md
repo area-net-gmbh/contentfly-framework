@@ -50,6 +50,29 @@
 - 000-000-0099 → in-progress
 - 000-000-0099 → review: **`git.md` korrigiert:** *Update branch* und lokale Merges beachten `union`, die Konfliktprüfung des Merge-Buttons nicht (belegt an #59, #61, #62 und #65). Bei einem reinen CHANGELOG-Konflikt: *Update branch* drücken oder `master` lokal mergen, nicht im Web-Editor. Korrekturvermerk in `0089`.
 - 000-000-0099 → done (per Pull Request auf `master`)
+- 015-000-0000 epic created: "Befunde Security-Scan 2026-09"
+- 015-000-0001 task created: "Leeres Passwort überschreibt fremde Passwörter und öffnet den Admin-Login"
+- 015-000-0002 task created: "Installer setzt admin/admin, appcms:setup setzt das Admin-Passwort zurück"
+- 015-000-0003 task created: "File.name mit ../ liest beliebige Dateien über /api/all filedata"
+- 015-000-0004 task created: "bin/console.php läuft über HTTP ohne CLI-Prüfung"
+- 015-000-0005 task created: "Datei-ID aus dem Request wird zum Pfad — Upload und Löschen ausserhalb von data/files"
+- 015-000-0006 task created: "/file/upload überschreibt fremde Dateien ohne Eigentümerprüfung"
+- 015-000-0007 task created: "HTTP-Basic-Sperre lässt mit halbem Zugang durch"
+- 015-000-0008 task created: "Login-Fehlertexte verraten, ob ein Konto existiert"
+- 015-000-0009 task created: "hasUserId wertet id == User-ID als Eigentum"
+- 015-000-0010 task created: "Login-Drossel pro Kennung lässt sich mit Akzent-Varianten des Alias umgehen"
+- 015-000-0011 task created: "lang in anderer Schreibweise umgeht die Sprachrechte"
+- 015-000-0012 task created: "fulltext-Filter in /api/list sucht in pass und salt"
+- 015-000-0013 task created: "Nicht-Admins ändern languages und tokenTimeout ihrer Gruppe"
+- 015-000-0014 task created: "JWT-Identität hängt am änderbaren Alias"
+- 015-000-0015 task created: "OIDC-Login prüft nicht, für welchen Client das Token ausgestellt ist"
+- 015-000-0016 task created: "Löschen einer Sprachvariante löscht alle anderen ohne Rechteprüfung"
+- 015-000-0017 task created: "Host-Header wählt den Config-Block, unbekannte Hosts fallen auf default"
+- 015-000-0018 task created: "Login-Laufzeit verrät existierende Konten"
+- 015-000-0019 task created: "Notfallpfad erlaubt anonymes updateDatabase bei kaputtem Schema"
+- 015-000-0020 task created: "Hochgeladenes HTML/SVG wird inline aus dem Web-Root ausgeliefert"
+- 015-000-0021 task created: "/file/overwrite löscht die Quelldatei ohne Löschrecht"
+- 015-000-0022 task created: "/api/replace verrät die Existenz von Datensätzen ohne Leserecht"
 
 ## 2026-09-24
 - 000-000-0089 task created: "Merge-Konflikte in der Buchführung entschärfen — CHANGELOG per union mergen, Versandfalle ignorieren"
