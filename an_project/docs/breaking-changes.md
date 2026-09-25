@@ -273,6 +273,20 @@ rund fünf Byte je zugelassenem Pixel.
 
 ## API
 
+### `GROUP` bei `/api/all` und `/api/count`: auch die über `users` freigegebenen Datensätze
+**Seit `000-000-0093` (2026-09-25).**
+
+Die Stufe `GROUP` erreicht, was `OWN` erreicht — angelegt oder in `users` eingetragen —, und dazu, was
+für die eigene Gruppe freigegeben ist. `/api/list`, `/api/single` und die Baum-Routen hielten sich
+daran. **`/api/all` und `/api/count` liessen `users` weg:** Ein Datensatz, der einem `GROUP`-Leser nur
+über `users` freigegeben war, erschien in `/api/list`, fehlte aber in `/api/all` und wurde in
+`/api/count` nicht gezählt. Ein Sync-Client bekam ihn nie.
+
+*Was ein Client merkt:* Ein Benutzer mit Leserecht `GROUP` bekommt bei `/api/all` und `/api/count`
+**mehr** als bisher — genau die Datensätze, die er über `/api/list` schon sah. Nach dem Update liefert
+der nächste Sync-Lauf sie nach. Mit `lastModified` kommen sie nur, wenn sie seitdem geändert wurden;
+ein Client, der vollständig sein muss, synchronisiert einmal ohne `lastModified`.
+
 ### `/api/query` nur noch für Admins — `apiQueryEnabled` wirkt nicht mehr
 **Seit `000-000-0097` (2026-09-25), ausgeliefert mit `v2.4.0`.**
 
