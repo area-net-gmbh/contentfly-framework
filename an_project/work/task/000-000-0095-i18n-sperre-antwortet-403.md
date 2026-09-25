@@ -1,7 +1,7 @@
 ---
 id: 000-000-0095
 title: Eine i18n-Sperre antwortet mit 403 statt 550
-status: review
+status: done
 depends_on: []
 ---
 

@@ -39,6 +39,7 @@
 - 000-000-0094 → done (per Pull Request auf `master`)
 - 000-000-0095 → in-progress
 - 000-000-0095 → review: **i18n-Fehler antworten mit 403 bzw. 409 statt 550.** `ContentflyI18NException` nimmt den Status als Parameter (Vorgabe 403); `missing_translations` bei `compareToLang` antwortet 409. Vier Tests geschärft, Gegenprobe gegen den alten Code rot (550). Registereintrag, Leitfaden 143 Einträge. Volle Suite 862 grün.
+- 000-000-0095 → done (per Pull Request auf `master`)
 
 ## 2026-09-24
 - 000-000-0089 task created: "Merge-Konflikte in der Buchführung entschärfen — CHANGELOG per union mergen, Versandfalle ignorieren"
