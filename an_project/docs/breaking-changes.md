@@ -273,6 +273,20 @@ rund fünf Byte je zugelassenem Pixel.
 
 ## API
 
+### `/api/deleted` meldet auch Löschungen aus Contentfly 1.x
+**Seit `000-000-0094` (2026-09-25).**
+
+Contentfly 1.x schrieb für eine Löschung `'Gelöscht'` in `pim_log.mode`. `/api/all` meldet solche Zeilen
+als Löschung — entschieden am 2026-09-14 (`014-003-0002`), damit Sync-Clients sie weiter bekommen.
+**`/api/deleted` fragte nur `DEL` und `USERDEL` ab:** Ein Client, der Löschungen dort holt, erfuhr von
+einer Alt-Löschung nie, und das Objekt blieb bei ihm stehen.
+
+*Was ein Client merkt:* `/api/deleted` liefert für ein Bestandsprojekt mit Daten aus 1.x **mehr**
+Zeilen — dieselbe Form (`model_name`, `model_id`), dasselbe Leserecht, dasselbe `lastModified`. Ein
+Client, der eine Löschung doppelt bekommt, löscht etwas, das schon weg ist; das ist folgenlos. Mit
+`lastModified` kommen alte Alt-Löschungen nicht nach; ein Client, der vollständig sein muss, fragt
+einmal ohne.
+
 ### `GROUP` bei `/api/all` und `/api/count`: auch die über `users` freigegebenen Datensätze
 **Seit `000-000-0093` (2026-09-25).**
 
