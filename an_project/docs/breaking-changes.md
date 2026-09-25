@@ -87,7 +87,8 @@ mehr gelesen und stehen sonst als wirkungslose Schalter herum.
 
 **`FRONTEND_ITEMS_PER_PAGE` und `FRONTEND_CUSTOM_NAVIGATION` bleiben.** Sie tragen `FRONTEND_`
 im Namen, steuern aber API-Verhalten beziehungsweise einen datengetriebenen Zweig — die
-Benennung ist ein Erbe, kein Hinweis auf ihren Zweck.
+Benennung ist ein Erbe, kein Hinweis auf ihren Zweck. **`FRONTEND_CUSTOM_NAVIGATION` entfällt seit
+`000-000-0077` doch**, mit den Entities, die er ausgelesen hat — siehe *API*.
 
 *Was zu tun ist:* Die acht Zeilen aus `custom/config.php` entfernen; sie werden nicht mehr
 gelesen.
@@ -271,6 +272,43 @@ Wer grössere Bilder annehmen muss, setzt `FILE_IMAGE_MAX_PIXELS` hoch und `memo
 rund fünf Byte je zugelassenem Pixel.
 
 ## API
+
+### `customNavigation` entfällt — mit `PIM\Nav`, `PIM\NavItem` und `FRONTEND_CUSTOM_NAVIGATION`
+**Seit `000-000-0077` (2026-09-25).**
+
+**Der letzte Rest der gestrichenen Oberfläche im Schema.** `customNavigation` baute die Menüs der
+PIM-Oberfläche aus `PIM\Nav` und `PIM\NavItem`: Routen `#/list/<entity>`, Glyphicon-Icons. Mit Epic
+`012` ist die Oberfläche weg; `000-000-0010` hatte den Schlüssel noch als „Daten“ stehen lassen.
+Schlüssel, beide Entities und der Schalter gehen jetzt zusammen — einer allein wäre ein halber Rest.
+
+| Was | Vorher | Jetzt |
+|---|---|---|
+| `meta.frontend` in `/api/schema` und im Login mit `withSchema` | `customNavigation` und `languages` | nur `languages` |
+| `PIM\Nav`, `PIM\NavItem` | Entities des Frameworks | **gestrichen**; `/api/list` antwortet `404` |
+| `FRONTEND_CUSTOM_NAVIGATION` | schaltete `customNavigation.items` frei | wird nicht mehr gelesen |
+
+**Das Schema-Update löscht die Tabellen — mit ihren Zeilen.** Gemessen an einer Installation mit
+einer Zeile Navigation:
+
+```
+ALTER TABLE pim_nav DROP FOREIGN KEY …;      -- fünf Zeilen dieser Art
+DROP TABLE pim_nav;
+DROP TABLE pim_navItem;
+```
+
+Getroffen ist ein Projekt, das die Navigation für einen eigenen Client pflegt. Ein Projekt ohne
+Zeilen in `pim_nav` verliert nichts.
+
+*Was zu tun ist:*
+- **Ein Client, der `frontend.customNavigation` liest,** baut seine Menüs künftig selbst.
+- **Wer die Navigationsdaten braucht,** übernimmt **vor** dem Schema-Update beide Entities nach
+  `custom/Entity/` — Klassen aus Contentfly 2.3 kopieren, Namespace anpassen, Tabellennamen
+  `pim_nav` und `pim_navItem` behalten, im `ManyToOne` von `NavItem` die eigene `Nav` eintragen.
+  Danach meldet `--dump-sql` für beide nichts mehr, und die Zeilen sind erhalten (gemessen).
+- **Wer sie nicht braucht,** lässt das Update die Tabellen löschen — oder sichert sie vorher mit
+  `mysqldump contentfly pim_nav pim_navItem`.
+- `FRONTEND_CUSTOM_NAVIGATION` aus `custom/config.php` streichen. Stehen gelassen stört er nicht:
+  `Config` erlaubt eigene Schlüssel (`000-000-0040`).
 
 ### Rechte verwalten nur noch Admins — auch beim Schreiben
 **Seit `000-000-0090` (2026-09-24), ausgeliefert mit `v2.3.0`.**
@@ -545,7 +583,8 @@ mehr trägt, lädt dazu ein, wieder etwas hineinzulegen.
 **`/api/schema` und die Login-Antwort.** Ihr `frontend`-Block geht von sieben Schlüsseln auf
 zwei. Entfallen sind `customLogo`, `formImageSquarePreview`, `title`, `welcome` und
 `login_redirect`. Geblieben sind `customNavigation` (liest `PIM\Nav` und `PIM\NavItem`, also
-Daten) und `languages` (aus `APP_LANGUAGES`, bestimmt die Hauptsprache).
+Daten) und `languages` (aus `APP_LANGUAGES`, bestimmt die Hauptsprache). **`customNavigation`
+entfällt seit `000-000-0077`** — eigener Eintrag weiter oben.
 
 **Betroffen ist ein Client, der einen dieser Schlüssel liest.** Ein Client, der nur
 `devmode`, `version` und die Entity-Beschreibungen auswertet, merkt nichts.
@@ -2424,6 +2463,10 @@ minimal gebautes PHP braucht sie nachinstalliert.
 
 ### `pim_navItem` heisst so — wer die Tabelle umbenannt hat, benennt sie vor dem Schema-Update zurück
 **Seit `000-000-0043` (2026-09-15).**
+
+> **Überholt seit `000-000-0077`.** `Entity\NavItem` gibt es nicht mehr; das Schema-Update löscht die
+> Tabelle unter jedem Namen. Wer die Daten behält, übernimmt die Entity nach `custom/` (Eintrag unter
+> *API*) — dann gilt das Folgende für die eigene Klasse weiter.
 
 **Kein Bruch, aber eine Falle, die Daten kostet.** `Entity\NavItem` liegt in `pim_navItem`, als einzige
 Tabelle des Frameworks in CamelCase. Das bleibt so (entschieden mit `000-000-0043`): Ein Umbenennen
