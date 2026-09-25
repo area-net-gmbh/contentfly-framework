@@ -114,9 +114,11 @@ Zeile ist es nicht.
 Abschnitte, die `union` ineinanderschieben würde. Die Zahl in `migration.md` ist abgeleitet, über
 sie wacht `MigrationGuideTest`.
 
-**Ob GitHub `union` beim Merge eines Pull Requests beachtet, ist noch nicht belegt.** Lokale
-Merges tun es. Der erste Pull Request mit einem CHANGELOG-Konflikt nach dem Merge von `0089`
-zeigt es; bis dahin gilt die Regel oben ohne Ausnahme.
+**GitHub beachtet `union` ebenfalls**, belegt am 2026-09-25 (`0089`). *Update branch* auf #59
+erzeugte `aad3fae7`, Committer `GitHub`, ohne Konflikt. Derselbe Merge ohne das Attribut ergibt
+einen Konflikt im `CHANGELOG.md`, und mit dem Attribut ist das Ergebnis byte-gleich mit dem von
+GitHub. Ein CHANGELOG-Konflikt sperrt einen Pull Request also nicht mehr. Für
+`breaking-changes.md` und `migration.md` gilt die Regel oben unverändert: lokal auflösen.
 
 ## Commit language
 
