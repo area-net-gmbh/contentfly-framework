@@ -75,7 +75,6 @@ class CorsApiTest extends IntegrationTestCase
         ));
         $raw        = (string) curl_exec($ch);
         $headerSize = (int) curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-        curl_close($ch);
 
         $headers = array();
         foreach (explode("\r\n", substr($raw, 0, $headerSize)) as $line) {

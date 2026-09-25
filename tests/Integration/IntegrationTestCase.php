@@ -257,7 +257,6 @@ abstract class IntegrationTestCase extends TestCase
         $response   = (string) curl_exec($ch);
         $status     = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $headerSize = (int) curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-        curl_close($ch);
 
         $headers = substr($response, 0, $headerSize);
         $body    = substr($response, $headerSize);

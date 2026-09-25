@@ -118,7 +118,6 @@ class ErrorResponseApiTest extends IntegrationTestCase
             CURLOPT_HTTPHEADER     => array('Content-Type: application/json', 'appcms-token: '.$this->token()),
         ));
         $raw = (string) curl_exec($ch);
-        curl_close($ch);
 
         $this->assertStringNotContainsString('Whoops', $raw);
         $this->assertStringNotContainsString('<!DOCTYPE html>', $raw);

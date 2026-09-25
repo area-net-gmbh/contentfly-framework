@@ -92,11 +92,10 @@ ab und meldet `014` als Lücke. Deshalb steht hier die Begründung und nicht nur
 
 ### Was offen bleibt, und warum es benannt und nicht abgehakt ist
 
-- **PHP 8.5 in der Pipeline.** Der Lauf ist gemacht (`000-000-0054`, 2026-09-25): Lock, Audit und Suite
-  sind auf 8.5.11 grün. Die Pipeline geht trotzdem bis 8.4, und das mit Grund: Ein Job auf 8.5 wäre
-  am Deprecation-Gate rot, an `imagedestroy()` im eigenen Code, einem Aufruf, der seit PHP 8.0 nichts
-  mehr tut. Entschieden ist die Matrix: 8.5 als dritte Spalte, 8.3 bleibt, solange das Manifest
-  `^8.3` zusagt. Die Umstellung ist ein eigener Task. *Überholt ist der frühere Grund — ein fehlendes
+- ~~**PHP 8.5 in der Pipeline.**~~ **Erledigt mit `000-000-0096` (2026-09-25):** `test: PHP 8.5`
+  läuft als dritte Spalte der Matrix, blockierend. Erhoben hatte es `000-000-0054` — Lock, Audit und
+  Suite auf 8.5.11 grün, das Gate rot an `imagedestroy()` im eigenen Code, einem Aufruf, der seit
+  PHP 8.0 nichts mehr tut. 8.3 bleibt, solange das Manifest `^8.3` zusagt. *Überholt ist der frühere Grund — ein fehlendes
   8.5-Image: `php:8.5-cli` gibt es seit spätestens 2026-09-17, und alle Erweiterungen bauen darauf.*
 - **Die `@api`-Blöcke der API-Doku** tragen noch Antwortbeispiele von **vor** Epic `011`. Benannt
   in `dev-guide.md`, Abschnitt *API-Dokumentation*.

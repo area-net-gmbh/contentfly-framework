@@ -249,8 +249,8 @@ jobs:
     container: php:${{ matrix.php }}-cli
 
     strategy:
-      # Ohne fail-fast: Faellt 8.3 aus, will man trotzdem wissen, wie 8.4 stand — und
-      # umgekehrt. Die Information ist gerade dann am meisten wert.
+      # Ohne fail-fast: Faellt eine Version aus, will man trotzdem wissen, wie die anderen
+      # standen. Die Information ist gerade dann am meisten wert.
       fail-fast: false
       matrix:
         # BEIDE SIND BLOCKIEREND. Auf GitLab trug 8.4 bis 010-003-0003 ein
@@ -261,7 +261,12 @@ jobs:
         #
         # an_project/docs/deployment.md hat das bis 011-002-0002 noch als offene Entscheidung
         # gefuehrt, obwohl die Pipeline sie laengst getroffen hatte.
-        php: ['8.3', '8.4']
+        #
+        # 8.5 SEIT 000-000-0096, ebenfalls blockierend — die Zielplattform wird geprueft, nicht
+        # nur zugesagt. Erhoben mit 000-000-0054: gruen, bis auf drei Aufrufe, die seit PHP 8.0
+        # bzw. 8.1 nichts mehr taten. 8.3 BLEIBT, solange das Manifest ^8.3 zusagt: Sonst
+        # sicherte das Paket eine Version zu, die niemand prueft.
+        php: ['8.3', '8.4', '8.5']
 
     services:
       mysql:

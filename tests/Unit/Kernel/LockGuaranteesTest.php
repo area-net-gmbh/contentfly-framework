@@ -27,8 +27,8 @@ class LockGuaranteesTest extends TestCase
      *
      * Measured on the same day, PHP 8.5.11: the lock installs (`check-platform-reqs` succeeds for
      * every requirement), `composer audit` is clean and the full suite is green. The deprecation
-     * gate is not: `imagedestroy()` in our own code, which has had no effect since PHP 8.0. What
-     * stands between the run and a pipeline column for 8.5 is listed in 000-000-0054.
+     * gate was not — `imagedestroy()` in our own code, a no-op since PHP 8.0. 000-000-0096 removed
+     * it and put 8.5 into the pipeline matrix, beside 8.3 and 8.4.
      */
     private const TARGET_PLATFORM = '8.5';
 

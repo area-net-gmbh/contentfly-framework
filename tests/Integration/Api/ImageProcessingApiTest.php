@@ -209,7 +209,6 @@ class ImageProcessingApiTest extends IntegrationTestCase
         ));
         $raw    = (string) curl_exec($ch);
         $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-        curl_close($ch);
         unlink($tmp);
 
         return array($status, json_decode($raw, true) ?: array());

@@ -246,7 +246,6 @@ class EnvelopeApiTest extends IntegrationTestCase
             CURLOPT_HTTPHEADER     => array('appcms-token: '.$token),
         ));
         $raw = (string) curl_exec($ch);
-        curl_close($ch);
         unlink($tmp);
 
         $body = json_decode($raw, true) ?: array();

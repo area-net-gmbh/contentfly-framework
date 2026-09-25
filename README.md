@@ -68,7 +68,7 @@ dabei schiefgehen kann: `an_project/docs/deployment.md`, Abschnitt *Eine Version
 
 Die Pipeline (`.github/workflows/pipeline.yml`) fährt bei jedem Push auf `master` und bei jedem
 Pull Request fünf Prüfungen — Vorlagen-Konfiguration, `composer audit`, PHPStan, beide Testsuiten
-auf PHP 8.3 und 8.4, und den Bezugsweg von aussen. **Alle blockierend.** Die Schritte stehen in
+auf PHP 8.3, 8.4 und 8.5, und den Bezugsweg von aussen. **Alle blockierend.** Die Schritte stehen in
 `tools/ci/*.sh` und lassen sich lokal nachspielen.
 
 ## Lizenz

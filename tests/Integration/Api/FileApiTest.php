@@ -98,7 +98,6 @@ class FileApiTest extends IntegrationTestCase
         ));
         $body   = (string) curl_exec($ch);
         $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
 
         $this->assertSame(200, $status, 'Following the redirect yields the file, not a stray target');
         $this->assertSame($content, $body, 'Byte-identical to what was uploaded');
@@ -429,7 +428,6 @@ class FileApiTest extends IntegrationTestCase
             CURLOPT_HTTPHEADER     => $token ? array('appcms-token: '.$token) : array(),
         ));
         $response = curl_exec($ch);
-        curl_close($ch);
         unlink($tmp);
 
         $result = json_decode((string) $response, true) ?: array();
@@ -458,7 +456,6 @@ class FileApiTest extends IntegrationTestCase
         ));
         $response = curl_exec($ch);
         $status   = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
         unlink($tmp);
 
         $result = json_decode((string) $response, true) ?: array();

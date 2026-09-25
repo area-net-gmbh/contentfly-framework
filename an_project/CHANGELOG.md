@@ -40,6 +40,8 @@
 - 000-000-0095 → in-progress
 - 000-000-0095 → review: **i18n-Fehler antworten mit 403 bzw. 409 statt 550.** `ContentflyI18NException` nimmt den Status als Parameter (Vorgabe 403); `missing_translations` bei `compareToLang` antwortet 409. Vier Tests geschärft, Gegenprobe gegen den alten Code rot (550). Registereintrag, Leitfaden 143 Einträge. Volle Suite 862 grün.
 - 000-000-0095 → done (per Pull Request auf `master`)
+- 000-000-0096 → in-progress
+- 000-000-0096 → review: **PHP 8.5 in der Pipeline.** Matrix `8.3`/`8.4`/`8.5`, alle blockierend. Gestrichen: `imagedestroy()` (7), `curl_close()` (12), `setAccessible()` (1); `getimagesize()` an drei Stellen gegen `false` abgesichert. Lokal: 8.3 grün, der Pipeline-Job auf 8.5.11 grün mit Gate 0, ungefiltert 0 Deprecations. Doku und `git.md` (sieben Checks) nachgezogen. **Befund:** zwei hohle Tests (`SchemaCacheApiTest`, `AuthApiTest`), sichtbar erst ohne `restrictWarnings`. Offen: CI des PR, Ruleset-Eintrag.
 
 ## 2026-09-24
 - 000-000-0089 task created: "Merge-Konflikte in der Buchführung entschärfen — CHANGELOG per union mergen, Versandfalle ignorieren"
