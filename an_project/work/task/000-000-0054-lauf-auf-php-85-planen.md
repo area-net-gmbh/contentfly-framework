@@ -1,7 +1,7 @@
 ---
 id: 000-000-0054
 title: Den Lauf auf PHP 8.5 vorbereiten und die Zielplattform einlösen
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -43,11 +43,11 @@ PHP-8.5-Image geben, das alle Erweiterungen mitbringt."* Nachgesehen am 2026-09-
   Ziel, wohin es geht. Wer sie anhebt, ändert die Auflösung für alle.
 
 ## Acceptance criteria
-- [ ] Erhoben und festgehalten, ob `install-php-extensions.sh` auf `php:8.5-cli` durchläuft — mit der Ausgabe als Beleg.
-- [ ] Die Deprecations eines Laufs auf 8.5 sind gezählt und benannt; jede bekommt einen Verursacher (eigener Code oder Abhängigkeit).
-- [ ] Entschieden, ob 8.5 als dritte Matrix-Spalte kommt oder 8.3 ablöst — mit dem Bezug zu `^8.3` im Paket-Manifest.
-- [ ] Entschieden, ob `config.platform.php` mitzieht, und die Entscheidung steht dort, wo `LockGuaranteesTest` sie sucht.
-- [ ] Die Bilanz in `an_project/work/epic/011-release-neue-version/epic.md` ist nachgezogen: Das ⚠️ wird zu ✅ oder trägt einen neuen, zutreffenden Grund.
+- [x] Erhoben und festgehalten, ob `install-php-extensions.sh` auf `php:8.5-cli` durchläuft — mit der Ausgabe als Beleg.
+- [x] Die Deprecations eines Laufs auf 8.5 sind gezählt und benannt; jede bekommt einen Verursacher (eigener Code oder Abhängigkeit).
+- [x] Entschieden, ob 8.5 als dritte Matrix-Spalte kommt oder 8.3 ablöst — mit dem Bezug zu `^8.3` im Paket-Manifest.
+- [x] Entschieden, ob `config.platform.php` mitzieht, und die Entscheidung steht dort, wo `LockGuaranteesTest` sie sucht.
+- [x] Die Bilanz in `an_project/work/epic/011-release-neue-version/epic.md` ist nachgezogen: Das ⚠️ wird zu ✅ oder trägt einen neuen, zutreffenden Grund.
 
 ## Verification
 Ein Lauf der vollständigen Suite unter PHP 8.5 — lokal in Docker mit `php:8.5-cli` genügt für die
@@ -58,3 +58,78 @@ oder eine Liste dessen, was dazwischensteht.
 **Dieser Task ändert die Zielplattform nicht und hebt keine Constraint.** Er erhebt, entscheidet
 und schreibt auf. Die eigentliche Umstellung ist die Folge — und sie wird erst geschnitten, wenn
 die Erhebung sagt, wie gross sie ist.
+
+## Ergebnis (2026-09-25)
+**PHP 8.5 trägt: Die Erweiterungen bauen, der Lock installiert, die Suite ist grün.** Zwischen dem
+Lauf und einer Pipeline-Spalte stehen **eine** Deprecation im Server und drei Stellen im
+Testprozess. Alle stammen aus eigenem Code, keine aus einer Abhängigkeit. Jede ist ein Aufruf, der
+seit Jahren nichts mehr tut.
+
+Umgebung: `php:8.5-cli` (PHP 8.5.11), der Pipeline-Job `test` Schritt für Schritt nachgestellt —
+`prepare-test-environment.sh`, `phpunit`, `deprecations-pruefen.sh`, mit `CI=true`. Datenbank:
+`mysql:8.0` aus `docker-compose.yml`. Stand: `master` bei `1ccf8e63`.
+
+### Die Erweiterungen
+`install-php-extensions.sh` läuft auf `php:8.5-cli` durch. Das Ende der Ausgabe:
+```
+✓ PHP 8.5.11 mit:
+    gd
+    json
+    ldap
+    mbstring
+    openssl
+    pdo_mysql
+    tokenizer
+    unzip 6.00 (Composer-Entpacker, keine PHP-Erweiterung)
+    git version 2.47.3 (für tools/migration/inventory.php, nicht für Composer)
+    openssh-client 1:10.0p1-7+deb13u4 (für den SSH-Bezug in tools/ci/bezugsweg-pruefen.sh)
+```
+**`ldap` klemmt nicht** — die Sorge aus dem Kontext war unbegründet.
+
+### Der Lock unter 8.5
+`composer check-platform-reqs --lock`: alle 17 Anforderungen `success`, `php 8.5.11` eingeschlossen.
+`composer install` läuft durch, `composer audit --locked`: *No security vulnerability advisories
+found.* Das ist mehr als `LockGuaranteesTest` belegt, der nur die Constraints liest.
+
+### Die Suite
+**833 Tests grün, 0 übersprungen**, 2:02 Minuten.
+
+### Die Deprecations, gezählt und zugeordnet
+| Wo | Meldung | Anzahl | Verursacher |
+|---|---|---|---|
+| Server, `Classes/File/Processing/Image.php` (Z. 169, 199, 388; dazu 79, 84, 89, 229 ohne Treffer) | `imagedestroy()` — seit 8.5 deprecated, **ohne Wirkung seit PHP 8.0** | 28 Zeilen im Log, 1 Paar für das Gate | eigener Code |
+| Testprozess, `tests/Integration/IntegrationTestCase.php` und acht weitere Testdateien, `tools/migration/record-api.php` | `curl_close()` — **ohne Wirkung seit PHP 8.0** | 12 Stellen | eigener Code |
+| Testprozess, `tests/Unit/Kernel/RouteNamesTest.php:67` | `ReflectionProperty::setAccessible()` — **ohne Wirkung seit PHP 8.1** | 1 | eigener Code |
+
+**Das Gate wäre rot** — an `imagedestroy()`. Die Meldungen im Testprozess sieht es nicht: Die Suite
+meldet Deprecations nur aus `<source>` (`restrictDeprecations`), und `tests/` und `tools/` gehören
+nicht dazu. Sichtbar wurden sie erst mit einer Kopie der Konfiguration ohne diese Einschränkung.
+
+**Aus Abhängigkeiten: keine.** Weder im Server-Log noch in der ungefilterten Unit-Suite.
+
+**Dazu, nicht vom Gate erfasst — Warnungen, neu mit 8.5:** `list($width, $height) = getimagesize(…)`
+in `FileController.php` (Z. 222 und 576). `getimagesize()` gibt für eine Nicht-Bilddatei `false`
+zurück; PHP 8.5 warnt beim Destrukturieren eines Nicht-Arrays (`Cannot use bool as array`, 66-mal).
+Unter 8.3 bleibt das still. Das Verhalten ändert sich nicht — `$width` und `$height` sind `null` wie
+bisher.
+
+### Entscheidungen
+- **8.5 kommt als dritte Matrix-Spalte, 8.3 bleibt.** Das Manifest sagt `^8.3`. Fällt 8.3 aus der
+  Matrix, sichert das Paket eine Version zu, die niemand mehr prüft. Zwei Minuten mehr je Pull
+  Request sind der Preis dafür. 8.3 fällt erst, wenn die Untergrenze im Manifest steigt.
+- **`config.platform.php` bleibt bei `8.3.0`.** Die Plattform bestimmt, wofür Composer den Lock
+  auflöst. Angehoben auf 8.5, könnte ein Paket mit PHP 8.4 oder 8.5 als Mindestversion in den Lock
+  kommen, und ein Projekt auf 8.3 könnte ihn nicht mehr installieren — gegen die eigene Zusage.
+  Festgehalten im Docblock von `TARGET_PLATFORM` in `LockGuaranteesTest`, der Stelle, die Plattform
+  und Ziel unterscheidet.
+
+**Umgesetzt ist keine der beiden** — wie im Abschnitt *Abgrenzung* verlangt. Eine Spalte 8.5 wäre
+heute am Gate rot. Die Folge ist ein eigener Task: die drei wirkungslosen Aufrufe streichen, die
+beiden `getimagesize()`-Stellen gegen `false` absichern, dann die Spalte `test: PHP 8.5` in die Matrix
+und in die erforderlichen Checks des Rulesets.
+
+### Bilanz von Epic `011`
+Das ⚠️ ist ein ✅: Das Kriterium lautet „`composer audit --locked` sauber unter der Zielplattform“.
+Belegt ist jetzt nicht nur die Constraint-Seite, sondern Install, Audit und Suite auf 8.5.11. Offen
+bleibt die Pipeline-Spalte, benannt unter *Was offen bleibt* mit dem zutreffenden Grund. Der alte Grund
+— es fehle ein 8.5-Image — war seit 2026-09-17 überholt.
