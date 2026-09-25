@@ -47,6 +47,8 @@
 - 000-000-0100 → in-progress
 - 000-000-0100 → review: **Der Refresh-Test für deaktivierte Benutzer kann jetzt scheitern.** Er nimmt das Token aus dem Envelope und vergleicht mit einem aktiven Benutzer (200 gegen 401); ohne die `isActive`-Prüfung im Refresh ist er rot. `SchemaCacheApiTest` liest den markierten Schlüssel ohne Warnung. Ohne `restrict*` beide Klassen ohne Warnung, volle Suite 862 grün.
 - 000-000-0100 → done (per Pull Request auf `master`)
+- 000-000-0099 → in-progress
+- 000-000-0099 → review: **`git.md` korrigiert:** *Update branch* und lokale Merges beachten `union`, die Konfliktprüfung des Merge-Buttons nicht (belegt an #59, #61, #62 und #65). Bei einem reinen CHANGELOG-Konflikt: *Update branch* drücken oder `master` lokal mergen, nicht im Web-Editor. Korrekturvermerk in `0089`.
 
 ## 2026-09-24
 - 000-000-0089 task created: "Merge-Konflikte in der Buchführung entschärfen — CHANGELOG per union mergen, Versandfalle ignorieren"
