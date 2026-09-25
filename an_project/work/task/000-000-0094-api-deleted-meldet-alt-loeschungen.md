@@ -1,7 +1,7 @@
 ---
 id: 000-000-0094
 title: "/api/deleted meldet Alt-Löschungen mit 'Gelöscht' wie /api/all"
-status: review
+status: done
 depends_on: []
 ---
 

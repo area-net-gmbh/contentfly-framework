@@ -36,6 +36,7 @@
 - 000-000-0093 → done (per Pull Request auf `master`, #69)
 - 000-000-0094 → in-progress
 - 000-000-0094 → review: **`/api/deleted` meldet Alt-Löschungen mit `'Gelöscht'` wie `/api/all`.** Leserecht und `lastModified` gelten gleich. Zwei Tests in `ReadPathApiTest`, Gegenprobe gegen den alten Code rot; Begründung im Sprachwächter nachgezogen. Registereintrag, Leitfaden 142 Einträge. Volle Suite 862 grün.
+- 000-000-0094 → done (per Pull Request auf `master`)
 
 ## 2026-09-24
 - 000-000-0089 task created: "Merge-Konflikte in der Buchführung entschärfen — CHANGELOG per union mergen, Versandfalle ignorieren"
