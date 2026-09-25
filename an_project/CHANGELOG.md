@@ -2,6 +2,10 @@
 
 # Changelog
 
+## 2026-09-25
+- 000-000-0074 → in-progress
+- 000-000-0074 → review: **Jede Rechte-Zeile aus `0069` ist beantwortet.** Neu `PermissionBranchApiTest` (17 Tests, je beide Richtungen) für `getAll` (`OWN`, `GROUP`, ohne Recht, ohne Gruppe), `getCount` (`OWN`), `getTranslations` (ohne Recht), die i18n-Schreibsperren in `doInsert`/`doUpdate`/`doDelete` und die Passwortprüfung bei `PIM\User`. Der Rest ist bestehend getestet oder **unerreichbar**: Ohne Gruppe liefert `Permission::is()` `NONE`, die „ohne Gruppe“-Zweige laufen nie. PCOV zählt `continue;`-Zeilen nie. `Api.php` 76,0 % → 77,9 %, volle Suite 850 grün. **Befunde für eigene Tickets:** `GROUP` in `getAll`/`getCount` lässt `users` weg (Datensatz sichtbar in `/api/list`, fehlt in `/api/all`); eine i18n-Sperre antwortet mit HTTP 550.
+
 ## 2026-09-24
 - 000-000-0089 task created: "Merge-Konflikte in der Buchführung entschärfen — CHANGELOG per union mergen, Versandfalle ignorieren"
 - 000-000-0089 → in-progress
