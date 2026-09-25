@@ -1,7 +1,7 @@
 ---
 id: 000-000-0076
 title: /api/query — die Array-Syntax testen oder streichen
-status: review
+status: done
 depends_on: [000-000-0072]
 ---
 

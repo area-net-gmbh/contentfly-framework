@@ -14,6 +14,10 @@
 - 000-000-0076 → review: **Die Array-Syntax von `/api/query` bleibt und ist getestet.** Sie ist der einzige Weg zu Joins, und mehrspaltiges `select` steht im DOC-Beispiel. `QueryApiTest` von 9 auf 24 Tests: Liste in `select`/`where`, mehrere Joins, Join als flache Liste, ungültiger Join, mehrere Werte je Bedingung, Rechte-Verengung auf gejointe und `from`-Entities (`OWN`/`GROUP`/`ALL`, je beide Richtungen, ohne Recht 403). Gegenprobe: ohne `OWN`-Verengung im Join rot. DOC: Join-Beispiel, Erklärung der Array-Syntax, `having`-Beispiel korrigiert (es hätte einen Wert als Spalte gelesen). `getQuery` 34/132 → 117/132, `Api.php` 84,8 %, volle Suite 865 grün.
 - 000-000-0077 → in-progress
 - 000-000-0077 → review: **`customNavigation` ist entfernt, mit `PIM\Nav`, `PIM\NavItem` und `FRONTEND_CUSTOM_NAVIGATION`.** Er baute die Menüs der gestrichenen Oberfläche (`#/list/<entity>`, Glyphicons). `meta.frontend` trägt nur noch `languages`. Registereintrag unter *API*, Leitfaden 139 Einträge. Gemessen: Das Schema-Update löscht `pim_nav`/`pim_navItem` mit ihren Zeilen; übernimmt ein Projekt beide Entities nach `custom/`, bleibt alles stehen. `'Gelöscht'` in `getAll()` bleibt (Entscheidung `014-003-0002`), getestet seit `0075`. Volle Suite 866 grün, `Api.php` 87,1 %. **Befund:** `/api/deleted` liefert `'Gelöscht'`-Zeilen nicht, nur `/api/all`.
+- 000-000-0074 → done (per Pull Request auf `master`, #60)
+- 000-000-0076 → done (per Pull Request auf `master`, #60)
+- 000-000-0077 → done (per Pull Request auf `master`, #60)
+- 000-000-0054 → done (per Pull Request auf `master`, #61)
 
 ## 2026-09-24
 - 000-000-0089 task created: "Merge-Konflikte in der Buchführung entschärfen — CHANGELOG per union mergen, Versandfalle ignorieren"
