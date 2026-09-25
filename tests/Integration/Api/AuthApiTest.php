@@ -402,7 +402,6 @@ class AuthApiTest extends IntegrationTestCase
         ));
         curl_exec($ch);
         $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
 
         return $status;
     }

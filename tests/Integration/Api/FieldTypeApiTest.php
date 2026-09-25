@@ -517,7 +517,6 @@ class FieldTypeApiTest extends IntegrationTestCase
             CURLOPT_HTTPHEADER     => array('appcms-token: '.$this->token()),
         ));
         $body = json_decode((string) curl_exec($ch), true) ?: array();
-        curl_close($ch);
         unlink($tmp);
 
         $id = $body['data']['id'] ?? null;

@@ -32,7 +32,7 @@ pull request"* und *„6 of 6 required status checks are expected"*.
 
 | | |
 |---|---|
-| Erforderliche Checks | **alle sechs** — `check: Vorlagen-Konfiguration`, `check: composer audit`, `check: PHPStan`, `check: Bezugsweg von aussen`, `test: PHP 8.3`, `test: PHP 8.4` |
+| Erforderliche Checks | **alle sieben** — `check: Vorlagen-Konfiguration`, `check: composer audit`, `check: PHPStan`, `check: Bezugsweg von aussen`, `test: PHP 8.3`, `test: PHP 8.4`, `test: PHP 8.5` (seit `000-000-0096`) |
 | Freigabe | **keine** — bei dieser Teamgrösse wäre sie ein Hindernis ohne Nutzen, und GitHub lässt niemanden den eigenen Pull Request freigeben |
 | Gilt für Administratoren | **ja** — die *Bypass list* des Rulesets ist leer |
 | Force-Push und Löschen | **verboten** |

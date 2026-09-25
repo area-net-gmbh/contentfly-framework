@@ -85,6 +85,7 @@ Gates*, Abschnitt *Das Sicherheits-Gate läuft auch ohne Commit*.
 | `bezugsweg` | — | Setzt ein Projekt ausserhalb des Repos auf und bezieht das Paket von aussen — **blockierend seit `011-002-0004`** |
 | `test (8.3)` | Matrix | Beide Testsuiten gegen eine frisch installierte Instanz — **pflicht** |
 | `test (8.4)` | Matrix | Derselbe Lauf auf PHP 8.4 — **blockierend seit `010-003-0003`** |
+| `test (8.5)` | Matrix | Derselbe Lauf auf der Zielplattform PHP 8.5 — **blockierend seit `000-000-0096`** |
 
 **Der erste Lauf auf GitHub Actions war grün am 2026-09-17** — nach drei Anläufen, die zwei
 echte Befunde zutage gefördert haben; beide stehen in `011-002-0002`.
@@ -97,6 +98,11 @@ und **er ist seit `010-003-0003` blockierend** — entschieden noch auf GitLab, 
 ein `allow_failure: true` trug. Dieses Dokument führte es bis `011-002-0002` als offene Frage,
 obwohl die Pipeline sie längst getroffen hatte; der Kommentar in `pipeline.yml` sagt das seither
 ausdrücklich.
+
+**Seit `000-000-0096` läuft auch die Zielplattform PHP 8.5 — blockierend vom ersten Lauf an.**
+Erhoben hat sie `000-000-0054`: Lock, Audit und Suite grün, das Gate rot an drei Aufrufen, die seit
+PHP 8.0 bzw. 8.1 nichts mehr taten. Die sind gestrichen. 8.3 bleibt in der Matrix, solange das
+Manifest `^8.3` zusagt.
 
 ### Was die Pipeline voraussetzt
 - **Ein Runner mit Docker-Executor.** Ohne ihn funktionieren weder `image:` noch `services:`.
@@ -368,7 +374,7 @@ einzeln eingelöst, nicht gesammelt umgeschaltet:
 |---|---|---|---|
 | `composer audit --locked` | den Lock gegen die Advisory-Datenbank | **ja** | `tools/ci/audit.sh` |
 | abgelaufene Audit-Ausnahmen | ob jede Ausnahme noch greift | **ja** | `tools/ci/audit-ausnahmen-pruefen.sh` |
-| Deprecations zur Laufzeit | das Serverlog nach dem Testlauf | **ja**, auf 8.3 **und** 8.4 | `tools/ci/deprecations-pruefen.sh` |
+| Deprecations zur Laufzeit | das Serverlog nach dem Testlauf | **ja**, auf 8.3, 8.4 **und** 8.5 | `tools/ci/deprecations-pruefen.sh` |
 | PHPStan | deprecated APIs ohne Ausführung | **ja seit `009-003-0003`** | `phpstan.neon.dist` |
 
 > **Diese Tabelle stand bis `000-000-0055` auf einem älteren Stand** — sie führte PHPStan als

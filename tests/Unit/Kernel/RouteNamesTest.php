@@ -64,7 +64,6 @@ class RouteNamesTest extends TestCase
     private function routes(Application $app): RouteCollection
     {
         $property = (new \ReflectionObject($app))->getProperty('routes');
-        $property->setAccessible(true);
 
         return $property->getValue($app);
     }

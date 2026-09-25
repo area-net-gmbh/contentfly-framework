@@ -240,7 +240,6 @@ function send(string $method, string $url, mixed $json, array $headers): array
     $body        = (string) curl_exec($ch);
     $status      = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $contentType = (string) curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
-    curl_close($ch);
 
     return array('status' => $status, 'contentType' => preg_replace('/;.*$/', '', $contentType), 'body' => $body);
 }

@@ -211,7 +211,6 @@ PHP);
         $raw         = (string) curl_exec($ch);
         $status      = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $contentType = (string) curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
-        curl_close($ch);
 
         return array($status, $contentType, $raw);
     }

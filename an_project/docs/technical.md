@@ -403,5 +403,5 @@ fällt nicht auf.
 
 ### Wo die Suite läuft
 `.github/workflows/pipeline.yml` fährt sie bei Push auf `master` und bei jedem Pull Request, gegen
-PHP 8.3 und 8.4 — **beide blockierend**. Die Schritte stehen in `tools/ci/`, damit sie sich
+PHP 8.3, 8.4 und 8.5 — **alle blockierend**. Die Schritte stehen in `tools/ci/`, damit sie sich
 lokal nachspielen lassen. Details: `tests/README.md`, Einrichtung: `an_project/docs/runbook.md`.
