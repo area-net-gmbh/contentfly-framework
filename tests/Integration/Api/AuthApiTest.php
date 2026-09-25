@@ -612,24 +612,49 @@ class AuthApiTest extends IntegrationTestCase
      *
      * This is the case the refresh model has to carry: access ends at the latest with the
      * current access token, because afterwards nobody gets a new one.
+     *
+     * UNTIL 000-000-0100 THIS TEST COULD NOT FAIL. It read `$login['refreshToken']`, but since
+     * 011-001-0004 the token sits in `data`: the refresh got null, and the 401 came from the
+     * missing token. The route answers every refusal with the same code on purpose, so the code
+     * cannot tell the causes apart — an active user who goes the same way can. That user is the
+     * counter-check here.
      */
     public function testDeactivatedUserGetsNoNewAccessJwt(): void
     {
+        [$deactivatedId, $deactivatedToken] = $this->refreshTokenOfANewUser();
+        [, $activeToken]                    = $this->refreshTokenOfANewUser();
+
+        $deactivate = $this->pdo()->prepare('UPDATE pim_user SET isActive = 0 WHERE id = :id');
+        $deactivate->execute(array('id' => $deactivatedId));
+
+        [$active] = $this->postJson('/auth/refresh', array('refreshToken' => $activeToken));
+        $this->assertSame(200, $active, 'The counter-check: the same way works for an active user');
+
+        [$afterDeactivation, $body] = $this->postJson('/auth/refresh', array('refreshToken' => $deactivatedToken));
+        $this->assertSame(401, $afterDeactivation, 'The deactivated user gets no new access JWT');
+        $this->assertErrorEnvelope($body, 'contentfly_general_invalid_refresh_token');
+    }
+
+    /**
+     * A new non-admin logs in for JWT; returns the user id and the refresh token.
+     *
+     * @return array{0:string,1:string}
+     */
+    private function refreshTokenOfANewUser(): array
+    {
         [, $userId] = $this->createTestUser();
 
-        [$status, $login] = $this->postJson('/auth/login', array(
+        [$status, $body] = $this->postJson('/auth/login', array(
             'alias'     => $this->aliasFor($userId),
             'pass'      => self::TEST_PASSWORD,
             'tokenType' => 'jwt',
         ));
         $this->assertSame(200, $status);
 
-        $deactivate = $this->pdo()->prepare('UPDATE pim_user SET isActive = 0 WHERE id = :id');
-        $deactivate->execute(array('id' => $userId));
+        $refreshToken = $this->assertEnvelope($body)['refreshToken'] ?? null;
+        $this->assertIsString($refreshToken, 'Precondition: the JWT login hands out a refresh token');
 
-        [$afterDeactivation] = $this->postJson('/auth/refresh', array('refreshToken' => $login['refreshToken']));
-
-        $this->assertSame(401, $afterDeactivation);
+        return array($userId, $refreshToken);
     }
 
     // ── Revocation (013-003-0003) ──────────────────────────────────────────────────────

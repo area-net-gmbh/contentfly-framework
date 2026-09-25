@@ -104,7 +104,9 @@ class SchemaCacheApiTest extends IntegrationTestCase
         $cached['PIM\\Tag']['settings']['label'] = $marker;
         file_put_contents(self::cacheFile(), serialize($cached));
 
-        $this->assertNotSame($marker, $this->schema()['PIM\\Tag']['settings']['label'],
+        // `label` exists only in the marked cache file; a schema built from the entity files has
+        // no such key. Reading it plainly raised "Undefined array key" (000-000-0100).
+        $this->assertNotSame($marker, $this->schema()['PIM\\Tag']['settings']['label'] ?? null,
             'The suite\'s server, cache off, builds the schema from the entity files');
     }
 }
