@@ -1,7 +1,7 @@
 ---
 id: 000-000-0096
 title: "PHP 8.5 in die Pipeline: wirkungslose Aufrufe streichen, Spalte test: PHP 8.5"
-status: review
+status: done
 depends_on: []
 ---
 
@@ -26,9 +26,9 @@ Dazu, neu mit 8.5 und vom Gate nicht erfasst: `list($width, $height) = getimages
 ## Acceptance criteria
 - [x] Die drei wirkungslosen Aufrufe sind gestrichen; das Verhalten unter 8.3 und 8.4 ist unverändert (Suite grün).
 - [x] Die beiden `getimagesize()`-Stellen sind gegen `false` abgesichert; `$width`/`$height` bleiben `null` wie bisher.
-- [ ] Die Matrix von `test` ist `['8.3', '8.4', '8.5']`; der Job `test: PHP 8.5` ist grün, **Deprecation-Gate eingeschlossen**.
+- [x] Die Matrix von `test` ist `['8.3', '8.4', '8.5']`; der Job `test: PHP 8.5` ist grün, **Deprecation-Gate eingeschlossen**.
 - [x] Ein Lauf ohne `restrictDeprecations` meldet auf 8.5 auch im Testprozess keine Deprecation.
-- [ ] `test: PHP 8.5` ist erforderlicher Check im Ruleset `master-schutz`; `git.md` nennt ihn.
+- [x] `test: PHP 8.5` ist erforderlicher Check im Ruleset `master-schutz`; `git.md` nennt ihn.
 
 ## Verification
 Der CI-Lauf des Pull Requests. Lokal wie in `0054`: der Pipeline-Job in `php:8.5-cli` nachgestellt.
@@ -74,7 +74,8 @@ Der ungefilterte Lauf meldet **zwei Warnungen im Testprozess, die zwei hohle Tes
   gibt; der Refresh bekommt `null`, und die 401 kommt vom fehlenden Token, nicht vom deaktivierten
   Benutzer.
 
-### Offen
-- Der CI-Lauf des Pull Requests mit `test: PHP 8.5`.
-- **Ihr Schritt nach dem Merge:** *Settings → Rulesets → master-schutz → Require status checks* →
-  `test: PHP 8.5` hinzufügen. `git.md` nennt ihn bereits als siebten.
+### Abgeschlossen (2026-09-25)
+- **CI:** `test: PHP 8.5` grün auf dem Pull Request #72 (`9fea926f`) und auf dem gemergten `master`
+  (`9809370a`), zusammen mit den sechs übrigen Checks.
+- **Ruleset `master-schutz`:** verlangt jetzt sieben Checks, `test: PHP 8.5` eingeschlossen — gelesen
+  über `GET /repos/…/rules/branches/master`, nicht aus der Doku.
