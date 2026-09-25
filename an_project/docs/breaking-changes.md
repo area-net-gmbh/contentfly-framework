@@ -273,6 +273,23 @@ rund fünf Byte je zugelassenem Pixel.
 
 ## API
 
+### i18n-Fehler antworten mit `403` bzw. `409` statt `550`
+**Seit `000-000-0095` (2026-09-25).**
+
+`ContentflyI18NException` setzte seit 1.x den Code **550**, und die Fehlerantwort übernahm ihn als
+HTTP-Status. 550 ist kein HTTP-Status; als 5xx liest er sich wie ein Serverfehler, den ein Client oder
+Proxy wiederholen darf, und ein Monitoring zählt ihn als Ausfall.
+
+| Fehlercode | Wann | Vorher | Jetzt |
+|---|---|---|---|
+| `contentfly_i18n_permission_denied` | Schreiben, Ändern oder Löschen in einer Sprache, die die Gruppe nicht schreiben darf (`pim_group.languages`) | 550 | **403** |
+| `contentfly_i18n_missing_translations` | `/api/single` mit `compareToLang`: Die Übersetzung verknüpft einen Datensatz, den es in der Vergleichssprache nicht gibt | 550 | **409** |
+
+Die Fehlercodes im Envelope, `context.entity` und `context.lang` sind unverändert.
+
+*Was zu tun ist:* Ein Client, der auf den Status 550 geprüft hat, prüft auf den Fehlercode — oder auf
+403 bzw. 409. Ein Client, der nur den Fehlercode auswertet, merkt nichts.
+
 ### `/api/deleted` meldet auch Löschungen aus Contentfly 1.x
 **Seit `000-000-0094` (2026-09-25).**
 

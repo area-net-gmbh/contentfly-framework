@@ -4,7 +4,7 @@
 
 **Dieser Leitfaden ist der Weg. `an_project/docs/breaking-changes.md` ist das Register.**
 
-Das Register hat **142 Einträge in 14 Abschnitten** (Stand 2026-09-25, nachgezählt mit `000-000-0094`) und ist nach Epic und
+Das Register hat **143 Einträge in 14 Abschnitten** (Stand 2026-09-25, nachgezählt mit `000-000-0095`) und ist nach Epic und
 Story geordnet — also danach, *wann wir etwas geändert haben*. Das ist die richtige Ordnung zum
 Nachschlagen und die falsche zum Arbeiten. Hier steht die andere: **was ein Projekt tut, und in
 welcher Reihenfolge.**
@@ -547,7 +547,7 @@ nötig, um wie bisher weiterzuarbeiten.
 
 ## Phase 8 — Den API-Vertrag prüfen
 
-**Was die Clients merken.** 48 Einträge unter *API* — der grösste Abschnitt des Registers, und
+**Was die Clients merken.** 49 Einträge unter *API* — der grösste Abschnitt des Registers, und
 der einzige, den ein Projekt nicht allein durch Codeänderungen erledigt: Ein Teil davon betrifft
 Clients, die es nicht besitzt.
 

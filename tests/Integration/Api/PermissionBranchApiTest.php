@@ -195,16 +195,15 @@ class PermissionBranchApiTest extends IntegrationTestCase
     // not listed is writable. `readable` alone stops insert and update, anything listed stops
     // delete — delete asks for isWritable(), the other two for isOnlyReadable().
     //
-    // THE REFUSAL IS A 550, NOT A 403. `ContentflyI18NException` has passed 550 as its code since
-    // 1.x, and the envelope turns the code into the status. 550 is no HTTP status; as a 5xx it
-    // reads as a server error, which a client or proxy may retry. Recorded here as it is — the
-    // error code in the envelope is the part a client can rely on.
+    // THE REFUSAL IS A 403 (000-000-0095). Until then `ContentflyI18NException` passed 550 as its
+    // code, and the envelope turned it into the status — no HTTP status, and as a 5xx it read as a
+    // server error a client or proxy may retry. The error code in the envelope is unchanged.
 
     public function testInsertInALanguageTheGroupMayOnlyReadIsDenied(): void
     {
         [$status, $id, $body] = $this->insertTranslation('{"en":"readable"}');
 
-        $this->assertSame(550, $status, 'en is readable only');
+        $this->assertSame(403, $status, 'en is readable only');
         $this->assertErrorEnvelope($body, 'contentfly_i18n_permission_denied');
         $this->assertFalse($this->i18nRowExists($id, 'en'), 'Checked against the database');
     }
@@ -221,7 +220,7 @@ class PermissionBranchApiTest extends IntegrationTestCase
     {
         [$status, $id, $body] = $this->updateTranslation('{"en":"readable"}');
 
-        $this->assertSame(550, $status, 'en is readable only');
+        $this->assertSame(403, $status, 'en is readable only');
         $this->assertErrorEnvelope($body, 'contentfly_i18n_permission_denied');
         $this->assertSame("Record $id", $this->i18nTitle($id, 'en'), 'The en variant is unchanged');
     }
@@ -252,7 +251,7 @@ class PermissionBranchApiTest extends IntegrationTestCase
         // delete the record.
         [$status, $id, $body] = $this->deleteRecord('{"de":"translatable"}');
 
-        $this->assertSame(550, $status, 'de is translatable, not writable');
+        $this->assertSame(403, $status, 'de is translatable, not writable');
         $this->assertErrorEnvelope($body, 'contentfly_i18n_permission_denied');
         $this->assertTrue($this->i18nRowExists($id, 'de'), 'Checked against the database');
     }
