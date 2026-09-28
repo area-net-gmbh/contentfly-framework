@@ -1523,6 +1523,42 @@ kein Verzeichnisname.
 2. **Clients, die IDs selbst vergeben**, müssen echte UUID v4 schicken. Ein eigenes Schema wie
    `kunde-4711` wird abgelehnt — auch dann, wenn es nie ein Pfad war.
 
+### `/file/upload` auf einen bestehenden Datensatz verlangt dieselben Rechte wie `/file/overwrite`
+**Seit `015-000-0006` (2026-09-28).**
+
+`uploadAction` prüfte das Entity-Recht und warf den Rückgabewert von `Permission::isWritable()`
+weg. Der sagt aber, **welche Stufe** jemand hält — `OWN`, `GROUP` oder `ALL` —, und jeder andere
+Schreibweg auf `PIM\File` verengt danach: `overwriteAction` über `assertFileWritable()`,
+`Api::doUpdate()` von Hand. Der Upload verengte gar nicht.
+
+Wer `writable = OWN` hatte, las die ID einer fremden Datei aus einer `/file/get`-URL und lud unter
+dieser ID eine Ersatzdatei hoch. Nachgemessen am 2026-09-28 gegen den ungefixten Stand: Der
+Re-Upload antwortet **200**, und der Dateiinhalt ist getauscht. Öffentlich verlinkte Bilder und
+PDFs hatten damit einen anderen Inhalt, und die Thumbnails wurden daraus neu erzeugt.
+
+**Dazu ein zweiter Halbsatz mit eigener Wirkung:** `setUserCreated()` lief bei jedem Durchlauf,
+auf einem gefundenen Datensatz wie auf einem neuen. Der Angreifer galt danach als Ersteller — und
+damit war die Änderung genau für die Regel unsichtbar, die sie hätte verhindern sollen.
+
+| Aufruf | vorher | jetzt |
+|---|---|---|
+| Re-Upload auf fremden Datensatz, `writable = OWN` / `GROUP` | **200**, Datei ersetzt | **403** |
+| Re-Upload auf eigenen Datensatz | **200** | **200**, unverändert |
+| Re-Upload auf fremden Datensatz, `writable = ALL` | **200** | **200** — die Stufe sagt das |
+| `userCreated` nach einem Re-Upload | auf den Aufrufer umgeschrieben | **bleibt der Ersteller** |
+
+`user` benennt weiterhin den Aufrufer: Das Feld ist, wer den Datensatz zuletzt angefasst hat, und
+ein Re-Upload ist ein Anfassen.
+
+*Was zu tun ist:*
+
+1. **Clients, die Dateien fremder Benutzer per Re-Upload aktualisieren** — etwa ein Import, der
+   unter einem eigenen Konto läuft —, brauchen `writable = ALL` auf `PIM\File`. Mit `OWN` oder
+   `GROUP` antwortet der Aufruf jetzt 403.
+2. **Wer sich darauf verlassen hat, dass ein Re-Upload den Ersteller umschreibt**, um damit
+   Eigentum zu übertragen, braucht dafür ein `/api/update` auf `userCreated` — mit den Rechten,
+   die das verlangt.
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —
