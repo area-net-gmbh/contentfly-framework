@@ -1689,6 +1689,50 @@ Klausel: Für das eigene Konto sind Datensatz-ID und User-ID dieselbe Zahl — p
    findet je Tabelle die Datensätze, deren ID einer User-ID gleicht. Bei der Strategie `auto` sind
    das in jeder Tabelle die ersten N.
 
+### Die Login-Drossel zählt auf das Konto, nicht auf die getippte Zeichenkette
+**Seit `015-000-0010` (2026-09-28).**
+
+`LoginThrottle::key()` bildete den Eimer aus `sha256(mb_strtolower(trim($alias)))`. Das Konto
+wird dagegen mit `findOneBy(['alias' => …])` unter der Kollation `utf8mb3_unicode_ci` gesucht.
+**Am 2026-09-28 gegen diese Datenbank gemessen** setzt sie gleich:
+
+| Variante | Kollation |
+|---|---|
+| `Admin` (Grossschreibung) | gleich |
+| `a` als U+00E0 / U+00E1 / U+00E4 (Akzente) | gleich |
+| `a` als U+FF41 (volle Breite) | gleich |
+| `admin ` (Leerzeichen am Ende) | gleich |
+| U+00DF gegen `ss` | gleich |
+| `i` als U+0131 (punktloses i) | **verschieden** |
+| U+00E6 gegen `ae` | **verschieden** |
+
+Jede der gleichgesetzten Varianten bekam einen eigenen Drossel-Eimer und traf dasselbe Konto. Die
+Stufen pro Kennung (5/min, 20/15 min, 50/h) liefen deshalb nie voll: Gegen ein einzelnes Konto —
+den Admin eingeschlossen — blieb allein die Drossel pro IP. Nachgemessen: Über sieben Varianten
+hinweg antwortet die Drossel **kein einziges Mal**.
+
+**Die Eingabe zu falten wäre die falsche Lösung gewesen.** Eine Kollation in PHP nachzubilden
+heisst, sie ganz nachzubilden — und jede ihrer Versionen. `ext-intl` ist keine Abhängigkeit des
+Frameworks, und eine Systemerweiterung für eine Regel zu verlangen, die exakt zu haben ist, wäre
+der falsche Tausch. Stattdessen löst `AuthController` das Konto auf und übergibt `user:<id>`;
+ein Name, der auf kein Konto passt, bekommt `alias:<name>` — ein eigener Präfix, damit ein
+erfundener Name nicht auf das Budget eines echten Kontos gerichtet werden kann.
+
+**Die Suche liegt jetzt vor der Drossel-Prüfung**, und das ändert die Reihenfolge, für die
+`013-001-0003` argumentiert hat. Deren Grund bleibt unangetastet: Wer über dem Limit ist, erreicht
+den Argon2id-Vergleich weiterhin nicht. Erreicht wird ein indizierter SELECT — um Grössenordnungen
+billiger als der Hash und nicht mehr, als derselbe Request vor Erreichen des Limits ohnehin kostete.
+
+*Was zu tun ist:*
+
+1. **Nichts für ein Projekt, das den Login unverändert benutzt.** Die Drossel greift jetzt so, wie
+   die Klasse es immer beschrieben hat.
+2. **Wer `LoginThrottle` selbst aufruft** — ein eigener Login, ein zweiter Einstiegspunkt —, übergibt
+   eine stabile Kennung und nicht den rohen Benutzernamen. Mit dem rohen Namen ist die Lücke wieder
+   offen. Der Klassenkommentar sagt es jetzt ausdrücklich.
+3. **Bestehende Eimer laufen aus.** Der Schlüssel ändert sich, also beginnt jedes Konto einmalig bei
+   null. Das betrifft nur laufende Sperren, und die längste Stufe ist eine Stunde.
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —
