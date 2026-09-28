@@ -2,6 +2,9 @@
 
 # Changelog
 
+## 2026-09-28
+- 000-000-0102 task created: "StringType liest '0' als leer und speichert einen leeren String"
+
 ## 2026-09-25
 - 000-000-0092 → done (per Pull Request auf `master`, #59)
 - 000-000-0084 → done: **`v2.2.0` war am 2026-09-22 veröffentlicht; nachgetragen ist nur die Buchführung.** Der Tag auf `05448f19` (#47) wurde nach sechs grünen Checks gesetzt, der Veröffentlichungslauf `35723812590` war grün, und `contentfly-framework-dist` trägt `v2.2.0` (`e5a71766`). Gemessen am 2026-09-25: Ein frisches Projekt mit `2.2.0` bezieht die Version über HTTPS (`APP_VERSION = '2.2.0'`), mit `^2.0` bezieht es inzwischen `v2.3.0`. Die Abnahme vom Release-Tag mit `^2.0` lag ungemergt auf `chore/000-000-0084-abschluss` (`6f24d646`) und ist jetzt verlinkt.
