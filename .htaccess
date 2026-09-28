@@ -1,6 +1,32 @@
+# Only index.php and the delivered files are reachable from the web (015-000-0004).
+#
+# Everything else in the tree is code, configuration or working data. Until this block the
+# document root served all of it: bin/console.php ran every console command under a web SAPI
+# with register_argc_argv, custom/config.php holds the database credentials, and data/cache
+# and data/temp carry whatever the application put there.
+#
+# The rules deny rather than rewrite. A rewrite to index.php would answer a request for
+# custom/config.php with the API's 404 — indistinguishable from a path that never existed,
+# which sounds good but hides a misconfiguration from whoever is looking for one.
+#
+# mod_rewrite is required, not optional: without it the rule further down that routes every
+# request to index.php does not run either, and the application does not work at all. So this
+# block adds no failure mode that was not already there.
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Code, configuration, dependencies — none of it is ever requested by a client.
+    RewriteRule ^(bin|custom|lib|vendor|plugins|tools|tests)(/|$) - [F,L]
+
+    # Of data/ only files/ is delivered; cache/, import/ and temp/ are working directories.
+    RewriteCond %{REQUEST_URI} !(^|/)data/files/
+    RewriteRule (^|/)data/ - [F,L]
+
+    # Dotfiles and the project's own manifests, wherever they sit.
+    RewriteRule (^|/)\.(?!well-known/) - [F,L]
+    RewriteRule ^(composer\.(json|lock)|phpunit\.xml(\.dist)?|phpstan\.neon(\.dist)?|rector\.php|build\.xml|apidoc\.json)$ - [F,L]
+
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^ index.php [QSA,L]

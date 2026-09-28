@@ -1443,6 +1443,47 @@ lassen sich nicht mehr für einen Login verwenden — richtig so, aber es sperrt
 Konten bekommen ein neues Passwort gesetzt. Ob es welche gibt, ist von aussen nicht zu sehen; wer
 den Verdacht hat, prüft die Hashes gegen den leeren String.
 
+### Die Console läuft nur noch auf der Kommandozeile, und der Document Root liefert weniger aus
+**Seit `015-000-0004` (2026-09-28).**
+
+Weder `bin/console.php` noch `Start::console()` prüften `PHP_SAPI`. Im dokumentierten Layout liegt
+`bin/` neben `index.php` im Document Root, und die `.htaccess` sperrte dort nichts. Unter einer
+Web-SAPI mit `register_argc_argv` liest Symfonys `ArgvInput` `$_SERVER['argv']` aus dem Request —
+und `register_argc_argv` ist PHPs eingebaute Vorgabe, sobald keine `php.ini` geladen ist, etwa in
+den offiziellen Docker-Images.
+
+**Nachgemessen am 2026-09-28** gegen den ungefixten Stand: `GET /bin/console.php?list` antwortet
+**200** und führt den Befehl aus. Die Ausgabe landet auf stdout des Serverprozesses, nicht im
+Antwortkörper — der Request sieht leer aus, und die vollständige Befehlsliste steht im Log,
+`appcms:setup`, `dbal:run-sql`, `orm:run-dql` und `orm:schema-tool:drop` eingeschlossen. Ohne
+Anmeldung, ohne Token.
+
+| Zugriff | vorher | jetzt |
+|---|---|---|
+| `GET /bin/console.php` (Web-SAPI) | **200**, Befehl läuft | **403**, vor dem Autoloader |
+| `GET /bin/cli-config.php` | **200** | **403** |
+| `Start::console()` unter Web-SAPI | lief durch | `RuntimeException` |
+| `php bin/console.php …` | unverändert | unverändert |
+| `GET /custom/config.php`, `/lib/…`, `/vendor/…`, `/data/cache/…` | ausgeliefert | **403** |
+
+**Zwei Schichten.** Die Prüfung in den Einstiegspunkten steht **vor** `require vendor/autoload.php`
+— was dort abbricht, hat kein Stück Framework-Code geladen. `Start::assertConsoleSapi()` prüft
+dasselbe noch einmal, für jeden anderen Aufrufer; sie wirft, weil das an der Stelle ein
+Programmierfehler ist und keine zu beantwortende Anfrage.
+
+*Was zu tun ist:*
+
+1. **Wer die Console aus einem Webkontext aufruft** — ein Cron über `wget`, ein Deploy-Hook, ein
+   eigener Endpunkt, der `Start::console()` benutzt —, stellt auf einen echten CLI-Aufruf um. Das
+   war nie ein unterstützter Weg, aber er funktionierte.
+2. **Wer eigene Verzeichnisse im Document Root ausliefert**, prüft die neuen Regeln in der
+   `.htaccess`: gesperrt sind `bin/`, `custom/`, `lib/`, `vendor/`, `plugins/`, `tools/`, `tests/`,
+   alles unter `data/` **ausser** `data/files/`, Dotfiles und die Projektmanifeste
+   (`composer.json`, `phpunit.xml`, …). Ein Projekt, das etwa unter `custom/` eine öffentliche
+   Datei liegen hatte, verschiebt sie.
+3. **`register_argc_argv` gehört trotzdem abgeschaltet.** Die mitgelieferten `php.ini`-Vorlagen tun
+   das. Die Sperre hier ersetzt das nicht, sie fängt nur den Fall ab, dass es jemand nicht tut.
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —

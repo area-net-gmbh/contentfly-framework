@@ -1,7 +1,7 @@
 ---
 id: 015-000-0004
 title: bin/console.php läuft über HTTP ohne CLI-Prüfung
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -22,9 +22,9 @@ das Admin-Passwort auf `admin`, siehe `015-000-0002`), `dbal:run-sql`, `orm:run-
 offiziellen Docker-Images. Die mitgelieferten `php.ini`-Vorlagen schalten es ab.
 
 ## Acceptance criteria
-- [ ] `bin/console.php`, `bin/cli-config.php` und `Start::console()` brechen ab, wenn `PHP_SAPI` nicht `cli` (oder `phpdbg`) ist.
-- [ ] `.htaccess` sperrt den Web-Zugriff auf `bin/`, `custom/`, `lib/` und `vendor/`, ebenso auf alles unter `data/` ausser den öffentlich ausgelieferten Dateien.
-- [ ] Die Console funktioniert auf der Kommandozeile unverändert.
+- [x] `bin/console.php`, `bin/cli-config.php` und `Start::console()` brechen ab, wenn `PHP_SAPI` nicht `cli` (oder `phpdbg`) ist.
+- [x] `.htaccess` sperrt den Web-Zugriff auf `bin/`, `custom/`, `lib/` und `vendor/`, ebenso auf alles unter `data/` ausser den öffentlich ausgelieferten Dateien.
+- [x] Die Console funktioniert auf der Kommandozeile unverändert.
 
 ## Verification
 Unit-Test mit simulierter Nicht-CLI-SAPI: Der Einstieg bricht ab, bevor ein Befehl läuft. Manuell
