@@ -1641,6 +1641,54 @@ ein Zeilenumbruch im Alias eine eigene Zeile ins Log.
 3. **Der Laufzeitunterschied bleibt** als zweiter Kanal und ist ein eigener Eintrag
    (`015-000-0018`): Ein unbekannter Alias antwortet schneller, weil keine Passwortprüfung läuft.
 
+### Die ID eines Datensatzes begründet kein Eigentum mehr
+**Seit `015-000-0009` (2026-09-28).**
+
+`Base::hasUserId()` endete mit
+
+```php
+return in_array($id, $ids) || $this->id == $id;
+```
+
+Der zweite Vergleich stellte die **User-ID des Aufrufers** neben den **Primärschlüssel des
+Datensatzes** — zwei Zahlen aus verschiedenen Tabellen, die nichts miteinander zu tun haben. Mit
+der Vorgabe-Strategie des Installers (`auto`, Ganzzahlen pro Tabelle gezählt) passte Benutzer 7
+damit auf Datensatz 7 in **jeder** Entity.
+
+Auf dieser einen Methode ruhen sämtliche Eigentumsprüfungen: `getSingle()`, `doUpdate()`,
+`doDelete()`, die Join-, Multijoin-, Checkbox-, File- und Onejoin-Typen und `FileController`.
+Jeder Nicht-Admin mit `OWN` oder `GROUP` konnte deshalb genau einen fremden Datensatz je Entity
+lesen, ändern und löschen — `PIM\File` und `PIM\Group` eingeschlossen. Nachgemessen am
+2026-09-28 gegen den ungefixten Stand: Lesen, Ändern und Löschen antworten alle drei mit **200**.
+
+`hasGroupId()` hatte die Klausel nie, und die SQL-Seite auch nicht: Die `FIND_IN_SET`-Filter von
+`list`, `all` und `count` prüfen `userCreated` und `users`, sonst nichts. Beide Seiten sagen
+jetzt dasselbe. Der Vergleich in `in_array` ist ausserdem strikt und auf Zeichenketten, wie
+`FIND_IN_SET` auch.
+
+| Zugriff | vorher | jetzt |
+|---|---|---|
+| fremder Datensatz, dessen ID der eigenen User-ID gleicht, mit `OWN`/`GROUP` | lesen, ändern, löschen möglich | **403** |
+| eigener Datensatz (`userCreated`) oder über `users` freigegebener | erreichbar | unverändert |
+| eigener `PIM\User`-Datensatz mit `OWN` | erreichbar **über die Lücke** | erreichbar, jetzt ausdrücklich |
+
+**Der letzte Punkt ist die eigentliche Überraschung.** Dass ein Benutzer seinen eigenen
+`PIM\User`-Datensatz mit `OWN` lesen und ändern konnte, funktionierte ausschliesslich über diese
+Klausel: Für das eigene Konto sind Datensatz-ID und User-ID dieselbe Zahl — per Definition.
+`getSingle()` benennt diesen Fall jetzt selbst (`$object === $this->app['auth.user']`), so wie
+`doUpdate()` es längst tat.
+
+*Was zu tun ist:*
+
+1. **Nichts, wenn die Rechte gemeint waren, wie sie dokumentiert sind.** Wer `OWN` vergibt, meint
+   „was dieser Benutzer angelegt hat oder was ihm über `users` freigegeben ist".
+2. **Ein Projekt, das sich — womöglich unbemerkt — auf den Zugriff verlassen hat**, gibt den
+   Datensatz jetzt ausdrücklich frei: die User-ID in die Spalte `users` eintragen, oder das Recht
+   auf `ALL` heben.
+3. **Prüfen, ob es solche Fälle gibt:** `SELECT t.id FROM <tabelle> t JOIN pim_user u ON u.id = t.id`
+   findet je Tabelle die Datensätze, deren ID einer User-ID gleicht. Bei der Strategie `auto` sind
+   das in jeder Tabelle die ersten N.
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —
