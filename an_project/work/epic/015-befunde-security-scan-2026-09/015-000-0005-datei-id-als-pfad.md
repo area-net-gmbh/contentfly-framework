@@ -30,7 +30,7 @@ Die Panel-Stimmen haben F8 von HIGH auf MEDIUM gesenkt.
 - [x] Eine Datei-ID wird nie aus dem Request übernommen, oder sie wird vor `setId()` gegen das strikte Format der gewählten ID-Strategie geprüft (UUID bzw. Ganzzahl).
 - [x] `FileSystem::getPath()` lehnt IDs im falschen Format ab und stellt sicher, dass der aufgelöste Pfad unter `data/files` liegt.
 - [x] Upload, Löschen und Overwrite mit einer ID wie `../cache/x` schlagen fehl, ohne ausserhalb von `data/files` etwas anzulegen oder zu löschen.
-- [ ] Optional, in einem eigenen Commit: Der Schema-Cache nutzt `unserialize(..., ['allowed_classes' => false])` oder JSON.
+- [x] Optional, in einem eigenen Commit: Der Schema-Cache nutzt `unserialize(..., ['allowed_classes' => false])` oder JSON.
 
 ## Verification
 Integrationstests: `/file/upload` mit `id = "../cache/probe"` legt keine Datei unter `data/cache`
