@@ -1,4 +1,25 @@
 <?php
+
+/*
+ * COMMAND LINE ONLY — CHECKED BEFORE ANYTHING IS LOADED (015-000-0004).
+ *
+ * In the documented layout `bin/` sits next to `index.php` in the document root, and until now
+ * nothing kept the web off it. Under a web SAPI with `register_argc_argv` — PHP's own default
+ * whenever no `php.ini` is loaded, as in the official Docker images — Symfony's `ArgvInput`
+ * reads `$_SERVER['argv']` out of the request. Every registered command therefore ran without
+ * any authentication: `appcms:setup`, `dbal:run-sql`, `orm:run-dql`, `orm:schema-tool:drop`.
+ *
+ * THE CHECK SITS BEFORE THE AUTOLOADER, not behind it. What stops here has loaded no framework
+ * code at all — and needs none in order to refuse.
+ *
+ * `Start::console()` checks the same thing again. That is not duplication but a division of
+ * labour: here an entry point answers the web, there the kernel refuses any future caller.
+ */
+if (PHP_SAPI !== 'cli' && PHP_SAPI !== 'phpdbg') {
+    http_response_code(403);
+    exit(1);
+}
+
 set_time_limit(0);
 
 /*
