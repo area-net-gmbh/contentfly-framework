@@ -1,7 +1,7 @@
 ---
 id: 015-000-0003
 title: File.name mit ../ liest beliebige Dateien über /api/all filedata
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -21,10 +21,15 @@ Ablauf: Wer Lese- und Schreibrecht auf `PIM\File` hat (dasselbe Recht wie für d
 eine beliebige Datei hoch und setzt `name` auf `../../custom/config.php`. `/api/all` mit
 `filedata: ["org"]` liefert dann `custom/config.php` samt DB-Zugangsdaten base64-kodiert aus.
 
+> **Korrektur bei der Umsetzung.** Der Pfad braucht **drei** Ebenen, nicht zwei: Das
+> Verzeichnis ist `<projekt>/data/files/<id>`, also `../../../custom/config.php`. Am
+> 2026-09-28 gegen den ungefixten Stand gemessen — `../../` liefert nichts, `../../../`
+> liefert 12.716 Bytes. Ein Test mit der falschen Tiefe wäre auch vor dem Fix grün gewesen.
+
 ## Acceptance criteria
-- [ ] `File.name` (und `type`) lassen sich über die generische API nicht auf einen Wert mit Pfadanteil setzen. Gültig ist nur `name === basename(name)`, geprüft über dieselbe Regel wie `UploadValidator`.
-- [ ] Vor jedem Dateisystemzugriff auf eine Datei eines `PIM\File` (Lesen in `getAll`, Thumbnails, Auslieferung) liegt der aufgelöste Pfad nachweislich unter `data/files/<id>/`.
-- [ ] Bestehende Dateinamen ohne Pfadanteil funktionieren unverändert.
+- [x] `File.name` (und `type`) lassen sich über die generische API nicht auf einen Wert mit Pfadanteil setzen. Gültig ist nur `name === basename(name)`, geprüft über dieselbe Regel wie `UploadValidator`.
+- [x] Vor jedem Dateisystemzugriff auf eine Datei eines `PIM\File` (Lesen in `getAll`, Thumbnails, Auslieferung) liegt der aufgelöste Pfad nachweislich unter `data/files/<id>/`.
+- [x] Bestehende Dateinamen ohne Pfadanteil funktionieren unverändert.
 
 ## Verification
 Integrationstest: Datei hochladen, `name` per `/api/update` auf `../../custom/config.php` setzen.
