@@ -1,7 +1,7 @@
 ---
 id: 015-000-0010
 title: Login-Drossel pro Kennung lässt sich mit Akzent-Varianten des Alias umgehen
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -23,9 +23,15 @@ Konto, auch den Admin, bleibt nur die Drossel pro IP. Die Kommentare der Klasse 
 Kennung als Schutz gegen verteiltes Raten aus vielen Adressen.
 
 ## Acceptance criteria
-- [ ] Nach erfolgreicher Suche drosselt die Kennungs-Achse auf das gefundene Konto (User-ID oder gespeicherter Alias). Unbekannte Namen landen in einem eigenen Eimer.
-- [ ] Alternativ bzw. zusätzlich wird die Eingabe so gefaltet wie in der Kollation (NFKD, kombinierende Zeichen entfernen, Casefold).
-- [ ] Die Drossel pro IP bleibt unverändert.
+- [x] Nach erfolgreicher Suche drosselt die Kennungs-Achse auf das gefundene Konto (User-ID oder gespeicherter Alias). Unbekannte Namen landen in einem eigenen Eimer.
+- [~] Alternativ bzw. zusätzlich wird die Eingabe so gefaltet wie in der Kollation (NFKD, kombinierende Zeichen entfernen, Casefold).
+- [x] Die Drossel pro IP bleibt unverändert.
+
+> **Zur zweiten Zeile.** Die Kriterien stellen Falten und Konto-Kennung als Alternativen nebeneinander
+> („alternativ bzw. zusätzlich"). Umgesetzt ist die erste Zeile; gefaltet wird **nicht**. Grund: Eine
+> Kollation in PHP nachzubilden hiesse, sie ganz nachzubilden und in jeder ihrer Versionen, und
+> `ext-intl` ist keine Abhängigkeit des Frameworks. Die Konto-Kennung ist exakt, ohne neue
+> Systemabhängigkeit. Deshalb `[~]` statt `[x]`: bewusst nicht gemacht, nicht vergessen.
 
 ## Verification
 Test: Fehlversuche gegen `admin` mit wechselnden Varianten (`àdmin`, `ádmin`, `ａdmin`, …) über der
