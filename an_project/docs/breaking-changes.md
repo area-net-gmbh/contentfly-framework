@@ -1331,6 +1331,47 @@ Datums). Ein leerer Wert heisst weiterhin: kein Zeitpunkt.
 bei `/api/all` einen falschen Wert geschickt und sich auf den vollen Bestand verlassen hat, lässt
 `lastModified` weg.
 
+### `PIM\File.name` und `.type` lassen sich nicht mehr frei schreiben
+**Seit `015-000-0003` (2026-09-28).**
+
+Die Spalte `name` eines `PIM\File` war über `/api/insert` und `/api/update` schreibbar wie jede
+andere Zeichenkette: `StringType::toDatabase()` speichert, was es bekommt, und `UploadValidator`
+liegt auf diesem Weg gar nicht. Jede lesende Stelle baute ihren Pfad danach durch Verkettung —
+`getPath($file).'/'.$sizePrefix.$file->getName()` —, und die Grösse `org` hängt kein Präfix an.
+
+Wer Lese- und Schreibrecht auf `PIM\File` hatte — dasselbe Recht wie für einen Upload —, lud
+also eine beliebige Datei hoch, setzte `name` auf `../../../custom/config.php` und liess sich von
+`/api/all` mit `filedata: ["org"]` die Datenbank-Zugangsdaten base64-kodiert ausliefern.
+Nachgemessen am 2026-09-28 gegen den ungefixten Stand: 12.716 Bytes `custom/config.php`.
+
+**Zwei Schichten, und beide sind nötig:**
+
+1. `Security\FileFieldGuard` lässt einen solchen Wert nicht mehr in die Spalte. Gültig ist nur
+   ein Name, der `basename()` unverändert übersteht, kein `.`/`..` ist, weder `/` noch `\` noch
+   NUL enthält und den Boden von `UploadValidator` besteht. `type` muss die Form
+   `typ/untertyp` haben. Beides antwortet sonst **400** `contentfly_file_invalid_type`.
+2. `File\FilePath::within()` weist die Eingrenzung an jedem Dateisystemzugriff erneut nach —
+   beim Lesen in `getAll()`, bei der Auslieferung über `FileSystem::getUri()` und bei den
+   Thumbnails in `Processing\Image`. Ein Datensatz, der vor heute geschrieben wurde, kann den
+   Namen ja bereits tragen.
+
+| Aufruf | vorher | jetzt |
+|---|---|---|
+| `/api/update` oder `/api/insert` mit `name` mit Pfadanteil | **200**, Wert wird gespeichert | **400** |
+| `/api/all` mit `filedata`, Datensatz trägt so einen Namen | Inhalt der fremden Datei | Datensatz **ohne** `filedata` |
+| `/files/get/…` für so einen Datensatz | fremde Datei | **404** |
+| Thumbnail-Erzeugung für so einen Datensatz | schrieb ausserhalb des Verzeichnisses | wird nicht erzeugt |
+
+*Was zu tun ist:*
+
+1. **Bestand prüfen** — `SELECT id, name FROM pim_file WHERE name LIKE '%/%' OR name LIKE '%\\\\%'
+   OR name IN ('.', '..')`. Treffer sind entweder Angriffsspuren oder Altlasten; in beiden Fällen
+   liefert die API für sie ab sofort keine Datei mehr aus. Den Namen auf den tatsächlichen
+   Dateinamen im Verzeichnis `data/files/<id>/` setzen oder den Datensatz löschen.
+2. **Clients, die `name` nach dem Upload umbenennen**, dürfen dort keinen Pfad mehr mitschicken —
+   ein reiner Dateiname funktioniert unverändert.
+3. **Wer `type` als Freitextfeld missbraucht hat** (etwa für eine Kategorie), braucht dafür ein
+   eigenes Feld. Die Spalte ist der Content-Type und wird als solcher ausgeliefert.
 ### Kein Standardpasswort mehr — und `appcms:setup` setzt keines zurück
 **Seit `015-000-0002` (2026-09-28).**
 
