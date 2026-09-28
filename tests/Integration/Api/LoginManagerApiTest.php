@@ -64,10 +64,21 @@ class LoginManagerApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORD));
 
         $this->assertSame(401, $status);
-        // 011-001-0004: one code for every 401 of the login — the answer must not say which of the
-        // reasons applied. The wording stays in `detail`, and `data` is null, so no token comes with it.
-        $this->assertSame('The user can only be authenticated through their login provider.',
+
+        /*
+         * THE WORDING FOLLOWED 015-000-0008, THE GUARANTEE DID NOT CHANGE.
+         *
+         * This used to assert `The user can only be authenticated through their login provider.`
+         * — which said, to anyone asking, that the account exists and is external. Since
+         * `015-000-0008` every rejection of the login answers the same code and the same text;
+         * which of the reasons applied is now in the server's log.
+         *
+         * What this test is about is unchanged and still measured: the password does not open
+         * the account, and no token comes back.
+         */
+        $this->assertSame('Invalid user name and/or password.',
             $this->assertErrorEnvelope($body, 'contentfly_general_invalid_credentials')['detail']);
+        $this->assertNull($body['data'], 'and no token');
     }
 
     /**
@@ -138,8 +149,12 @@ class LoginManagerApiTest extends IntegrationTestCase
         [$status, $body] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORD));
 
         $this->assertSame(401, $status);
-        $this->assertSame('The user can only be authenticated through their login provider.',
-            $this->assertErrorEnvelope($body, 'contentfly_general_invalid_credentials')['detail']); // 011-001-0004
+
+        // Same wording change as above (015-000-0008): the bolt still rejects, and the answer no
+        // longer says that it was the bolt rather than a wrong password.
+        $this->assertSame('Invalid user name and/or password.',
+            $this->assertErrorEnvelope($body, 'contentfly_general_invalid_credentials')['detail']);
+        $this->assertNull($body['data'], 'and no token');
     }
 
     /** Creates a user with a locked password — as provisioning would. */

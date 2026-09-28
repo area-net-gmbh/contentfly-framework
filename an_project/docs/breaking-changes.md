@@ -1603,6 +1603,44 @@ sie sich nur durch Bearbeiten der Datei setzen, was sie auch von aussen unprüfb
 3. **Ein Client, der sich auf den halben Zugang verlassen hat** — etwa ein Monitoring, das nur
    den Benutzernamen schickt —, braucht jetzt beide Werte.
 
+### Jeder gescheiterte Login antwortet gleich
+**Seit `015-000-0008` (2026-09-28).**
+
+`AuthController::loginAction()` baut seine Ablehnungen über eine einzige Closure — und die nahm
+ihren Text vom Aufrufer entgegen. Die Aufrufer schickten vier verschiedene:
+
+| Antwort bisher | verriet |
+|---|---|
+| `Invalid user name.` | Das Konto existiert **nicht** |
+| `The user is deactivated.` | Es existiert und ist abgeschaltet |
+| `The user can only be authenticated through their login provider.` | Es existiert und ist extern |
+| `Invalid user name and/or password.` | Es existiert, ist aktiv, ist lokal — nur das Passwort war falsch |
+
+Der Kommentar über der Closure behauptete, die Texte seien bereits einheitlich. Sie waren es
+nicht. Ohne jede Anmeldung liess sich damit eine Liste gültiger Benutzernamen abfragen, und diese
+Liste ist die Zielliste für Password-Spraying. Die Drossel begrenzt die Rate, nicht die Tatsache.
+
+**Jetzt antwortet jeder Fehlschlag mit `401`, dem Code `contentfly_general_invalid_credentials`
+und dem `detail` `Invalid user name and/or password.`** — dem Text, der für den häufigsten Fall
+ohnehin schon galt. Der Grund steht im **Log des Servers**:
+
+```
+Contentfly: login rejected (unknown alias) for "gibtsnicht" from 127.0.0.1
+```
+
+Alias und Adresse werden vor dem Schreiben von Steuerzeichen befreit und gekürzt — sonst schreibt
+ein Zeilenumbruch im Alias eine eigene Zeile ins Log.
+
+*Was zu tun ist:*
+
+1. **Ein Client, der die Texte auswertet**, um „Benutzer unbekannt" von „Passwort falsch" zu
+   unterscheiden, kann das nicht mehr — und soll es nicht können. Wer dem Benutzer einen Hinweis
+   geben will, zeigt denselben Satz für beides.
+2. **Wer den Grund braucht** — beim Support, bei der Fehlersuche —, liest ihn im Server-Log. Er
+   steht dort vollständig, mit Alias und Adresse.
+3. **Der Laufzeitunterschied bleibt** als zweiter Kanal und ist ein eigener Eintrag
+   (`015-000-0018`): Ein unbekannter Alias antwortet schneller, weil keine Passwortprüfung läuft.
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —
