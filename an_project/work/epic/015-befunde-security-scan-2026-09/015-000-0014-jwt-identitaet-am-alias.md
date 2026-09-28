@@ -1,7 +1,7 @@
 ---
 id: 015-000-0014
 title: JWT-Identität hängt am änderbaren Alias
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -23,8 +23,8 @@ Requests laufen dann als dieses Konto.
 Nur relevant mit gesetztem `SECURITY_JWT_SECRET`. JWTs sind opt-in.
 
 ## Acceptance criteria
-- [ ] `sub` trägt die unveränderliche User-ID, und `UserLoader` lädt über die ID. Bereits ausgestellte Alias-JWTs sind entweder bis zu ihrem Ablauf übergangsweise gültig oder ungültig, die Entscheidung steht im Register `breaking-changes.md`.
-- [ ] `RightsManagement` verbietet Nicht-Admins zusätzlich, den `alias` fremder Benutzer zu ändern.
+- [x] `sub` trägt die unveränderliche User-ID, und `UserLoader` lädt über die ID. Bereits ausgestellte Alias-JWTs sind entweder bis zu ihrem Ablauf übergangsweise gültig oder ungültig, die Entscheidung steht im Register `breaking-changes.md`.
+- [x] `RightsManagement` verbietet Nicht-Admins zusätzlich, den `alias` fremder Benutzer zu ändern.
 
 ## Verification
 Integrationstest mit JWT: Benutzer A hält ein JWT. Ein Nicht-Admin benennt A um und gibt einem

@@ -554,8 +554,23 @@ class AuthApiTest extends IntegrationTestCase
         sort($names);
 
         $this->assertSame(array('exp', 'iat', 'iss', 'jti', 'sub'), $names);
-        $this->assertSame('admin', $claims['sub']);
         $this->assertSame('contentfly', $claims['iss']);
+
+        /*
+         * `sub` IS THE ID SINCE 015-000-0014, not the alias.
+         *
+         * This line used to read `assertSame('admin', $claims['sub'])`, and that was the finding:
+         * the JWT path resolved the account from `sub` on every request, while `alias` is a
+         * column an API client can write. Renaming a foreign account so that somebody else's
+         * still-valid token pointed at an admin was a takeover without forging anything.
+         *
+         * The claim set itself is unchanged — five names, checked above. What changed is what
+         * `sub` means.
+         */
+        $admin = $this->pdo()->query("SELECT id FROM pim_user WHERE alias = 'admin'")->fetchColumn();
+
+        $this->assertSame($admin, $claims['sub']);
+        $this->assertNotSame('admin', $claims['sub'], 'and not the alias it used to carry');
     }
 
     /**
