@@ -1,7 +1,7 @@
 ---
 id: 015-000-0009
 title: hasUserId wertet id == User-ID als Eigentum
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -27,9 +27,9 @@ Folge: Jeder Nicht-Admin mit `OWN`- oder `GROUP`-Recht kann in jeder so verengte
 löschen, nämlich den mit seiner eigenen User-ID als ID.
 
 ## Acceptance criteria
-- [ ] `hasUserId` prüft nur noch die zugeordneten Benutzer (`|| $this->id == $id` entfällt).
-- [ ] Der Vergleich in `in_array` ist strikt und stimmt mit den `FIND_IN_SET`-Filtern von list/all/count überein.
-- [ ] Das Bearbeiten des eigenen `PIM\User` funktioniert weiter. Das deckt `doUpdate` über `$object != auth.user` bereits ab, ein Test belegt es.
+- [x] `hasUserId` prüft nur noch die zugeordneten Benutzer (`|| $this->id == $id` entfällt).
+- [x] Der Vergleich in `in_array` ist strikt und stimmt mit den `FIND_IN_SET`-Filtern von list/all/count überein.
+- [x] Das Bearbeiten des eigenen `PIM\User` funktioniert weiter. Das deckt `doUpdate` über `$object != auth.user` bereits ab, ein Test belegt es.
 
 ## Verification
 Integrationstest mit Ganzzahl-IDs: Benutzer mit ID N und `OWN`-Recht auf eine Entity liest,
