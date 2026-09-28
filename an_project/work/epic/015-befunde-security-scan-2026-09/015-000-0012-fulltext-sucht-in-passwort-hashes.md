@@ -1,7 +1,7 @@
 ---
 id: 015-000-0012
 title: fulltext-Filter in /api/list sucht in pass und salt
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -25,9 +25,9 @@ mit GPU-Geschwindigkeit knacken. Argon2id-Hashes lassen sich ebenfalls auslesen,
 Standard-Kollation allerdings ohne Gross-/Kleinschreibung.
 
 ## Acceptance criteria
-- [ ] `pass`, `salt` und `externalId` sind aus `where`, `fulltext`, `order` und `groupBy` ausgeschlossen, am besten per Markierung im Schema statt per Namensliste.
-- [ ] LIKE-Platzhalter (`%`, `_`, `\`) im `fulltext`-Wert werden maskiert.
-- [ ] Entschieden und dokumentiert, wie mit den verbliebenen alten SHA-256-Hashes umgegangen wird (Zwangs-Reset oder Massenmigration). Eine Umsetzung davon ist ein eigener Task.
+- [x] `pass`, `salt` und `externalId` sind aus `where`, `fulltext`, `order` und `groupBy` ausgeschlossen, am besten per Markierung im Schema statt per Namensliste.
+- [x] LIKE-Platzhalter (`%`, `_`, `\`) im `fulltext`-Wert werden maskiert.
+- [x] Entschieden und dokumentiert, wie mit den verbliebenen alten SHA-256-Hashes umgegangen wird (Zwangs-Reset oder Massenmigration). Eine Umsetzung davon ist ein eigener Task.
 
 ## Verification
 Integrationstest: `fulltext` mit dem ersten Zeichen des bekannten Hashes eines Testkontos, einmal

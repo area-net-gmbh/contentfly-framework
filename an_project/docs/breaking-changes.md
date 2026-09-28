@@ -1777,6 +1777,65 @@ für Installationen, die es nie konfiguriert haben.
    Vorgabe für unbekannte Schlüssel — die Verengung sitzt in `I18nPermission`. Der Grund steht an
    beiden Klassen: `Group` kennt die Konfiguration nicht und soll sie nicht kennenlernen.
 
+### Geheime Felder sind aus Filter, Sortierung und Gruppierung ausgeschlossen
+**Seit `015-000-0012` (2026-09-28).**
+
+`where.fulltext` in `/api/list` hängte für **jedes** String-Feld der Entity
+`<feld> LIKE '%wert%'` an. Bei `PIM\User` gehören `pass` und `salt` dazu. `toValueObject()`
+blendet beide in der Ausgabe aus — der Filter lief trotzdem darüber, und `meta.totalItems`
+beantwortete die Frage, die die Ausgabe verweigerte.
+
+Mit `{"alias":"admin","fulltext":"<präfix><zeichen>"}` liess sich ein Hash **Zeichen für Zeichen**
+lesen, in etwa 64 × 16 Anfragen. `%` und `_` wurden nicht maskiert, ein Treffer liess sich also an
+eine Position binden (`_____x` fragt, ob das sechste Zeichen ein `x` ist). Nachgemessen am
+2026-09-28: Ein richtiger Präfix ergibt `totalItems: 1`, ein falscher `0`.
+
+| Aufruf auf `PIM\User` | vorher | jetzt |
+|---|---|---|
+| `where.fulltext` mit einem Präfix von `pass` / `salt` | Trefferzahl verrät den Hash | Zahl hängt nicht mehr davon ab |
+| `%` oder `_` im `fulltext`-Wert | wirken als Platzhalter | werden als Zeichen gesucht |
+| `where: {"pass": …}` | filtert | wird übergangen |
+| `order: {"pass": "ASC"}` / `groupBy: "pass"` | sortiert bzw. 500 | **400**, wie ein unbekanntes Feld |
+
+**Eine Markierung im Schema, keine Namensliste.** `@PIM\Config(secret: true)` steht an der
+Spalte; `pass`, `salt` und `externalId` von `PIM\User` tragen sie. Eine Liste im Framework läge an
+einer anderen Stelle als die Spalten, und ein Projekt mit einem eigenen Geheimnis in `custom/`
+käme gar nicht hinein.
+
+**Zwei verschiedene Antworten, mit Absicht.** In `where` und `fulltext` wird ein markiertes Feld
+*übergangen* — beide ignorieren ein unbekanntes Feld ohnehin, und eine eigene Fehlermeldung für ein
+Geheimnis wäre selbst die Auskunft, dass es die Spalte gibt. In `order` und `groupBy` wird es
+*abgelehnt*, mit genau der Meldung eines nicht vorhandenen Feldes — dort unterscheidet
+`assertProperty()` bekannt und unbekannt schon immer.
+
+*Was zu tun ist:*
+
+1. **Ein Client, der über `PIM\User` eine Volltextsuche laufen lässt**, bekommt weiterhin Treffer
+   über `alias` und die übrigen Felder — nur nicht mehr über die Zugangsdaten.
+2. **Ein Client, der `%` oder `_` im Suchwert als Platzhalter benutzt hat**, sucht jetzt nach dem
+   Zeichen. Das war nie zugesagt und ist der Punkt des Fixes.
+3. **Wer eigene geheime Spalten hat**, markiert sie: `#[PIM\Config(secret: true)]`.
+
+#### Die alten SHA-256-Hashes — entschieden, umzusetzen in `000-000-0103`
+
+Betroffen waren vor allem Konten, die sich seit `013-001-0001` nicht angemeldet haben: Deren Hash
+ist noch SHA-256 **ohne Arbeitsfaktor**, zusammen mit dem Hex-Salt offline mit GPU-Geschwindigkeit
+zu knacken.
+
+**Entschieden: Zwangs-Sperre statt Massenmigration.** Eine Migration ist unmöglich — ein alter Hash
+lässt sich nicht in einen Argon2id-Hash überführen, ohne das Passwort zu kennen; genau deshalb
+ersetzt `013-001-0001` ihn beim nächsten Login. Bleibt, die Konten zu sperren, die ihn noch tragen,
+und ihr Passwort neu setzen zu lassen.
+
+Wie viele das sind, weiss nur der Betreiber:
+
+```sql
+SELECT COUNT(*) FROM pim_user WHERE pass NOT LIKE '$%' AND pass <> '*';
+```
+
+Die Umsetzung als Console-Command ist `000-000-0103` — so verlangt von den Akzeptanzkriterien
+dieses Tasks, die die Entscheidung hier und die Umsetzung dort vorsehen.
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —
