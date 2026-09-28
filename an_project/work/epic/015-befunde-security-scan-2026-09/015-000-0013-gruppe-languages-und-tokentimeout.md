@@ -1,7 +1,7 @@
 ---
 id: 015-000-0013
 title: Nicht-Admins ändern languages und tokenTimeout ihrer Gruppe
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -28,9 +28,9 @@ Voraussetzung ist Schreibrecht auf `PIM\Group`. Laut den Notizen zu `000-000-009
 kein bekanntes Projekt, es ist aber eine unterstützte Konfiguration.
 
 ## Acceptance criteria
-- [ ] Nicht-Admins können `languages` und `tokenTimeout` auf `PIM\Group` nicht ändern. Verglichen wird mit dem gespeicherten Wert, damit unveränderte Round-Trips weiter durchgehen (wie bei `permissions`).
-- [ ] Geprüft und entschieden: Positivliste der Felder, die Nicht-Admins auf Rechte-Entities schreiben dürfen, statt einer Sperrliste.
-- [ ] Die Form von `languages` wird geprüft: nur bekannte Sprachcodes, Werte nur `readable` oder `translatable`.
+- [x] Nicht-Admins können `languages` und `tokenTimeout` auf `PIM\Group` nicht ändern. Verglichen wird mit dem gespeicherten Wert, damit unveränderte Round-Trips weiter durchgehen (wie bei `permissions`).
+- [x] Geprüft und entschieden: Positivliste der Felder, die Nicht-Admins auf Rechte-Entities schreiben dürfen, statt einer Sperrliste.
+- [x] Die Form von `languages` wird geprüft: nur bekannte Sprachcodes, Werte nur `readable` oder `translatable`.
 
 ## Verification
 Integrationstest: Ein Nicht-Admin mit Schreibrecht auf die eigene Gruppe setzt `languages` auf
