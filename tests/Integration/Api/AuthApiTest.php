@@ -1,6 +1,7 @@
 <?php
 namespace Tests\Integration\Api;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Integration\IntegrationTestCase;
 
 /**
@@ -38,6 +39,71 @@ class AuthApiTest extends IntegrationTestCase
 
         $this->assertSame(401, $status);
         $this->assertArrayNotHasKey('token', $body);
+    }
+
+    /**
+     * A LOGIN WITHOUT A PASSWORD IS NO LOGIN (015-000-0001).
+     *
+     * `isPass()` handed `null` and `''` straight to `password_verify()`. Against a row that
+     * carried a `password_hash('')` — which any `{"pass": null}` on `/api/update` used to
+     * produce — that check succeeded and the response was a valid token.
+     *
+     * The three values are the same three the write path let through: `null`, `''` and `[]`.
+     * `[]` arrives as an array and must not reach the hash comparison as `"Array"` either.
+     *
+     * @param mixed $empty
+     */
+    #[DataProvider('emptyLoginPasswords')]
+    public function testLoginWithAnEmptyPasswordReturnsNoToken(mixed $empty): void
+    {
+        [$status, $body] = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => $empty));
+
+        $this->assertSame(401, $status, json_encode($body['errors'] ?? $body));
+        $this->assertArrayNotHasKey('token', $body);
+        $this->assertNull($body['data']['token'] ?? null);
+    }
+
+    /** A missing `pass` key is not a password either. */
+    public function testLoginWithoutAPasswordKeyReturnsNoToken(): void
+    {
+        [$status, $body] = $this->postJson('/auth/login', array('alias' => 'admin'));
+
+        $this->assertSame(401, $status, json_encode($body['errors'] ?? $body));
+        $this->assertNull($body['data']['token'] ?? null);
+    }
+
+    /**
+     * THE PROOF, AGAINST THE STATE THE GAP USED TO PRODUCE.
+     *
+     * The two tests above are guards: `admin` carries a real hash, so `password_verify('')`
+     * fails against it with or without the fix. What has to be measured is a row that carries
+     * `password_hash('')` — exactly what `{"pass": null}` on `/api/update` wrote. It is put
+     * into the table directly here, because the write path refuses to produce it now.
+     *
+     * Without the check in `isPass()` this login answers 200 and hands out a token.
+     */
+    public function testALoginAgainstAHashOfTheEmptyPasswordIsRefused(): void
+    {
+        [, $user] = $this->createTestUser();
+        $alias    = $this->pdo()->query('SELECT alias FROM pim_user WHERE id = '.$this->pdo()->quote($user))->fetchColumn();
+
+        $this->pdo()->prepare('UPDATE pim_user SET pass = :pass WHERE id = :id')
+             ->execute(array('pass' => password_hash('', PASSWORD_DEFAULT), 'id' => $user));
+
+        [$status, $body] = $this->postJson('/auth/login', array('alias' => $alias, 'pass' => ''));
+
+        $this->assertSame(401, $status, json_encode($body['errors'] ?? $body));
+        $this->assertNull($body['data']['token'] ?? null);
+    }
+
+    /** @return array<string, array{0: mixed}> */
+    public static function emptyLoginPasswords(): array
+    {
+        return array(
+            'null'         => array(null),
+            'empty string' => array(''),
+            'empty array'  => array(array()),
+        );
     }
 
     public function testLoginWithUnknownUserReturnsNoToken(): void

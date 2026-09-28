@@ -1,7 +1,7 @@
 ---
 id: 015-000-0001
 title: Leeres Passwort überschreibt fremde Passwörter und öffnet den Admin-Login
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -31,11 +31,11 @@ Wert. Mit `{"pass":null}` auf dem **eigenen** Datensatz entfällt ausserdem die 
 dem aktuellen Passwort: Ein gestohlenes Token wird so zu einem dauerhaften Zugang.
 
 ## Acceptance criteria
-- [ ] `RightsManagement`, `Api::doUpdate` und der Schreibpfad werten jedes Vorkommen des Schlüssels `pass` als Passwortänderung (`array_key_exists`, nicht Wert-Vergleich und nicht `isset`).
-- [ ] Ein leeres oder `null`-Passwort wird nie gehasht. Es wird abgelehnt (400) oder ausdrücklich als „unverändert“ behandelt.
-- [ ] `User::isPass` und `/auth/login` lehnen ein leeres oder fehlendes Passwort ab.
-- [ ] Für `salt`, `loginManager` und `externalId` gilt in `RightsManagement` dieselbe Regel für `null` und leere Werte.
-- [ ] Tests decken `null`, `""` und `[]` für fremde Datensätze (Nicht-Admin) und für den eigenen Datensatz ohne Bestätigung ab.
+- [x] `RightsManagement`, `Api::doUpdate` und der Schreibpfad werten jedes Vorkommen des Schlüssels `pass` als Passwortänderung (`array_key_exists`, nicht Wert-Vergleich und nicht `isset`).
+- [x] Ein leeres oder `null`-Passwort wird nie gehasht. Es wird abgelehnt (400) oder ausdrücklich als „unverändert“ behandelt.
+- [x] `User::isPass` und `/auth/login` lehnen ein leeres oder fehlendes Passwort ab.
+- [x] Für `salt`, `loginManager` und `externalId` gilt in `RightsManagement` dieselbe Regel für `null` und leere Werte.
+- [x] Tests decken `null`, `""` und `[]` für fremde Datensätze (Nicht-Admin) und für den eigenen Datensatz ohne Bestätigung ab.
 
 ## Verification
 Integrationstest: Ein Nicht-Admin mit Schreibrecht ALL auf `PIM\User` sendet `pass: null`, dann

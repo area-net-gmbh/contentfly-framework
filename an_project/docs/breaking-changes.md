@@ -1365,6 +1365,42 @@ geschrieben; `alias`, `loginManager` und `isAdmin` bleiben damit ebenfalls so, w
 3. **Wer `appcms:setup` benutzt hat, um ein vergessenes Admin-Passwort zurückzusetzen**, braucht
    dafür jetzt einen anderen Weg: Das Konto umbenennen und `appcms:setup` ein neues `admin`-Konto
    anlegen lassen, oder den Hash direkt setzen.
+### Ein leeres Passwort wird nicht mehr angenommen — Schreiben **und** Login
+**Seit `015-000-0001` (2026-09-28).**
+
+Ein leerer Wert galt an drei Stellen als „kein Wert", am Ende des Schreibpfads aber als Passwort.
+`RightsManagement` verglich `self::id($data['pass']) !== null` und zog dabei `null`, `""` und `[]`
+zusammen; `Api::doUpdate()` fragte das aktuelle Passwort nur bei `isset($data['pass'])`, und
+`isset(null)` ist `false`; `StringType::toDatabase()` machte aus jedem leeren Wert `setPass('')`,
+und `User::setPass()` hat das zu `password_hash('')` gehasht.
+
+Folge: Ein Nicht-Admin mit Schreibrecht auf `PIM\User` setzte mit
+`{"entity":"PIM\\User","id":"<admin>","data":{"pass":null}}` das Admin-Passwort auf leer — und
+`POST /auth/login {"alias":"admin"}` lieferte danach ein Admin-Token. Auf dem **eigenen**
+Datensatz entfiel zusätzlich die Rückfrage nach dem aktuellen Passwort, womit ein gestohlenes
+Token zu einem dauerhaften Zugang wurde.
+
+| Aufruf | vorher | jetzt |
+|---|---|---|
+| `pass` (leer) auf einen **fremden** Datensatz, als Nicht-Admin | **200**, Hash des Opfers wird `password_hash('')` | **403** `contentfly_general_permission_denied` |
+| `pass: null` auf den **eigenen** Datensatz, ohne Bestätigung | **200**, ohne Rückfrage | **403** `contentfly_general_invalid_password` |
+| `pass` (leer) mit bestätigtem aktuellem Passwort, oder als Admin | **200**, leerer Hash | **400** `contentfly_general_invalid_password` |
+| `/auth/login` mit leerem oder fehlendem `pass` | **200 mit Token**, wenn die Zeile einen leeren Hash trug | **401** |
+
+Betroffen sind `/api/update`, `/api/multiupdate` und `/api/replace` gleichermassen — sie laufen
+alle durch `doUpdate()`. Die Zusage aus `000-000-0090` bleibt: `salt`, `loginManager` und
+`externalId` eines fremden Datensatzes darf nur ein Admin ändern; neu gilt dabei ein leerer Wert
+nicht mehr als „unverändert", wenn der Datensatz `null` trägt.
+
+*Was zu tun ist:* Ein Client, der einen Benutzer-Datensatz als Ganzes zurückschreibt, darf `pass`
+nicht mehr mitschicken, wenn das Passwort unverändert bleiben soll — ein leerer Wert ist jetzt eine
+abgelehnte Änderung und keine stille Nicht-Änderung mehr. Wer das Passwort ändert, schickt einen
+nicht-leeren Wert; auf dem eigenen Datensatz zusätzlich das aktuelle als `pass` neben `data`.
+
+**Bestandsdaten prüfen.** Zeilen, die durch diese Lücke einen `password_hash('')` bekommen haben,
+lassen sich nicht mehr für einen Login verwenden — richtig so, aber es sperrt das Konto aus. Solche
+Konten bekommen ein neues Passwort gesetzt. Ob es welche gibt, ist von aussen nicht zu sehen; wer
+den Verdacht hat, prüft die Hashes gegen den leeren String.
 
 ## Paketgrenze (Epic `007`)
 
