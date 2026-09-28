@@ -1,7 +1,7 @@
 ---
 id: 015-000-0006
 title: /file/upload überschreibt fremde Dateien ohne Eigentümerprüfung
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -21,9 +21,9 @@ Ablauf: Ein Benutzer mit `writable=OWN` auf `PIM\File` liest die ID einer fremde
 PDFs haben dann einen anderen Inhalt, und der Angreifer gilt als Eigentümer.
 
 ## Acceptance criteria
-- [ ] Löst `id` auf einen bestehenden Datensatz auf, prüft `uploadAction` vor jedem Schreiben dieselbe `OWN`/`GROUP`-Verengung wie `overwriteAction` und `Api::doUpdate` (`assertFileWritable`).
-- [ ] Ein Re-Upload auf einen bestehenden Datensatz ändert `userCreated` nicht.
-- [ ] Der eigene Re-Upload (Eigentümer, `ALL`) funktioniert wie bisher.
+- [x] Löst `id` auf einen bestehenden Datensatz auf, prüft `uploadAction` vor jedem Schreiben dieselbe `OWN`/`GROUP`-Verengung wie `overwriteAction` und `Api::doUpdate` (`assertFileWritable`).
+- [x] Ein Re-Upload auf einen bestehenden Datensatz ändert `userCreated` nicht.
+- [x] Der eigene Re-Upload (Eigentümer, `ALL`) funktioniert wie bisher.
 
 ## Verification
 Integrationstest: Benutzer A (`OWN`) lädt mit der ID einer Datei von Benutzer B hoch. Vor dem Fix
