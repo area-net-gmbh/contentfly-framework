@@ -1,7 +1,7 @@
 ---
 id: 015-000-0002
 title: Installer setzt admin/admin, appcms:setup setzt das Admin-Passwort zurück
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -22,10 +22,10 @@ Auf einer Instanz mit Standard-Installation oder nach einem erneuten `appcms:set
 Versuch, also weit unter der Login-Drossel.
 
 ## Acceptance criteria
-- [ ] Kein fest eingebautes Passwort mehr: `appcms:install` verlangt `--admin-password` bzw. `APPCMS_ADMIN_PASSWORD` oder erzeugt ein zufälliges Passwort und gibt es genau einmal aus.
-- [ ] `Helper::install()` ändert an einem bestehenden Admin-Konto weder Passwort noch `loginManager` noch `isAdmin`.
-- [ ] `appcms:setup` auf einer installierten Instanz lässt das Admin-Passwort unverändert.
-- [ ] Doku (`runbook.md`, `deployment.md`, Migrationsleitfaden) nennt kein Standardpasswort mehr, und der Bruch steht im Register `breaking-changes.md`.
+- [x] Kein fest eingebautes Passwort mehr: `appcms:install` verlangt `--admin-password` bzw. `APPCMS_ADMIN_PASSWORD` oder erzeugt ein zufälliges Passwort und gibt es genau einmal aus.
+- [x] `Helper::install()` ändert an einem bestehenden Admin-Konto weder Passwort noch `loginManager` noch `isAdmin`.
+- [x] `appcms:setup` auf einer installierten Instanz lässt das Admin-Passwort unverändert.
+- [x] Doku (`runbook.md`, `deployment.md`, Migrationsleitfaden) nennt kein Standardpasswort mehr, und der Bruch steht im Register `breaking-changes.md`.
 
 ## Verification
 Test: Das Admin-Passwort auf einen Wert ≠ `admin` setzen und `appcms:setup` ausführen. Vor dem

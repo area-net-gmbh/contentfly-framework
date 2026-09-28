@@ -190,8 +190,16 @@ keiner ist. Aufgefallen beim Nachspielen dieser Anleitung in `006-003-0003`; `te
 hatte den Schalter von Anfang an. Das `--dry-run` fängt es ab, bevor etwas geschrieben wird.
 
 Der Command schreibt `custom/config.php`, legt das Schema an und erzeugt die Basisdaten
-(Benutzer `admin`). Alle Optionen gibt es auch als Umgebungsvariable (`APPCMS_DB_HOST` …),
-und `--admin-password` setzt ein echtes Passwort statt des Standards.
+(Benutzer `admin`). Alle Optionen gibt es auch als Umgebungsvariable (`APPCMS_DB_HOST` …).
+
+**Es gibt kein Standardpasswort mehr** (`015-000-0002`). Mit `--admin-password` bzw.
+`APPCMS_ADMIN_PASSWORD` wird das Passwort gesetzt; ohne beides **erzeugt der Command eines und
+gibt es genau einmal aus** — es steht nirgendwo sonst. Wer den Lauf durch eine Pipeline schickt,
+setzt das Passwort deshalb besser ausdrücklich, statt es aus dem Log zu fischen.
+
+Bis dahin galt `admin`/`admin`, und ein zweiter `appcms:setup` setzte ein längst geändertes
+Passwort stillschweigend dorthin zurück. `appcms:setup` fasst ein bestehendes Admin-Konto jetzt
+nicht mehr an; legt es eines an, gilt dieselbe Regel wie oben.
 
 > **Der Hinweis, dass dies noch nicht durchführbar sei, ist entfallen.** `appcms:install`
 > liegt seit Story `012-002` im Hauptzweig, und `custom/config.php` trägt seit

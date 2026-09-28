@@ -1331,6 +1331,41 @@ Datums). Ein leerer Wert heisst weiterhin: kein Zeitpunkt.
 bei `/api/all` einen falschen Wert geschickt und sich auf den vollen Bestand verlassen hat, lässt
 `lastModified` weg.
 
+### Kein Standardpasswort mehr — und `appcms:setup` setzt keines zurück
+**Seit `015-000-0002` (2026-09-28).**
+
+`Helper::install()` rief bei **jedem** Lauf `setAlias('admin')`, `setLoginManager('')`,
+`setPass('admin')` und `setIsAdmin(true)` auf — auf einem gefundenen Konto genauso wie auf einem
+neuen. Zwei Folgen:
+
+- Eine Standard-Installation hatte `admin`/`admin`, auf jeder Instanz denselben Wert.
+- Ein zweiter `appcms:setup` auf einer laufenden Instanz setzte ein längst geändertes
+  Admin-Passwort **stillschweigend zurück**. Danach genügte
+  `POST /auth/login {"alias":"admin","pass":"admin"}` für ein Admin-Token — beim ersten Versuch,
+  also weit unter der Login-Drossel.
+
+| Lauf | vorher | jetzt |
+|---|---|---|
+| `appcms:install` **mit** `--admin-password` / `APPCMS_ADMIN_PASSWORD` | Passwort wird gesetzt | unverändert |
+| `appcms:install` **ohne** beides | Konto mit dem Passwort `admin` | Passwort wird **erzeugt und einmal ausgegeben** |
+| `appcms:setup`, Admin ist vorhanden | Passwort zurück auf `admin` | **Konto bleibt unangetastet** |
+| `appcms:setup`, kein Admin vorhanden | Konto mit dem Passwort `admin` | Passwort wird **erzeugt und einmal ausgegeben** |
+
+Ein neu angelegtes Konto trägt bis zum Setzen des Passworts `lockPassword()` — einen Stern, der
+auf keine Eingabe passt. Ein bestehendes Konto wird von `install()` überhaupt nicht mehr
+geschrieben; `alias`, `loginManager` und `isAdmin` bleiben damit ebenfalls so, wie sie sind.
+
+*Was zu tun ist:*
+
+1. **Auf jeder Bestandsinstanz prüfen, ob `admin`/`admin` noch geht** — und wenn ja, das Passwort
+   sofort ändern. Diese Lücke war offen, solange die Instanz läuft, nicht erst seit heute.
+2. **Automatisierte Installationen, die sich auf das Standardpasswort verlassen haben**, setzen
+   `--admin-password` bzw. `APPCMS_ADMIN_PASSWORD`. Ohne Angabe steht das erzeugte Passwort nur
+   in der Ausgabe des Laufs — in einer Pipeline also im Log, was kein guter Aufbewahrungsort ist.
+3. **Wer `appcms:setup` benutzt hat, um ein vergessenes Admin-Passwort zurückzusetzen**, braucht
+   dafür jetzt einen anderen Weg: Das Konto umbenennen und `appcms:setup` ein neues `admin`-Konto
+   anlegen lassen, oder den Hash direkt setzen.
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —
