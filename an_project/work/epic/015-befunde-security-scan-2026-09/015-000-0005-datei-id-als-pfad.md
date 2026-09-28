@@ -1,7 +1,7 @@
 ---
 id: 015-000-0005
 title: Datei-ID aus dem Request wird zum Pfad — Upload und Löschen ausserhalb von data/files
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -27,9 +27,9 @@ Lücken:
 Die Panel-Stimmen haben F8 von HIGH auf MEDIUM gesenkt.
 
 ## Acceptance criteria
-- [ ] Eine Datei-ID wird nie aus dem Request übernommen, oder sie wird vor `setId()` gegen das strikte Format der gewählten ID-Strategie geprüft (UUID bzw. Ganzzahl).
-- [ ] `FileSystem::getPath()` lehnt IDs im falschen Format ab und stellt sicher, dass der aufgelöste Pfad unter `data/files` liegt.
-- [ ] Upload, Löschen und Overwrite mit einer ID wie `../cache/x` schlagen fehl, ohne ausserhalb von `data/files` etwas anzulegen oder zu löschen.
+- [x] Eine Datei-ID wird nie aus dem Request übernommen, oder sie wird vor `setId()` gegen das strikte Format der gewählten ID-Strategie geprüft (UUID bzw. Ganzzahl).
+- [x] `FileSystem::getPath()` lehnt IDs im falschen Format ab und stellt sicher, dass der aufgelöste Pfad unter `data/files` liegt.
+- [x] Upload, Löschen und Overwrite mit einer ID wie `../cache/x` schlagen fehl, ohne ausserhalb von `data/files` etwas anzulegen oder zu löschen.
 - [ ] Optional, in einem eigenen Commit: Der Schema-Cache nutzt `unserialize(..., ['allowed_classes' => false])` oder JSON.
 
 ## Verification
