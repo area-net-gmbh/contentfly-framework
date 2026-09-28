@@ -1484,6 +1484,45 @@ Programmierfehler ist und keine zu beantwortende Anfrage.
 3. **`register_argc_argv` gehört trotzdem abgeschaltet.** Die mitgelieferten `php.ini`-Vorlagen tun
    das. Die Sperre hier ersetzt das nicht, sie fängt nur den Fall ab, dass es jemand nicht tut.
 
+### Die ID eines `PIM\File` muss eine ID sein
+**Seit `015-000-0005` (2026-09-28).**
+
+Die ID kam ungeprüft aus dem Request — `/file/upload` aus dem Body, `/api/insert` aus `data.id` —,
+und mit `DB_GUID_STRATEGY` (der ausgelieferten Vorgabe) ist die Spalte ein freier String.
+`FileSystem::getPath()` baut daraus `data/files/<id>`. Zwei Richtungen:
+
+- **Schreiben:** `move_uploaded_file()` legte den Upload dorthin ab, wohin die ID zeigte. Erreichbar
+  war `data/cache` — das Verzeichnis, aus dem `Api::getSchema()` bei `APP_ENABLE_SCHEMA_CACHE` eine
+  Datei an `unserialize()` gibt. Nachgemessen am 2026-09-28 gegen den ungefixten Stand: Ein Upload
+  mit `id=../cache/probe` antwortet **200** und legt `data/cache/probe/probe.txt` an.
+- **Löschen:** `Api::doDelete()` löscht jede reguläre Datei in `getPath($object)` und danach das
+  Verzeichnis; `FileController::overwriteAction()` tut dasselbe mit dem Verzeichnis des Ziels.
+
+| Aufruf | vorher | jetzt |
+|---|---|---|
+| `/file/upload` mit `id` im falschen Format | **200**, schreibt dorthin, wohin die ID zeigt | **400** `contentfly_general_invalid_params` |
+| `/api/insert` mit `data.id` im falschen Format | **200** | **400** `contentfly_file_invalid_type` |
+| `/api/delete` auf einen Datensatz mit solcher ID | leert das fremde Verzeichnis | **400**, nichts wird gelöscht |
+| ID als UUID (bzw. Ganzzahl bei `auto`) | unverändert | unverändert |
+
+**Zwei Schichten wie bei `015-000-0003`.** `FileFieldGuard` und der Upload-Pfad prüfen die ID gegen
+das **strikte Format der konfigurierten Strategie** — UUID bei `DB_GUID_STRATEGY`, sonst eine
+positive Ganzzahl ohne führende Null. `FileSystem::getPath()` weist zusätzlich nach, dass das
+Verzeichnis unter `data/files` liegt; das greift für Datensätze, die vorher angelegt wurden.
+
+Bewusst **kein** `Uuid::isValid()`: Die Methode akzeptiert `{…}` und `urn:uuid:…`, und beides ist
+kein Verzeichnisname.
+
+*Was zu tun ist:*
+
+1. **Bestand prüfen** — `SELECT id FROM pim_file WHERE id NOT REGEXP
+   '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'` (bei
+   `DB_GUID_STRATEGY`). Solche Datensätze liefern ab sofort keine Datei mehr aus und lassen sich
+   nicht mehr löschen; sie bekommen eine gültige ID oder werden mitsamt Verzeichnis von Hand
+   entfernt.
+2. **Clients, die IDs selbst vergeben**, müssen echte UUID v4 schicken. Ein eigenes Schema wie
+   `kunde-4711` wird abgelehnt — auch dann, wenn es nie ein Pfad war.
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —

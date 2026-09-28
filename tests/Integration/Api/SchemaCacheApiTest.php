@@ -81,6 +81,42 @@ class SchemaCacheApiTest extends IntegrationTestCase
         $this->assertSame($delivered['PIM\\Tag'], $cached['PIM\\Tag'], 'and it is the schema that was delivered');
     }
 
+    /**
+     * THE CACHE IS DATA, NOT CODE (015-000-0005).
+     *
+     * `getSchema()` reads the file with `allowed_classes => false`. That is only free of charge
+     * as long as the schema really holds no objects — otherwise they would come back as
+     * `__PHP_Incomplete_Class` and the two tests around this one would fail rather than this one.
+     *
+     * So this test states the premise instead of relying on it: the serialised form carries no
+     * object at all. Whoever puts one into the schema learns it here, with the reason, and not
+     * three tests later through a type error.
+     *
+     * Why it matters: the file sits in `data/cache`, and until `015-000-0005` an upload could be
+     * written there — the id of a `PIM\File` came out of the request and became the directory.
+     * That path is closed; these two safeguards must not depend on each other.
+     */
+    public function testTheCachedSchemaCarriesNoObject(): void
+    {
+        $this->schema(self::$server->url());
+        $this->assertFileExists(self::cacheFile());
+
+        $raw = (string) file_get_contents(self::cacheFile());
+
+        $this->assertSame(0, preg_match_all('/(^|[;{])O:\d+:"/', $raw, $found),
+            "The serialised schema names a class:\n".implode("\n", $found[0] ?? array()));
+
+        $cached = unserialize($raw, array('allowed_classes' => false));
+
+        $this->assertIsArray($cached, 'and it still reads back as the schema');
+        $this->assertArrayHasKey('PIM\\Tag', $cached);
+
+        array_walk_recursive($cached, function ($value): void {
+            $this->assertNotInstanceOf(\__PHP_Incomplete_Class::class, $value,
+                'No value was turned into an incomplete class by the restriction');
+        });
+    }
+
     public function testALaterRequestReadsTheSchemaFromTheCache(): void
     {
         $this->schema(self::$server->url());
