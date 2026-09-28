@@ -1836,6 +1836,58 @@ SELECT COUNT(*) FROM pim_user WHERE pass NOT LIKE '$%' AND pass <> '*';
 Die Umsetzung als Console-Command ist `000-000-0103` — so verlangt von den Akzeptanzkriterien
 dieses Tasks, die die Entscheidung hier und die Umsetzung dort vorsehen.
 
+### Auf einer Gruppe darf ein Nicht-Admin nur noch den Namen ändern
+**Seit `015-000-0013` (2026-09-28).**
+
+`RightsManagement` erklärt die Rechteverwaltung zur Admin-Sache und sperrte auf `PIM\Group`
+genau **einen** Schlüssel: `permissions`. Zwei weitere Felder der Gruppe entscheiden mit, was
+jemand darf:
+
+| Feld | was es entscheidet |
+|---|---|
+| `languages` | die Sprachrechte, die `I18nPermission` durchsetzt. `{"languages":"{}"}` hob die Sperren der **eigenen** Gruppe auf; anderen Gruppen liessen sich welche setzen |
+| `tokenTimeout` | die Lebensdauer der Tokens der Gruppe. `0` heisst: läuft nie ab |
+| `apiQueryEnabled` | ohne Wirkung seit `000-000-0097` — und genau deshalb mitgesperrt |
+
+**Aus der Sperrliste wird eine Positivliste.** Ein Nicht-Admin darf auf einer Gruppe nur noch
+`name` ändern, dazu die Buchführungsfelder, die ein Round-Trip mitführt. Alles andere wird
+abgelehnt, sobald sein Wert vom gespeicherten abweicht.
+
+Der Grund für den Wechsel steht an der Klasse: Eine Sperrliste wächst nur, wenn jemand daran
+denkt, sie wachsen zu lassen — dass `permissions` zwei Stories lang allein dastand, ist genau
+das Bild davon. Mit einer Positivliste ist ein Feld, das `Group` nächstes Jahr bekommt, vom
+ersten Tag an gesperrt, ohne dass jemand an diese Klasse denkt.
+
+**Ein Wert, der sich nicht ändert, ist keine Änderung** — die Zusage der ganzen Klasse gilt auch
+hier: Ein Client, der den Datensatz zurückschreibt, wie er ihn gelesen hat, funktioniert weiter.
+`permissions` bleibt die Ausnahme und wird weiterhin schon am Schlüssel abgelehnt: Es ist eine
+Sammlung und kein Wert, und sie verlässlich zu vergleichen ist ein anderes Problem.
+
+**Die Form von `languages` wird geprüft.** Bisher ging der Wert ungeprüft in die Spalte, und ein
+Schlüssel, der keine Sprache ist, wurde später als „keine Einschränkung" gelesen — dieselbe
+Fehlerklasse wie `015-000-0011`, eine Schicht früher. Erlaubt sind jetzt nur konfigurierte
+Sprachcodes als Schlüssel und `readable` oder `translatable` als Wert; alles andere antwortet
+**400**. Die Schlüssel werden dabei normalisiert gespeichert.
+
+| Aufruf | vorher | jetzt |
+|---|---|---|
+| Nicht-Admin ändert `languages` / `tokenTimeout` / `apiQueryEnabled` | **200**, gespeichert | **403** |
+| Nicht-Admin schickt dieselben Werte zurück | 200 | unverändert 200 |
+| Nicht-Admin ändert `name` | 200 | unverändert 200 |
+| `languages` mit `{"de":"writable"}` oder `"readable"` | **200**, gespeichert | **400** |
+
+*Was zu tun ist:*
+
+1. **Ein Projekt, das Nicht-Admins Schreibrecht auf `PIM\Group` gibt**, muss die drei Felder
+   künftig von einem Admin setzen lassen. Laut den Notizen zu `000-000-0090` vergibt kein
+   bekanntes Projekt dieses Recht — deshalb war der Befund MEDIUM.
+2. **Wer `languages` über die API pflegt**, schickt eine Karte aus konfigurierten Sprachcodes mit
+   den Werten `readable` oder `translatable`. Ein Wert wie `writable` gab es nie; er wurde bisher
+   nur klaglos gespeichert und als „keine Einschränkung" gelesen.
+3. **Bestand prüfen:** `SELECT id, languages FROM pim_group WHERE languages IS NOT NULL` — Karten
+   mit unbekannten Schlüsseln oder Werten bleiben in der Datenbank stehen und werden weiter als
+   „keine Einschränkung" gelesen; ein Schreibvorgang über die API korrigiert sie.
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —
