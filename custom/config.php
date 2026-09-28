@@ -152,6 +152,18 @@ $configDefault->APP_LANGUAGES = array_values(array_filter(array_map('trim', expl
 $configDefault->APP_ALLOW_ORIGIN = $_ENV['APP_ALLOW_ORIGIN'] ?? getenv('APP_ALLOW_ORIGIN') ?: null;
 
 /*
+ * The optional HTTP Basic gate in front of the whole application (015-000-0007).
+ *
+ * Both values come from the environment, so that they are not kept in a versioned file — and so
+ * that the gate can be measured from outside at all. Without both of them it is off.
+ *
+ * SETTING ONLY THE USER LOCKS EVERYBODY OUT. That is deliberate: such a half configuration used
+ * to admit anybody who knew the user name.
+ */
+$configDefault->APP_HTTP_AUTH_USER = $_ENV['APP_HTTP_AUTH_USER'] ?? getenv('APP_HTTP_AUTH_USER') ?: null;
+$configDefault->APP_HTTP_AUTH_PASS = $_ENV['APP_HTTP_AUTH_PASS'] ?? getenv('APP_HTTP_AUTH_PASS') ?: null;
+
+/*
  * FILE_MAX_UPLOAD_SIZE — the largest upload in bytes; larger files are rejected with 413 before
  * anything is stored (000-000-0042). Without a value only PHP's upload_max_filesize applies, which
  * belongs to the server and must be at least as large.
