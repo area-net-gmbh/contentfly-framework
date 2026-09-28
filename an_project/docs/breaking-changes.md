@@ -1559,6 +1559,50 @@ ein Re-Upload ist ein Anfassen.
    Eigentum zu übertragen, braucht dafür ein `/api/update` auf `userCreated` — mit den Rechten,
    die das verlangt.
 
+### Die HTTP-Basic-Sperre verlangt beide Werte — und wird über die Umgebung gesetzt
+**Seit `015-000-0007` (2026-09-28).**
+
+Die optionale Sperre über `APP_HTTP_AUTH_USER` / `APP_HTTP_AUTH_PASS` verknüpfte die beiden
+Ungleich-Prüfungen mit `&&`:
+
+```php
+if ($_SERVER['PHP_AUTH_USER'] != $erwarteterBenutzer && $_SERVER['PHP_AUTH_PW'] != $erwartetesPasswort)
+```
+
+Abgelehnt wurde also nur, wenn Benutzer **und** Passwort falsch waren. **Ein richtiger Wert
+genügte.** Nachgemessen am 2026-09-28 gegen den ungefixten Stand: Sowohl
+`Basic base64("staging-only:falsch")` als auch `Basic base64("falsch:das-echte-passwort")`
+antworten **200**. Dahinter liegen `/auth/login`, `/auth/refresh`, `/api/config`, `/file/get/*`
+und jede Custom-Route mit `isSecure = false`.
+
+Dazu drei kleinere Fehler an derselben Stelle: Der Vergleich war lose (`!=`) und nicht
+zeitkonstant, `REDIRECT_HTTP_AUTHORIZATION` wurde ohne `isset` gelesen, und der Header wurde mit
+`explode(':')` zerlegt, ohne zu prüfen, ob überhaupt ein Doppelpunkt da war.
+
+| Zugang | vorher | jetzt |
+|---|---|---|
+| richtiger Benutzer, falsches Passwort | **durchgelassen** | **401** |
+| falscher Benutzer, richtiges Passwort | **durchgelassen** | **401** |
+| beides richtig | durchgelassen | durchgelassen |
+| Header ohne `:`, anderes Schema, leeres Passwort | teils durchgelassen | **401** |
+| Sperre mit Benutzer, **ohne** Passwort | liess jeden durch, der den Benutzer kannte | **401 für alle** |
+
+**Die Werte kommen jetzt aus der Umgebung.** Die ausgelieferte `custom/config.php` liest
+`APP_HTTP_AUTH_USER` und `APP_HTTP_AUTH_PASS` wie jede andere Einstellung dort — vorher liessen
+sie sich nur durch Bearbeiten der Datei setzen, was sie auch von aussen unprüfbar machte.
+
+*Was zu tun ist:*
+
+1. **Wer die Sperre benutzt, setzt beide Werte.** Eine Konfiguration mit Benutzer und ohne
+   Passwort sperrt ab sofort **jeden** aus — auch den Betreiber. Das ist Absicht: Vorher liess
+   genau diese halbe Konfiguration jeden durch, der den Benutzernamen kannte. Vor dem Upgrade
+   prüfen, ob `APP_HTTP_AUTH_PASS` gesetzt ist.
+2. **Wer die Werte in `custom/config.php` stehen hat**, kann sie dort lassen; die Zeilen in der
+   Vorlage setzen nur einen Vorgabewert aus der Umgebung. Neue Installationen setzen sie besser
+   über die Umgebung, damit kein Passwort in einer versionierten Datei steht.
+3. **Ein Client, der sich auf den halben Zugang verlassen hat** — etwa ein Monitoring, das nur
+   den Benutzernamen schickt —, braucht jetzt beide Werte.
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —

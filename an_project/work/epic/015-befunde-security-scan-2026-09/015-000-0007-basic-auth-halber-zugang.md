@@ -1,7 +1,7 @@
 ---
 id: 015-000-0007
 title: HTTP-Basic-Sperre lässt mit halbem Zugang durch
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -26,9 +26,9 @@ zeitkonstant.
 Nur relevant, wenn ein Projekt `APP_HTTP_AUTH_USER` setzt. Die Vorgabe ist `null`.
 
 ## Acceptance criteria
-- [ ] Der Zugang wird nur gewährt, wenn Benutzer **und** Passwort übereinstimmen.
-- [ ] Verglichen wird mit `hash_equals()` auf Strings.
-- [ ] Ein Header ohne `:` oder mit leerem Passwort wird abgelehnt.
+- [x] Der Zugang wird nur gewährt, wenn Benutzer **und** Passwort übereinstimmen.
+- [x] Verglichen wird mit `hash_equals()` auf Strings.
+- [x] Ein Header ohne `:` oder mit leerem Passwort wird abgelehnt.
 
 ## Verification
 Test mit gesetzter Sperre: richtiger Benutzer mit falschem Passwort, falscher Benutzer mit
