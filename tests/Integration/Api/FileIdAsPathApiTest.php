@@ -41,20 +41,18 @@ class FileIdAsPathApiTest extends IntegrationTestCase
     public function testUploadRefusesAnIdThatIsAPath(string $id): void
     {
         [$token] = $this->fileUser();
-        $before  = $this->dataTree();
 
         [$status, $body] = $this->upload($id, $token);
 
         $this->assertSame(400, $status, json_encode($body['errors'] ?? $body));
         $this->assertErrorEnvelope($body, 'contentfly_general_invalid_params');
-        $this->assertSame($before, $this->dataTree(), 'Nothing was written anywhere under data/.');
+        $this->assertNoTraceAt($id);
     }
 
     #[DataProvider('idsThatAreNotIds')]
     public function testInsertRefusesAnIdThatIsAPath(string $id): void
     {
         [$token] = $this->fileUser();
-        $before  = $this->dataTree();
 
         [$status, $body] = $this->postJson('/api/insert', array(
             'entity' => 'PIM\\File', 'data' => array('id' => $id, 'name' => 'probe.txt', 'type' => 'text/plain'),
@@ -62,7 +60,7 @@ class FileIdAsPathApiTest extends IntegrationTestCase
 
         $this->assertSame(400, $status, json_encode($body['errors'] ?? $body));
         $this->assertErrorEnvelope($body, 'contentfly_file_invalid_type');
-        $this->assertSame($before, $this->dataTree(), 'and no directory was created for it');
+        $this->assertNoTraceAt($id);
     }
 
     /**
@@ -141,7 +139,7 @@ class FileIdAsPathApiTest extends IntegrationTestCase
         $tmp = tempnam(sys_get_temp_dir(), 'cf-id-');
         file_put_contents($tmp, 'probe');
 
-        $fields = array('file' => new \CURLFile($tmp, 'text/plain', 'probe.txt'));
+        $fields = array('file' => new \CURLFile($tmp, 'text/plain', $this->probeName()));
         if ($id !== null) {
             $fields['id'] = $id;
         }
@@ -167,34 +165,100 @@ class FileIdAsPathApiTest extends IntegrationTestCase
     }
 
     /**
-     * Every path under `data/`, so that "nothing was written" is a measurement and not a hope.
+     * The attack left no trace where the id pointed (000-000-0104).
      *
-     * `files/` is left out: the ordinary tests in this class create directories there, and what
-     * is being watched is whether anything appears OUTSIDE the place files belong.
+     * THIS USED TO COMPARE THE WHOLE `data/` TREE before and after the call — every path under
+     * `cache/`, `import/` and `temp/` —, and it was flaky for it: `data/cache` also holds
+     * Doctrine's `proxies/`, `query/`, `metadata/` and the `login-throttle/`. Any request may
+     * write there in passing — a proxy on first use of an entity, a throttle entry from the
+     * login inside `createTestUser()` — so the snapshot changed for reasons the test is not
+     * about. Measured in the pipeline of #91: `test: PHP 8.4` red, `8.3` and `8.5` green, same
+     * revision.
+     *
+     * WHAT IS MEASURED NOW IS THE TRACE, and it is two different things depending on the id:
+     *
+     *   the file       `move_uploaded_file()` would put the upload into the directory the id
+     *                  points at. That marker works for every id, including the ones whose
+     *                  target is a directory that legitimately exists — `..` resolves to
+     *                  `data/`, `../../custom` to the project's `custom/`. Its name is unique
+     *                  per run: a leftover from an earlier run — this working copy had one,
+     *                  from before the fix — would otherwise fail a test that is measuring
+     *                  something else.
+     *   the directory  `getPath()` would `mkdir()` the target. Only checked when it was not
+     *                  there before the call, because an existing one says nothing.
+     *
+     * The first version of this fix asserted the target itself must not exist. Ten runs in a
+     * row said otherwise within seconds — `..` is `data/`, and `data/` is supposed to be there.
+     */
+    private function assertNoTraceAt(string $id): void
+    {
+        $target = $this->resolve($this->applicationDir().'/data/files/'.$id);
+
+        $this->assertFileDoesNotExist($target.'/'.$this->probeName(),
+            'The upload was written outside data/files, at '.$target);
+
+        if (!in_array($target, $this->directoriesThatMayExist(), true)) {
+            $this->assertDirectoryDoesNotExist($target,
+                'A directory was created outside data/files, at '.$target);
+        }
+    }
+
+    private ?string $probe = null;
+
+    /** The uploaded file's name — unique per run, so no leftover can answer for this one. */
+    private function probeName(): string
+    {
+        if ($this->probe === null) {
+            $this->probe = 'probe-'.bin2hex(random_bytes(6)).'.txt';
+        }
+
+        return $this->probe;
+    }
+
+    /**
+     * Targets that are a legitimate directory of the project, so their existence proves nothing.
+     *
+     * Named rather than probed: a directory the call itself created would be indistinguishable
+     * from one that was already there if this were measured at run time.
      *
      * @return list<string>
      */
-    private function dataTree(): array
+    private function directoriesThatMayExist(): array
     {
-        $root  = $this->applicationDir().'/data';
-        $found = array();
+        $root = $this->applicationDir();
 
-        foreach (array('cache', 'import', 'temp') as $directory) {
-            if (!is_dir($root.'/'.$directory)) {
+        return array(
+            $root.'/data',
+            $root.'/data/cache',
+            $root.'/custom',
+            $root,
+        );
+    }
+
+    /**
+     * A path with its `.` and `..` segments folded away, without touching the file system.
+     *
+     * `realpath()` returns false for a path that does not exist, which is precisely the case
+     * under test — it could not tell "not there" from "cannot say".
+     */
+    private function resolve(string $path): string
+    {
+        $absolute = str_starts_with($path, '/');
+        $parts    = array();
+
+        foreach (preg_split('#[/\\\\]+#', $path) as $part) {
+            if ($part === '' || $part === '.') {
                 continue;
             }
 
-            $iterator = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($root.'/'.$directory, \FilesystemIterator::SKIP_DOTS)
-            );
-
-            foreach ($iterator as $entry) {
-                $found[] = $entry->getPathname();
+            if ($part === '..') {
+                array_pop($parts);
+                continue;
             }
+
+            $parts[] = $part;
         }
 
-        sort($found);
-
-        return $found;
+        return ($absolute ? '/' : '').implode('/', $parts);
     }
 }
