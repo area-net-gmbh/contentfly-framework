@@ -115,23 +115,34 @@ class AuthApiTest extends IntegrationTestCase
     }
 
     /**
-     * The error message currently distinguishes between "user name unknown" and
-     * "password wrong". That tells an attacker which identifiers exist.
+     * THE ANSWER NO LONGER SAYS WHETHER THE ACCOUNT EXISTS (015-000-0008).
      *
-     * Pinned as current behaviour — it gets fixed in story `013-001`
-     * (auth hardening). If the message changes there, this test has to follow.
+     * Until this task the two answers differed: `Invalid user name.` for an account that does not
+     * exist, `Invalid user name and/or password.` for one that does. This test used to assert
+     * that difference and pointed at story `013-001`, which did not get to it. The pin is turned
+     * around here — what it records now is that the two are the same.
+     *
+     * Why it matters: with the difference, a list of user names could be read off without any
+     * authentication, and that list is the target list for password spraying. The throttle limits
+     * the rate, not the fact.
+     *
+     * The runtime difference is a second channel and has its own task, `015-000-0018`.
      */
-    public function testErrorMessageRevealsWhetherUserExists(): void
+    public function testTheErrorMessageDoesNotRevealWhetherTheUserExists(): void
     {
-        [, $unknown] = $this->postJson('/auth/login', array('alias' => 'doesnotexist', 'pass' => 'whatever'));
-        [, $wrong]   = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => 'wrong'));
+        [$unknownStatus, $unknown] = $this->postJson('/auth/login', array('alias' => 'doesnotexist', 'pass' => 'whatever'));
+        [$wrongStatus, $wrong]     = $this->postJson('/auth/login', array('alias' => 'admin', 'pass' => 'wrong'));
 
-        // 011-001-0004: `message` became `errors[0].detail`. What the test records is unchanged —
-        // the two answers still differ, and 013-001 is the place where that is decided.
-        $this->assertNotSame(
+        $this->assertSame($unknownStatus, $wrongStatus, 'Same status');
+        $this->assertSame(
             $this->assertErrorEnvelope($unknown)['detail'],
             $this->assertErrorEnvelope($wrong)['detail'],
-            'Different messages today - see 013-001'
+            'and the same text — otherwise the answer is an oracle for which accounts exist'
+        );
+        $this->assertSame(
+            $this->assertErrorEnvelope($unknown)['code'],
+            $this->assertErrorEnvelope($wrong)['code'],
+            'and the same code'
         );
     }
 
