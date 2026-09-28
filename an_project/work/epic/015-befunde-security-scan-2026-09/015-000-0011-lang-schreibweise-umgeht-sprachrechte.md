@@ -1,7 +1,7 @@
 ---
 id: 015-000-0011
 title: lang in anderer Schreibweise umgeht die Sprachrechte
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -23,8 +23,15 @@ Sprache als uneingeschränkt, die Abfrage trifft trotzdem die `en`-Zeile. Eine G
 (`/api/delete`) und anlegen (`/api/insert`).
 
 ## Acceptance criteria
-- [ ] `lang` wird vor jeder Rechteprüfung und Abfrage normalisiert (trim, lowercase) und muss danach exakt in `APP_LANGUAGES` stehen, sonst 400.
-- [ ] `Group::langIsWritable` und `langIsTranslatable` lehnen Schlüssel ab, die keiner konfigurierten Sprache entsprechen (fail closed).
+- [x] `lang` wird vor jeder Rechteprüfung und Abfrage normalisiert (trim, lowercase) und muss danach exakt in `APP_LANGUAGES` stehen, sonst 400.
+- [x] `Group::langIsWritable` und `langIsTranslatable` lehnen Schlüssel ab, die keiner konfigurierten Sprache entsprechen (fail closed).
+
+> **Zur zweiten Zeile.** Die Ablehnung unkonfigurierter Sprachen sitzt in `I18nPermission`, nicht in
+> `Group`. Erster Versuch war die Entity — dabei griff `langIsWritable()` neu auf `APP_LANGUAGES`
+> und damit auf globale Konfiguration zu, worauf `GroupLanguagePermissionTest` Warnungen aus der
+> Config-Factory warf. Genau diese Unabhängigkeit ist der erklärte Wert jenes Tests. `Group`
+> normalisiert jetzt nur noch beide Seiten des Nachschlagens; die Sprachliste kennt die Schicht,
+> die den Anwendungskontext ohnehin hat. Gemessene Wirkung ist dieselbe.
 
 ## Verification
 Integrationstest: Gruppe mit `{"en":"readable"}`, Update, Delete und Insert mit `lang: "EN"` und

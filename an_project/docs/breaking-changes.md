@@ -1733,6 +1733,50 @@ billiger als der Hash und nicht mehr, als derselbe Request vor Erreichen des Lim
 3. **Bestehende Eimer laufen aus.** Der Schlüssel ändert sich, also beginnt jedes Konto einmalig bei
    null. Das betrifft nur laufende Sperren, und die längste Stufe ist eine Stunde.
 
+### `lang` wird normalisiert und muss eine konfigurierte Sprache sein
+**Seit `015-000-0011` (2026-09-28).**
+
+Der Parameter ging unverändert an zwei Stellen, die ihn verschieden lasen:
+
+| Stelle | las `lang` als |
+|---|---|
+| `Group::langIsWritable()` | **Array-Schlüssel**, also mit Beachtung der Gross-/Kleinschreibung — und ein unbekannter Schlüssel galt als **uneingeschränkt** |
+| die Abfrage `a.lang = :lang` | Vergleich unter `utf8mb3_unicode_ci`, das Gross-/Kleinschreibung und nachgestellte Leerzeichen ignoriert |
+
+Eine Gruppe mit `languages = {"en":"readable"}` schrieb englische Inhalte also, indem sie `EN`,
+`En` oder `en ` schickte: Die Rechteprüfung sah eine unkonfigurierte Sprache und liess durch, die
+Abfrage traf die `en`-Zeile trotzdem. Nachgemessen am 2026-09-28: Update und Delete antworten in
+allen drei Schreibweisen mit **200**.
+
+| Aufruf | vorher | jetzt |
+|---|---|---|
+| `lang: "EN"` / `"En"` / `"en "` auf eine eingeschränkte Sprache | **200**, Zeile geändert | **403** |
+| `lang: "fr"` (nicht in `APP_LANGUAGES`) | **200** | **400** `contentfly_general_invalid_params` |
+| `lang: "de"` (konfiguriert, nicht eingeschränkt) | 200 | unverändert 200 |
+| `lang: "DE "` | 200 | unverändert 200 |
+
+**Zwei Schichten.** `Language::fromRequest()` normalisiert den Wert an der Kante — trimmen,
+kleinschreiben — und lehnt einen Wert, der keine konfigurierte Sprache benennt, mit 400 ab.
+`I18nPermission` weist denselben Fall zusätzlich ab, damit ein zweiter Einstiegspunkt die Lücke
+nicht wieder öffnen kann. `Group` normalisiert **beide** Seiten des Nachschlagens, die Spalte des
+Requests wie die Schlüssel der eigenen Karte.
+
+**Ohne `APP_LANGUAGES` ändert sich nichts.** Sind keine Sprachen konfiguriert, gilt jeder Wert als
+bekannt — eine Installation mit i18n-Entities und ohne konfigurierte Sprachen könnte sonst gar
+nichts mehr schreiben. Dieser Eintrag verengt eine zu weite Rechteprüfung; er schliesst i18n nicht
+für Installationen, die es nie konfiguriert haben.
+
+*Was zu tun ist:*
+
+1. **Ein Client, der `lang` in anderer Schreibweise schickt** — `EN` statt `en` —, bekommt jetzt
+   dieselbe Sprache, aber unter den Rechten, die für sie gelten. Wo das vorher „durchging", ist es
+   jetzt 403; das war der Befund.
+2. **Ein Client, der eine nicht konfigurierte Sprache schickt**, bekommt 400 statt eines stillen
+   Durchlaufs. `APP_LANGUAGES` muss jede benutzte Sprache nennen.
+3. **Wer `Group::langIsWritable()` selbst aufruft**, bekommt weiterhin die alte, durchlässige
+   Vorgabe für unbekannte Schlüssel — die Verengung sitzt in `I18nPermission`. Der Grund steht an
+   beiden Klassen: `Group` kennt die Konfiguration nicht und soll sie nicht kennenlernen.
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —
