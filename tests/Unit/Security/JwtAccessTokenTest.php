@@ -37,6 +37,8 @@ class JwtAccessTokenTest extends TestCase
     private function user(string $alias = 'admin', bool $admin = false): User
     {
         $user = new User();
+        // A token names the account by its id since 015-000-0014, so a fixture needs one.
+        $user->setId('11111111-1111-4111-a111-111111111111');
         $user->setAlias($alias);
         $user->setIsAdmin($admin);
 
@@ -84,11 +86,27 @@ class JwtAccessTokenTest extends TestCase
         }
     }
 
-    public function testTheIdentifierIsInSub(): void
+    /**
+     * THE ID IS IN `sub`, NOT THE ALIAS (015-000-0014).
+     *
+     * This used to assert the alias, and that was the finding: the JWT path resolved the account
+     * from `sub` on every request, while `alias` is a column an API client can write. A
+     * non-admin with write access to foreign `PIM\User` records renamed accounts so that the
+     * `sub` of their own still-valid token pointed at an admin — no forging needed, the database
+     * was moved underneath the token.
+     *
+     * The id is the only identifier that cannot be reassigned. `getUserIdentifier()` still
+     * answers the alias — Symfony's contract and every message naming a user rest on it; what
+     * changed is only what a token says about whom it belongs to.
+     */
+    public function testTheIdIsInSubAndNotTheAlias(): void
     {
-        $claims = $this->claims(JwtAccessToken::issue($this->user('editor'))['token']);
+        $user   = $this->user('editor');
+        $claims = $this->claims(JwtAccessToken::issue($user)['token']);
 
-        $this->assertSame('editor', $claims['sub']);
+        $this->assertSame((string) $user->getId(), $claims['sub']);
+        $this->assertNotSame('editor', $claims['sub'], 'and the alias is not what identifies it');
+        $this->assertSame('editor', $user->getUserIdentifier(), 'while the alias stays the identifier elsewhere');
     }
 
     public function testTheIssuerIsInIss(): void

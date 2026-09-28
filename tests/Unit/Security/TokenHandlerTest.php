@@ -119,6 +119,8 @@ class TokenHandlerTest extends TestCase
     private function user(string $alias = 'admin', bool $active = true): User
     {
         $user = new User();
+        // A token names the account by its id since 015-000-0014, so a fixture needs one.
+        $user->setId('11111111-1111-4111-a111-111111111111');
         $user->setAlias($alias);
         $user->setIsActive($active);
 
@@ -271,13 +273,23 @@ class TokenHandlerTest extends TestCase
      * The badge comes back **without** its own loader — the user is fetched by the `UserLoader`
      * that the authenticator knows.
      */
-    public function testJwtBadgeLeavesLoadingToTheUserLoader(): void
+    /**
+     * THE JWT BADGE BRINGS ITS OWN LOADER SINCE 015-000-0014.
+     *
+     * It used to come back bare, and `UserLoader` resolved it — by alias, which is that class's
+     * contract and stays its contract: the OIDC path hands it an alias too. Only the JWT path
+     * changed its mind about what `sub` means, so only the JWT path brings the loader that
+     * matches. This test used to assert the absence of that loader; it now asserts its presence,
+     * and that the identifier the badge carries is the one from `sub`.
+     */
+    public function testTheJwtBadgeResolvesTheSubjectItself(): void
     {
         $handler = new TokenHandler($this->emThatThrows());
 
-        $badge = $handler->getUserBadgeFrom($this->jwt(array('sub' => 'admin')));
+        $badge = $handler->getUserBadgeFrom($this->jwt(array('sub' => 'the-user-id')));
 
-        $this->assertNull($badge->getUserLoader());
+        $this->assertNotNull($badge->getUserLoader(), 'The JWT path resolves its own subject');
+        $this->assertSame('the-user-id', $badge->getUserIdentifier(), 'and it is the subject claim');
     }
 
     public function testExpiredJwtIsRejected(): void

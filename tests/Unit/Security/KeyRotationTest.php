@@ -47,6 +47,8 @@ class KeyRotationTest extends TestCase
     private function user(): User
     {
         $user = new User();
+        // A token names the account by its id since 015-000-0014, so a fixture needs one.
+        $user->setId('11111111-1111-4111-a111-111111111111');
         $user->setAlias('admin');
 
         return $user;

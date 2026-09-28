@@ -1888,6 +1888,54 @@ Sprachcodes als Schlüssel und `readable` oder `translatable` als Wert; alles an
    mit unbekannten Schlüsseln oder Werten bleiben in der Datenbank stehen und werden weiter als
    „keine Einschränkung" gelesen; ein Schreibvorgang über die API korrigiert sie.
 
+### Ein JWT benennt das Konto über die ID, nicht über den Alias
+**Seit `015-000-0014` (2026-09-28).**
+
+`JwtAccessToken::issue()` schrieb `getUserIdentifier()` — den **Alias** — in `sub`, und der
+JWT-Pfad löste das Konto bei jedem Request daraus auf: `TokenHandler::fromJwt()` →
+`UserBadge($claims->sub)` → `UserLoader` → `findOneBy(['alias' => …])`. `RightsManagement`
+schützte bei fremden Benutzern `pass`, `salt`, `loginManager` und `externalId` — **nicht den
+`alias`**.
+
+Ein Nicht-Admin mit Schreibrecht auf fremde `PIM\User`-Datensätze benannte deshalb Konten so um,
+dass der `sub` seines eigenen, noch gültigen Tokens zu einem Admin gehörte. Gefälscht wurde
+nichts; die Datenbank wurde unter dem Token weggezogen. Nachgemessen am 2026-09-28 gegen den
+ungefixten Stand: Das Token des Opfers **ist** nach der Umbenennung Admin.
+
+**Zwei Hälften, beide nötig.** `sub` trägt jetzt die unveränderliche ID, und `alias` eines fremden
+Kontos darf ein Nicht-Admin nicht mehr ändern. Jede Hälfte allein hielte nur bis zum nächsten Weg,
+der einen Alias schreibt.
+
+| | vorher | jetzt |
+|---|---|---|
+| `sub` eines ausgestellten JWT | der Alias | die User-ID |
+| fremdes Konto umbenennen, als Nicht-Admin mit Schreibrecht | **200** | **403** |
+| eigenes Konto umbenennen | 200 | unverändert 200 |
+| eigenes JWT nach Umbenennung des **eigenen** Kontos | **401** — das Token brach | **gültig**, die ID ändert sich nicht |
+
+Die letzte Zeile ist ein Nebengewinn, der beim Messen auffiel: Bisher verlor ein Benutzer seine
+Sitzung, sobald sein Alias geändert wurde.
+
+**`getUserIdentifier()` bleibt der Alias.** Symfonys Vertrag und jede Meldung, die einen Benutzer
+benennt, hängen daran; geändert hat sich nur, worüber ein *Token* sagt, wem es gehört. Der
+OIDC-Pfad übergibt dem `UserLoader` weiterhin einen Alias — deshalb hat nicht der Loader seine
+Bedeutung gewechselt, sondern der JWT-Pfad bringt seinen eigenen mit.
+
+*Was zu tun ist:*
+
+1. **Bereits ausgestellte JWTs werden ungültig** — ihr `sub` trägt einen Alias, und darunter
+   findet sich kein Konto mehr. Das ist die Entscheidung und nicht die Nebenwirkung: Ein
+   Übergang, der Alias-`sub` weiter akzeptiert, hielte genau die Lücke für die Laufzeit der alten
+   Tokens offen. Der Preis ist klein, weil ein Access-JWT kurzlebig ist — `SECURITY_JWT_TTL`
+   steht auf **900 Sekunden**. Clients holen sich über ihren Refresh-Token ein neues; die
+   Refresh-Tokens sind nicht betroffen.
+2. **Wer den Rollout ohne eine einzige abgewiesene Anfrage will**, stellt vor dem Upgrade für die
+   Dauer einer Token-Laufzeit auf opake Tokens um (`tokenType` weglassen) oder nimmt die 15
+   Minuten in Kauf.
+3. **Ein Projekt, das Nicht-Admins Schreibrecht auf fremde `PIM\User`-Datensätze gibt**, kann
+   Aliase dort nicht mehr über die API ändern. Ein unveränderter Alias im Round-Trip geht weiter
+   durch.
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —
