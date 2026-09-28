@@ -212,6 +212,162 @@ class RightsManagementApiTest extends IntegrationTestCase
         );
     }
 
+    /*
+     * AN EMPTY PASSWORD IS A PASSWORD CHANGE (015-000-0001).
+     *
+     * `testANonAdminCannotSetTheAdminsPassword` above only ever sent a non-empty value, and that
+     * was the whole gap: three places disagreed about whether an empty value is a change.
+     * `RightsManagement` compared `self::id($data['pass']) !== null`, `doUpdate()` asked
+     * `isset($data['pass'])` — both say "no change" for `null` — while `StringType` still wrote
+     * `setPass('')`. The result was `password_hash('')` on the victim's row and a login without
+     * a password.
+     *
+     * The three values are tested separately because they fail differently: `null` slips past
+     * `isset()`, `''` and `[]` are collapsed into `null` by `self::id()`.
+     */
+
+    /** @return array<string, array{0: mixed}> */
+    public static function emptyPasswords(): array
+    {
+        return array(
+            'null'         => array(null),
+            'empty string' => array(''),
+            'empty array'  => array(array()),
+        );
+    }
+
+    #[DataProvider('emptyPasswords')]
+    public function testANonAdminCannotBlankTheAdminsPassword(mixed $empty): void
+    {
+        [$token]    = $this->createTestUser(array('PIM\\User' => $this->readWrite()));
+        [, $victim] = $this->createTestUser();
+        $this->pdo()->prepare('UPDATE pim_user SET isAdmin = 1 WHERE id = :id')->execute(array('id' => $victim));
+        $alias  = $this->userColumn($victim, 'alias');
+        $before = $this->userColumn($victim, 'pass');
+
+        [$status, $body] = $this->postJson('/api/update', array(
+            'entity' => 'PIM\\User', 'id' => $victim, 'pass' => self::TEST_PASSWORD, 'data' => array('pass' => $empty),
+        ), $token);
+
+        $this->assertDenied($status, $body);
+        $this->assertSame($before, $this->userColumn($victim, 'pass'), 'The hash is untouched.');
+        $this->assertSame(401, $this->postJson('/auth/login', array('alias' => $alias, 'pass' => ''))[0],
+            'And no login without a password.');
+    }
+
+    /**
+     * The same on `/api/multiupdate`, which reaches `doUpdate()` on its own route and passes
+     * `null` as the current password.
+     */
+    #[DataProvider('emptyPasswords')]
+    public function testMultiupdateCannotBlankTheAdminsPasswordEither(mixed $empty): void
+    {
+        [$token]    = $this->createTestUser(array('PIM\\User' => $this->readWrite()));
+        [, $victim] = $this->createTestUser();
+        $this->pdo()->prepare('UPDATE pim_user SET isAdmin = 1 WHERE id = :id')->execute(array('id' => $victim));
+        $before = $this->userColumn($victim, 'pass');
+
+        [$status] = $this->postJson('/api/multiupdate', array(
+            'objects' => array(array('entity' => 'PIM\\User', 'id' => $victim, 'data' => array('pass' => $empty))),
+        ), $token);
+
+        $this->assertNotSame(200, $status);
+        $this->assertSame($before, $this->userColumn($victim, 'pass'), 'The hash is untouched.');
+    }
+
+    /**
+     * ON THE OWN RECORD THE CURRENT PASSWORD IS STILL ASKED FOR.
+     *
+     * `isset(null)` is `false`, so `{"pass": null}` on the own record skipped the confirmation
+     * entirely — a stolen token was enough to set a password of one's own and keep the account.
+     */
+    #[DataProvider('emptyPasswords')]
+    public function testAnEmptyPasswordOnTheOwnRecordStillNeedsTheCurrentOne(mixed $empty): void
+    {
+        [$token, $user] = $this->createTestUser(array('PIM\\User' => array('readable' => Permission::OWN, 'writable' => Permission::OWN)));
+        $alias  = $this->userColumn($user, 'alias');
+        $before = $this->userColumn($user, 'pass');
+
+        [$status, $body] = $this->postJson('/api/update', array(
+            'entity' => 'PIM\\User', 'id' => $user, 'data' => array('pass' => $empty),
+        ), $token);
+
+        $this->assertNotSame(200, $status, json_encode($body['errors'] ?? $body));
+        $this->assertErrorEnvelope($body, 'contentfly_general_invalid_password');
+        $this->assertSame($before, $this->userColumn($user, 'pass'), 'The hash is untouched.');
+        $this->assertSame(200, $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORD))[0],
+            'The old password still works.');
+    }
+
+    /** Even with the current password confirmed, an empty new one is rejected — and never hashed. */
+    #[DataProvider('emptyPasswords')]
+    public function testAnEmptyPasswordIsRejectedEvenWithTheCurrentOne(mixed $empty): void
+    {
+        [$token, $user] = $this->createTestUser(array('PIM\\User' => array('readable' => Permission::OWN, 'writable' => Permission::OWN)));
+        $alias  = $this->userColumn($user, 'alias');
+        $before = $this->userColumn($user, 'pass');
+
+        [$status, $body] = $this->postJson('/api/update', array(
+            'entity' => 'PIM\\User', 'id' => $user, 'pass' => self::TEST_PASSWORD, 'data' => array('pass' => $empty),
+        ), $token);
+
+        $this->assertSame(400, $status, json_encode($body['errors'] ?? $body));
+        $this->assertErrorEnvelope($body, 'contentfly_general_invalid_password');
+        $this->assertSame($before, $this->userColumn($user, 'pass'), 'The hash is untouched.');
+        $this->assertSame(200, $this->postJson('/auth/login', array('alias' => $alias, 'pass' => self::TEST_PASSWORD))[0],
+            'The old password still works.');
+    }
+
+    /** An admin is not exempt either: the value is refused where the hash is made. */
+    #[DataProvider('emptyPasswords')]
+    public function testNotEvenAnAdminCanBlankAPassword(mixed $empty): void
+    {
+        [, $victim] = $this->createTestUser();
+        $before     = $this->userColumn($victim, 'pass');
+
+        [$status, $body] = $this->postJson('/api/update', array(
+            'entity' => 'PIM\\User', 'id' => $victim, 'data' => array('pass' => $empty),
+        ), $this->token());
+
+        $this->assertSame(400, $status, json_encode($body['errors'] ?? $body));
+        $this->assertErrorEnvelope($body, 'contentfly_general_invalid_password');
+        $this->assertSame($before, $this->userColumn($victim, 'pass'), 'The hash is untouched.');
+    }
+
+    /**
+     * EMPTY AND `null` ARE NOT THE SAME VALUE (015-000-0001).
+     *
+     * `loginManager` and `externalId` are `null` on a fresh user. `self::id()` turned both the
+     * incoming `''` and the stored `null` into `null`, so the barrier saw no change — and
+     * `StringType` wrote `''` all the same. Together these two columns carry a unique
+     * constraint and decide which external identity an account belongs to.
+     *
+     * `salt` is not in here: it is never `null`, so the old comparison already caught it.
+     */
+    #[DataProvider('blankableLoginFields')]
+    public function testANonAdminCannotBlankTheLoginOfAnotherUser(string $field): void
+    {
+        [$token]    = $this->createTestUser(array('PIM\\User' => $this->readWrite()));
+        [, $victim] = $this->createTestUser();
+        $before     = $this->userColumn($victim, $field);
+
+        [$status, $body] = $this->postJson('/api/update', array(
+            'entity' => 'PIM\\User', 'id' => $victim, 'data' => array($field => ''),
+        ), $token);
+
+        $this->assertDenied($status, $body);
+        $this->assertSame($before, $this->userColumn($victim, $field));
+    }
+
+    /** @return array<string, array{0: string}> */
+    public static function blankableLoginFields(): array
+    {
+        return array(
+            'loginManager' => array('loginManager'),
+            'externalId'   => array('externalId'),
+        );
+    }
+
     public function testANonAdminMayStillChangeHisOwnPassword(): void
     {
         [$token, $user] = $this->createTestUser(array('PIM\\User' => array('readable' => Permission::OWN, 'writable' => Permission::OWN)));
