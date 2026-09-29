@@ -1,7 +1,7 @@
 ---
 id: 015-000-0015
 title: OIDC-Login prüft nicht, für welchen Client das Token ausgestellt ist
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -26,9 +26,9 @@ Nur relevant, wenn ein Projekt `OidcProvider` in `custom/app.php` registriert. D
 ohne OIDC.
 
 ## Acceptance criteria
-- [ ] Der Provider kennt die erwartete `client_id` aus der Konfiguration und lehnt Tokens ab, die nicht nachweislich dafür ausgestellt sind: per ID-Token-Prüfung (Signatur, `iss`, `aud`, `exp`, `nonce`) oder per Token-Introspection (`client_id`/`aud`).
-- [ ] Ohne konfigurierte `client_id` startet der Provider nicht (fail closed).
-- [ ] Doku (`dev-guide.md`, Migrationsleitfaden) beschreibt die neue Pflichteinstellung.
+- [x] Der Provider kennt die erwartete `client_id` aus der Konfiguration und lehnt Tokens ab, die nicht nachweislich dafür ausgestellt sind: per ID-Token-Prüfung (Signatur, `iss`, `aud`, `exp`, `nonce`) oder per Token-Introspection (`client_id`/`aud`).
+- [x] Ohne konfigurierte `client_id` startet der Provider nicht (fail closed).
+- [x] Doku (`dev-guide.md`, Migrationsleitfaden) beschreibt die neue Pflichteinstellung.
 
 ## Verification
 Test mit einem IdP-Double: Ein Token mit `aud` eines anderen Clients, das der Userinfo-Endpunkt mit

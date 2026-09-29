@@ -327,6 +327,9 @@ tun sie das nicht, und angemeldet wird dort mit `sAMAccountName`, der im DN gar 
 | Feld | Bedeutung |
 |---|---|
 | `SECURITY_OIDC_USERINFO_ENDPOINT` | Vollständige URL des Userinfo-Endpunkts |
+| `SECURITY_OIDC_INTROSPECTION_ENDPOINT` | **Pflicht.** Vollständige URL des Introspection-Endpunkts (RFC 7662) |
+| `SECURITY_OIDC_CLIENT_ID` | **Pflicht.** Die Client-ID, unter der Contentfly beim Provider registriert ist |
+| `SECURITY_OIDC_CLIENT_SECRET` | Client-Secret für die Anmeldung am Introspection-Endpunkt; leer heisst unauthentifiziert |
 | `SECURITY_OIDC_IDENTIFIER_CLAIM` | Vorgabe `sub` |
 | `SECURITY_OIDC_GROUPS_CLAIM` | Vorgabe `groups`; leer heisst keine Gruppen |
 
@@ -337,8 +340,25 @@ als `pass`, wenn er dasselbe Formular benutzt wie für ein Passwort.
 änderbar, und wer darauf abbildet, bekommt ein neues Konto, sobald jemand heiratet.
 
 **Geprüft wird am Userinfo-Endpunkt, nicht lokal gegen ein JWKS.** Entschieden mit `013-005-0003`
-— drei leichte Pakete statt fünf, und ein Widerruf wirkt sofort. Der Preis ist eine HTTP-Anfrage
-je Anmeldung; sie betrifft nur die Anmeldung, weil Contentfly danach ein eigenes Token ausstellt.
+— drei leichte Pakete statt fünf, und ein Widerruf wirkt sofort. Der Preis sind zwei HTTP-Anfragen
+je Anmeldung; sie betreffen nur die Anmeldung, weil Contentfly danach ein eigenes Token ausstellt.
+
+**Zwei Anfragen, weil der Userinfo-Endpunkt die falsche Frage beantwortet** (`015-000-0015`). Er
+sagt „gültiges Token, dieser Benutzer" — nicht „für dich ausgestellt". Ohne die zweite Frage
+konnte jeder andere Client desselben Providers seine Tokens hier einlösen. Vor dem Userinfo-Aufruf
+läuft deshalb eine **Token-Introspection** (RFC 7662): Die Antwort muss `active: true` sein und
+diesen Client in `client_id` oder `aud` nennen. Nennt sie keinen von beiden — beide Felder sind
+optional —, wird abgelehnt.
+
+**Ohne `SECURITY_OIDC_CLIENT_ID` und `SECURITY_OIDC_INTROSPECTION_ENDPOINT` startet der Provider
+nicht:** `fromConfig()` wirft eine `RuntimeException`. Dieselbe Linie wie beim JWT-Secret
+(`013-002-0003`) — ein Weg, der ohne Konfiguration offen stünde, wäre schlimmer als keiner. Der
+Fehler kommt beim Bauen und nicht bei der Anmeldung, weil ein Provider, der startet und dann jede
+Anmeldung ablehnt, wie ein Ausfall aussieht.
+
+**Ein Provider ohne Introspection-Endpunkt** kann so nicht mehr angebunden werden. Keycloak,
+Auth0, Okta, Azure Entra ID und Authentik bieten ihn; wo er fehlt, bleibt ein eigener
+`LoginProvider` im Projekt, der das ID-Token lokal prüft.
 
 ### Wer aus dem Fremdsystem verschwindet
 
