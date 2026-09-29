@@ -2056,6 +2056,39 @@ und niemandem fiele es auf.
 Einzelheiten und die Beispiele je Betriebsart: `deployment.md`, Abschnitt *Welcher Config-Block
 gilt*.
 
+### Ein abgelehnter Login kostet so viel wie ein angenommener
+**Seit `015-000-0018` (2026-09-29).**
+
+**Kein Handlungsbedarf für Projekte** — die Antwort ändert sich nicht, nur ihre Laufzeit. Der
+Eintrag steht hier, weil er eine bewusste Verlangsamung einführt.
+
+`AuthController::loginAction()` wies einen unbekannten Alias, ein deaktiviertes Konto und ein an
+einen Provider gebundenes Konto ab, **bevor** irgendein Hash angefasst wurde. Nur ein
+existierendes, aktives, lokales Konto erreichte `isPass()` und bezahlte Argon2id — absichtlich
+einige zehn Millisekunden. Die Antwortzeit beantwortete damit genau die Frage, die
+`015-000-0008` den Fehlertexten und Statuscodes gerade abgewöhnt hatte.
+
+**Gemessen gegen den ungefixten Stand:** unbekannter Alias **24,7 ms**, falsches Passwort
+**180,6 ms** — zwei Grössenordnungen Unterschied in der eigentlichen Rechenarbeit. Nach dem Fix
+liegen beide gleichauf.
+
+**Jeder ablehnende Pfad des Passwort-Logins verbraucht jetzt eine Verifikation** gegen einen
+Dummy-Hash (`User::equaliseRejectionCost()`). Dazu gehören auch die Fälle, in denen `isPass()`
+selbst nicht bis `password_verify()` kommt: gesperrtes Passwort, leere Eingabe und ein Hash im
+alten SHA-256-Format, der nur mit `hash_equals` verglichen wird. Jeder davon ist eine Eigenschaft
+**des Kontos** und wäre damit ein eigenes Orakel.
+
+**Der Dummy-Hash wird erzeugt, nicht hingeschrieben** (`User::rejectionHash()`): aus Zufallsbytes,
+mit `User::algorithm()` und den aktuellen Optionen, einmal je Prozess. Ein als Konstante
+abgelegter Hash behielte die Kosten des Tages, an dem er abgelegt wurde — sobald das Verfahren
+oder PHPs Vorgaben weiterziehen, wäre er billiger als eine echte Prüfung, und die Angleichung
+wäre still weg.
+
+*Was zu tun ist:* Nichts. Wer die Antwortzeit des Logins überwacht, sollte wissen, dass ein
+abgelehnter Login jetzt so lange dauert wie ein angenommener — das ist der Zweck und kein Defekt.
+Die erste Ablehnung in einem frischen Worker kostet einen Hash mehr als die folgenden, weil der
+Dummy dort erzeugt wird; das ist ein Unterschied zwischen Prozessen, nicht zwischen Konten.
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —
