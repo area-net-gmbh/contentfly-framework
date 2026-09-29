@@ -1,7 +1,7 @@
 ---
 id: 015-000-0016
 title: Löschen einer Sprachvariante löscht alle anderen ohne Rechteprüfung
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -26,8 +26,8 @@ angelegt hat, und löscht diese Variante. Die geschützte Hauptsprach-Zeile und 
 Übersetzungen verschwinden mit.
 
 ## Acceptance criteria
-- [ ] Vor dem Entfernen jeder weiteren Sprachzeile gelten für sie dieselben Prüfungen (Eigentum und `I18nPermission`) wie für die angefragte Zeile. Scheitert eine davon, wird nichts gelöscht, oder es wird nur die angefragte Zeile gelöscht. Welche der beiden Varianten gilt, ist entschieden und dokumentiert.
-- [ ] Wer alle Varianten löschen darf, löscht weiterhin alle in einem Aufruf.
+- [x] Vor dem Entfernen jeder weiteren Sprachzeile gelten für sie dieselben Prüfungen (Eigentum und `I18nPermission`) wie für die angefragte Zeile. Scheitert eine davon, wird nichts gelöscht, oder es wird nur die angefragte Zeile gelöscht. Welche der beiden Varianten gilt, ist entschieden und dokumentiert.
+- [x] Wer alle Varianten löschen darf, löscht weiterhin alle in einem Aufruf.
 
 ## Verification
 Integrationstest: Gruppe mit Hauptsprache `readable`, Datensatz des Admins mit `de`- und

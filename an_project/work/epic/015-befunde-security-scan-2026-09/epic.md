@@ -1,7 +1,7 @@
 ---
 id: 015-000-0000
 title: Befunde Security-Scan 2026-09
-status: todo
+status: in-progress
 depends_on: []
 ---
 
