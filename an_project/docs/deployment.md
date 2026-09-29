@@ -560,6 +560,45 @@ vor: mit Symfony 7.4 und ORM 2.20, mit ORM 3.7, und auf dem Endstand von Epic `0
 hatte sie längst getroffen. Beim Umbau auf Actions ist die Tabelle nachgezogen worden; die
 Entscheidung selbst ist keine neue.
 
+### Das Lock-Format-Gate — und warum Composer in der CI nicht gepinnt ist
+
+**Seit `000-000-0106`** prüft `check: Lock-Format` (`tools/check-lock-format.sh`), ob
+`composer.lock` von einer zu alten Composer-Version zurückgestuft wurde. Betroffen sind vier
+Zeilen:
+
+| Feld | erwartet | Rückstufung |
+|---|---|---|
+| `stability-flags` | `{}` | `[]` |
+| `platform` | `{}` | `[]` |
+| `platform-dev` | `{}` | `[]` |
+| `plugin-api-version` | `"2.9.0"` oder neuer | `"2.6.0"` |
+
+**Warum es das Gate gibt:** Viermal hat jemand dieselben vier Zeilen von Hand zurückgesetzt —
+`000-000-0084`, `0091`, `0098`, `0105`. Die Ursache ist kein Composer-Fehler, sondern ein
+Versions-Gefälle: Die Pipeline holt jeweils die neueste Composer-Version, eine Entwicklermaschine
+kann Jahre zurückliegen (gemessen am 2026-09-29: lokal 2.6.6 von 2023, Lock von 2.9.x). Wer lokal
+den Lock anfasst, stuft ihn zurück.
+
+Funktional sind die Formen gleichwertig; der Schaden ist Diff-Rauschen. Aber ein Lock, den zwei
+Composer-Versionen abwechselnd umschreiben, macht **jeden** Lock-Diff unlesbar — und genau dort
+will man sehen, ob sich eine Abhängigkeit geändert hat. Bei `0105` standen die vier Formatzeilen
+neben den drei, auf die es ankam (`content-hash`, `version`, `reference`).
+
+**Composer wird in der CI bewusst NICHT auf eine Version gepinnt.** Entschieden mit
+`000-000-0106`:
+
+- Das Gate prüft **„`2.9.0` oder neuer"**, nicht Gleichheit. Vorwärtsbewegung ist erlaubt, nur
+  die Rückstufung fällt auf — also genau der Fall, der viermal aufgetreten ist.
+- Ein Pin fröre das Format ein und veraltete dann still. Dieselbe Klasse offener Frage wie die
+  fehlende Prüfsumme beim Installer, die `tools/ci/install-composer.sh` ausdrücklich als
+  ungelöst führt. Einen zweiten solchen Zettel wollten wir nicht.
+- Ändert eine künftige Composer-Version das Format bewusst, wird das Gate beim ersten Pull
+  Request rot, der den Lock anfasst — und dann **entscheidet jemand**, statt dass es passiert.
+
+**Der Job braucht keine Umgebung:** kein Container, kein Composer, kein Netz. Er liest eine
+Datei. Das ist Absicht — er soll auch dann etwas sagen können, wenn Composer selbst das Problem
+ist.
+
 ## Die Suite ist die Abnahmegrundlage
 Was ein roter Test beim Kernel-Tausch bedeutet, ist in `an_project/docs/technical.md`
 festgelegt — einschliesslich der Liste dessen, was die Suite **nicht** abdeckt.
