@@ -3,6 +3,9 @@
 # Changelog
 
 ## 2026-09-29
+- 000-000-0106 → done: **`check: Lock-Format` ist der achte erforderliche Check** — geschaltet am Ruleset `master-schutz` (ID `23648309`), nicht unter *Branches*. Die Entscheidung stand seit dem Task schriftlich fest, das Schalten ist eine Änderung an den Repository-Einstellungen und war deshalb nicht Teil von #112. **Nachgeprüft an der Antwort der API:** acht Kontexte, *Bypass list* weiterhin leer, die Regeln `deletion`, `non_fast_forward` und `pull_request` unberührt. `git.md` und `deployment.md` nachgezogen — dort stand bis eben „noch nicht erforderlich".
+
+## 2026-09-29
 - 000-000-0106 → done (per Pull Request auf `master`, #112)
 
 ## 2026-09-29
