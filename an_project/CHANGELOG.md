@@ -3,6 +3,9 @@
 # Changelog
 
 ## 2026-09-29
+- 000-000-0106 → done (per Pull Request auf `master`, #112)
+
+## 2026-09-29
 - 000-000-0106 task created: "composer.lock gegen Format-Rückstufung sichern — das Versions-Gefälle schliessen" — viermal derselbe Handgriff (`0084`, `0091`, `0098`, `0105`). Ursache gemessen: Der Lock trägt `plugin-api-version: 2.9.0`, lokal läuft Composer **2.6.6**, und die Pipeline holt den Installer **ohne Versionspin**. Kein Composer-Fehler, ein Versions-Gefälle.
 - 000-000-0106 → in-progress
 - 000-000-0106 → review: **Der fünfte Fall der Composer-Falle fällt jetzt auf, bevor er in `master` landet.** `tools/check-lock-format.sh` prüft die vier Zeilen im committeten Lock; die erwartete Form steht an **einer** Stelle im Skript. **Die Ursache ist gemessen und benannt, nicht geraten:** Der Lock trägt `plugin-api-version: 2.9.0`, lokal läuft Composer **2.6.6** von 2023, und die Pipeline holt den Installer ohne Versionspin — ein Versions-Gefälle, kein Composer-Fehler. **Zur CI-Version entschieden: nicht pinnen.** Das Gate prüft „`2.9.0` oder neuer", lässt also Vorwärtsbewegung zu und fängt nur die Rückstufung — genau den Fall, der viermal auftrat. Ein Pin fröre das Format ein und veraltete still, wie die offene Prüfsummen-Frage im selben Installer-Skript zeigt. **Gemessen, beide Richtungen:** guter Lock Exit 0; die vier Zeilen zurückgestuft → Exit 1 mit jeder Zeile **einzeln**, der erwarteten Form daneben, der lokal installierten Composer-Version und zwei Wegen zurück; danach wieder Exit 0 und leerer `git diff`. **Job `check: Lock-Format`** ohne Container und ohne `install-composer.sh` — er liest eine Datei und soll auch dann etwas sagen können, wenn Composer selbst das Problem ist. **Erforderlicher Check: entschieden ja, noch nicht geschaltet**, weil das eine Änderung am Ruleset ist und nicht am Code; `git.md` nennt den Weg.
