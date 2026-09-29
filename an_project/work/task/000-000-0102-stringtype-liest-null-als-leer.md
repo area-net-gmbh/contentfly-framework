@@ -1,7 +1,7 @@
 ---
 id: 000-000-0102
 title: StringType liest '0' als leer und speichert einen leeren String
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -35,11 +35,11 @@ dasselbe Muster möglicherweise ebenfalls; ob eine Änderung dort dieselbe ist o
 gehört in die Umsetzung.
 
 ## Acceptance criteria
-- [ ] `StringType::toDatabase()` unterscheidet einen leeren Wert (`null`, `''`, `[]`) von `'0'`; `'0'` wird als `'0'` gespeichert.
-- [ ] Der `encoded`-Zweig (Feldverschlüsselung) wird für `'0'` ebenfalls erreicht.
-- [ ] Die übrigen `Classes/Types/*` sind auf dasselbe `empty()`-Muster durchgesehen; jede Fundstelle ist entweder mitbehoben oder mit Begründung stehengelassen.
-- [ ] Tests belegen `'0'` beim Schreiben und Zurücklesen — unverschlüsselt und verschlüsselt —, und dass `null`, `''` und `[]` weiterhin als leer ankommen.
-- [ ] Ist das Verhalten für Bestandsprojekte sichtbar, trägt `breaking-changes.md` einen Eintrag und `migration.md` die fortgeschriebene Zahl.
+- [x] `StringType::toDatabase()` unterscheidet einen leeren Wert (`null`, `''`, `[]`) von `'0'`; `'0'` wird als `'0'` gespeichert.
+- [x] Der `encoded`-Zweig (Feldverschlüsselung) wird für `'0'` ebenfalls erreicht.
+- [x] Die übrigen `Classes/Types/*` sind auf dasselbe `empty()`-Muster durchgesehen; jede Fundstelle ist entweder mitbehoben oder mit Begründung stehengelassen.
+- [x] Tests belegen `'0'` beim Schreiben und Zurücklesen — unverschlüsselt und verschlüsselt —, und dass `null`, `''` und `[]` weiterhin als leer ankommen.
+- [x] Ist das Verhalten für Bestandsprojekte sichtbar, trägt `breaking-changes.md` einen Eintrag und `migration.md` die fortgeschriebene Zahl.
 
 ## Verification
 `POST /api/insert` mit `'0'` in einem gewöhnlichen String-Feld, danach `/api/single`: Vor dem Fix
