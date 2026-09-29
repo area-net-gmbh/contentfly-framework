@@ -17,6 +17,7 @@
 - 015-000-0012 → done (per Pull Request auf `master`, #90)
 - 015-000-0013 → done (per Pull Request auf `master`, #91)
 - 015-000-0014 → done (per Pull Request auf `master`, #93)
+- 000-000-0104 → done (per Pull Request auf `master`, #92)
 
 ## 2026-09-28
 - 015-000-0014 → in-progress
