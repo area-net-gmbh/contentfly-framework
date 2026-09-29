@@ -5,7 +5,7 @@
  *
  * This file is a **template**. The `$SET_*` placeholders below are not a mistake:
  * `php bin/console.php appcms:install` replaces them with the credentials entered.
- * As long as `DB_HOST` is `127.0.0.1`, the system counts as **not installed**
+ * As long as `DB_HOST` is `$SET_DB_HOST`, the system counts as **not installed**
  * (`$app['is_installed']` in `lib/contentfly/bootstrap.php`) — the installer checks
  * exactly that.
  */
@@ -79,12 +79,12 @@ $configDefault = new Config();
  * afterwards the real values. Do not edit by hand while the installation is still
  * pending: a set DB_HOST makes the installer abort.
  */
-$configDefault->DB_HOST                 = '127.0.0.1';
-$configDefault->DB_PORT                 = 3307;
-$configDefault->DB_NAME                 = 'contentfly';
-$configDefault->DB_USER                 = 'contentfly';
-$configDefault->DB_PASS                 = 'contentfly';
-$configDefault->DB_GUID_STRATEGY        = true;
+$configDefault->DB_HOST                 = '$SET_DB_HOST';
+$configDefault->DB_PORT                 = '$SET_DB_PORT';
+$configDefault->DB_NAME                 = '$SET_DB_NAME';
+$configDefault->DB_USER                 = '$SET_DB_USER';
+$configDefault->DB_PASS                 = '$SET_DB_PASS';
+$configDefault->DB_GUID_STRATEGY        = '$SET_DB_GUID_STRATEGY';
 
 /*
  * APP_DEBUG controls verbose error output including full stack traces in
