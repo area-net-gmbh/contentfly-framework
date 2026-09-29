@@ -1,7 +1,7 @@
 ---
 id: 000-000-0106
 title: composer.lock gegen Format-Rückstufung sichern — das Versions-Gefälle schliessen
-status: review
+status: done
 depends_on: []
 ---
 
