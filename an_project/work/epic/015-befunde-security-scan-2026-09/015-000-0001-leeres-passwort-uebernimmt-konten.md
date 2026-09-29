@@ -1,7 +1,7 @@
 ---
 id: 015-000-0001
 title: Leeres Passwort überschreibt fremde Passwörter und öffnet den Admin-Login
-status: review
+status: done
 depends_on: []
 ---
 

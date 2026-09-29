@@ -2,6 +2,22 @@
 
 # Changelog
 
+## 2026-09-29
+- 015-000-0001 → done (per Pull Request auf `master`, #78)
+- 015-000-0002 → done (per Pull Request auf `master`, #80)
+- 015-000-0003 → done (per Pull Request auf `master`, #81)
+- 015-000-0004 → done (per Pull Request auf `master`, #82)
+- 015-000-0005 → done (per Pull Request auf `master`, #83)
+- 015-000-0006 → done (per Pull Request auf `master`, #84)
+- 015-000-0007 → done (per Pull Request auf `master`, #85)
+- 015-000-0008 → done (per Pull Request auf `master`, #86)
+- 015-000-0009 → done (per Pull Request auf `master`, #87)
+- 015-000-0010 → done (per Pull Request auf `master`, #88)
+- 015-000-0011 → done (per Pull Request auf `master`, #89)
+- 015-000-0012 → done (per Pull Request auf `master`, #90)
+- 015-000-0013 → done (per Pull Request auf `master`, #91)
+- 015-000-0014 → done (per Pull Request auf `master`, #93)
+
 ## 2026-09-28
 - 015-000-0014 → in-progress
 - 015-000-0014 → review: **Ein JWT benennt das Konto über die ID.** `sub` trug den Alias, und der JWT-Pfad löste das Konto daraus auf — während `RightsManagement` bei fremden Benutzern `pass`, `salt`, `loginManager` und `externalId` schützte, aber **nicht den `alias`**. **Gemessen gegen den ungefixten Stand: Das Token des Opfers ist nach der Umbenennung Admin.** Zwei Hälften umgesetzt, beide nötig: `sub` trägt die ID, und `alias` kommt in `CREDENTIALS` — jede allein hielte nur bis zum nächsten Weg, der einen Alias schreibt. **`UserLoader` behält seinen Vertrag** (Alias), weil der OIDC-Pfad ihm ebenfalls einen Alias übergibt; stattdessen bringt der JWT-Pfad seinen eigenen Loader mit, wie der opake Zweig es längst tut. `getUserIdentifier()` bleibt der Alias — Symfonys Vertrag hängt daran. **Entscheidung zur Übergangsfrage, im Register begründet: Alte JWTs werden ungültig.** Ein Übergang, der Alias-`sub` weiter akzeptiert, hielte genau die Lücke für die Laufzeit der alten Tokens offen; der Preis ist klein, weil `SECURITY_JWT_TTL` auf 900 Sekunden steht. **Nebengewinn, beim Messen aufgefallen:** Bisher brach das eigene Token, sobald der eigene Alias geändert wurde (401) — die ID ändert sich nicht, also überlebt es jetzt. **Testfehler, den die Gegenprobe aufdeckte:** Der erste Entwurf benutzte das Token aus `createTestUser()` und war auch ohne Fix grün — das ist ein **opakes** Token, und dessen Zweig hat die Lücke nie gehabt. JWTs sind opt-in über `tokenType: jwt`. Mit einem echten JWT: 3 von 6 rot. Dazu drei bestehende Tests nachgezogen, die `sub` als Alias bzw. die Abwesenheit des Loaders festhielten. Volle Suite 1132 grün, PHPStan `[OK] No errors`. Registereintrag unter *API*, Leitfaden 157 Einträge.

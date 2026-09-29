@@ -1,7 +1,7 @@
 ---
 id: 015-000-0006
 title: /file/upload überschreibt fremde Dateien ohne Eigentümerprüfung
-status: review
+status: done
 depends_on: []
 ---
 

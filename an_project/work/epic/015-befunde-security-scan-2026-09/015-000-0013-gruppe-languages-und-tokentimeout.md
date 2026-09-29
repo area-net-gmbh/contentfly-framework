@@ -1,7 +1,7 @@
 ---
 id: 015-000-0013
 title: Nicht-Admins ändern languages und tokenTimeout ihrer Gruppe
-status: review
+status: done
 depends_on: []
 ---
 

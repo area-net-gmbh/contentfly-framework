@@ -1,7 +1,7 @@
 ---
 id: 015-000-0002
 title: Installer setzt admin/admin, appcms:setup setzt das Admin-Passwort zurück
-status: review
+status: done
 depends_on: []
 ---
 

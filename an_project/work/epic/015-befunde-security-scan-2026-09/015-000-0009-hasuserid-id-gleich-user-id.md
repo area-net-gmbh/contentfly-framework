@@ -1,7 +1,7 @@
 ---
 id: 015-000-0009
 title: hasUserId wertet id == User-ID als Eigentum
-status: review
+status: done
 depends_on: []
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: 015-000-0010
 title: Login-Drossel pro Kennung lässt sich mit Akzent-Varianten des Alias umgehen
-status: review
+status: done
 depends_on: []
 ---
 

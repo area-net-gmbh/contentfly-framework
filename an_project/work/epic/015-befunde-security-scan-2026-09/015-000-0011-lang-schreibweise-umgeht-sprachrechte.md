@@ -1,7 +1,7 @@
 ---
 id: 015-000-0011
 title: lang in anderer Schreibweise umgeht die Sprachrechte
-status: review
+status: done
 depends_on: []
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: 015-000-0014
 title: JWT-Identität hängt am änderbaren Alias
-status: review
+status: done
 depends_on: []
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: 015-000-0005
 title: Datei-ID aus dem Request wird zum Pfad — Upload und Löschen ausserhalb von data/files
-status: review
+status: done
 depends_on: []
 ---
 
