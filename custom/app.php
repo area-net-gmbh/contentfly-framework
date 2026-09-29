@@ -29,6 +29,17 @@
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
+/*
+ * `$app` COMES FROM THE FILE THAT INCLUDES THIS ONE (000-000-0108).
+ *
+ * `lib/contentfly/bootstrap.php` builds the application and then requires this file, so `$app`
+ * is already there when the first line below runs. That is the contract of this template, and
+ * it was nowhere written down — a reader had to infer it, and a static analyser could not know
+ * it at all.
+ *
+ * @var \Areanet\PIM\Classes\Kernel\ApplicationInterface $app
+ */
+
 /* -----------------------------------------------------------------------------------------
  * 1. Services — as a factory in the container, available via $app['key'] or $this->app['key']
  *    in a controller. The factory runs on first access, not during bootstrap;

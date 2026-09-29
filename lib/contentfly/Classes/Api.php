@@ -62,7 +62,14 @@ class Api
     /** @var Connection $database */
     protected mixed $database;
 
-    /** @var  @var Request $request */
+    /*
+     * Fully qualified, because this file has no `use` for Request (000-000-0108).
+     *
+     * It read `@var  @var Request $request`. The doubled tag made the line invalid — and an
+     * invalid tag is never checked, so nobody noticed that the name pointed nowhere either.
+     *
+     * @var \Symfony\Component\HttpFoundation\Request|null $request
+     */
     protected mixed $request;
 
     public function __construct($app, $request = null, ?User $user = null)
@@ -294,9 +301,14 @@ class Api
     }
 
     /**
-     * @param $entityName
-     * @param $data
-     * @param null $lang
+     * `@param null $lang` stood here verbatim: the docblock DECLARED the type as `null`,
+     * because the line came from an IDE's stub and was never read. PHPStan believed it, rightly,
+     * and reported `empty($lang)` as always true (000-000-0108). No runtime fault — but a
+     * promise that said the opposite of what the code does.
+     *
+     * @param string $entityName
+     * @param array<string, mixed> $data
+     * @param string|null $lang
      * @return Base|BaseI18n|mixed|object|null
      * @throws ContentflyException
      * @throws ContentflyI18NException
@@ -649,6 +661,17 @@ class Api
         }
 
         $usersRemoved   = $helper->getUsersRemoved($object, $data);
+
+        /*
+         * PRESET, BECAUSE THE catch BRANCH READS THEM (000-000-0108).
+         *
+         * Further down, the branch for UniqueConstraintViolationException builds the message
+         * `"$property::$value"` out of these two. If the loop never runs — `$data` empty — they
+         * were undefined down there: a second fault while handling the first, and the message
+         * that mattered would be lost.
+         */
+        $property = null;
+        $value    = null;
 
         foreach($data as $property => $value){
             if($property == 'modified' || $property == 'created') continue;

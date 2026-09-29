@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__.'/bootstrap.php';
 
+
 use Areanet\PIM\Classes\Controller\Provider\Base\ApiControllerProvider;
 use Areanet\PIM\Classes\Controller\Provider\Base\AuthControllerProvider;
 use Areanet\PIM\Classes\Controller\Provider\Base\FileControllerProvider;
@@ -128,6 +129,16 @@ if(Config\Adapter::getConfig()->APP_HTTP_AUTH_USER) {
  * Symfony's ExceptionEvent delivers the throwable as it was thrown. If the declaration stayed at
  * `Exception`, a TypeError would strike down the handler with a TypeError — exactly the failure
  * 000-000-0006 fixed, just in a different place.
+ */
+/*
+ * `$app` COMES FROM `bootstrap.php`, included at the very top (000-000-0108).
+ *
+ * That is the contract between the two files, and it was written down nowhere: a reader had to
+ * follow the other file to its end to find it, and a static analyser could not know it at all.
+ * The `@var` sits here and not at the head of the file because PHPStan binds it to a
+ * STATEMENT, not to a file — at the head it describes nothing.
+ *
+ * @var \Areanet\PIM\Classes\Kernel\ApplicationInterface $app
  */
 $app->error(function (\Throwable $e) use($app) {
 

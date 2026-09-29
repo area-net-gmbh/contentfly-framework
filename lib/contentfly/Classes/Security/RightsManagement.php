@@ -151,7 +151,7 @@ final class RightsManagement
      * stays one — it is a collection, not a value, and comparing it reliably is a different
      * problem; it is refused on the key alone, as before.
      *
-     * @param mixed $data the request's `data`, already known to be an array
+     * @param array<string, mixed> $data the request's `data`, already known to be an array
      */
     private static function assertMayWriteGroup(?Base $existing, array $data): void
     {
