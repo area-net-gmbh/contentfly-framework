@@ -2000,6 +2000,54 @@ ablehnt, sieht aus wie ein Ausfall und schickt den, der ihn sucht, zum Identity-
    ist das eine eigene Einstellung an der Client-Registrierung; ohne sie antwortet der Endpunkt
    `401` und jede Anmeldung schlägt fehl — fail closed, wie vorgesehen.
 
+### Ein Löschvorgang prüft jetzt jede Sprachzeile, nicht nur die angefragte
+**Seit `015-000-0016` (2026-09-29).**
+
+**Betrifft nur i18n-Entities** — also Entities mit `i18n: true` im Schema. Eine Installation ohne
+mehrsprachige Entities merkt von dieser Änderung nichts.
+
+`Api::doDelete()` prüfte Eigentum (`OWN`/`GROUP`) und `I18nPermission::isWritable()` für **die eine**
+Sprache aus dem Request und räumte danach den Rest des Datensatzes mit einer einzigen Anweisung weg:
+
+```sql
+DELETE FROM … e WHERE e.id = :id AND NOT e.lang = :lang
+```
+
+Wem diese Zeilen gehörten und was der Aufrufer in diesen Sprachen durfte, hat niemand gefragt.
+
+**Folge:** Eine Übersetzerin mit vollen Rechten auf `en` und `readable` auf der Hauptsprache löschte
+ihre `en`-Variante — und die geschützte Hauptsprach-Zeile samt aller weiteren Übersetzungen ging mit.
+Dasselbe mit `deletable: OWN`: Wer eine Sprachvariante besass, löschte über sie die Varianten
+anderer mit.
+
+**Jetzt gelten für jede weitere Sprachzeile dieselben Prüfungen** wie für die angefragte: Eigentum
+nach `OWN`/`GROUP` und `I18nPermission::isWritable()` für die Sprache dieser Zeile. Die
+Entity-Prüfungen (`Permission::isDeletable`, `RightsManagement`) galten schon immer für alle Zeilen
+gleich und bleiben, wo sie waren.
+
+**Scheitert eine Zeile, wird gar nichts gelöscht** — und das ist entschieden, nicht Geschmack. Die
+Reihenfolge in `doDelete()` gibt es vor: Dateien, der Log-Eintrag und die OneJoins werden entfernt,
+**bevor** jene `DELETE`-Anweisung läuft. Nur die angefragte Zeile zu löschen und die übrigen stehen
+zu lassen, hiesse, sie auf gelöschte Dateien und entfernte OneJoins zeigen zu lassen. Die Prüfung
+sitzt deshalb ganz vorn, bei den übrigen Rechteprüfungen, vor jeder Nebenwirkung.
+
+| | vorher | jetzt |
+|---|---|---|
+| `en` löschen, Hauptsprache nur `readable` | **200**, alle Sprachzeilen weg | **abgelehnt**, keine Zeile weg |
+| `en` löschen mit `deletable: OWN`, fremde `de`-Zeile | **200**, beide weg | **abgelehnt**, keine Zeile weg |
+| löschen, wenn alle Sprachen erlaubt sind | 200, alle weg | unverändert 200, alle weg |
+| Entity ohne `i18n` | unverändert | unverändert |
+
+*Was zu tun ist:* Nichts am Code. Wer Gruppen mit Sprachbeschränkungen **oder** `deletable: OWN`
+bzw. `GROUP` auf i18n-Entities einsetzt, sollte wissen, dass Löschaufrufe dieser Benutzer jetzt
+abgelehnt werden können, wo sie vorher durchliefen — und dass genau diese Aufrufe vorher fremde
+Übersetzungen mitgenommen haben. Wo ein Benutzer den ganzen Datensatz löschen können **soll**,
+braucht seine Gruppe die Schreibrechte auf alle betroffenen Sprachen; die Bestandsdaten prüft:
+
+```sql
+SELECT name, languages FROM pim_group WHERE languages IS NOT NULL AND languages != '';
+```
+
 ### `CONTENTFLY_CONFIG` wählt den Config-Block, nicht mehr der `Host`-Header
 **Seit `015-000-0017` (2026-09-29).**
 
