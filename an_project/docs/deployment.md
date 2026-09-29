@@ -272,6 +272,22 @@ dieser Stelle nicht — was der Lauf kostet, kostet das Herrichten des Images.
 > wieder von Null gefahren wurde. `unzip` gehört seitdem zum Skript; `git` bewusst nicht, die
 > Begründung steht dort.
 
+## Schema-Änderungen ausrollen
+
+```sh
+php bin/console.php appcms:schema:update            # zeigt die Anweisungen, ändert nichts
+php bin/console.php appcms:schema:update --force    # wendet sie an
+```
+
+**Immer erst ohne `--force`.** `updateSchema()` wendet unter ORM 3 den vollen Diff an; ein Mapping,
+das nicht vollständig geladen ist, erzeugt `DROP TABLE` für alles, was es nicht kennt.
+
+**Der anonyme Notfallpfad ist seit `015-000-0019` weg.** `POST /system/do
+{"method":"updateDatabase"}` liess davor bei kaputtem Schema **ohne Benutzer und ohne
+Admin-Prüfung** durch — das Zeitfenster zwischen einem Deploy, der das Mapping ändert, und der
+Migration war damit für jeden offen, der den Port erreicht. Der Endpunkt bleibt, für Admins; die
+Reparatur eines kaputten Schemas läuft über die Console.
+
 ## Der Cache beim Deployment
 
 **Beide Doctrine-Caches müssen beim Ausrollen geleert werden.** Das war vorher nur zur Hälfte

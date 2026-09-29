@@ -2089,6 +2089,44 @@ abgelehnter Login jetzt so lange dauert wie ein angenommener — das ist der Zwe
 Die erste Ablehnung in einem frischen Worker kostet einen Hash mehr als die folgenden, weil der
 Dummy dort erzeugt wird; das ist ein Unterschied zwischen Prozessen, nicht zwischen Konten.
 
+### Der anonyme Notfallpfad auf `/system/do` ist entfernt
+**Seit `015-000-0019` (2026-09-29).**
+
+`SystemControllerProvider`s `checkAuth` fing `InvalidFieldNameException` — was ein kaputtes Schema
+wirft, weil dann auch das Laden von Benutzer und Token fehlschlägt — und **verschluckte sie**,
+solange der Body `method=updateDatabase` enthielt. `/system/do` lief dann **ohne Benutzer und ohne
+Admin-Prüfung**, und die Aktion dahinter ist `SchemaTool::updateSchema()`, das unter ORM 3 den
+vollen Diff anwendet, Drops eingeschlossen.
+
+Die Begründung aus `000-000-0015` war richtig — der Weg, der das Schema repariert, darf nicht vom
+kaputten Schema ausgesperrt werden —, nur die Folge war es nicht: ein Endpunkt, den jeder auslösen
+kann, zu einem Zeitpunkt seiner Wahl.
+
+**Das Zeitfenster ist das denkbar schlechteste:** direkt nach einem Deploy, der das Mapping von
+`User` oder `Token` ändert, und bevor die Betreiber migrieren. **Gemessen gegen den ungefixten
+Stand:** `pim_token.token` umbenannt, dann `POST /system/do {"method":"updateDatabase"}` mit einem
+beliebigen Bearer-Wert — Antwort **200**, und das Schema war umgeschrieben.
+
+**Der Zweig ist weg. Der Endpunkt bleibt, für Admins.** Was ihn ersetzt, ist ein Console-Befehl:
+
+```sh
+php bin/console.php appcms:schema:update            # zeigt die Anweisungen, ändert nichts
+php bin/console.php appcms:schema:update --force    # wendet sie an
+```
+
+**`appcms:schema:update` ist neu** und zeigt ohne `--force` nur an. Das ist dieselbe Zusicherung,
+die der offene Endpunkt nicht geben konnte, nur in der Hand des Betreibers: `updateSchema()` wendet
+den vollen Diff an, und ein unvollständig geladenes Mapping erzeugt `DROP TABLE` für alles, was es
+nicht kennt.
+
+*Was zu tun ist:*
+
+1. **Wer `updateDatabase` über HTTP in einem Deploy-Skript aufruft**, stellt auf den Console-Befehl
+   um. Mit gültigem Admin-Token funktioniert der Endpunkt weiter — ohne Token nicht mehr, auch
+   nicht bei kaputtem Schema.
+2. **Wer bisher auf den Notfallpfad gebaut hat**, um sich nach einem missglückten Deploy wieder
+   hereinzuholen, braucht künftig Shell-Zugang. Das ist die Absicht.
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —

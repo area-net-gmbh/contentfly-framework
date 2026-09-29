@@ -780,62 +780,67 @@ class SystemControllerApiTest extends IntegrationTestCase
             'The message does not say whether there was anything at all');
     }
 
-    // ── D: The emergency lock ──────────────────────────────────────────────────────────
+    // ── D: The emergency lock, and its removal ─────────────────────────────────────────
 
     /**
-     * **Inverted with `000-000-0015`, not deleted.**
+     * **Inverted a second time, with `015-000-0019`.**
      *
-     * The test used to record that `validateORM` is on the exception list but does not exist: the
-     * emergency lock let `validateORM` and `updateDatabase` through **without token and
-     * without admin rights** — and the first of the two did not exist in the controller. An
-     * exception into the void.
+     * `000-000-0015` had narrowed the emergency lock to `updateDatabase` and this test recorded
+     * that narrowing. The lock itself is now gone: it caught `InvalidFieldNameException` — what a
+     * broken schema throws — and let `/system/do` run WITHOUT a user and WITHOUT the admin check,
+     * with `SchemaTool::updateSchema()` behind it, which under ORM 3 applies the full diff
+     * including drops.
      *
-     * **Removed instead of restored.** Doctrine would bring everything needed with
-     * `SchemaValidator`, and the import is still at the top of the file — but a restored
-     * method would be a second endpoint without token and without admin rights. An emergency
-     * lock should be as small as possible.
+     * The reasoning of `000-000-0015` still holds — the path that repairs the schema must not be
+     * locked out by the broken schema. What changed is where that path lives:
+     * `appcms:schema:update` on the console, which needs no open door.
      */
-    public function testEmergencyLockOnlyKnowsUpdateDatabase(): void
+    public function testTheEmergencyLockIsGone(): void
     {
+        $source = file_get_contents(CONTENTFLY_PROJECT_DIR.'/lib/contentfly/Classes/Controller/Provider/Base/SystemControllerProvider.php');
+
+        $this->assertStringNotContainsString('catch(InvalidFieldNameException', $source,
+            'No exception opens a way past the authentication any more');
+        $this->assertStringNotContainsString("all()['method'] ?? null) == 'updateDatabase'", $source,
+            'and updateDatabase has no special case left');
         $this->assertFalse(method_exists(SystemController::class, 'validateORM'),
             'validateORM still does not exist');
-
-        $source = file_get_contents(CONTENTFLY_PROJECT_DIR.'/lib/contentfly/Classes/Controller/Provider/Base/SystemControllerProvider.php');
-        $this->assertStringNotContainsString("== 'validateORM'", $source,
-            'and is no longer in the exception list');
-        // The notation changed with 009-003-0001 — Request::get() is deprecated in
-        // Symfony 7.4, the value is now read from the request bag. The condition itself is
-        // the same, and it is exactly what is meant.
-        $this->assertStringContainsString("all()['method'] ?? null) == 'updateDatabase'", $source,
-            'updateDatabase stays — a broken schema must be repairable');
-
-        [$status] = $this->systemDo('validateORM');
-        $this->assertSame(400, $status, 'and is rejected as an unknown method (400 since 000-000-0073)');
     }
 
-    public function testEmergencyLockOnlyTriggersOnInvalidFieldNameException(): void
+    /**
+     * And the console command that replaces it exists and is registered.
+     *
+     * Without it the removal above would not be a change of route but a dead end: an instance
+     * whose schema breaks would have no way back at all.
+     */
+    public function testTheConsoleReplacementIsRegistered(): void
     {
-        // The exception branch hangs on exactly one Doctrine exception: if a column that
-        // checkToken() reads goes missing, an InvalidFieldNameException occurs — and then
-        // updateDatabase is reachable **without token and without admin rights** (since
-        // 000-000-0015 only this one method; validateORM was listed here as well and did not
-        // exist). The purpose is recognizable (a broken schema must stay repairable without
-        // being able to log in); the price is an unprotected write operation on the schema.
-        //
-        // **Why there is no live test here:** to trigger the branch, the test would have to
-        // damage the schema of the shared test database on purpose — and then hope that
-        // updateDatabase restores it completely. If it fails halfway, the database is broken
-        // for every following test. The test net should create trust, not put the
-        // environment at risk; so the condition is recorded here and the effect is not
-        // forced.
-        //
-        // Whoever implements epic 009 finds in this test what the new kernel has to either
-        // replicate or deliberately drop.
-        $source = file_get_contents(CONTENTFLY_PROJECT_DIR.'/lib/contentfly/Classes/Controller/Provider/Base/SystemControllerProvider.php');
+        $this->assertTrue(class_exists(\Areanet\PIM\Command\SchemaUpdateCommand::class));
 
-        $this->assertStringContainsString('catch(InvalidFieldNameException $e)', $source,
-            'Only this one exception opens the emergency lock');
-        $this->assertStringContainsString('throw $e;', $source,
-            'Every other method keeps flying — the lock only opens for this one');
+        $bootstrap = file_get_contents(CONTENTFLY_PROJECT_DIR.'/lib/contentfly/bootstrap.php');
+
+        $this->assertStringContainsString('new SchemaUpdateCommand()', $bootstrap,
+            'appcms:schema:update is reachable from the console');
+    }
+
+    /**
+     * **What used to stand here instead, and why it does not any more.**
+     *
+     * The old test refused to trigger the branch live: it would have had to damage the schema of
+     * the shared test database on purpose and then hope `updateDatabase` restored it completely —
+     * "if it fails halfway, the database is broken for every following test".
+     *
+     * The objection was right about the risk and wrong about the conclusion. The damage does not
+     * have to be repaired BY the endpoint; it can be undone by the test itself, in a `finally`,
+     * and then asserted to be undone. `SchemaEmergencyPathApiTest` does exactly that, and it is
+     * what turned the finding from an argument about source code into a measurement: against the
+     * unfixed state the anonymous request answers **200** and the schema is rewritten.
+     */
+    public function testTheEffectIsMeasuredElsewhere(): void
+    {
+        $this->assertTrue(
+            class_exists(\Tests\Integration\Api\SchemaEmergencyPathApiTest::class),
+            'The live measurement of this finding lives in SchemaEmergencyPathApiTest'
+        );
     }
 }
