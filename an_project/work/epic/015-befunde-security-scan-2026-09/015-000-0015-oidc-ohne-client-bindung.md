@@ -1,7 +1,7 @@
 ---
 id: 015-000-0015
 title: OIDC-Login prüft nicht, für welchen Client das Token ausgestellt ist
-status: review
+status: done
 depends_on: []
 ---
 
