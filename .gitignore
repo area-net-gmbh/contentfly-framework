@@ -34,6 +34,11 @@ Vagrantfile
 # Verzeichnisse ist ein frischer Checkout nicht installierbar.
 data/*/*
 !data/*/.gitkeep
+# Die Auslieferungsregeln fuer hochgeladene Dateien sind KEINE Laufzeitdaten, sondern
+# Teil des Frameworks (015-000-0020): Sie sorgen dafuer, dass Apache hochgeladenes
+# HTML und SVG als Download ausliefert statt als Markup im Origin der Anwendung.
+# Ohne diese Ausnahme faellt die Datei durch data/*/* und fehlt in jedem Checkout.
+!data/files/.htaccess
 profiler/*
 backup/*
 # Dasselbe fuer plugins/: Was ein Projekt dort ablegt, bleibt draussen - das Verzeichnis

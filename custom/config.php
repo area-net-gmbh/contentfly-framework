@@ -173,6 +173,19 @@ $configDefault->APP_HTTP_AUTH_PASS = $_ENV['APP_HTTP_AUTH_PASS'] ?? getenv('APP_
 $configDefault->FILE_MAX_UPLOAD_SIZE = $_ENV['APP_FILE_MAX_UPLOAD_SIZE'] ?? getenv('APP_FILE_MAX_UPLOAD_SIZE') ?: null;
 
 /*
+ * APP_FILE_MODE — wie /file/get eine Datei herausgibt. Vorgabe: redirect.
+ *
+ *     redirect    301 auf data/files/<id>/<name>; Apache liefert aus, und die mit dem
+ *                 Framework ausgelieferte data/files/.htaccess setzt die Schutz-Header
+ *                 (015-000-0020).
+ *     readfile    PHP streamt die Datei und setzt die Header selbst. Noetig, wo
+ *                 data/files nicht aus dem Web erreichbar ist.
+ *     xsendfile   PHP entscheidet, der Server liefert aus (mod_xsendfile). Die schnelle
+ *                 Variante von readfile, braucht das Modul.
+ */
+$configDefault->APP_FILE_MODE = $_ENV['APP_FILE_MODE'] ?? getenv('APP_FILE_MODE') ?: 'redirect';
+
+/*
  * APP_TRUSTED_PROXIES — which proxies the application sits behind. Default: none.
  *
  * Only set this if a reverse proxy or load balancer sits in front. Without it the

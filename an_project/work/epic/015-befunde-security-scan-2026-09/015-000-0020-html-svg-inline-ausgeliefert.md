@@ -1,7 +1,7 @@
 ---
 id: 015-000-0020
 title: Hochgeladenes HTML/SVG wird inline aus dem Web-Root ausgeliefert
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -24,9 +24,9 @@ mit. Die Wirkung beschränkt sich deshalb auf Content-Spoofing und auf ein Front
 selbst im selben Origin betreibt.
 
 ## Acceptance criteria
-- [ ] Dateien unter `data/files` werden mit `Content-Disposition: attachment` und `X-Content-Type-Options: nosniff` ausgeliefert, etwa über eine `.htaccess` in `data/files`, oder Markup-Typen werden beim Upload gesperrt.
-- [ ] `/file/get` leitet den `Content-Type` aus dem Inhalt ab, nicht aus der Angabe des Clients.
-- [ ] Bilder und PDFs bleiben inline anzeigbar, sofern das gewollt ist. Die Entscheidung ist dokumentiert.
+- [x] Dateien unter `data/files` werden mit `Content-Disposition: attachment` und `X-Content-Type-Options: nosniff` ausgeliefert, etwa über eine `.htaccess` in `data/files`, oder Markup-Typen werden beim Upload gesperrt.
+- [x] `/file/get` leitet den `Content-Type` aus dem Inhalt ab, nicht aus der Angabe des Clients.
+- [x] Bilder und PDFs bleiben inline anzeigbar, sofern das gewollt ist. Die Entscheidung ist dokumentiert.
 
 ## Verification
 Test: Eine `.html`-Datei hochladen und über `/data/files/<id>/…` und `/file/get` abrufen. Vor dem

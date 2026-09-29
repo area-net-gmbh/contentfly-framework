@@ -2127,6 +2127,56 @@ nicht kennt.
 2. **Wer bisher auf den Notfallpfad gebaut hat**, um sich nach einem missglückten Deploy wieder
    hereinzuholen, braucht künftig Shell-Zugang. Das ist die Absicht.
 
+### Hochgeladene Dateien werden als Daten ausgeliefert, nicht als Markup
+**Seit `015-000-0020` (2026-09-29).**
+
+Der Befund hat zwei Hälften, und beide sind geschlossen.
+
+**Erstens: Apache liefert `data/files/` direkt aus.** Ohne `FILE_ALLOWED_TYPES` — und `null` ist
+die Vorgabe — sperrt `UploadValidator` nur, was der **Server** ausführen würde: `.php` und
+Verwandte. Markup steht nicht auf dieser Liste, weil Markup nicht auf dem Server ausgeführt wird.
+Es läuft im Browser, im Origin dieser Anwendung. Ein Benutzer mit Upload-Recht legte `page.html`
+oder ein SVG mit Skript ab und verschickte den Link. Die CSP aus `bootstrap-web.php` hilft dort
+nicht: Sie ist ein Antwort-Header der Anwendung, und die Anwendung sieht diese Requests nie.
+
+**Neu mitgeliefert: `data/files/.htaccess`.** Sie setzt `X-Content-Type-Options: nosniff` für
+alles und `Content-Disposition: attachment` für Markup-Typen (`html`, `htm`, `xhtml`, `xht`,
+`shtml`, `svg`, `svgz`, `xml`, `xsl`, `xslt`, `mht`, `mhtml`), dazu `ForceType
+application/octet-stream` als zweite Schicht für einen Server ohne `mod_headers`.
+
+**Zweitens: `/file/get` gab im readfile-Modus den `Content-Type` zurück, den der hochladende
+Client behauptet hatte.** Wer hochlud, entschied damit, wie jeder spätere Leser die Bytes
+interpretiert. Der Typ wird jetzt aus dem **Inhalt** gelesen (`ext-fileinfo`); ohne die Erweiterung
+bleibt der gespeicherte Wert, damit eine Installation ohne sie nicht schlechter dasteht als vorher.
+Dazu setzt die Antwort `nosniff` und dieselbe `Content-Disposition`-Regel.
+
+**Bilder und PDFs bleiben inline — das ist entschieden, nicht vergessen.** Ein gespeichertes Bild
+im Browser-Tab anzusehen ist die gewöhnliche Benutzung eines Dateispeichers, und ein `<img>` ist
+kein Dokument: Es führt nichts in diesem Origin aus. Beim PDF ist der Viewer gekapselt. Ein Fix,
+der jede Datei in einen Download drängt, wäre an den Markup-Tests vorbei und am Produkt hinein.
+
+| | vorher | jetzt |
+|---|---|---|
+| `page.html` über `data/files/…` (Apache) | `text/html`, inline | `attachment` + `nosniff` |
+| SVG mit Skript | inline, Skript läuft im Origin | `attachment` + `nosniff` |
+| `/file/get` readfile, Typ | Angabe des Uploaders | aus dem Inhalt gelesen |
+| Bild, PDF | inline | unverändert inline, dazu `nosniff` |
+
+**`APP_FILE_MODE` ist jetzt aus der Umgebung lesbar** (Vorlage `custom/config.php`), Vorgabe
+unverändert `redirect`. Das war nötig, um die Header der Anwendung überhaupt messen zu können, und
+ist ohnehin die richtige Stelle für eine Betriebsentscheidung.
+
+*Was zu tun ist:*
+
+1. **Die neue `data/files/.htaccess` muss ins Deployment.** Wer `data/` nicht aus dem Repository
+   ausrollt, legt sie dort an — der Inhalt steht im Framework-Paket unter `data/files/.htaccess`.
+   Ohne sie bleibt der Apache-Weg offen, der PHP-Weg ist auch ohne sie abgesichert.
+2. **`AllowOverride` muss die Datei zulassen.** Ist es auf `None` gestellt, wirkt sie nicht;
+   dann gehören dieselben Regeln in die vhost-Konfiguration.
+3. **Wer ein Frontend im selben Origin betreibt und hochgeladenes HTML bewusst anzeigt**, merkt
+   die Umstellung — das ist genau der Fall, den der Befund beschreibt. Solche Inhalte gehören auf
+   einen eigenen Origin, nicht neben die API.
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —
