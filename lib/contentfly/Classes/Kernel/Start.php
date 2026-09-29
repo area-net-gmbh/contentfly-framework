@@ -78,9 +78,16 @@ final class Start
 
         self::prepare($project);
 
-        /** @var ApplicationInterface $app */
+        /*
+         * `bootstrap.php` ENDS WITH `$app`, and that is its contract (000-000-0108).
+         *
+         * The `@var` used to sit above the `require`, where it describes nothing an analyser can
+         * follow: the variable only comes into being INSIDE the included file. Below the
+         * include it stands where it actually holds.
+         */
         require Paths::package() . '/bootstrap.php';
 
+        /** @var ApplicationInterface $app */
         return $app;
     }
 

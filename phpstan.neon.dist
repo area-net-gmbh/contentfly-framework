@@ -5,7 +5,24 @@
 # eine deprecated API in einem Zweig, den die Suite nicht betritt, bleibt darin unsichtbar
 # bis zum Upgrade. Diese Konfiguration findet sie ohne Ausführung.
 #
-# LEVEL 0, UND DAS IST ABSICHT — GEPRÜFT MIT 009-003-0003.
+# LEVEL 2 SEIT 000-000-0108 — was der Sprung gekostet und gebracht hat.
+#
+# Gemessen VOR dem Sprung: Level 1 = 25 Meldungen, Level 2 = 37. Keine Mauer. Der Ertrag waren
+# fuenf echte Funde, der groesste in `FileController::overwriteAction()`: Dort wurde die
+# Laufvariable einer foreach-Schleife HINTER der Schleife gelesen — leeres Quellverzeichnis,
+# undefinierte Variable, Fatal mitten im Ueberschreiben. Dazu zwei Variablen, die ein
+# catch-Zweig las, ohne dass die Schleife, die sie setzt, gelaufen sein musste.
+#
+# Von den 37 waren 21 dieselbe Meldung: `$app might not be defined` in Dateien, die in einen
+# Scope hinein eingebunden werden. Kein Fehler, sondern eine Zusage, die PHPStan nicht kennen
+# kann — sie steht unten als benannte Ausnahme, der Vertrag selbst im Kopf jener Dateien.
+#
+# LEVEL 3 IST EIN EIGENER TASK: Dort kommen die Rueckgabetypen dazu, und diese Zahl ist nicht
+# gemessen.
+#
+# ── Was bis 000-000-0108 hier stand ──────────────────────────────────────────────────
+#
+# LEVEL 0, UND DAS WAR ABSICHT — GEPRÜFT MIT 009-003-0003.
 # Die Deprecation-Regeln aus phpstan/phpstan-deprecation-rules greifen unabhängig vom
 # Level; sie brauchen keinen hohen. Der ursprüngliche Grund für Level 0 war, dass ein
 # höherer Level auf einem Silex-2-Baum viele Typfehler hereinzöge, in denen die
@@ -14,9 +31,8 @@
 # Silex ist weg, und die Rechnung sieht jetzt anders aus: Auf Level 0 stehen NULL eigene
 # Typfehler. Die sieben, die es gab, waren keine Formalie — darunter eine Konstante, die
 # es nicht gibt und die eine unique-Verletzung in einen Fatal verwandelte (009-003-0002).
-# Der Level bleibt trotzdem bei 0: Ihn anzuheben ist eine eigene Entscheidung mit eigenem
-# Aufwand, und dieses Gate hat einen anderen Zweck. Wer PHPStan als echte statische Analyse
-# will, hebt den Level in einem eigenen Ticket.
+# Der Level blieb damals bei 0: Ihn anzuheben sei eine eigene Entscheidung mit eigenem
+# Aufwand. Das Ticket dafuer ist 000-000-0108, und es ist eingeloest.
 #
 # KEINE BASELINE, UND DAS IST DER PUNKT — UNVERÄNDERT.
 # Eine Baseline friert den Ist-Stand ein und macht den Job sofort grün. Was hier steht,
@@ -33,7 +49,7 @@
 # fallen mit Epic 010. allow_failure gibt es in der Pipeline nicht mehr.
 
 parameters:
-    level: 0
+    level: 2
 
     paths:
         - lib
@@ -101,6 +117,37 @@ parameters:
         #
         # Uebrig ist genau eine Ausnahme, und sie kommt aus DBAL, nicht aus dem ORM.
         - '#Instantiation of deprecated class Doctrine\\DBAL\\Tools\\Console\\Command\\ReservedWordsCommand#'
+
+        # ── Ausnahmen aus dem Sprung auf Level 2 (000-000-0108) ──────────────────────
+        #
+        # `$app` in eingebundenen Dateien. `bootstrap-web.php` und `custom/app.php` werden in
+        # einen Scope hinein eingebunden, in dem `$app` bereits existiert — das ist ihr Vertrag,
+        # und er steht seit 000-000-0108 in ihrem Kopf. PHPStan kann ihn nicht kennen: Es
+        # analysiert jede Datei fuer sich, und `might not be defined` fragt nach der
+        # DEFINIERTHEIT, die ein `@var` nicht beantwortet — das gibt nur einen Typ. Beim
+        # Umsetzen gemessen: ein `@var` am Dateikopf aendert nichts, eines ueber der ersten
+        # Verwendung auch nicht.
+        -
+            message: '#Variable \$app might not be defined#'
+            path: lib/contentfly/bootstrap-web.php
+        -
+            message: '#Variable \$app might not be defined#'
+            path: custom/app.php
+
+        # Der Container loest Factories erst beim Zugriff auf. PHPStan verfolgt die Zuweisung
+        # `$app['typeManager'] = function …` und meldet beim Lesen die Closure — zur Laufzeit
+        # gibt `offsetGet()` das gebaute Objekt heraus. Dieselbe blinde Stelle, die weiter oben
+        # schon fuer `$this->app['orm.em']` beschrieben ist.
+        -
+            message: '#Call to an undefined method Closure::registerType\(\)#'
+            path: lib/contentfly/Command/InstallCommand.php
+
+        # Config traegt #[AllowDynamicProperties], und GENAU DAS prueft dieser Test
+        # (000-000-0040): Ein Projekt darf eigene Schluessel setzen. Eine Meldung ueber eine
+        # undefinierte Property ist hier die Zusage, nicht ihr Bruch.
+        -
+            message: '#Access to an undefined property .*Config::\$CUSTOM_SMTP_HOST#'
+            path: tests/Unit/Config/ProjectKeysTest.php
 
 includes:
     - vendor/phpstan/phpstan-deprecation-rules/rules.neon

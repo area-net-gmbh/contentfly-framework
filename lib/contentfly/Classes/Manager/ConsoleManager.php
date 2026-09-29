@@ -9,7 +9,7 @@ use Areanet\PIM\Classes\Kernel\ConsoleEvents;
 class ConsoleManager extends Manager
 {
     /**
-     * @param ConsoleManager $command
+     * @param CustomCommand $command the command a project registers
      */
     public function addCommand(CustomCommand $command)
     {

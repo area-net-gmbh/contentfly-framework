@@ -319,8 +319,11 @@ $app['auth'] = function ($app) {
     return new Auth($app);
 };
 
-/** @var \PHPMailer\PHPMailer\PHPMailer */
-
+/*
+ * The `@var` here was wrong twice over (000-000-0108): it named no variable, and it described
+ * the PHPMailer — while what is registered is the FACTORY that builds one on first access.
+ * What `$app['mailer']` hands out is `Mailer::$mail`.
+ */
 $app['mailer'] = function ($app) {
     return (new Mailer($app))->mail;
 };

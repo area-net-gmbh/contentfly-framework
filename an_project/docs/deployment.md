@@ -545,7 +545,7 @@ Gemessen am 2026-09-10, nach Epic `010`:
 | `composer audit --locked` | grün, **0 Meldungen, 0 ausgenommen, 0 abandoned**; Schalter auf `fail` |
 | Deprecations auf PHP 8.3 | grün, **0 protokollierte Zeilen bei 0 Ausnahmen** |
 | Deprecations auf PHP 8.4 | grün, **0 protokollierte Zeilen bei 0 Ausnahmen** |
-| PHPStan | `[OK] No errors`, blockierend; **eine** Ausnahme übrig, und die kommt aus DBAL |
+| PHPStan | `[OK] No errors`, blockierend, **Level 2 seit `000-000-0108`** (vorher 0); Ausnahmen benannt statt Baseline |
 | Suite auf PHP 8.3 | `OK (282 tests, 692 assertions)` |
 | Suite auf PHP 8.4 | `OK (282 tests, 692 assertions)`, 0 übersprungen, Postausgang 0 Byte |
 | `orm:validate-schema` | Datenbank **in sync**; ein Mapping-Fehler übrig (`000-000-0025`) |
@@ -562,7 +562,8 @@ Entscheidung selbst ist keine neue.
 
 ### Das Lock-Format-Gate — und warum Composer in der CI nicht gepinnt ist
 
-**Seit `000-000-0106`** prüft `check: Lock-Format` (`tools/check-lock-format.sh`), ob
+**Seit `000-000-0106`, erforderlicher Check seit 2026-09-29** prüft `check: Lock-Format`
+(`tools/check-lock-format.sh`), ob
 `composer.lock` von einer zu alten Composer-Version zurückgestuft wurde. Betroffen sind vier
 Zeilen:
 

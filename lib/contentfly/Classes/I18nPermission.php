@@ -42,7 +42,7 @@ class I18nPermission
     }
 
     public static function isWritable(Application $app, $entityName, $lang){
-        /** @var $user User */
+        /** @var User $user */
         $user   = $app['auth.user'];
         $schema = $app['schema'];
 
@@ -72,7 +72,7 @@ class I18nPermission
     }
 
     public static function isTranslatable( Application $app, $entityName, $lang){
-        /** @var $user User */
+        /** @var User $user */
         $user   = $app['auth.user'];
         $schema = $app['schema'];
 
@@ -102,7 +102,7 @@ class I18nPermission
     }
 
     public static function isOnlyReadable( Application $app, $entityName, $lang){
-        /** @var $user User */
+        /** @var User $user */
         $user   = $app['auth.user'];
         $schema = $app['schema'];
 

@@ -747,8 +747,24 @@ class FileController extends BaseController
         $width  = null;
         $height = null;
         try{
-            // getimagesize() returns false for a file that is no image; destructuring false warns since PHP 8.5 (000-000-0096).
-            $size = getimagesize($pathDest.'/'.$fileInfo->getBasename());
+            /*
+             * THE DESTINATION'S NAME, NOT THE LOOP VARIABLE FROM ABOVE (000-000-0108).
+             *
+             * This read `$fileInfo->getBasename()`. `$fileInfo` is the running variable of the
+             * foreach loop that moved the files, and it was read AFTER that loop. Two
+             * consequences: with an empty source directory the loop never ran and the variable
+             * was undefined — a fatal in the middle of an overwrite. And where it was defined,
+             * it carried the LAST entry moved, so with several files (the original plus its
+             * thumbnails) an arbitrary one.
+             *
+             * What is meant is the file the destination record now carries. Its name is
+             * `$fileDest->getName()`, and it is identical to the source's — the endpoint insists
+             * on that further up.
+             *
+             * getimagesize() returns false for a file that is no image; destructuring false
+             * warns since PHP 8.5 (000-000-0096).
+             */
+            $size = getimagesize($pathDest.'/'.basename((string) $fileDest->getName()));
             if(is_array($size)){
                 [$width, $height] = $size;
             }
