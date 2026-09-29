@@ -1,7 +1,7 @@
 ---
 id: 015-000-0021
 title: /file/overwrite löscht die Quelldatei ohne Löschrecht
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -23,8 +23,8 @@ das Ziel in einen anderen Ordner hoch und ruft `/file/overwrite` mit `sourceId=<
 lebt unter der ID des Redakteurs weiter.
 
 ## Acceptance criteria
-- [ ] `overwriteAction` verlangt für den Quell-Datensatz `Permission::isDeletable` auf `PIM\File` und die `OWN`/`GROUP`-Regel fürs Löschen.
-- [ ] Das Entfernen der Quelle schreibt einen DELETED-Logeintrag wie `Api::doDelete`.
+- [x] `overwriteAction` verlangt für den Quell-Datensatz `Permission::isDeletable` auf `PIM\File` und die `OWN`/`GROUP`-Regel fürs Löschen.
+- [x] Das Entfernen der Quelle schreibt einen DELETED-Logeintrag wie `Api::doDelete`.
 
 ## Verification
 Integrationstest mit `writable=ALL`, `deletable=NONE`: `/file/overwrite` auf eine fremde Quelle.

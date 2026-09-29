@@ -2177,6 +2177,49 @@ ist ohnehin die richtige Stelle für eine Betriebsentscheidung.
    die Umstellung — das ist genau der Fall, den der Befund beschreibt. Solche Inhalte gehören auf
    einen eigenen Origin, nicht neben die API.
 
+### `/file/overwrite` verlangt das Löschrecht und schreibt einen Log-Eintrag
+**Seit `015-000-0021` (2026-09-29).**
+
+Der Endpunkt **verschiebt**: Er benennt die Dateien der Quelle in das Verzeichnis des Ziels um und
+entfernt den Quell-Datensatz mit `$this->em->remove()`. Geprüft wurde bis hierher nur
+`Permission::isWritable` und die Schreib-Eigentümerschaft. `Permission::isDeletable`, das
+`Api::doDelete()` für genau dieselbe Operation verlangt, wurde nie gefragt, und ein `DELETED`-Eintrag
+in `pim_log` entstand nicht.
+
+**Folge:** Eine Gruppe mit `writable = ALL` und `deletable = NONE` — gedacht als „darf Dateien
+bearbeiten, aber nicht löschen" — löschte hier trotzdem. Der Weg war kurz: eine eigene Datei unter
+demselben Namen wie das Ziel hochladen, dann `/file/overwrite` mit dem Ziel als `sourceId`. Der
+Ziel-Datensatz ist weg, jeder Verweis auf seine ID bricht, und der Inhalt lebt unter der eigenen ID
+weiter. **Gemessen gegen den ungefixten Stand:** Antwort `200`, Quell-Datensatz gelöscht.
+
+**Jetzt gilt für die Quelle dieselbe Prüfung wie beim Löschen über die API:** `isDeletable` auf
+`PIM\File` plus die `OWN`/`GROUP`-Regel. Die Eigentümerregel ist für beide Rechte dieselbe — nur
+der Rechtewert unterscheidet sich —, deshalb gibt es weiterhin eine Implementierung davon und nicht
+zwei, die auseinanderlaufen.
+
+**Und das Entfernen hinterlässt eine Spur.** `pim_log` bekommt einen `DEL`-Eintrag mit Modellname,
+ID und dem Dateinamen als Label, wie `Api::doDelete()` ihn schreibt. Eine Datei, die spurlos
+verschwindet, ist genau die Lücke, in die fällt, wer später kaputten Verweisen nachgeht.
+
+| | vorher | jetzt |
+|---|---|---|
+| `writable = ALL`, `deletable = NONE` | **200**, Quelle gelöscht | **403**, beide Datensätze bleiben |
+| `deletable = OWN`, fremde Quelle | **200**, Quelle gelöscht | **403** |
+| `deletable = ALL` | 200 | unverändert 200 |
+| Log-Eintrag beim Löschen der Quelle | keiner | `DEL` mit Dateiname |
+
+*Was zu tun ist:* Wer `/file/overwrite` benutzt, prüft die Rechte der betroffenen Gruppen:
+
+```sql
+SELECT g.name, p.writable, p.deletable
+FROM pim_permission p JOIN pim_group g ON g.id = p.group_id
+WHERE p.entityName = 'PIM\\File';
+```
+
+Eine Gruppe, die den Endpunkt weiter benutzen soll, braucht ein `deletable`, das die Quelle
+erreicht. Eine, die ihn bisher mit `deletable = NONE` benutzt hat, hat damit gelöscht, ohne löschen
+zu dürfen — die Umstellung nimmt ihr das, und das ist der Zweck.
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —
