@@ -125,6 +125,22 @@ jobs:
       - uses: actions/checkout@v7
       - run: sh tools/check-template-config.sh
 
+  check-lock-format:
+    name: "check: Lock-Format"
+    # Im Zeitplan-Lauf mitlaufen lassen: Dort geht es um den Lock (000-000-0055), und eine
+    # Rueckstufung ist genau eine Aussage ueber den Lock.
+    runs-on: ubuntu-latest
+    # Viermal wurde derselbe Handgriff von Hand gemacht — 000-000-0084, 0091, 0098, 0105:
+    # Eine aeltere Composer-Version schreibt vier Formatzeilen im Lock zurueck, jemand setzt
+    # sie zurueck. Ein Handgriff, der sich viermal wiederholt, ist keine Sorgfaltsfrage mehr.
+    #
+    # Der Job prueft nur die committete Datei — kein Composer, kein Netz, keine Umgebung.
+    # Deshalb ohne Container und ohne install-composer.sh: Er soll auch dann etwas sagen
+    # koennen, wenn Composer selbst das Problem ist.
+    steps:
+      - uses: actions/checkout@v7
+      - run: sh tools/check-lock-format.sh
+
   check-audit:
     name: "check: composer audit"
     runs-on: ubuntu-latest
