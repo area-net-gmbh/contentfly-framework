@@ -73,11 +73,38 @@ class SchemaEmergencyPathApiTest extends IntegrationTestCase
         $this->assertNotSame(200, $status);
     }
 
+    /**
+     * The column's definition, read rather than assumed.
+     *
+     * THE FIRST VERSION WROTE `VARCHAR(255)` INTO BOTH STATEMENTS, and the column is
+     * `VARCHAR(128)`. The rename therefore repaired the name and silently widened the type — the
+     * schema no longer matched the mapping, and `SchemaValidationTest` went red one test file
+     * later, a long way from the cause. Reading the definition means this test cannot fall out of
+     * step with the mapping at all.
+     */
+    private function tokenColumnDefinition(): string
+    {
+        $statement = $this->pdo()->prepare(
+            'SELECT COLUMN_TYPE, IS_NULLABLE FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME IN (?, ?)'
+        );
+        $statement->execute(array('pim_token', 'token', self::BROKEN_COLUMN));
+
+        $column = $statement->fetch(\PDO::FETCH_ASSOC);
+
+        if ($column === false) {
+            $this->fail('pim_token has neither the token column nor the renamed one');
+        }
+
+        return $column['COLUMN_TYPE'].($column['IS_NULLABLE'] === 'NO' ? ' NOT NULL' : ' NULL');
+    }
+
     private function breakTokenTable(): void
     {
         $this->pdo()->exec(sprintf(
-            'ALTER TABLE pim_token CHANGE `token` `%s` VARCHAR(255) NOT NULL',
-            self::BROKEN_COLUMN
+            'ALTER TABLE pim_token CHANGE `token` `%s` %s',
+            self::BROKEN_COLUMN,
+            $this->tokenColumnDefinition()
         ));
     }
 
@@ -85,8 +112,9 @@ class SchemaEmergencyPathApiTest extends IntegrationTestCase
     {
         if ($this->hasColumn(self::BROKEN_COLUMN)) {
             $this->pdo()->exec(sprintf(
-                'ALTER TABLE pim_token CHANGE `%s` `token` VARCHAR(255) NOT NULL',
-                self::BROKEN_COLUMN
+                'ALTER TABLE pim_token CHANGE `%s` `token` %s',
+                self::BROKEN_COLUMN,
+                $this->tokenColumnDefinition()
             ));
         }
     }
