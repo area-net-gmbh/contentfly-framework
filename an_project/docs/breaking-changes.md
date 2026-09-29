@@ -2303,6 +2303,49 @@ ein Datensatz existiert, bekommt diese Auskunft nicht mehr — das war der Befun
 ob eine ID existiert, fragt `/api/single` oder `/api/count`, die das Leserecht durchsetzen. **Ein
 Aufrufer mit Lese- und Schreibrecht merkt nichts.**
 
+### `"0"` in einem Textfeld wird gespeichert, nicht verworfen
+**Seit `000-000-0102` (2026-09-29).**
+
+`StringType::toDatabase()` begann mit `if(empty($value))` und legte für alles, was das traf, `''`
+ab. **`empty()` ist in PHP für `'0'` wahr.** Wer `{"data":{"name":"0"}}` schickte, bekam deshalb
+nicht `'0'` gespeichert, sondern die leere Zeichenkette — bei einer Artikelnummer, einer
+Hausnummer, einer Etage, einem Zählerstand, einem Sortierwert. `TextareaType` trug dieselben drei
+Zeilen.
+
+Die Stelle ist alt und fiel bis `015-000-0001` nicht auf, weil die Lücke dort über `pass` lief.
+Die Passwort-Wege hängen seither an `User::setPass()`; für gewöhnliche Textfelder blieb der stille
+Verlust.
+
+**Leer heisst jetzt genau drei Dinge** (`Type::isEmptyValue()`): `null`, `''` und `[]`. `0`, `0.0`
+und `'0'` sind Inhalt und erreichen den Setter. Damit läuft `'0'` auch durch die
+**Feldverschlüsselung**, deren `encoded`-Zweig vorher nie erreicht wurde.
+
+**Die übrigen Typen sind durchgesehen und bewusst unverändert.** `FileType`, `JoinType`,
+`OnejoinType`, `RadioType`, `CheckboxType`, `MultijoinType`, `MultifileType` und
+`VirtualjoinType` benutzen `empty()` ebenfalls — dort entscheidet es aber über eine **Beziehung**,
+nicht über Inhalt. Eine ID `'0'` kann nicht entstehen: Mit `DB_GUID_STRATEGY` sind IDs UUIDs, ohne
+sie zählen sie ab 1 hoch. Und eine falsy ID als „keine Beziehung" zu lesen verliert nichts — es
+löscht eine Verknüpfung, die der Aufrufer nicht benannt hat.
+
+| | vorher | jetzt |
+|---|---|---|
+| `"0"` in ein String-Feld schreiben | `''` | `'0'` |
+| `0` (Zahl) in ein String-Feld | `''` | `'0'` |
+| `"0"` in ein Feld mit `encoded` | `''`, unverschlüsselt | verschlüsselt, liest `'0'` zurück |
+| `null`, `''`, `[]` | `''` | unverändert `''` |
+
+*Was zu tun ist:*
+
+1. **Bereits verlorene Werte kommen nicht zurück.** Wo `'0'` gespeichert werden sollte, steht in
+   der Datenbank `''`, und die Information, dass dort einmal eine Null stand, existiert nicht
+   mehr. Wer betroffene Felder kennt, prüft sie:
+   ```sql
+   SELECT COUNT(*) FROM <tabelle> WHERE <feld> = '';
+   ```
+   und trägt die Werte nach. Der Fix verhindert nur den nächsten Verlust.
+2. **Ein Projekt, das sich darauf verlassen hat**, dass `'0'` als leer ankommt, muss das jetzt
+   selbst tun. Uns ist kein solcher Fall bekannt; die Zeile steht hier der Vollständigkeit halber.
+
 ### `appcms:security:lock-legacy-passwords` — der Zwangs-Reset für alte Hashes
 **Seit `000-000-0103` (2026-09-29).**
 
@@ -2343,6 +2386,7 @@ ausgeführt, und das ist Absicht: Wann Benutzer ausgesperrt werden, entscheidet 
 2. **Die Betroffenen vorwarnen**, wenn es welche gibt. Sie kommen nach dem Lauf nicht mehr herein,
    bis ein Admin ihnen ein Passwort setzt (über `/api/update` auf `PIM\User`, Feld `pass`).
 3. **Sperren.** Ein zweiter Lauf findet nichts mehr und sagt das auch so.
+
 
 ## Paketgrenze (Epic `007`)
 
