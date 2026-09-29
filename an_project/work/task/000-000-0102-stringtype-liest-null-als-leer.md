@@ -1,7 +1,7 @@
 ---
 id: 000-000-0102
 title: StringType liest '0' als leer und speichert einen leeren String
-status: review
+status: done
 depends_on: []
 ---
 

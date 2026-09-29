@@ -3,6 +3,10 @@
 # Changelog
 
 ## 2026-09-29
+- 000-000-0102 → done (per Pull Request auf `master`, #99)
+- 000-000-0103 → done (per Pull Request auf `master`, #100)
+
+## 2026-09-29
 - 000-000-0103 → in-progress
 - 000-000-0103 → review: **Der Zwangs-Reset für alte SHA-256-Hashes ist da.** `appcms:security:lock-legacy-passwords` sperrt jedes Konto, dessen Hash noch im alten Format steht, und meldet, welche es waren; `--dry-run` zählt nur. Die Entscheidung stammt aus `015-000-0012` und stand bisher nur im Register — ein Hash lässt sich ohne Kenntnis des Passworts nicht überführen, deshalb ersetzt `013-001-0001` ihn beim nächsten Login, und wer sich seither nicht angemeldet hat, trägt ihn weiter. **Gesperrt heisst nicht deaktiviert:** `lockPassword()` schreibt den Stern, den `isPass()` rundheraus ablehnt; Rechte, Gruppe und `pim_log`-Historie bleiben. **Der Weg zurück steht in der Ausgabe, nicht nur in der Doku** — wer Konten sperrt, ohne ihn zu kennen, führt den Befehl kein zweites Mal aus. **Zwei Entscheidungen, die nicht in den Kriterien standen:** Das Format entscheidet `isLegacyFormat()` in PHP, nicht ein `LIKE '$%'` in SQL — sonst gäbe es zwei Antworten auf dieselbe Frage in zwei Sprachen, die beim nächsten Formatwechsel auseinanderlaufen. Und bereits gesperrte Konten werden getrennt gezählt, damit ein zweiter Lauf nicht aussieht, als hätte er neue gefunden. Dazu dieselbe verständliche Meldung wie bei `appcms:schema:update`, wenn `orm.em` null ist — der Zustand, in dem jemand zu so einem Befehl greift. **Gemessen:** 5 Integrationstests, Gegenprobe ohne den Command alle 5 rot. Geprüft wird die Spalte **und** ein Login mit dem vormals richtigen Passwort — eine Sperre, die das alte Passwort noch durchliesse, käme an einer reinen Spaltenprüfung vorbei. Volle Suite 1196 grün, PHPStan `[OK] No errors`, Deprecation-Gate 0 Zeilen. Registereintrag unter *API* mit SQL zum Zählen, Leitfaden 166 Einträge und ein eigener Schritt in Phase 7.
 - 000-000-0102 → in-progress

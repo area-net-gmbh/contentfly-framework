@@ -1,7 +1,7 @@
 ---
 id: 000-000-0103
 title: Alte SHA-256-Hashes ablösen — Konten sperren, die sich seit 013-001-0001 nicht angemeldet haben
-status: review
+status: done
 depends_on: []
 ---
 
