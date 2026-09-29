@@ -1,7 +1,7 @@
 ---
 id: 000-000-0108
 title: PHPStan von Level 0 auf Level 2 heben
-status: review
+status: done
 depends_on: []
 ---
 

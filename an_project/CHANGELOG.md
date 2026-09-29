@@ -3,6 +3,9 @@
 # Changelog
 
 ## 2026-09-29
+- 000-000-0108 → done (per Pull Request auf `master`, #115)
+
+## 2026-09-29
 - 000-000-0107 task created: "check Bezugsweg — Host-Key von github.com im Job hinterlegen statt darauf zu hoffen" — am 2026-09-29 einmal rot geworden mit `Host key verification failed`, bei einem PR, der drei Markdown-Dateien anfasst. Derselbe Commit lief davor und nach einem Re-Run grün. Ein **erforderlicher** Check, der ohne Grund rot wird, erzieht zum Re-Run.
 - 000-000-0108 task created: "PHPStan von Level 0 auf Level 2 heben" — `phpstan.neon.dist` nennt diesen Task selbst. **Vorher gemessen statt geschätzt:** Level 1 = 25 Meldungen, Level 2 = **37**. Davon 21 × `$app might not be defined` (Dateien, die in einen Scope eingebunden werden), 9 Doku-Defekte und **5 echte Funde**, darunter eine Schleifenvariable, die nach der Schleife benutzt wird (`FileController:751`).
 - 000-000-0108 → in-progress
