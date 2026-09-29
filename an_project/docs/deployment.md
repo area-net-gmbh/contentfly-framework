@@ -562,7 +562,8 @@ Entscheidung selbst ist keine neue.
 
 ### Das Lock-Format-Gate — und warum Composer in der CI nicht gepinnt ist
 
-**Seit `000-000-0106`** prüft `check: Lock-Format` (`tools/check-lock-format.sh`), ob
+**Seit `000-000-0106`, erforderlicher Check seit 2026-09-29** prüft `check: Lock-Format`
+(`tools/check-lock-format.sh`), ob
 `composer.lock` von einer zu alten Composer-Version zurückgestuft wurde. Betroffen sind vier
 Zeilen:
 

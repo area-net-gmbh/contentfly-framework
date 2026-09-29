@@ -32,7 +32,7 @@ pull request"* und *„6 of 6 required status checks are expected"*.
 
 | | |
 |---|---|
-| Erforderliche Checks | **alle sieben** — `check: Vorlagen-Konfiguration`, `check: composer audit`, `check: PHPStan`, `check: Bezugsweg von aussen`, `test: PHP 8.3`, `test: PHP 8.4`, `test: PHP 8.5` (seit `000-000-0096`). **`check: Lock-Format` ist seit `000-000-0106` in der Pipeline, aber noch nicht erforderlich** — siehe darunter |
+| Erforderliche Checks | **alle acht** — `check: Vorlagen-Konfiguration`, `check: composer audit`, `check: PHPStan`, `check: Bezugsweg von aussen`, `test: PHP 8.3`, `test: PHP 8.4`, `test: PHP 8.5` (seit `000-000-0096`), `check: Lock-Format` (seit `000-000-0106`, geschaltet 2026-09-29) |
 | Freigabe | **keine** — bei dieser Teamgrösse wäre sie ein Hindernis ohne Nutzen, und GitHub lässt niemanden den eigenen Pull Request freigeben |
 | Gilt für Administratoren | **ja** — die *Bypass list* des Rulesets ist leer |
 | Force-Push und Löschen | **verboten** |
@@ -47,19 +47,21 @@ wegzulassen hätte den Schutz auf das reduziert, was ohnehin jeder lokal sieht.
 **Die Freigabe-Frage bleibt offen, nicht beantwortet für immer.** Sie wird nachgezogen, sobald
 mehr als eine Person committet — dann ist sie wirksam statt blockierend.
 
-### `check: Lock-Format` — in der Pipeline, noch nicht erforderlich
+### `check: Lock-Format` — der achte erforderliche Check
 
-**Seit `000-000-0106`.** Der Job prüft, ob `composer.lock` von einer zu alten Composer-Version
-zurückgestuft wurde; die Begründung und die vier betroffenen Zeilen stehen in `deployment.md`.
+**Seit `000-000-0106`, geschaltet am 2026-09-29.** Der Job prüft, ob `composer.lock` von einer zu
+alten Composer-Version zurückgestuft wurde; die Begründung und die vier betroffenen Zeilen stehen
+in `deployment.md`.
 
-**Entschieden: Er soll der achte erforderliche Check werden.** Er ist schnell (Sekunden),
-deterministisch, braucht keine Umgebung und hat keine Altlast — der heutige Lock ist grün. Damit
-fehlt ihm nichts, was die anderen sieben haben.
+**Warum er erforderlich ist:** Er ist schnell (Sekunden), deterministisch, braucht keine Umgebung
+und hatte beim Schalten keine Altlast — der Lock war grün. Damit fehlte ihm nichts, was die
+anderen sieben haben. Ein Gate, das nur mitläuft und nicht blockiert, trainiert das Ignorieren;
+dieselbe Überlegung wie bei den sechs Checks aus `000-000-0051`.
 
-**Noch nicht geschaltet**, weil das eine Änderung am Ruleset `master-schutz` ist und damit an den
-Repository-Einstellungen, nicht am Code. Wer sie vornimmt: *Settings → Rulesets → `master-schutz`*
-→ `check: Lock-Format` zu den erforderlichen Checks. Bis dahin läuft er mit und meldet, blockiert
-aber nicht.
+**Geschaltet am Ruleset `master-schutz`** (*Settings → Rulesets*), nicht unter *Branches* — die
+Regel aus `000-000-0051` gilt weiter, zwei Regelwerke nebeneinander widersprechen sich irgendwann.
+Die *Bypass list* ist dabei leer geblieben, und die drei anderen Regeln (`deletion`,
+`non_fast_forward`, `pull_request`) sind unberührt; nachgeprüft an der Antwort der API.
 
 ### Gestapelte Pull Requests
 
