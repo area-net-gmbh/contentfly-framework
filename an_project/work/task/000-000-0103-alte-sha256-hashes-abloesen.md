@@ -1,7 +1,7 @@
 ---
 id: 000-000-0103
 title: Alte SHA-256-Hashes ablösen — Konten sperren, die sich seit 013-001-0001 nicht angemeldet haben
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -32,11 +32,11 @@ SELECT COUNT(*) FROM pim_user WHERE pass NOT LIKE '$%' AND pass <> '*';
 Auf der Testinstallation dieses Repositories: 0 von 1 (gemessen 2026-09-28).
 
 ## Acceptance criteria
-- [ ] Ein Console-Command (Vorschlag: `appcms:security:lock-legacy-passwords`) sperrt jedes Konto mit einem Hash im alten Format über `User::lockPassword()` und meldet, wie viele es waren.
-- [ ] Der Lauf hat `--dry-run` und zählt dann nur, ohne zu schreiben.
-- [ ] Ein gesperrtes Konto lässt sich weder mit dem alten noch mit einem leeren Passwort anmelden — das deckt `015-000-0001` bereits ab, ein Test belegt es für diesen Weg.
-- [ ] Der Betreiber erfährt aus der Ausgabe, wie die Betroffenen wieder hineinkommen (Passwort durch einen Admin setzen lassen).
-- [ ] Registereintrag und Migrationsleitfaden nennen den Command als Schritt.
+- [x] Ein Console-Command (Vorschlag: `appcms:security:lock-legacy-passwords`) sperrt jedes Konto mit einem Hash im alten Format über `User::lockPassword()` und meldet, wie viele es waren.
+- [x] Der Lauf hat `--dry-run` und zählt dann nur, ohne zu schreiben.
+- [x] Ein gesperrtes Konto lässt sich weder mit dem alten noch mit einem leeren Passwort anmelden — das deckt `015-000-0001` bereits ab, ein Test belegt es für diesen Weg.
+- [x] Der Betreiber erfährt aus der Ausgabe, wie die Betroffenen wieder hineinkommen (Passwort durch einen Admin setzen lassen).
+- [x] Registereintrag und Migrationsleitfaden nennen den Command als Schritt.
 
 ## Verification
 Integrationstest: Zwei Konten anlegen, eines mit einem SHA-256-Hash, eines mit Argon2id. Der

@@ -2346,6 +2346,48 @@ löscht eine Verknüpfung, die der Aufrufer nicht benannt hat.
 2. **Ein Projekt, das sich darauf verlassen hat**, dass `'0'` als leer ankommt, muss das jetzt
    selbst tun. Uns ist kein solcher Fall bekannt; die Zeile steht hier der Vollständigkeit halber.
 
+### `appcms:security:lock-legacy-passwords` — der Zwangs-Reset für alte Hashes
+**Seit `000-000-0103` (2026-09-29).**
+
+**Betrifft nur Installationen, die noch Konten mit SHA-256-Hash haben.** Wie viele das sind, weiss
+nur der Betreiber:
+
+```sql
+SELECT COUNT(*) FROM pim_user WHERE pass NOT LIKE '$%' AND pass <> '*';
+```
+
+`013-001-0001` ersetzt einen alten Hash **beim nächsten Login**, weil nur dort das Passwort kurz
+vorliegt. Wer sich seither nicht angemeldet hat, trägt ihn weiter. Eine Massenmigration ist
+unmöglich — ein Hash lässt sich ohne Kenntnis des Passworts nicht überführen, genau dafür ist er
+da. Damit bleibt der Zwangs-Reset; die Entscheidung steht seit `015-000-0012` im Register.
+
+**Warum jetzt:** `015-000-0012` hat den Weg geschlossen, über den sich ein Hash durch die API
+auslesen liess. Ein SHA-256-Hash ohne Arbeitsfaktor bleibt trotzdem der schwächste Punkt jeder
+Installation, die noch welche hat — ein Backup oder ein Datenbank-Dump macht ihn mit
+GPU-Geschwindigkeit knackbar. Die API ist nicht mehr der Weg hinein; der Hash ist weiterhin der
+Preis.
+
+```sh
+php bin/console.php appcms:security:lock-legacy-passwords --dry-run   # nur zählen
+php bin/console.php appcms:security:lock-legacy-passwords             # sperren
+```
+
+**Gesperrt heisst nicht deaktiviert.** `lockPassword()` schreibt den Stern, den `isPass()`
+rundheraus ablehnt (`013-004-0002`). Das Konto bleibt bestehen, behält Rechte, Gruppe und seine
+Einträge in `pim_log` — es braucht nur ein neues Passwort. Der Command sagt das in seiner Ausgabe,
+nicht nur hier: Wer Konten sperrt, ohne den Weg zurück zu kennen, führt ihn kein zweites Mal aus.
+
+**Der Command ist nichts, was von selbst läuft.** Er wird nicht automatisch beim Update
+ausgeführt, und das ist Absicht: Wann Benutzer ausgesperrt werden, entscheidet der Betreiber.
+
+*Was zu tun ist:*
+
+1. **Zählen** — mit dem SQL oben oder `--dry-run`. Null Treffer: nichts zu tun.
+2. **Die Betroffenen vorwarnen**, wenn es welche gibt. Sie kommen nach dem Lauf nicht mehr herein,
+   bis ein Admin ihnen ein Passwort setzt (über `/api/update` auf `PIM\User`, Feld `pass`).
+3. **Sperren.** Ein zweiter Lauf findet nichts mehr und sagt das auch so.
+
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —
