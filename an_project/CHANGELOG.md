@@ -3,6 +3,9 @@
 # Changelog
 
 ## 2026-09-29
+- 000-000-0107 task created: "check Bezugsweg — Host-Key von github.com im Job hinterlegen statt darauf zu hoffen" — am 2026-09-29 einmal rot geworden mit `Host key verification failed`, bei einem PR, der drei Markdown-Dateien anfasst. Derselbe Commit lief davor und nach einem Re-Run grün. Ein **erforderlicher** Check, der ohne Grund rot wird, erzieht zum Re-Run.
+
+## 2026-09-29
 - 000-000-0106 → done (per Pull Request auf `master`, #112)
 
 ## 2026-09-29
