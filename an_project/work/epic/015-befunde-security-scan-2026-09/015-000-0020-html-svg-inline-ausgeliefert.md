@@ -1,7 +1,7 @@
 ---
 id: 015-000-0020
 title: Hochgeladenes HTML/SVG wird inline aus dem Web-Root ausgeliefert
-status: review
+status: done
 depends_on: []
 ---
 

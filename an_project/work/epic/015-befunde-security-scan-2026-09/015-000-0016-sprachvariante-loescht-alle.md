@@ -1,7 +1,7 @@
 ---
 id: 015-000-0016
 title: Löschen einer Sprachvariante löscht alle anderen ohne Rechteprüfung
-status: review
+status: done
 depends_on: []
 ---
 

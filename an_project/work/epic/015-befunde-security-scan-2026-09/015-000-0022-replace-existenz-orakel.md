@@ -1,7 +1,7 @@
 ---
 id: 015-000-0022
 title: /api/replace verrät die Existenz von Datensätzen ohne Leserecht
-status: review
+status: done
 depends_on: []
 ---
 

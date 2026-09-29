@@ -1,7 +1,7 @@
 ---
 id: 015-000-0000
 title: Befunde Security-Scan 2026-09
-status: in-progress
+status: done
 depends_on: []
 ---
 
@@ -42,11 +42,11 @@ Keine. Die Befunde stehen direkt als Tasks unter dem Epic.
 - [x] 015-000-0012 — fulltext-Filter in /api/list sucht in pass und salt (MEDIUM · F17, F20, F27)
 - [x] 015-000-0013 — Nicht-Admins ändern languages und tokenTimeout ihrer Gruppe (MEDIUM · F18, F19, F31)
 - [x] 015-000-0014 — JWT-Identität hängt am änderbaren Alias (MEDIUM · F22, F26)
-- [ ] 015-000-0015 — OIDC-Login prüft nicht, für welchen Client das Token ausgestellt ist (MEDIUM · F23, F24)
-- [ ] 015-000-0016 — Löschen einer Sprachvariante löscht alle anderen ohne Rechteprüfung (MEDIUM · F25)
-- [ ] 015-000-0017 — Host-Header wählt den Config-Block, unbekannte Hosts fallen auf default (LOW · F28, F30, F36)
-- [ ] 015-000-0018 — Login-Laufzeit verrät existierende Konten (LOW · F29)
-- [ ] 015-000-0019 — Notfallpfad erlaubt anonymes updateDatabase bei kaputtem Schema (LOW · F33)
-- [ ] 015-000-0020 — Hochgeladenes HTML/SVG wird inline aus dem Web-Root ausgeliefert (LOW · F34)
-- [ ] 015-000-0021 — /file/overwrite löscht die Quelldatei ohne Löschrecht (LOW · F35)
-- [ ] 015-000-0022 — /api/replace verrät die Existenz von Datensätzen ohne Leserecht (LOW · F37)
+- [x] 015-000-0015 — OIDC-Login prüft nicht, für welchen Client das Token ausgestellt ist (MEDIUM · F23, F24)
+- [x] 015-000-0016 — Löschen einer Sprachvariante löscht alle anderen ohne Rechteprüfung (MEDIUM · F25)
+- [x] 015-000-0017 — Host-Header wählt den Config-Block, unbekannte Hosts fallen auf default (LOW · F28, F30, F36)
+- [x] 015-000-0018 — Login-Laufzeit verrät existierende Konten (LOW · F29)
+- [x] 015-000-0019 — Notfallpfad erlaubt anonymes updateDatabase bei kaputtem Schema (LOW · F33)
+- [x] 015-000-0020 — Hochgeladenes HTML/SVG wird inline aus dem Web-Root ausgeliefert (LOW · F34)
+- [x] 015-000-0021 — /file/overwrite löscht die Quelldatei ohne Löschrecht (LOW · F35)
+- [x] 015-000-0022 — /api/replace verrät die Existenz von Datensätzen ohne Leserecht (LOW · F37)

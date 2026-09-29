@@ -3,6 +3,17 @@
 # Changelog
 
 ## 2026-09-29
+- 015-000-0015 → done: Haken im Epic nachgetragen. Der Status stand seit #94 auf `done`, der Haken fehlte — `43203a51` hat ihn repariert, war aber **zwei Minuten nach dem Merge von #95** entstanden und lag damit auf einem bereits gemergten Branch. Derselbe Fall, vor dem `git.md` warnt: ein Push, der nach dem Merge landet, kommt nirgends an.
+- 015-000-0016 → done (per Pull Request auf `master`, #96)
+- 015-000-0017 → done (per Pull Request auf `master`, #97)
+- 015-000-0018 → done (per Pull Request auf `master`, #97)
+- 015-000-0019 → done (per Pull Request auf `master`, #97)
+- 015-000-0020 → done (per Pull Request auf `master`, #97)
+- 015-000-0021 → done (per Pull Request auf `master`, #97)
+- 015-000-0022 → done (per Pull Request auf `master`, #97)
+- 015-000-0000 → done: **Epic abgeschlossen.** Alle 22 Ursachen aus dem Security-Scan 2026-09 sind behoben, jede mit einem Test belegt, der vor dem Fix rot und danach grün ist.
+
+## 2026-09-29
 - 015-000-0001 → done (per Pull Request auf `master`, #78)
 - 015-000-0002 → done (per Pull Request auf `master`, #80)
 - 015-000-0003 → done (per Pull Request auf `master`, #81)

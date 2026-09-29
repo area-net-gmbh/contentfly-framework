@@ -1,7 +1,7 @@
 ---
 id: 015-000-0019
 title: Notfallpfad erlaubt anonymes updateDatabase bei kaputtem Schema
-status: review
+status: done
 depends_on: []
 ---
 
