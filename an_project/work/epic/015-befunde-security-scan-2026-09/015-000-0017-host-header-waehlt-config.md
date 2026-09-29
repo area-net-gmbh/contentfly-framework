@@ -1,7 +1,7 @@
 ---
 id: 015-000-0017
 title: Host-Header wählt den Config-Block, unbekannte Hosts fallen auf default
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -26,9 +26,9 @@ anderen *bekannten* Block per Namen wählen. Die mitgelieferte Vorlage hat nur `
 deshalb nicht betroffen.
 
 ## Acceptance criteria
-- [ ] Der Config-Block wird aus einem Wert gewählt, den das Deployment setzt, etwa einer beim Start gelesenen Umgebungsvariable, nicht aus Request-Daten.
-- [ ] Passt dieser Wert auf keinen Block, während Host-Blöcke definiert sind, bricht der Start ab (fail closed) statt auf `default` zu fallen.
-- [ ] Doku (`deployment.md`, Migrationsleitfaden, `breaking-changes.md`) beschreibt die Umstellung und, solange die Hostwahl übergangsweise bleibt, `UseCanonicalName On` mit festem `ServerName`.
+- [x] Der Config-Block wird aus einem Wert gewählt, den das Deployment setzt, etwa einer beim Start gelesenen Umgebungsvariable, nicht aus Request-Daten.
+- [x] Passt dieser Wert auf keinen Block, während Host-Blöcke definiert sind, bricht der Start ab (fail closed) statt auf `default` zu fallen.
+- [x] Doku (`deployment.md`, Migrationsleitfaden, `breaking-changes.md`) beschreibt die Umstellung und, solange die Hostwahl übergangsweise bleibt, `UseCanonicalName On` mit festem `ServerName`.
 
 ## Verification
 Test mit zwei Blöcken (`default` mit `APP_DEBUG = true`, Host-Block mit `APP_DEBUG = false`): Ein

@@ -2000,6 +2000,62 @@ ablehnt, sieht aus wie ein Ausfall und schickt den, der ihn sucht, zum Identity-
    ist das eine eigene Einstellung an der Client-Registrierung; ohne sie antwortet der Endpunkt
    `401` und jede Anmeldung schlägt fehl — fail closed, wie vorgesehen.
 
+### `CONTENTFLY_CONFIG` wählt den Config-Block, nicht mehr der `Host`-Header
+**Seit `015-000-0017` (2026-09-29).**
+
+**Betrifft jedes Projekt, dessen `custom/config.php` ausser `default` weitere Blöcke definiert.**
+Eine Installation mit nur einem `default`-Block — die mitgelieferte Vorlage ist eine — ist nicht
+betroffen und muss nichts tun.
+
+`bootstrap.php` setzte `HOST` aus `$_SERVER['SERVER_NAME']` und reichte es an
+`Adapter::setHostname()`. Unter Apaches Vorgabe `UseCanonicalName Off` und unter dem eingebauten
+PHP-Server **ist `SERVER_NAME` der `Host`-Header des Clients**. `Factory::getConfig()` wählte damit
+den ganzen Block des Requests — `APP_DEBUG`, `APP_HTTP_AUTH_*`, `APP_FORCE_SSL`, `DB_*`,
+`SECURITY_*` —, und ein unbekannter Host bekam still `default`.
+
+**Folge** bei dem Muster, das die Doku beschreibt (lockerer `default` für die lokale Arbeit,
+strengerer Block je Host): Mit `Host: irgendwas` bekam ein Aufrufer für seine Requests die
+Entwicklungs-Konfiguration — Stack-Traces und Pfade in `meta.debug`, keine HTTP-Basic-Sperre aus
+`015-000-0007`, kein erzwungenes SSL. Einen anderen *bekannten* Block konnte er per Namen ebenso
+wählen.
+
+**Jetzt entscheidet die Umgebungsvariable `CONTENTFLY_CONFIG`**, gelesen beim Start aus `$_ENV`,
+sonst `getenv()`. Aus dem Request kommt nichts mehr in diese Entscheidung.
+
+**Fail closed, in beide Richtungen** (`Factory::chooseBlock()`):
+
+| Lage | vorher | jetzt |
+|---|---|---|
+| `Host` eines unbekannten Namens | Block `default` | **irrelevant** — der Header wird nicht gelesen |
+| `CONTENTFLY_CONFIG` nennt einen definierten Block | — | dieser Block |
+| `CONTENTFLY_CONFIG` nennt einen unbekannten Block | — | **Start bricht ab** |
+| `CONTENTFLY_CONFIG` fehlt, **Host-Blöcke vorhanden** | Block nach `Host` | **Start bricht ab** |
+| `CONTENTFLY_CONFIG` fehlt, nur `default` | `default` | unverändert `default` |
+
+Die vierte Zeile ist die, die weh tut, und sie ist Absicht: Auf `default` zurückzufallen wäre
+genau der stille Rückschritt, um den es hier geht — die Instanz liefe, nur aus dem falschen Block,
+und niemandem fiele es auf.
+
+*Was zu tun ist:*
+
+1. **Nachsehen, ob es überhaupt Host-Blöcke gibt.** In `custom/config.php` nach `new Config('…')`
+   mit einem anderen Argument als `'default'` suchen. Kein Treffer: fertig, nichts zu tun.
+2. **`CONTENTFLY_CONFIG` im Deployment setzen**, mit genau dem Namen aus `new Config('…')`:
+   ```apache
+   SetEnv CONTENTFLY_CONFIG www.example.com
+   ```
+   ```ini
+   env[CONTENTFLY_CONFIG] = www.example.com
+   ```
+   **Auch für die Console** — `bin/console.php` geht durch denselben Start, also gehört die
+   Variable in den Cron und in jedes Deployment-Skript.
+3. **`UseCanonicalName On` mit festem `ServerName`** setzen, solange irgendwo noch über den Host
+   gewählt wird. Das Framework liest `SERVER_NAME` nicht mehr; Projektcode und Reverse-Proxy-Regeln
+   können es weiter tun.
+
+Einzelheiten und die Beispiele je Betriebsart: `deployment.md`, Abschnitt *Welcher Config-Block
+gilt*.
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —

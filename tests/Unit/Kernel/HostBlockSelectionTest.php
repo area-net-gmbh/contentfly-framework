@@ -33,6 +33,19 @@ use PHPUnit\Framework\TestCase;
  * `display_errors` is passed in as the reverse of what is expected. Otherwise a case could pass
  * without the bootstrap having decided anything — the assertion would only repeat the value the
  * process started with.
+ *
+ * ── WHAT `015-000-0017` CHANGED HERE, AND WHAT IT DID NOT ────────────────────────────────
+ *
+ * The assurance of `000-000-0085` stands unchanged: the chosen block decides `display_errors` and
+ * `is_installed`, because it is chosen before either is read. Only the INPUT moved. It used to be
+ * `$_SERVER['SERVER_NAME']` — the caller's `Host` header under Apache's default
+ * `UseCanonicalName Off` and under the built-in server — and is now `CONTENTFLY_CONFIG`, set by
+ * the deployment.
+ *
+ * The second case therefore turned around, and that is the behaviour change, not an adjustment to
+ * make a test pass: "no matching host falls back to the default block" WAS the finding. With host
+ * blocks defined, a start that cannot say which block it runs under now aborts. The case that
+ * proves the header is out of the decision — `SERVER_NAME` set, `CONTENTFLY_CONFIG` not — is new.
  */
 class HostBlockSelectionTest extends TestCase
 {
@@ -90,47 +103,92 @@ PHP);
     }
 
     /**
-     * The case from the task: a server whose own block switches debug mode off and names a real
-     * database. Before the fix both answers came from the default block — `display_errors` stayed
-     * `1` although `APP_DEBUG` is `false`, and `is_installed` was `false` although `DB_HOST` is set.
+     * The case from `000-000-0085`: a server whose own block switches debug mode off and names a
+     * real database. Before that fix both answers came from the default block — `display_errors`
+     * stayed `1` although `APP_DEBUG` is `false`, and `is_installed` was `false` although
+     * `DB_HOST` is set. That assurance is what this case still measures; since `015-000-0017` the
+     * block is named by `CONTENTFLY_CONFIG` instead of by the request.
      */
-    public function testTheHostBlockDecidesErrorOutputAndInstalledState(): void
+    public function testTheNamedBlockDecidesErrorOutputAndInstalledState(): void
     {
-        $result = $this->boot('example.test', '1');
+        $result = $this->boot(array('CONTENTFLY_CONFIG' => 'example.test'), '1');
 
         $this->assertSame('0', $result['display_errors']);
         $this->assertTrue($result['is_installed']);
     }
 
     /**
-     * The other direction: no `SERVER_NAME` matches a block, so the default block applies — which
-     * is what `Factory::getConfig()` falls back to. Choosing the host earlier must not change this.
+     * THE FINDING, as a test: the `Host` header no longer decides anything (`015-000-0017`).
+     *
+     * `SERVER_NAME` is set to the name of the host block and `CONTENTFLY_CONFIG` is not set. Before
+     * the fix this booted straight into the `example.test` block — which is how a caller chose the
+     * block, and, the other way round, how an unknown name got the relaxed `default` one. Now the
+     * start aborts, because nothing said which block this instance runs under.
      */
-    public function testWithoutAMatchingHostTheDefaultBlockDecides(): void
+    public function testTheServerNameNoLongerChoosesTheBlock(): void
     {
-        $result = $this->boot(null, '0');
+        $this->bootExpectingFailure(array('SERVER_NAME' => 'example.test'));
+    }
 
-        $this->assertSame('1', $result['display_errors']);
-        $this->assertFalse($result['is_installed']);
+    /** Host blocks defined and no name given: fail closed rather than fall back to `default`. */
+    public function testWithoutANamedBlockTheStartAborts(): void
+    {
+        $this->bootExpectingFailure(array());
+    }
+
+    /** A name that matches no block aborts too — it is not quietly read as `default`. */
+    public function testAnUnknownNamedBlockAbortsTheStart(): void
+    {
+        $this->bootExpectingFailure(array('CONTENTFLY_CONFIG' => 'nope.example.invalid'));
     }
 
     /**
      * Runs the bootstrap in a child process and returns what it saw.
      *
-     * `SERVER_NAME` is an ordinary environment variable on the command line, and PHP puts it into
-     * `$_SERVER` — the same key the bootstrap reads. Output goes to `/dev/null` and the result
-     * travels through a file: with debug mode on the process may print warnings, and they would
-     * otherwise end up mixed into the payload.
+     * The values are passed as ordinary environment variables; PHP puts them into `$_SERVER` and
+     * `getenv()` alike, which is where the bootstrap reads them. Output goes to `/dev/null` and
+     * the result travels through a file: with debug mode on the process may print warnings, and
+     * they would otherwise end up mixed into the payload.
      *
+     * @param array<string,string> $environment
      * @return array{display_errors: string, is_installed: bool}
      */
-    private function boot(?string $serverName, string $displayErrorsAtStart): array
+    private function boot(array $environment, string $displayErrorsAtStart): array
     {
-        $environment = array('PATH' => (string) getenv('PATH'));
+        $status = $this->runProbe($environment, $displayErrorsAtStart);
+        $result = $this->scratch . '/result.json';
 
-        if ($serverName !== null) {
-            $environment['SERVER_NAME'] = $serverName;
-        }
+        $this->assertFileExists($result, sprintf('The bootstrap did not finish (exit code %d).', $status));
+
+        /** @var array{display_errors: string, is_installed: bool} $decoded */
+        $decoded = json_decode((string) file_get_contents($result), true, 512, JSON_THROW_ON_ERROR);
+
+        return $decoded;
+    }
+
+    /**
+     * Runs it and insists that it did NOT come up.
+     *
+     * Measured on the absence of `result.json`: the probe writes that file as its last statement,
+     * so a start that aborted anywhere before it leaves none. A status assertion alone would not
+     * do — the point is that the application never reached the state where it answers.
+     *
+     * @param array<string,string> $environment
+     */
+    private function bootExpectingFailure(array $environment): void
+    {
+        $this->runProbe($environment, '0');
+
+        $this->assertFileDoesNotExist(
+            $this->scratch . '/result.json',
+            'The start must abort instead of falling back to the default block'
+        );
+    }
+
+    /** @param array<string,string> $environment */
+    private function runProbe(array $environment, string $displayErrorsAtStart): int
+    {
+        $environment = array_merge(array('PATH' => (string) getenv('PATH')), $environment);
 
         $process = proc_open(
             array(PHP_BINARY, '-d', 'display_errors=' . $displayErrorsAtStart, '-d', 'log_errors=Off', 'probe.php'),
@@ -145,16 +203,8 @@ PHP);
         }
 
         fclose($pipes[0]);
-        $status = proc_close($process);
 
-        $result = $this->scratch . '/result.json';
-
-        $this->assertFileExists($result, sprintf('The bootstrap did not finish (exit code %d).', $status));
-
-        /** @var array{display_errors: string, is_installed: bool} $decoded */
-        $decoded = json_decode((string) file_get_contents($result), true, 512, JSON_THROW_ON_ERROR);
-
-        return $decoded;
+        return proc_close($process);
     }
 
     private function cleanUp(string $path): void

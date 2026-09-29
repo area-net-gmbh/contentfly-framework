@@ -53,6 +53,60 @@ Zwei, und keine davon produktiv:
   `an_project/docs/runbook.md`.
 - **CI** — `.github/workflows/pipeline.yml`, siehe unten.
 
+## Welcher Config-Block gilt — `CONTENTFLY_CONFIG`
+
+**Seit `015-000-0017` entscheidet das Deployment, nicht der Aufrufer.**
+
+`custom/config.php` kann mehrere Blöcke definieren: einen `default` und je einen pro Host. Welcher
+Block gilt, kam bis dahin aus `$_SERVER['SERVER_NAME']` — und das ist unter Apaches Vorgabe
+`UseCanonicalName Off` sowie unter dem eingebauten PHP-Server **der `Host`-Header des Clients**.
+Wer den Header setzte, wählte damit den ganzen Block: `APP_DEBUG`, `APP_HTTP_AUTH_*`,
+`APP_FORCE_SSL`, `DB_*`, `SECURITY_*`. Ein unbekannter Host fiel still auf `default` — nach dem
+dokumentierten Muster der lockere Entwicklungsblock.
+
+| | |
+|---|---|
+| Variable | `CONTENTFLY_CONFIG` |
+| nötig | **ja**, sobald `custom/config.php` ausser `default` weitere Blöcke definiert |
+| Wert | der Name eines definierten Blocks, genau wie in `new Config('…')` |
+| gelesen | einmal beim Start, aus `$_ENV`, sonst `getenv()` |
+
+**Eine Installation mit nur einem `default`-Block braucht nichts zu tun** — dazu gehört die
+mitgelieferte Vorlage. Es gibt nur einen Block und damit nichts zu entscheiden.
+
+**Fail closed, in beide Richtungen.** Ein Name, der auf keinen Block passt, bricht den Start ab —
+er fällt **nicht** mehr auf `default` zurück. Und ein fehlender Name bricht ebenfalls ab, sobald
+Host-Blöcke existieren: Genau dieser Fall wäre sonst unsichtbar, die Instanz liefe und antwortete
+nur aus dem falschen Block.
+
+Setzen, je nach Betriebsart:
+
+```apache
+# Apache, mod_php oder php-fpm über SetEnv
+SetEnv CONTENTFLY_CONFIG www.example.com
+```
+
+```ini
+; php-fpm Pool
+env[CONTENTFLY_CONFIG] = www.example.com
+```
+
+```sh
+# Console — dieselbe Regel gilt, bin/console.php geht durch denselben Start
+CONTENTFLY_CONFIG=www.example.com php bin/console.php appcms:…
+```
+
+**Solange irgendwo noch über den Host gewählt wird**, gehört zusätzlich in die Apache-Konfiguration:
+
+```apache
+UseCanonicalName On
+ServerName www.example.com
+```
+
+Damit ist `SERVER_NAME` der konfigurierte Name und nicht mehr der Header des Clients. Das
+Framework liest `SERVER_NAME` seit `015-000-0017` nicht mehr; die Zeile bleibt hier, weil
+Projektcode und Reverse-Proxy-Regeln es weiterhin tun können.
+
 ## Wo das Repository liegt
 
 **Seit `011-002-0001` (2026-09-16) auf GitHub:**
