@@ -1,7 +1,7 @@
 ---
 id: 015-000-0003
 title: File.name mit ../ liest beliebige Dateien über /api/all filedata
-status: review
+status: done
 depends_on: []
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: 015-000-0004
 title: bin/console.php läuft über HTTP ohne CLI-Prüfung
-status: review
+status: done
 depends_on: []
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: 015-000-0008
 title: Login-Fehlertexte verraten, ob ein Konto existiert
-status: review
+status: done
 depends_on: []
 ---
 

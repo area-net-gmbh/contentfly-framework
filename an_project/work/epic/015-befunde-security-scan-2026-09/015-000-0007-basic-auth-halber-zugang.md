@@ -1,7 +1,7 @@
 ---
 id: 015-000-0007
 title: HTTP-Basic-Sperre lässt mit halbem Zugang durch
-status: review
+status: done
 depends_on: []
 ---
 

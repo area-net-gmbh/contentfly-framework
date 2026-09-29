@@ -1,7 +1,7 @@
 ---
 id: 015-000-0012
 title: fulltext-Filter in /api/list sucht in pass und salt
-status: review
+status: done
 depends_on: []
 ---
 
