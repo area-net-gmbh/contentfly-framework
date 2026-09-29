@@ -4,7 +4,7 @@
 
 **Dieser Leitfaden ist der Weg. `an_project/docs/breaking-changes.md` ist das Register.**
 
-Das Register hat **165 Einträge in 14 Abschnitten** (Stand 2026-09-29, nachgezählt mit `015-000-0022`) und ist nach Epic und
+Das Register hat **166 Einträge in 14 Abschnitten** (Stand 2026-09-29, nachgezählt mit `000-000-0103`) und ist nach Epic und
 Story geordnet — also danach, *wann wir etwas geändert haben*. Das ist die richtige Ordnung zum
 Nachschlagen und die falsche zum Arbeiten. Hier steht die andere: **was ein Projekt tut, und in
 welcher Reihenfolge.**
@@ -553,6 +553,16 @@ anfassen.**
    und `/file` prüfen nur Gruppenrechte — hat die Gruppe dort Rechte, reicht das anonyme Token. Eine
    Sperre im Projekt (ein Listener auf `kernel.controller` nach der Routen-Authentifizierung) schliesst
    das; UFP hatte sie als Patch in `lib/` (Phase 1, Punkt 5).
+
+7. **Die verbliebenen SHA-256-Hashes abräumen** (`000-000-0103`). Ein alter Hash wird beim
+   nächsten Login ersetzt (`013-001-0001`) — wer sich seither nicht angemeldet hat, trägt ihn
+   weiter, und überführen lässt er sich ohne das Passwort nicht. Erst zählen:
+   ```sh
+   php bin/console.php appcms:security:lock-legacy-passwords --dry-run
+   ```
+   Null Treffer: fertig. Sonst die Betroffenen vorwarnen, dann ohne `--dry-run` laufen lassen.
+   Gesperrt heisst nicht deaktiviert: Das Konto behält Rechte, Gruppe und Log-Historie und braucht
+   nur ein neues Passwort von einem Admin. Einzelheiten im Register.
 
 **Neu, aber optional:** JWT (`tokenType`), der Refresh-Endpunkt, LDAP und OIDC. Nichts davon ist
 nötig, um wie bisher weiterzuarbeiten.
