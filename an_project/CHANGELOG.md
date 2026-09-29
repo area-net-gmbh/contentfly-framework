@@ -5,6 +5,9 @@
 ## 2026-09-29
 - 000-000-0102 → done (per Pull Request auf `master`, #99)
 - 000-000-0103 → done (per Pull Request auf `master`, #100)
+- 000-000-0105 task created: "Release v2.5.0 — die 22 Sicherheitsbefunde des Scans 2026-09 ausliefern"
+- 000-000-0105 → in-progress
+- 000-000-0105 → review: **`v2.5.0` ist vorbereitet — Version, Register, Leitfaden und Pentest-Spec; es fehlen Merge und Tag.** Version an fünf Stellen plus den 25 Beispielantworten der API-Doku. **Der Lock:** Composer 2.6.6 hat zum vierten Mal nach `0084`, `0091` und `0098` dieselben vier Formatzeilen umgeschrieben — zurückgesetzt, geändert sind nur `content-hash`, `version` und `reference`. **Register:** 24 Einträge mit „ausgeliefert mit `v2.5.0`" — die 22 Befunde aus Epic `015` plus `0102` und `0103`; die Registergrösse bleibt 167, weil nur ein Vermerk dazukommt. **Leitfaden:** neuer Abschnitt *Von 2.4 auf 2.5* mit sechs Punkten **in Reihenfolge**, jeder mit Befehl oder SQL zum Prüfen des Bestands — `CONTENTFLY_CONFIG` zuerst, weil ohne sie die Anwendung gar nicht startet. Dazu *Was sich ohne Zutun ändert* für die drei Punkte, die niemand vorbereiten muss, aber kennen sollte. **Ein Fehler, den ich dabei gemacht und korrigiert habe:** Der reine Versionstausch in `pentest-spec.md` liess die Begründungszeile stehen, die noch den Inhalt von `2.4.0` beschrieb — eine Bezugsversion mit falscher Begründung ist schlimmer als eine alte Zahl. Neu geschrieben, samt dem Hinweis, dass der automatisierte Scan keine externe Prüfung ersetzt. **Gemessen:** volle Suite 1214 grün, PHPStan `[OK] No errors`, Deprecation-Gate 0 Zeilen, `check-template-config` grün, laufender Server meldet `meta.version` 2.5.0.
 
 ## 2026-09-29
 - 000-000-0103 → in-progress

@@ -1332,7 +1332,7 @@ bei `/api/all` einen falschen Wert geschickt und sich auf den vollen Bestand ver
 `lastModified` weg.
 
 ### `PIM\File.name` und `.type` lassen sich nicht mehr frei schreiben
-**Seit `015-000-0003` (2026-09-28).**
+**Seit `015-000-0003` (2026-09-28), ausgeliefert mit `v2.5.0`.**
 
 Die Spalte `name` eines `PIM\File` war über `/api/insert` und `/api/update` schreibbar wie jede
 andere Zeichenkette: `StringType::toDatabase()` speichert, was es bekommt, und `UploadValidator`
@@ -1373,7 +1373,7 @@ Nachgemessen am 2026-09-28 gegen den ungefixten Stand: 12.716 Bytes `custom/conf
 3. **Wer `type` als Freitextfeld missbraucht hat** (etwa für eine Kategorie), braucht dafür ein
    eigenes Feld. Die Spalte ist der Content-Type und wird als solcher ausgeliefert.
 ### Kein Standardpasswort mehr — und `appcms:setup` setzt keines zurück
-**Seit `015-000-0002` (2026-09-28).**
+**Seit `015-000-0002` (2026-09-28), ausgeliefert mit `v2.5.0`.**
 
 `Helper::install()` rief bei **jedem** Lauf `setAlias('admin')`, `setLoginManager('')`,
 `setPass('admin')` und `setIsAdmin(true)` auf — auf einem gefundenen Konto genauso wie auf einem
@@ -1407,7 +1407,7 @@ geschrieben; `alias`, `loginManager` und `isAdmin` bleiben damit ebenfalls so, w
    dafür jetzt einen anderen Weg: Das Konto umbenennen und `appcms:setup` ein neues `admin`-Konto
    anlegen lassen, oder den Hash direkt setzen.
 ### Ein leeres Passwort wird nicht mehr angenommen — Schreiben **und** Login
-**Seit `015-000-0001` (2026-09-28).**
+**Seit `015-000-0001` (2026-09-28), ausgeliefert mit `v2.5.0`.**
 
 Ein leerer Wert galt an drei Stellen als „kein Wert", am Ende des Schreibpfads aber als Passwort.
 `RightsManagement` verglich `self::id($data['pass']) !== null` und zog dabei `null`, `""` und `[]`
@@ -1444,7 +1444,7 @@ Konten bekommen ein neues Passwort gesetzt. Ob es welche gibt, ist von aussen ni
 den Verdacht hat, prüft die Hashes gegen den leeren String.
 
 ### Die Console läuft nur noch auf der Kommandozeile, und der Document Root liefert weniger aus
-**Seit `015-000-0004` (2026-09-28).**
+**Seit `015-000-0004` (2026-09-28), ausgeliefert mit `v2.5.0`.**
 
 Weder `bin/console.php` noch `Start::console()` prüften `PHP_SAPI`. Im dokumentierten Layout liegt
 `bin/` neben `index.php` im Document Root, und die `.htaccess` sperrte dort nichts. Unter einer
@@ -1485,7 +1485,7 @@ Programmierfehler ist und keine zu beantwortende Anfrage.
    das. Die Sperre hier ersetzt das nicht, sie fängt nur den Fall ab, dass es jemand nicht tut.
 
 ### Die ID eines `PIM\File` muss eine ID sein
-**Seit `015-000-0005` (2026-09-28).**
+**Seit `015-000-0005` (2026-09-28), ausgeliefert mit `v2.5.0`.**
 
 Die ID kam ungeprüft aus dem Request — `/file/upload` aus dem Body, `/api/insert` aus `data.id` —,
 und mit `DB_GUID_STRATEGY` (der ausgelieferten Vorgabe) ist die Spalte ein freier String.
@@ -1524,7 +1524,7 @@ kein Verzeichnisname.
    `kunde-4711` wird abgelehnt — auch dann, wenn es nie ein Pfad war.
 
 ### `/file/upload` auf einen bestehenden Datensatz verlangt dieselben Rechte wie `/file/overwrite`
-**Seit `015-000-0006` (2026-09-28).**
+**Seit `015-000-0006` (2026-09-28), ausgeliefert mit `v2.5.0`.**
 
 `uploadAction` prüfte das Entity-Recht und warf den Rückgabewert von `Permission::isWritable()`
 weg. Der sagt aber, **welche Stufe** jemand hält — `OWN`, `GROUP` oder `ALL` —, und jeder andere
@@ -1560,7 +1560,7 @@ ein Re-Upload ist ein Anfassen.
    die das verlangt.
 
 ### Die HTTP-Basic-Sperre verlangt beide Werte — und wird über die Umgebung gesetzt
-**Seit `015-000-0007` (2026-09-28).**
+**Seit `015-000-0007` (2026-09-28), ausgeliefert mit `v2.5.0`.**
 
 Die optionale Sperre über `APP_HTTP_AUTH_USER` / `APP_HTTP_AUTH_PASS` verknüpfte die beiden
 Ungleich-Prüfungen mit `&&`:
@@ -1604,7 +1604,7 @@ sie sich nur durch Bearbeiten der Datei setzen, was sie auch von aussen unprüfb
    den Benutzernamen schickt —, braucht jetzt beide Werte.
 
 ### Jeder gescheiterte Login antwortet gleich
-**Seit `015-000-0008` (2026-09-28).**
+**Seit `015-000-0008` (2026-09-28), ausgeliefert mit `v2.5.0`.**
 
 `AuthController::loginAction()` baut seine Ablehnungen über eine einzige Closure — und die nahm
 ihren Text vom Aufrufer entgegen. Die Aufrufer schickten vier verschiedene:
@@ -1642,7 +1642,7 @@ ein Zeilenumbruch im Alias eine eigene Zeile ins Log.
    (`015-000-0018`): Ein unbekannter Alias antwortet schneller, weil keine Passwortprüfung läuft.
 
 ### Die ID eines Datensatzes begründet kein Eigentum mehr
-**Seit `015-000-0009` (2026-09-28).**
+**Seit `015-000-0009` (2026-09-28), ausgeliefert mit `v2.5.0`.**
 
 `Base::hasUserId()` endete mit
 
@@ -1690,7 +1690,7 @@ Klausel: Für das eigene Konto sind Datensatz-ID und User-ID dieselbe Zahl — p
    das in jeder Tabelle die ersten N.
 
 ### Die Login-Drossel zählt auf das Konto, nicht auf die getippte Zeichenkette
-**Seit `015-000-0010` (2026-09-28).**
+**Seit `015-000-0010` (2026-09-28), ausgeliefert mit `v2.5.0`.**
 
 `LoginThrottle::key()` bildete den Eimer aus `sha256(mb_strtolower(trim($alias)))`. Das Konto
 wird dagegen mit `findOneBy(['alias' => …])` unter der Kollation `utf8mb3_unicode_ci` gesucht.
@@ -1734,7 +1734,7 @@ billiger als der Hash und nicht mehr, als derselbe Request vor Erreichen des Lim
    null. Das betrifft nur laufende Sperren, und die längste Stufe ist eine Stunde.
 
 ### `lang` wird normalisiert und muss eine konfigurierte Sprache sein
-**Seit `015-000-0011` (2026-09-28).**
+**Seit `015-000-0011` (2026-09-28), ausgeliefert mit `v2.5.0`.**
 
 Der Parameter ging unverändert an zwei Stellen, die ihn verschieden lasen:
 
@@ -1778,7 +1778,7 @@ für Installationen, die es nie konfiguriert haben.
    beiden Klassen: `Group` kennt die Konfiguration nicht und soll sie nicht kennenlernen.
 
 ### Geheime Felder sind aus Filter, Sortierung und Gruppierung ausgeschlossen
-**Seit `015-000-0012` (2026-09-28).**
+**Seit `015-000-0012` (2026-09-28), ausgeliefert mit `v2.5.0`.**
 
 `where.fulltext` in `/api/list` hängte für **jedes** String-Feld der Entity
 `<feld> LIKE '%wert%'` an. Bei `PIM\User` gehören `pass` und `salt` dazu. `toValueObject()`
@@ -1837,7 +1837,7 @@ Die Umsetzung als Console-Command ist `000-000-0103` — so verlangt von den Akz
 dieses Tasks, die die Entscheidung hier und die Umsetzung dort vorsehen.
 
 ### Auf einer Gruppe darf ein Nicht-Admin nur noch den Namen ändern
-**Seit `015-000-0013` (2026-09-28).**
+**Seit `015-000-0013` (2026-09-28), ausgeliefert mit `v2.5.0`.**
 
 `RightsManagement` erklärt die Rechteverwaltung zur Admin-Sache und sperrte auf `PIM\Group`
 genau **einen** Schlüssel: `permissions`. Zwei weitere Felder der Gruppe entscheiden mit, was
@@ -1889,7 +1889,7 @@ Sprachcodes als Schlüssel und `readable` oder `translatable` als Wert; alles an
    „keine Einschränkung" gelesen; ein Schreibvorgang über die API korrigiert sie.
 
 ### Ein JWT benennt das Konto über die ID, nicht über den Alias
-**Seit `015-000-0014` (2026-09-28).**
+**Seit `015-000-0014` (2026-09-28), ausgeliefert mit `v2.5.0`.**
 
 `JwtAccessToken::issue()` schrieb `getUserIdentifier()` — den **Alias** — in `sub`, und der
 JWT-Pfad löste das Konto bei jedem Request daraus auf: `TokenHandler::fromJwt()` →
@@ -1937,7 +1937,7 @@ Bedeutung gewechselt, sondern der JWT-Pfad bringt seinen eigenen mit.
    durch.
 
 ### Der OIDC-Provider prüft, für welchen Client ein Token ausgestellt wurde
-**Seit `015-000-0015` (2026-09-29).**
+**Seit `015-000-0015` (2026-09-29), ausgeliefert mit `v2.5.0`.**
 
 **Betrifft nur Projekte, die `Classes\Security\OidcProvider` in `custom/app.php` eintragen.** Die
 Vorlage ist ohne OIDC.
@@ -2001,7 +2001,7 @@ ablehnt, sieht aus wie ein Ausfall und schickt den, der ihn sucht, zum Identity-
    `401` und jede Anmeldung schlägt fehl — fail closed, wie vorgesehen.
 
 ### Ein Löschvorgang prüft jetzt jede Sprachzeile, nicht nur die angefragte
-**Seit `015-000-0016` (2026-09-29).**
+**Seit `015-000-0016` (2026-09-29), ausgeliefert mit `v2.5.0`.**
 
 **Betrifft nur i18n-Entities** — also Entities mit `i18n: true` im Schema. Eine Installation ohne
 mehrsprachige Entities merkt von dieser Änderung nichts.
@@ -2049,7 +2049,7 @@ SELECT name, languages FROM pim_group WHERE languages IS NOT NULL AND languages 
 ```
 
 ### `CONTENTFLY_CONFIG` wählt den Config-Block, nicht mehr der `Host`-Header
-**Seit `015-000-0017` (2026-09-29).**
+**Seit `015-000-0017` (2026-09-29), ausgeliefert mit `v2.5.0`.**
 
 **Betrifft jedes Projekt, dessen `custom/config.php` ausser `default` weitere Blöcke definiert.**
 Eine Installation mit nur einem `default`-Block — die mitgelieferte Vorlage ist eine — ist nicht
@@ -2105,7 +2105,7 @@ Einzelheiten und die Beispiele je Betriebsart: `deployment.md`, Abschnitt *Welch
 gilt*.
 
 ### Ein abgelehnter Login kostet so viel wie ein angenommener
-**Seit `015-000-0018` (2026-09-29).**
+**Seit `015-000-0018` (2026-09-29), ausgeliefert mit `v2.5.0`.**
 
 **Kein Handlungsbedarf für Projekte** — die Antwort ändert sich nicht, nur ihre Laufzeit. Der
 Eintrag steht hier, weil er eine bewusste Verlangsamung einführt.
@@ -2138,7 +2138,7 @@ Die erste Ablehnung in einem frischen Worker kostet einen Hash mehr als die folg
 Dummy dort erzeugt wird; das ist ein Unterschied zwischen Prozessen, nicht zwischen Konten.
 
 ### Der anonyme Notfallpfad auf `/system/do` ist entfernt
-**Seit `015-000-0019` (2026-09-29).**
+**Seit `015-000-0019` (2026-09-29), ausgeliefert mit `v2.5.0`.**
 
 `SystemControllerProvider`s `checkAuth` fing `InvalidFieldNameException` — was ein kaputtes Schema
 wirft, weil dann auch das Laden von Benutzer und Token fehlschlägt — und **verschluckte sie**,
@@ -2176,7 +2176,7 @@ nicht kennt.
    hereinzuholen, braucht künftig Shell-Zugang. Das ist die Absicht.
 
 ### Hochgeladene Dateien werden als Daten ausgeliefert, nicht als Markup
-**Seit `015-000-0020` (2026-09-29).**
+**Seit `015-000-0020` (2026-09-29), ausgeliefert mit `v2.5.0`.**
 
 Der Befund hat zwei Hälften, und beide sind geschlossen.
 
@@ -2226,7 +2226,7 @@ ist ohnehin die richtige Stelle für eine Betriebsentscheidung.
    einen eigenen Origin, nicht neben die API.
 
 ### `/file/overwrite` verlangt das Löschrecht und schreibt einen Log-Eintrag
-**Seit `015-000-0021` (2026-09-29).**
+**Seit `015-000-0021` (2026-09-29), ausgeliefert mit `v2.5.0`.**
 
 Der Endpunkt **verschiebt**: Er benennt die Dateien der Quelle in das Verzeichnis des Ziels um und
 entfernt den Quell-Datensatz mit `$this->em->remove()`. Geprüft wurde bis hierher nur
@@ -2269,7 +2269,7 @@ erreicht. Eine, die ihn bisher mit `deletable = NONE` benutzt hat, hat damit gel
 zu dürfen — die Umstellung nimmt ihr das, und das ist der Zweck.
 
 ### `/api/replace` prüft die Rechte vor der Suche, nicht danach
-**Seit `015-000-0022` (2026-09-29).**
+**Seit `015-000-0022` (2026-09-29), ausgeliefert mit `v2.5.0`.**
 
 `ApiController::replaceAction()` nahm `entity` und `id` aus dem Body und fragte das Repository
 **ohne jede Rechteprüfung**. Danach verzweigte es nach Existenz: `/api/update`, wenn der Datensatz
@@ -2304,7 +2304,7 @@ ob eine ID existiert, fragt `/api/single` oder `/api/count`, die das Leserecht d
 Aufrufer mit Lese- und Schreibrecht merkt nichts.**
 
 ### `"0"` in einem Textfeld wird gespeichert, nicht verworfen
-**Seit `000-000-0102` (2026-09-29).**
+**Seit `000-000-0102` (2026-09-29), ausgeliefert mit `v2.5.0`.**
 
 `StringType::toDatabase()` begann mit `if(empty($value))` und legte für alles, was das traf, `''`
 ab. **`empty()` ist in PHP für `'0'` wahr.** Wer `{"data":{"name":"0"}}` schickte, bekam deshalb
@@ -2347,7 +2347,7 @@ löscht eine Verknüpfung, die der Aufrufer nicht benannt hat.
    selbst tun. Uns ist kein solcher Fall bekannt; die Zeile steht hier der Vollständigkeit halber.
 
 ### `appcms:security:lock-legacy-passwords` — der Zwangs-Reset für alte Hashes
-**Seit `000-000-0103` (2026-09-29).**
+**Seit `000-000-0103` (2026-09-29), ausgeliefert mit `v2.5.0`.**
 
 **Betrifft nur Installationen, die noch Konten mit SHA-256-Hash haben.** Wie viele das sind, weiss
 nur der Betreiber:
