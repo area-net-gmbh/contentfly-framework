@@ -5,7 +5,7 @@
  *
  * This file is a **template**. The `$SET_*` placeholders below are not a mistake:
  * `php bin/console.php appcms:install` replaces them with the credentials entered.
- * As long as `DB_HOST` is `$SET_DB_HOST`, the system counts as **not installed**
+ * As long as `DB_HOST` is `127.0.0.1`, the system counts as **not installed**
  * (`$app['is_installed']` in `lib/contentfly/bootstrap.php`) — the installer checks
  * exactly that.
  */
@@ -79,12 +79,12 @@ $configDefault = new Config();
  * afterwards the real values. Do not edit by hand while the installation is still
  * pending: a set DB_HOST makes the installer abort.
  */
-$configDefault->DB_HOST                 = '$SET_DB_HOST';
-$configDefault->DB_PORT                 = '$SET_DB_PORT';
-$configDefault->DB_NAME                 = '$SET_DB_NAME';
-$configDefault->DB_USER                 = '$SET_DB_USER';
-$configDefault->DB_PASS                 = '$SET_DB_PASS';
-$configDefault->DB_GUID_STRATEGY        = '$SET_DB_GUID_STRATEGY';
+$configDefault->DB_HOST                 = '127.0.0.1';
+$configDefault->DB_PORT                 = 3307;
+$configDefault->DB_NAME                 = 'contentfly';
+$configDefault->DB_USER                 = 'contentfly';
+$configDefault->DB_PASS                 = 'contentfly';
+$configDefault->DB_GUID_STRATEGY        = true;
 
 /*
  * APP_DEBUG controls verbose error output including full stack traces in
@@ -173,15 +173,15 @@ $configDefault->APP_HTTP_AUTH_PASS = $_ENV['APP_HTTP_AUTH_PASS'] ?? getenv('APP_
 $configDefault->FILE_MAX_UPLOAD_SIZE = $_ENV['APP_FILE_MAX_UPLOAD_SIZE'] ?? getenv('APP_FILE_MAX_UPLOAD_SIZE') ?: null;
 
 /*
- * APP_FILE_MODE — wie /file/get eine Datei herausgibt. Vorgabe: redirect.
+ * APP_FILE_MODE — how /file/get hands a file over. Default: redirect.
  *
- *     redirect    301 auf data/files/<id>/<name>; Apache liefert aus, und die mit dem
- *                 Framework ausgelieferte data/files/.htaccess setzt die Schutz-Header
- *                 (015-000-0020).
- *     readfile    PHP streamt die Datei und setzt die Header selbst. Noetig, wo
- *                 data/files nicht aus dem Web erreichbar ist.
- *     xsendfile   PHP entscheidet, der Server liefert aus (mod_xsendfile). Die schnelle
- *                 Variante von readfile, braucht das Modul.
+ *     redirect    301 to data/files/<id>/<name>; Apache delivers it, and the
+ *                 data/files/.htaccess shipped with the framework sets the safety
+ *                 headers (015-000-0020).
+ *     readfile    PHP streams the file and sets those headers itself. Needed where
+ *                 data/files is not reachable from the web.
+ *     xsendfile   PHP decides, the server delivers (mod_xsendfile). The fast variant
+ *                 of readfile, and it needs the module.
  */
 $configDefault->APP_FILE_MODE = $_ENV['APP_FILE_MODE'] ?? getenv('APP_FILE_MODE') ?: 'redirect';
 
