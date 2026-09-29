@@ -2220,6 +2220,41 @@ Eine Gruppe, die den Endpunkt weiter benutzen soll, braucht ein `deletable`, das
 erreicht. Eine, die ihn bisher mit `deletable = NONE` benutzt hat, hat damit gelöscht, ohne löschen
 zu dürfen — die Umstellung nimmt ihr das, und das ist der Zweck.
 
+### `/api/replace` prüft die Rechte vor der Suche, nicht danach
+**Seit `015-000-0022` (2026-09-29).**
+
+`ApiController::replaceAction()` nahm `entity` und `id` aus dem Body und fragte das Repository
+**ohne jede Rechteprüfung**. Danach verzweigte es nach Existenz: `/api/update`, wenn der Datensatz
+da ist, sonst `/api/insert`. Beide Unteranfragen prüfen die Rechte — aber mit **verschiedenen
+Meldungen**: `contentfly_general_access_denied` auf dem Update-Weg,
+`contentfly_general_permission_denied` auf dem Insert-Weg.
+
+**Folge:** Die Ablehnung beantwortete die Frage, die der Aufrufer nicht stellen durfte. Jeder
+angemeldete Benutzer konnte für eine Entity, die er nicht lesen darf, durchprobieren, welche IDs
+existieren — und mit der Vorgabe-Strategie `auto`, die hochzählt, auch wie viele Datensätze es
+gibt. Inhalte gab die Antwort nie preis; sie musste es nicht.
+
+**Jetzt wird vor der Suche geprüft:** die Entity gegen das Schema, dann `Permission::isReadable`
+**und** `isWritable`. Damit sind beide Fälle nicht mehr unterscheidbar — gleicher Status, gleicher
+Fehlercode —, weil die Ablehnung fällt, bevor irgendetwas nachgeschlagen wird. `isReadable` gehört
+dazu, weil die Verzweigung selbst ein Lesevorgang ist, gleich was der Aufrufer danach vorhat.
+
+**Nebenbei geschlossen:** `$schema[$entityName]` wurde für das gelesen, was der Aufrufer schickte.
+Eine unbekannte Entity ergab einen undefinierten Array-Schlüssel, und die Antwort kam aus PHP statt
+aus der Anwendung — **gemessen: `500`**. Jetzt `404` mit `contentfly_general_unknown_entity`.
+
+| | vorher | jetzt |
+|---|---|---|
+| ohne Rechte, ID existiert | `contentfly_general_access_denied` | `contentfly_general_permission_denied` |
+| ohne Rechte, ID existiert nicht | `contentfly_general_permission_denied` | **dieselbe Antwort** |
+| unbekannte Entity | **500** | 404, `contentfly_general_unknown_entity` |
+| mit Lese- und Schreibrecht | 200 | unverändert 200 |
+
+*Was zu tun ist:* Ein Client, der `/api/replace` benutzt und bisher am Fehlercode unterschied, ob
+ein Datensatz existiert, bekommt diese Auskunft nicht mehr — das war der Befund. Wer wissen will,
+ob eine ID existiert, fragt `/api/single` oder `/api/count`, die das Leserecht durchsetzen. **Ein
+Aufrufer mit Lese- und Schreibrecht merkt nichts.**
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —

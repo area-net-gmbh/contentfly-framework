@@ -1,7 +1,7 @@
 ---
 id: 015-000-0022
 title: /api/replace verrät die Existenz von Datensätzen ohne Leserecht
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -21,8 +21,8 @@ existieren. Mit der Standard-ID-Strategie `auto` (Ganzzahlen) erfährt er so auc
 Datensätze es gibt. Inhalte gibt die Antwort nicht preis.
 
 ## Acceptance criteria
-- [ ] `replaceAction` prüft die Entity gegen das Schema und `Permission::isReadable`/`isWritable` **vor** der Suche im Repository.
-- [ ] Ein Aufrufer ohne Rechte bekommt in beiden Fällen (ID existiert oder nicht) dieselbe Antwort.
+- [x] `replaceAction` prüft die Entity gegen das Schema und `Permission::isReadable`/`isWritable` **vor** der Suche im Repository.
+- [x] Ein Aufrufer ohne Rechte bekommt in beiden Fällen (ID existiert oder nicht) dieselbe Antwort.
 
 ## Verification
 Integrationstest: Benutzer ohne Rechte auf eine Entity sendet `/api/replace` mit einer
