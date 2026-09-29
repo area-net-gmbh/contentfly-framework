@@ -1,0 +1,45 @@
+# Uploaded files are delivered as data, never as markup the browser runs (015-000-0020).
+#
+# ── Why this file exists ──────────────────────────────────────────────────────────────
+#
+# data/files/ lives inside the document root, and the root .htaccess deliberately lets it
+# through — that is how a file reaches a client without going past PHP. The consequence is
+# that Apache serves whatever is stored there, with the type it derives from the extension.
+#
+# Without FILE_ALLOWED_TYPES (the default is null), UploadValidator blocks only what the
+# SERVER would execute: .php, .phtml, .cgi and their relatives. Markup is not in that list,
+# because markup is not executed on the server. It runs in the browser, in this application's
+# origin: a user with upload rights stores page.html or an SVG carrying a script, sends the
+# link, and the script runs as this site.
+#
+# The Content-Security-Policy from bootstrap-web.php does not help here. It is a response
+# header the application sets, and the application never sees these requests — Apache answers
+# them from disk.
+#
+# ── What is decided here, and what is not ─────────────────────────────────────────────
+#
+# Images and PDFs stay inline. Being able to show a stored image in a browser tab is the
+# ordinary use of a file store, and neither type carries script that runs in this origin —
+# an <img> is not a document. Markup types are the ones that do, and only those are pushed
+# into a download.
+#
+# nosniff applies to EVERYTHING, not only to markup: without it a browser may decide for
+# itself that a .txt with a leading "<html>" is a document, and then the extension list
+# above would be beside the point.
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+</IfModule>
+
+# Everything a browser would parse as a document, and .xml because of XSLT and of SVG stored
+# under a generic name. svgz is the gzipped form and parses the same.
+<FilesMatch "(?i)\.(html?|xht|xhtml|shtml|svg|svgz|xml|xsl|xslt|mht|mhtml)$">
+    <IfModule mod_headers.c>
+        Header always set Content-Disposition "attachment"
+    </IfModule>
+
+    # The second layer, for a server without mod_headers: a type no browser renders as a
+    # document. Not a replacement for the header — a download without a name is worse than
+    # one with — but it stops the script from running.
+    ForceType application/octet-stream
+</FilesMatch>

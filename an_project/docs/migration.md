@@ -4,7 +4,7 @@
 
 **Dieser Leitfaden ist der Weg. `an_project/docs/breaking-changes.md` ist das Register.**
 
-Das Register hat **159 Einträge in 14 Abschnitten** (Stand 2026-09-29, nachgezählt mit `015-000-0016`) und ist nach Epic und
+Das Register hat **165 Einträge in 14 Abschnitten** (Stand 2026-09-29, nachgezählt mit `015-000-0022`) und ist nach Epic und
 Story geordnet — also danach, *wann wir etwas geändert haben*. Das ist die richtige Ordnung zum
 Nachschlagen und die falsche zum Arbeiten. Hier steht die andere: **was ein Projekt tut, und in
 welcher Reihenfolge.**
@@ -467,6 +467,20 @@ Konstanten. Wer nur eine der beiden Listen abarbeitet, lässt Zeilen stehen. Daz
 
 **Neu hinzu kommt `SECURITY_JWT_SECRET`,** sobald das Projekt JWT ausstellen will — mindestens
 32 Byte, sonst weist die Bibliothek den Schlüssel ab.
+
+**Und `CONTENTFLY_CONFIG`, sobald `custom/config.php` mehr als einen Block hat** (`015-000-0017`).
+Welcher Block gilt, kam bis dahin aus dem `Host`-Header des Aufrufers; jetzt sagt es das
+Deployment. Ohne die Variable **startet die Anwendung nicht** — das ist der Punkt, an dem diese
+Phase es merkt, und deshalb steht es hier und nicht erst in Phase 6:
+
+```sh
+grep -n "new Config(" custom/config.php     # steht dort etwas anderes als 'default'?
+```
+
+Kein Treffer ausser `default`: nichts zu tun. Sonst die Variable mit genau diesem Namen setzen —
+im Webserver **und** im Cron, denn `bin/console.php` geht durch denselben Start. Die Beispiele je
+Betriebsart stehen in `deployment.md` unter *Welcher Config-Block gilt*, der Befund im Register
+unter *API*.
 
 **Fertig, wenn:** die Anwendung startet und `/api/config` antwortet.
 

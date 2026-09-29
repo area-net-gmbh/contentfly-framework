@@ -320,4 +320,26 @@ für beide Hälften.
 <!-- Befehl, der die OpenAPI/Swagger-Doku aktualisiert — Details in an_project/docs/dev-guide.md. -->
 
 ## Troubleshooting
-<!-- Häufige Stolpersteine: Ports belegt, DB-Verbindung, Cache leeren (bin/console cache:clear). -->
+
+### Das Schema passt nicht mehr zum Mapping
+
+Symptom: Die Anwendung antwortet mit Fehlern aus Doctrine — typischerweise `InvalidFieldNameException`
+—, oft direkt nach einem Deploy, der eine Entity geändert hat. Ist `User` oder `Token` betroffen,
+schlägt auch die Anmeldung fehl, und es kommt niemand mehr herein.
+
+```sh
+php bin/console.php appcms:schema:update            # zeigt die Anweisungen, ändert nichts
+php bin/console.php appcms:schema:update --force    # wendet sie an
+```
+
+**Ohne `--force` passiert nichts.** Das ist kein Komfort, sondern die Absicherung: `updateSchema()`
+wendet unter ORM 3 den vollen Diff an. Ein Mapping, das bloss unvollständig geladen ist, erzeugt
+`DROP TABLE` für alles, was es nicht kennt. Erst lesen, dann anwenden.
+
+**Über HTTP geht das seit `015-000-0019` nicht mehr ohne Admin.** `/system/do` mit
+`method=updateDatabase` hatte davor einen Notfallzweig, der genau bei kaputtem Schema **ohne
+Benutzer und ohne Admin-Prüfung** durchliess — also genau dann, wenn dieser Befehl gebraucht wird.
+Der Zweig ist weg; der Endpunkt selbst gibt es weiterhin, für Admins. Schema-Reparatur gehört dem,
+der eine Shell hat.
+
+<!-- Weitere häufige Stolpersteine: Ports belegt, DB-Verbindung, Cache leeren. -->

@@ -1,7 +1,7 @@
 ---
 id: 015-000-0018
 title: Login-Laufzeit verrät existierende Konten
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -18,8 +18,8 @@ existiert, auch wenn die Fehlertexte aus `015-000-0008` vereinheitlicht sind. De
 dem Codepfad abgeleitet, nicht gemessen.
 
 ## Acceptance criteria
-- [ ] Jeder Ablehnungspfad des Passwort-Logins führt ein `password_verify` gegen einen festen Dummy-Hash mit demselben Algorithmus und denselben Kosten aus.
-- [ ] Der Dummy-Hash folgt `User::algorithm()` bzw. den aktuellen Hash-Optionen, damit er nach einer Änderung der Kosten nicht veraltet.
+- [x] Jeder Ablehnungspfad des Passwort-Logins führt ein `password_verify` gegen einen festen Dummy-Hash mit demselben Algorithmus und denselben Kosten aus.
+- [x] Der Dummy-Hash folgt `User::algorithm()` bzw. den aktuellen Hash-Optionen, damit er nach einer Änderung der Kosten nicht veraltet.
 
 ## Verification
 Unit-Test mit einem Double für die Hash-Prüfung: Für einen unbekannten Alias wird genau eine

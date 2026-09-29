@@ -2048,6 +2048,261 @@ braucht seine Gruppe die Schreibrechte auf alle betroffenen Sprachen; die Bestan
 SELECT name, languages FROM pim_group WHERE languages IS NOT NULL AND languages != '';
 ```
 
+### `CONTENTFLY_CONFIG` wählt den Config-Block, nicht mehr der `Host`-Header
+**Seit `015-000-0017` (2026-09-29).**
+
+**Betrifft jedes Projekt, dessen `custom/config.php` ausser `default` weitere Blöcke definiert.**
+Eine Installation mit nur einem `default`-Block — die mitgelieferte Vorlage ist eine — ist nicht
+betroffen und muss nichts tun.
+
+`bootstrap.php` setzte `HOST` aus `$_SERVER['SERVER_NAME']` und reichte es an
+`Adapter::setHostname()`. Unter Apaches Vorgabe `UseCanonicalName Off` und unter dem eingebauten
+PHP-Server **ist `SERVER_NAME` der `Host`-Header des Clients**. `Factory::getConfig()` wählte damit
+den ganzen Block des Requests — `APP_DEBUG`, `APP_HTTP_AUTH_*`, `APP_FORCE_SSL`, `DB_*`,
+`SECURITY_*` —, und ein unbekannter Host bekam still `default`.
+
+**Folge** bei dem Muster, das die Doku beschreibt (lockerer `default` für die lokale Arbeit,
+strengerer Block je Host): Mit `Host: irgendwas` bekam ein Aufrufer für seine Requests die
+Entwicklungs-Konfiguration — Stack-Traces und Pfade in `meta.debug`, keine HTTP-Basic-Sperre aus
+`015-000-0007`, kein erzwungenes SSL. Einen anderen *bekannten* Block konnte er per Namen ebenso
+wählen.
+
+**Jetzt entscheidet die Umgebungsvariable `CONTENTFLY_CONFIG`**, gelesen beim Start aus `$_ENV`,
+sonst `getenv()`. Aus dem Request kommt nichts mehr in diese Entscheidung.
+
+**Fail closed, in beide Richtungen** (`Factory::chooseBlock()`):
+
+| Lage | vorher | jetzt |
+|---|---|---|
+| `Host` eines unbekannten Namens | Block `default` | **irrelevant** — der Header wird nicht gelesen |
+| `CONTENTFLY_CONFIG` nennt einen definierten Block | — | dieser Block |
+| `CONTENTFLY_CONFIG` nennt einen unbekannten Block | — | **Start bricht ab** |
+| `CONTENTFLY_CONFIG` fehlt, **Host-Blöcke vorhanden** | Block nach `Host` | **Start bricht ab** |
+| `CONTENTFLY_CONFIG` fehlt, nur `default` | `default` | unverändert `default` |
+
+Die vierte Zeile ist die, die weh tut, und sie ist Absicht: Auf `default` zurückzufallen wäre
+genau der stille Rückschritt, um den es hier geht — die Instanz liefe, nur aus dem falschen Block,
+und niemandem fiele es auf.
+
+*Was zu tun ist:*
+
+1. **Nachsehen, ob es überhaupt Host-Blöcke gibt.** In `custom/config.php` nach `new Config('…')`
+   mit einem anderen Argument als `'default'` suchen. Kein Treffer: fertig, nichts zu tun.
+2. **`CONTENTFLY_CONFIG` im Deployment setzen**, mit genau dem Namen aus `new Config('…')`:
+   ```apache
+   SetEnv CONTENTFLY_CONFIG www.example.com
+   ```
+   ```ini
+   env[CONTENTFLY_CONFIG] = www.example.com
+   ```
+   **Auch für die Console** — `bin/console.php` geht durch denselben Start, also gehört die
+   Variable in den Cron und in jedes Deployment-Skript.
+3. **`UseCanonicalName On` mit festem `ServerName`** setzen, solange irgendwo noch über den Host
+   gewählt wird. Das Framework liest `SERVER_NAME` nicht mehr; Projektcode und Reverse-Proxy-Regeln
+   können es weiter tun.
+
+Einzelheiten und die Beispiele je Betriebsart: `deployment.md`, Abschnitt *Welcher Config-Block
+gilt*.
+
+### Ein abgelehnter Login kostet so viel wie ein angenommener
+**Seit `015-000-0018` (2026-09-29).**
+
+**Kein Handlungsbedarf für Projekte** — die Antwort ändert sich nicht, nur ihre Laufzeit. Der
+Eintrag steht hier, weil er eine bewusste Verlangsamung einführt.
+
+`AuthController::loginAction()` wies einen unbekannten Alias, ein deaktiviertes Konto und ein an
+einen Provider gebundenes Konto ab, **bevor** irgendein Hash angefasst wurde. Nur ein
+existierendes, aktives, lokales Konto erreichte `isPass()` und bezahlte Argon2id — absichtlich
+einige zehn Millisekunden. Die Antwortzeit beantwortete damit genau die Frage, die
+`015-000-0008` den Fehlertexten und Statuscodes gerade abgewöhnt hatte.
+
+**Gemessen gegen den ungefixten Stand:** unbekannter Alias **24,7 ms**, falsches Passwort
+**180,6 ms** — zwei Grössenordnungen Unterschied in der eigentlichen Rechenarbeit. Nach dem Fix
+liegen beide gleichauf.
+
+**Jeder ablehnende Pfad des Passwort-Logins verbraucht jetzt eine Verifikation** gegen einen
+Dummy-Hash (`User::equaliseRejectionCost()`). Dazu gehören auch die Fälle, in denen `isPass()`
+selbst nicht bis `password_verify()` kommt: gesperrtes Passwort, leere Eingabe und ein Hash im
+alten SHA-256-Format, der nur mit `hash_equals` verglichen wird. Jeder davon ist eine Eigenschaft
+**des Kontos** und wäre damit ein eigenes Orakel.
+
+**Der Dummy-Hash wird erzeugt, nicht hingeschrieben** (`User::rejectionHash()`): aus Zufallsbytes,
+mit `User::algorithm()` und den aktuellen Optionen, einmal je Prozess. Ein als Konstante
+abgelegter Hash behielte die Kosten des Tages, an dem er abgelegt wurde — sobald das Verfahren
+oder PHPs Vorgaben weiterziehen, wäre er billiger als eine echte Prüfung, und die Angleichung
+wäre still weg.
+
+*Was zu tun ist:* Nichts. Wer die Antwortzeit des Logins überwacht, sollte wissen, dass ein
+abgelehnter Login jetzt so lange dauert wie ein angenommener — das ist der Zweck und kein Defekt.
+Die erste Ablehnung in einem frischen Worker kostet einen Hash mehr als die folgenden, weil der
+Dummy dort erzeugt wird; das ist ein Unterschied zwischen Prozessen, nicht zwischen Konten.
+
+### Der anonyme Notfallpfad auf `/system/do` ist entfernt
+**Seit `015-000-0019` (2026-09-29).**
+
+`SystemControllerProvider`s `checkAuth` fing `InvalidFieldNameException` — was ein kaputtes Schema
+wirft, weil dann auch das Laden von Benutzer und Token fehlschlägt — und **verschluckte sie**,
+solange der Body `method=updateDatabase` enthielt. `/system/do` lief dann **ohne Benutzer und ohne
+Admin-Prüfung**, und die Aktion dahinter ist `SchemaTool::updateSchema()`, das unter ORM 3 den
+vollen Diff anwendet, Drops eingeschlossen.
+
+Die Begründung aus `000-000-0015` war richtig — der Weg, der das Schema repariert, darf nicht vom
+kaputten Schema ausgesperrt werden —, nur die Folge war es nicht: ein Endpunkt, den jeder auslösen
+kann, zu einem Zeitpunkt seiner Wahl.
+
+**Das Zeitfenster ist das denkbar schlechteste:** direkt nach einem Deploy, der das Mapping von
+`User` oder `Token` ändert, und bevor die Betreiber migrieren. **Gemessen gegen den ungefixten
+Stand:** `pim_token.token` umbenannt, dann `POST /system/do {"method":"updateDatabase"}` mit einem
+beliebigen Bearer-Wert — Antwort **200**, und das Schema war umgeschrieben.
+
+**Der Zweig ist weg. Der Endpunkt bleibt, für Admins.** Was ihn ersetzt, ist ein Console-Befehl:
+
+```sh
+php bin/console.php appcms:schema:update            # zeigt die Anweisungen, ändert nichts
+php bin/console.php appcms:schema:update --force    # wendet sie an
+```
+
+**`appcms:schema:update` ist neu** und zeigt ohne `--force` nur an. Das ist dieselbe Zusicherung,
+die der offene Endpunkt nicht geben konnte, nur in der Hand des Betreibers: `updateSchema()` wendet
+den vollen Diff an, und ein unvollständig geladenes Mapping erzeugt `DROP TABLE` für alles, was es
+nicht kennt.
+
+*Was zu tun ist:*
+
+1. **Wer `updateDatabase` über HTTP in einem Deploy-Skript aufruft**, stellt auf den Console-Befehl
+   um. Mit gültigem Admin-Token funktioniert der Endpunkt weiter — ohne Token nicht mehr, auch
+   nicht bei kaputtem Schema.
+2. **Wer bisher auf den Notfallpfad gebaut hat**, um sich nach einem missglückten Deploy wieder
+   hereinzuholen, braucht künftig Shell-Zugang. Das ist die Absicht.
+
+### Hochgeladene Dateien werden als Daten ausgeliefert, nicht als Markup
+**Seit `015-000-0020` (2026-09-29).**
+
+Der Befund hat zwei Hälften, und beide sind geschlossen.
+
+**Erstens: Apache liefert `data/files/` direkt aus.** Ohne `FILE_ALLOWED_TYPES` — und `null` ist
+die Vorgabe — sperrt `UploadValidator` nur, was der **Server** ausführen würde: `.php` und
+Verwandte. Markup steht nicht auf dieser Liste, weil Markup nicht auf dem Server ausgeführt wird.
+Es läuft im Browser, im Origin dieser Anwendung. Ein Benutzer mit Upload-Recht legte `page.html`
+oder ein SVG mit Skript ab und verschickte den Link. Die CSP aus `bootstrap-web.php` hilft dort
+nicht: Sie ist ein Antwort-Header der Anwendung, und die Anwendung sieht diese Requests nie.
+
+**Neu mitgeliefert: `data/files/.htaccess`.** Sie setzt `X-Content-Type-Options: nosniff` für
+alles und `Content-Disposition: attachment` für Markup-Typen (`html`, `htm`, `xhtml`, `xht`,
+`shtml`, `svg`, `svgz`, `xml`, `xsl`, `xslt`, `mht`, `mhtml`), dazu `ForceType
+application/octet-stream` als zweite Schicht für einen Server ohne `mod_headers`.
+
+**Zweitens: `/file/get` gab im readfile-Modus den `Content-Type` zurück, den der hochladende
+Client behauptet hatte.** Wer hochlud, entschied damit, wie jeder spätere Leser die Bytes
+interpretiert. Der Typ wird jetzt aus dem **Inhalt** gelesen (`ext-fileinfo`); ohne die Erweiterung
+bleibt der gespeicherte Wert, damit eine Installation ohne sie nicht schlechter dasteht als vorher.
+Dazu setzt die Antwort `nosniff` und dieselbe `Content-Disposition`-Regel.
+
+**Bilder und PDFs bleiben inline — das ist entschieden, nicht vergessen.** Ein gespeichertes Bild
+im Browser-Tab anzusehen ist die gewöhnliche Benutzung eines Dateispeichers, und ein `<img>` ist
+kein Dokument: Es führt nichts in diesem Origin aus. Beim PDF ist der Viewer gekapselt. Ein Fix,
+der jede Datei in einen Download drängt, wäre an den Markup-Tests vorbei und am Produkt hinein.
+
+| | vorher | jetzt |
+|---|---|---|
+| `page.html` über `data/files/…` (Apache) | `text/html`, inline | `attachment` + `nosniff` |
+| SVG mit Skript | inline, Skript läuft im Origin | `attachment` + `nosniff` |
+| `/file/get` readfile, Typ | Angabe des Uploaders | aus dem Inhalt gelesen |
+| Bild, PDF | inline | unverändert inline, dazu `nosniff` |
+
+**`APP_FILE_MODE` ist jetzt aus der Umgebung lesbar** (Vorlage `custom/config.php`), Vorgabe
+unverändert `redirect`. Das war nötig, um die Header der Anwendung überhaupt messen zu können, und
+ist ohnehin die richtige Stelle für eine Betriebsentscheidung.
+
+*Was zu tun ist:*
+
+1. **Die neue `data/files/.htaccess` muss ins Deployment.** Wer `data/` nicht aus dem Repository
+   ausrollt, legt sie dort an — der Inhalt steht im Framework-Paket unter `data/files/.htaccess`.
+   Ohne sie bleibt der Apache-Weg offen, der PHP-Weg ist auch ohne sie abgesichert.
+2. **`AllowOverride` muss die Datei zulassen.** Ist es auf `None` gestellt, wirkt sie nicht;
+   dann gehören dieselben Regeln in die vhost-Konfiguration.
+3. **Wer ein Frontend im selben Origin betreibt und hochgeladenes HTML bewusst anzeigt**, merkt
+   die Umstellung — das ist genau der Fall, den der Befund beschreibt. Solche Inhalte gehören auf
+   einen eigenen Origin, nicht neben die API.
+
+### `/file/overwrite` verlangt das Löschrecht und schreibt einen Log-Eintrag
+**Seit `015-000-0021` (2026-09-29).**
+
+Der Endpunkt **verschiebt**: Er benennt die Dateien der Quelle in das Verzeichnis des Ziels um und
+entfernt den Quell-Datensatz mit `$this->em->remove()`. Geprüft wurde bis hierher nur
+`Permission::isWritable` und die Schreib-Eigentümerschaft. `Permission::isDeletable`, das
+`Api::doDelete()` für genau dieselbe Operation verlangt, wurde nie gefragt, und ein `DELETED`-Eintrag
+in `pim_log` entstand nicht.
+
+**Folge:** Eine Gruppe mit `writable = ALL` und `deletable = NONE` — gedacht als „darf Dateien
+bearbeiten, aber nicht löschen" — löschte hier trotzdem. Der Weg war kurz: eine eigene Datei unter
+demselben Namen wie das Ziel hochladen, dann `/file/overwrite` mit dem Ziel als `sourceId`. Der
+Ziel-Datensatz ist weg, jeder Verweis auf seine ID bricht, und der Inhalt lebt unter der eigenen ID
+weiter. **Gemessen gegen den ungefixten Stand:** Antwort `200`, Quell-Datensatz gelöscht.
+
+**Jetzt gilt für die Quelle dieselbe Prüfung wie beim Löschen über die API:** `isDeletable` auf
+`PIM\File` plus die `OWN`/`GROUP`-Regel. Die Eigentümerregel ist für beide Rechte dieselbe — nur
+der Rechtewert unterscheidet sich —, deshalb gibt es weiterhin eine Implementierung davon und nicht
+zwei, die auseinanderlaufen.
+
+**Und das Entfernen hinterlässt eine Spur.** `pim_log` bekommt einen `DEL`-Eintrag mit Modellname,
+ID und dem Dateinamen als Label, wie `Api::doDelete()` ihn schreibt. Eine Datei, die spurlos
+verschwindet, ist genau die Lücke, in die fällt, wer später kaputten Verweisen nachgeht.
+
+| | vorher | jetzt |
+|---|---|---|
+| `writable = ALL`, `deletable = NONE` | **200**, Quelle gelöscht | **403**, beide Datensätze bleiben |
+| `deletable = OWN`, fremde Quelle | **200**, Quelle gelöscht | **403** |
+| `deletable = ALL` | 200 | unverändert 200 |
+| Log-Eintrag beim Löschen der Quelle | keiner | `DEL` mit Dateiname |
+
+*Was zu tun ist:* Wer `/file/overwrite` benutzt, prüft die Rechte der betroffenen Gruppen:
+
+```sql
+SELECT g.name, p.writable, p.deletable
+FROM pim_permission p JOIN pim_group g ON g.id = p.group_id
+WHERE p.entityName = 'PIM\\File';
+```
+
+Eine Gruppe, die den Endpunkt weiter benutzen soll, braucht ein `deletable`, das die Quelle
+erreicht. Eine, die ihn bisher mit `deletable = NONE` benutzt hat, hat damit gelöscht, ohne löschen
+zu dürfen — die Umstellung nimmt ihr das, und das ist der Zweck.
+
+### `/api/replace` prüft die Rechte vor der Suche, nicht danach
+**Seit `015-000-0022` (2026-09-29).**
+
+`ApiController::replaceAction()` nahm `entity` und `id` aus dem Body und fragte das Repository
+**ohne jede Rechteprüfung**. Danach verzweigte es nach Existenz: `/api/update`, wenn der Datensatz
+da ist, sonst `/api/insert`. Beide Unteranfragen prüfen die Rechte — aber mit **verschiedenen
+Meldungen**: `contentfly_general_access_denied` auf dem Update-Weg,
+`contentfly_general_permission_denied` auf dem Insert-Weg.
+
+**Folge:** Die Ablehnung beantwortete die Frage, die der Aufrufer nicht stellen durfte. Jeder
+angemeldete Benutzer konnte für eine Entity, die er nicht lesen darf, durchprobieren, welche IDs
+existieren — und mit der Vorgabe-Strategie `auto`, die hochzählt, auch wie viele Datensätze es
+gibt. Inhalte gab die Antwort nie preis; sie musste es nicht.
+
+**Jetzt wird vor der Suche geprüft:** die Entity gegen das Schema, dann `Permission::isReadable`
+**und** `isWritable`. Damit sind beide Fälle nicht mehr unterscheidbar — gleicher Status, gleicher
+Fehlercode —, weil die Ablehnung fällt, bevor irgendetwas nachgeschlagen wird. `isReadable` gehört
+dazu, weil die Verzweigung selbst ein Lesevorgang ist, gleich was der Aufrufer danach vorhat.
+
+**Nebenbei geschlossen:** `$schema[$entityName]` wurde für das gelesen, was der Aufrufer schickte.
+Eine unbekannte Entity ergab einen undefinierten Array-Schlüssel, und die Antwort kam aus PHP statt
+aus der Anwendung — **gemessen: `500`**. Jetzt `404` mit `contentfly_general_unknown_entity`.
+
+| | vorher | jetzt |
+|---|---|---|
+| ohne Rechte, ID existiert | `contentfly_general_access_denied` | `contentfly_general_permission_denied` |
+| ohne Rechte, ID existiert nicht | `contentfly_general_permission_denied` | **dieselbe Antwort** |
+| unbekannte Entity | **500** | 404, `contentfly_general_unknown_entity` |
+| mit Lese- und Schreibrecht | 200 | unverändert 200 |
+
+*Was zu tun ist:* Ein Client, der `/api/replace` benutzt und bisher am Fehlercode unterschied, ob
+ein Datensatz existiert, bekommt diese Auskunft nicht mehr — das war der Befund. Wer wissen will,
+ob eine ID existiert, fragt `/api/single` oder `/api/count`, die das Leserecht durchsetzen. **Ein
+Aufrufer mit Lese- und Schreibrecht merkt nichts.**
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —

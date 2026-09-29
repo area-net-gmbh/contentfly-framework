@@ -1,7 +1,7 @@
 ---
 id: 015-000-0019
 title: Notfallpfad erlaubt anonymes updateDatabase bei kaputtem Schema
-status: todo
+status: review
 depends_on: []
 ---
 
@@ -23,8 +23,8 @@ beliebigen Bearer-Wert. Die kaputte Token-Abfrage wirft, der Notfallzweig lässt
 Tabellen verwerfen, die migriert werden sollten.
 
 ## Acceptance criteria
-- [ ] Der anonyme Notfallpfad ist entfernt. Schema-Reparatur geht nur über die Console.
-- [ ] Die Doku (`runbook.md`, `deployment.md`) nennt den Console-Weg für diesen Fall, und der Wegfall steht in `breaking-changes.md`.
+- [x] Der anonyme Notfallpfad ist entfernt. Schema-Reparatur geht nur über die Console.
+- [x] Die Doku (`runbook.md`, `deployment.md`) nennt den Console-Weg für diesen Fall, und der Wegfall steht in `breaking-changes.md`.
 
 ## Verification
 Test: Schema von `pim_token` absichtlich vom Mapping abweichen lassen, dann

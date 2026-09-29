@@ -403,15 +403,25 @@ class FileApiTest extends IntegrationTestCase
     }
 
     /**
-     * A user who may read every file and write on the given level.
+     * A user who may read every file, and write AND delete on the given level.
+     *
+     * **The delete right was added with `015-000-0021`**, and it is not a loosening of what this
+     * section measures. `/file/overwrite` moves: it drops the source record. Since that task the
+     * endpoint asks for `isDeletable` as well — `Api::doDelete()` always did for the same
+     * operation — so a user without it is refused before the ownership rules are reached, and
+     * these tests would measure the missing right instead of the ownership they are about.
+     *
+     * The two cases that expect `403` still get it for their own reason: a foreign target and a
+     * foreign source both fail the WRITE ownership check, which runs first.
      *
      * @return array{0:string,1:string,2:string} token, user id, group id
      */
     private function fileUser(int $writable): array
     {
         return $this->createTestUser(array('PIM\\File' => array(
-            'readable' => Permission::ALL,
-            'writable' => $writable,
+            'readable'  => Permission::ALL,
+            'writable'  => $writable,
+            'deletable' => $writable,
         )));
     }
 
