@@ -32,9 +32,81 @@ i18n, verschlüsselte Felder. Dort gilt der Leitfaden, wie er an der Vorlage erp
 
 ---
 
+## Von 2.4 auf 2.5 — die 22 Befunde des Security-Scans
+
+**`v2.5.0` ist das grösste Sicherheits-Release dieser Reihe.** Es liefert alle **22 Ursachen** aus
+dem Claude-Security-Scan vom 2026-09-25 aus — 37 Findings, davon 4 HIGH. **Das Update ist
+dringend:** Die Lücken sind im öffentlichen Repository beschrieben, die Fixes kommen bei einem
+Projekt erst mit diesem Tag an.
+
+Für `v2.2.x`, `v2.3.x` und `v2.4.x` gilt derselbe Weg, dazu die Schritte der Abschnitte darunter.
+
+### Sechs Punkte, die etwas verlangen — und in dieser Reihenfolge
+
+1. **`CONTENTFLY_CONFIG` setzen, wenn `custom/config.php` mehr als einen Block hat**
+   (`015-000-0017`). **Ohne sie startet die Anwendung nicht.** Der Config-Block kam bis `v2.4.0`
+   aus dem `Host`-Header des Aufrufers — wer ihn setzte, wählte `APP_DEBUG`, `APP_HTTP_AUTH_*`,
+   `DB_*` und `SECURITY_*` seines Requests selbst.
+   ```sh
+   grep -n "new Config(" custom/config.php     # steht dort etwas anderes als 'default'?
+   ```
+   Kein Treffer ausser `default`: nichts zu tun. Sonst die Variable mit genau diesem Namen setzen
+   — im Webserver **und** im Cron, denn `bin/console.php` geht durch denselben Start. Beispiele je
+   Betriebsart in `deployment.md`.
+
+2. **`data/files/.htaccess` ins Deployment übernehmen** (`015-000-0020`). Sie ist neu im Paket und
+   sorgt dafür, dass hochgeladenes HTML und SVG als Download statt als Markup im Origin der
+   Anwendung ausgeliefert werden. Wer `data/` nicht aus dem Repository ausrollt, legt sie an.
+   `AllowOverride` muss sie zulassen; steht es auf `None`, gehören die Regeln in die
+   vhost-Konfiguration.
+
+3. **Gruppenrechte für `/file/overwrite` prüfen** (`015-000-0021`). Der Endpunkt löscht die Quelle
+   und verlangt dafür jetzt `deletable`.
+   ```sql
+   SELECT g.name, p.writable, p.deletable
+   FROM pim_permission p JOIN pim_group g ON g.id = p.group_id
+   WHERE p.entityName = 'PIM\\File';
+   ```
+   Eine Gruppe mit `writable = ALL` und `deletable = NONE` hat bisher darüber gelöscht, ohne
+   löschen zu dürfen. Sie bekommt jetzt `403` — das ist der Zweck.
+
+4. **OIDC-Konfiguration ergänzen, wer den Provider einträgt** (`015-000-0015`). Neu **Pflicht**:
+   `SECURITY_OIDC_CLIENT_ID` und `SECURITY_OIDC_INTROSPECTION_ENDPOINT`, praktisch immer dazu
+   `SECURITY_OIDC_CLIENT_SECRET`. Ohne sie wirft `OidcProvider::fromConfig()`. Vorher konnte jeder
+   andere Client desselben Identity-Providers seine Tokens hier einlösen.
+
+5. **Deploy-Skripte umstellen, die `updateDatabase` über HTTP aufrufen** (`015-000-0019`). Der
+   anonyme Notfallpfad ist weg; mit gültigem Admin-Token funktioniert der Endpunkt weiter. Die
+   Reparatur eines kaputten Schemas läuft über die Console:
+   ```sh
+   php bin/console.php appcms:schema:update            # zeigt die Anweisungen
+   php bin/console.php appcms:schema:update --force    # wendet sie an
+   ```
+
+6. **Alte Passwort-Hashes abräumen** (`000-000-0103`) — ein Schritt, kein Bruch. Erst zählen:
+   ```sh
+   php bin/console.php appcms:security:lock-legacy-passwords --dry-run
+   ```
+   Null Treffer: fertig. Sonst die Betroffenen vorwarnen, dann ohne `--dry-run` laufen lassen.
+   Wann das passiert, entscheidet der Betreiber; von selbst läuft nichts.
+
+### Was sich ohne Zutun ändert
+
+`appcms:setup` setzt **kein Admin-Passwort mehr zurück** (`015-000-0002`) — ein zweiter Lauf auf
+einer laufenden Instanz öffnete das Admin-Konto vorher für jeden, der die Vorgabe kannte. Ein
+`"0"` in einem Textfeld wird **gespeichert statt verworfen** (`000-000-0102`); bereits verlorene
+Werte kommen nicht zurück. Ein abgelehnter Login dauert jetzt so lange wie ein angenommener
+(`015-000-0018`) — das ist Absicht und kein Defekt, falls jemand die Antwortzeit überwacht.
+
+Die Einzelheiten stehen im Register unter *API* mit „ausgeliefert mit `v2.5.0`" — 24 Einträge,
+jeder mit dem Befehl oder SQL zum Prüfen des Bestands.
+
+---
+
 ## Von 2.3 auf 2.4 — `/api/query` nur für Admins, die Navigation entfällt
 
-**`v2.4.0` enthält einen Sicherheitsfix.** Eine Gruppe mit `apiQueryEnabled` konnte über `/api/query`
+**`v2.4.0` enthält einen Sicherheitsfix.** (Wer von 2.3 kommt, liest zuerst *Von 2.4 auf 2.5*
+oben — dieses Update allein reicht nicht mehr.) Eine Gruppe mit `apiQueryEnabled` konnte über `/api/query`
 Daten lesen, auf die ihre Rechte keinen Zugriff geben. Seit `v2.4.0` steht der Endpunkt nur Admins
 offen. **Das Update ist dringend** — die Lücke ist im öffentlichen Repository beschrieben.
 
@@ -47,7 +119,7 @@ Für `v2.2.x` gilt derselbe Weg, dazu die Schritte aus *Von 2.2 auf 2.3* darunte
    SELECT COUNT(*) FROM pim_navItem;
    ```
    Kein Treffer und keine Zeilen: Die Schritte 3 und 4 betreffen das Projekt nicht.
-2. **Beziehen.** Die Constraint `^2.0` nimmt `2.4.0` mit: `composer update areanet/contentfly`.
+2. **Beziehen.** Die Constraint `^2.0` nimmt `2.5.0` mit: `composer update areanet/contentfly`.
 3. **Navigation — das Schema-Update erst lesen.** `orm:schema-tool:update --dump-sql` plant
    `DROP TABLE pim_nav` und `DROP TABLE pim_navItem`. Wer die Zeilen braucht, übernimmt **vorher**
    beide Entities nach `custom/Entity/` (Register unter *API*); dann meldet `--dump-sql` für sie
@@ -72,8 +144,8 @@ beschrieben.
 Für `v2.2.0` und `v2.2.1` gilt derselbe Weg; der Patch aus `v2.2.1` steckt in `v2.3.0` und braucht
 keinen eigenen Schritt.
 
-1. **Beziehen.** Die Constraint `^2.0` nimmt heute `2.4.0` mit: `composer update areanet/contentfly`
-   — dann gelten zusätzlich die Schritte aus *Von 2.3 auf 2.4* oben.
+1. **Beziehen.** Die Constraint `^2.0` nimmt heute `2.5.0` mit: `composer update areanet/contentfly`
+   — dann gelten zusätzlich die Schritte aus *Von 2.4 auf 2.5* und *Von 2.3 auf 2.4* oben.
 2. **Rechte prüfen — hier kann still etwas wegfallen.**
    - Benutzer, Gruppen und Rechte verwalten nur noch Admins. Ein Nicht-Admin, der das bisher tat,
      bekommt `403` und braucht einen Admin-Zugang.
@@ -108,8 +180,9 @@ vorzeitig hinaus, und eine API-Antwort verliess den Server als `200 text/html` o
 
 **Wer keine Host-Blöcke benutzt, ist nicht betroffen** — dort galt immer schon der Default-Block.
 
-1. **Beziehen.** Die Constraint `^2.0` nimmt heute `2.4.0` mit: `composer update areanet/contentfly`
-   — dann gelten zusätzlich die Schritte aus *Von 2.3 auf 2.4* und *Von 2.2 auf 2.3* oben.
+1. **Beziehen.** Die Constraint `^2.0` nimmt heute `2.5.0` mit: `composer update areanet/contentfly`
+   — dann gelten zusätzlich die Schritte aus *Von 2.4 auf 2.5*, *Von 2.3 auf 2.4* und
+     *Von 2.2 auf 2.3* oben.
    Das aktualisiert von sich aus **nur dieses Paket**; für die Abhängigkeiten braucht es
    ausdrücklich `-w` beziehungsweise `-W`.
 2. **Sonst nichts.** Keine Konfiguration, kein Schema, keine geänderten Statuscodes.
@@ -142,7 +215,7 @@ Wer von 1.x kommt, folgt den neun Phasen unten; die Änderungen von 2.2 stecken 
 Wer auf `v2.0.0` steht, geht zuerst die Schritte *Von 2.0 auf 2.1* unten durch. Wer auf `v2.1.0`
 steht, braucht nur diese:
 
-1. **Beziehen.** Die Constraint `^2.0` nimmt heute `2.4.0` mit: `composer update areanet/contentfly`
+1. **Beziehen.** Die Constraint `^2.0` nimmt heute `2.5.0` mit: `composer update areanet/contentfly`
    — also gleich die Releases aus den Abschnitten darüber; die Schritte aus *Von 2.3 auf 2.4* und
    *Von 2.2 auf 2.3* gelten zusätzlich.
 2. **Konfiguration prüfen.** Der ImageMagick-Prozessor und `IMAGEMAGICK_EXECUTABLE` sind entfernt;
