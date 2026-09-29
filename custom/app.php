@@ -153,6 +153,11 @@ $app['loginProviders']->register('example', function () {
 //   SECURITY_OIDC_* fields. The client obtains its access token from the identity provider and
 //   sends it as `accessToken` (or `pass`) to /auth/login.
 //
+//   SECURITY_OIDC_CLIENT_ID and SECURITY_OIDC_INTROSPECTION_ENDPOINT are REQUIRED (015-000-0015):
+//   before the userinfo call the token is introspected (RFC 7662) to establish that it was issued
+//   for THIS application. Without them fromConfig() throws — a token from any other client of the
+//   same identity provider would otherwise be accepted here.
+//
 //   $app['loginProviders']->register('oidc', function () {
 //       return \Areanet\PIM\Classes\Security\OidcProvider::fromConfig();
 //   });

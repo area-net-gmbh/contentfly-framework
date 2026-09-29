@@ -1936,6 +1936,70 @@ Bedeutung gewechselt, sondern der JWT-Pfad bringt seinen eigenen mit.
    Aliase dort nicht mehr über die API ändern. Ein unveränderter Alias im Round-Trip geht weiter
    durch.
 
+### Der OIDC-Provider prüft, für welchen Client ein Token ausgestellt wurde
+**Seit `015-000-0015` (2026-09-29).**
+
+**Betrifft nur Projekte, die `Classes\Security\OidcProvider` in `custom/app.php` eintragen.** Die
+Vorlage ist ohne OIDC.
+
+`OidcProvider::authenticate()` schickte das Token aus dem Login-Body als Bearer an den
+Userinfo-Endpunkt und wertete jede 200-Antwort als Identitätsnachweis. Der Userinfo-Endpunkt
+beantwortet aber eine andere Frage als die, auf die es ankommt: Er sagt „das Token ist gültig und
+gehört zu diesem Benutzer" — er sagt **nicht** „das Token wurde für dich ausgestellt". Geprüft
+wurde weder `aud` noch `azp` noch `client_id`, und eine Introspection gab es nicht.
+
+**Folge:** Jeder andere Client desselben Identity-Providers, dem Benutzer Tokens geben — eine
+fremde Seite mit „Anmelden mit <IdP>", ein kompromittierter Client im selben Realm oder Tenant —
+konnte die eingesammelten Tokens hier einlösen und bekam eine Contentfly-Sitzung als dieser
+Benutzer. Bei passender Gruppe als Admin, weil `GroupMapping::apply()` auch `isAdmin` setzt.
+
+**Geprüft wird per Token-Introspection (RFC 7662), vor dem Userinfo-Aufruf.** Der Provider wird
+gefragt, was das Token ist; die Antwort muss `active: true` sein **und** diesen Client in
+`client_id` oder `aud` nennen. Nennt sie keinen von beiden, wird abgelehnt — beide Felder sind in
+RFC 7662 optional, aber „hat nichts gesagt" als „ja" zu lesen wäre genau der Fehler.
+
+**Nicht über das ID-Token.** Dessen Prüfung bedeutet Signatur, JWKS und einen Schlüssel-Cache —
+die fünf Pakete, die `013-005-0003` abgewogen und verworfen hat. Introspection ist eine weitere
+HTTP-Anfrage auf demselben Client, der ohnehin da ist, und sie erhält die Eigenschaft, die jene
+Entscheidung getragen hat: Ein Widerruf wirkt sofort, weil der Provider antwortet und kein Cache.
+
+**Der Preis, ausgesprochen:** Eine Anmeldung kostet jetzt **zwei** Anfragen an den Provider statt
+einer. Sie betrifft nur die Anmeldung — danach stellt Contentfly sein eigenes Token aus
+(`013-003`).
+
+**Ohne Konfiguration startet der Provider nicht.** `fromConfig()` wirft, wenn
+`SECURITY_OIDC_CLIENT_ID` oder `SECURITY_OIDC_INTROSPECTION_ENDPOINT` leer ist. Dieselbe Linie wie
+beim JWT-Secret (`013-002-0003`) und bei der Provider-Vorlage (`013-004-0004`). Der Fehler wird
+beim Bauen geworfen und nicht bei der Anmeldung: Ein Provider, der startet und dann jede Anmeldung
+ablehnt, sieht aus wie ein Ausfall und schickt den, der ihn sucht, zum Identity-Provider.
+
+| | vorher | jetzt |
+|---|---|---|
+| Token eines anderen Clients desselben IdP | **Anmeldung** | **abgelehnt**, der Userinfo-Endpunkt wird nicht einmal gefragt |
+| Token mit passendem `client_id`/`aud` | Anmeldung | unverändert Anmeldung |
+| widerrufenes Token (`active: false`) | Anmeldung, solange Userinfo 200 antwortet | abgelehnt |
+| Provider ohne `SECURITY_OIDC_CLIENT_ID` | lief | `RuntimeException` beim Bauen |
+| Anfragen an den IdP je Anmeldung | 1 | 2 |
+
+*Was zu tun ist:* Nur wer den Provider einträgt.
+
+1. **Client-ID und Introspection-Endpunkt in `custom/config.php` nachtragen** — ohne sie startet
+   der Provider nicht:
+   ```php
+   $config->SECURITY_OIDC_CLIENT_ID              = 'contentfly';
+   $config->SECURITY_OIDC_INTROSPECTION_ENDPOINT = 'https://idp.example.com/oauth2/introspect';
+   $config->SECURITY_OIDC_CLIENT_SECRET          = '…';   // praktisch immer nötig
+   ```
+   Die Werte stehen in der Client-Registrierung beim Identity-Provider; den Endpunkt nennt auch
+   `/.well-known/openid-configuration` als `introspection_endpoint`.
+2. **Prüfen, ob der Provider Introspection anbietet.** Keycloak, Auth0, Okta, Azure Entra ID und
+   Authentik tun das. Ein Provider ohne Introspection-Endpunkt kann mit diesem Weg nicht mehr
+   bedient werden — dann bleibt nur ein eigener `LoginProvider` im Projekt, der das ID-Token
+   lokal prüft.
+3. **Das Dienstkonto braucht das Recht, fremde Tokens zu introspizieren.** Bei manchen Providern
+   ist das eine eigene Einstellung an der Client-Registrierung; ohne sie antwortet der Endpunkt
+   `401` und jede Anmeldung schlägt fehl — fail closed, wie vorgesehen.
+
 ## Paketgrenze (Epic `007`)
 
 Epic `007` macht das Framework zu einem Composer-Paket. Was hier steht, trifft jedes Projekt —

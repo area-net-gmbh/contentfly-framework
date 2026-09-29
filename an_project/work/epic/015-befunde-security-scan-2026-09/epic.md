@@ -42,7 +42,7 @@ Keine. Die Befunde stehen direkt als Tasks unter dem Epic.
 - [ ] 015-000-0012 — fulltext-Filter in /api/list sucht in pass und salt (MEDIUM · F17, F20, F27)
 - [ ] 015-000-0013 — Nicht-Admins ändern languages und tokenTimeout ihrer Gruppe (MEDIUM · F18, F19, F31)
 - [ ] 015-000-0014 — JWT-Identität hängt am änderbaren Alias (MEDIUM · F22, F26)
-- [ ] 015-000-0015 — OIDC-Login prüft nicht, für welchen Client das Token ausgestellt ist (MEDIUM · F23, F24)
+- [x] 015-000-0015 — OIDC-Login prüft nicht, für welchen Client das Token ausgestellt ist (MEDIUM · F23, F24)
 - [ ] 015-000-0016 — Löschen einer Sprachvariante löscht alle anderen ohne Rechteprüfung (MEDIUM · F25)
 - [ ] 015-000-0017 — Host-Header wählt den Config-Block, unbekannte Hosts fallen auf default (LOW · F28, F30, F36)
 - [ ] 015-000-0018 — Login-Laufzeit verrät existierende Konten (LOW · F29)
