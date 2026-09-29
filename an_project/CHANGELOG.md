@@ -3,6 +3,9 @@
 # Changelog
 
 ## 2026-09-29
+- 000-000-0105 → done: **`v2.5.0` ist veröffentlicht und abgenommen.** Tag auf dem Merge-Commit von #102 (`58426961`), gesetzt erst nach grüner Pipeline auf genau diesem Commit (Lauf `36552555751`, alle sieben Jobs `success`, nachgezählt). Tagger `areanet_foschmid <fs@area-net.de>`, vorher mit `git var GIT_COMMITTER_IDENT` geprüft — `v2.3.0` trägt bis heute `sim <sim@local>`, deshalb die Kontrolle. Veröffentlichungslauf `36553277032` grün, `contentfly-framework-dist` trägt `v2.5.0` als `58dad196`. **Abnahme von aussen bestanden:** `bezugsweg-pruefen.sh` in einem Temp-Verzeichnis ausserhalb des Repos zieht über `^2.0` die Version `v2.5.0`, die Anwendung meldet `2.5.0`. Damit ist belegt, worauf die Entscheidung gegen `v3.0.0` beruhte: Die 22 Sicherheitsfixes erreichen ein Bestandsprojekt mit einem `composer update`, ohne dass jemand die Constraint anfasst.
+
+## 2026-09-29
 - 000-000-0102 → done (per Pull Request auf `master`, #99)
 - 000-000-0103 → done (per Pull Request auf `master`, #100)
 - 000-000-0105 task created: "Release v2.5.0 — die 22 Sicherheitsbefunde des Scans 2026-09 ausliefern"
