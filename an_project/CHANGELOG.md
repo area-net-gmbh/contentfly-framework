@@ -2,6 +2,12 @@
 
 # Changelog
 
+## 2026-10-20
+- `.an_framework/` updated: ANNA von **2.3.0 auf 3.4.0** gehoben (Tag `v3.4.0`), `init.sh --update` gelaufen — Runtime-Adapter für Claude und Codex (`.agents/`, `.codex/`, `AGENTS.md`), Agent-Rollen, SessionStart-Hooks und das Stakeholder-Grundgerüst sind neu im Projekt. Eigener `chore(framework)`-Commit, **PR #118**. Ein direkter Push auf `master` wurde von `master-schutz` abgelehnt (`GH013`) — Bypass-Liste leer, wie in `000-000-0051` entschieden.
+- 000-000-0109 task created: "CVE-2026-108082 schliessen — symfony/http-foundation im Lock auf 7.4.19 heben" — `check: composer audit` ist am 2026-10-20 in PR #118 rot geworden, **ohne** dass eine Abhängigkeit angefasst wurde. Gelockt ist `v7.4.18`, behoben in `7.4.19`; die Constraint `^7.4` erlaubt es schon, nur der Lock muss neu. Dabei greift das Versions-Gefälle aus `000-000-0106`: lokal Composer 2.6.6, Lock `plugin-api-version: 2.9.0` — der Lock muss mit >= 2.9 erneuert werden, sonst wird `check: Lock-Format` rot. Offen und Teil des Tasks: warum der grüne Lauf vom 2026-09-29 das Advisory (*Reported at* 2026-09-15) nicht gemeldet hat.
+- 000-000-0109 → in-progress
+- 000-000-0109 → review: **CVE-2026-108082 ist aus dem Lock.** `symfony/http-foundation v7.4.18 → v7.4.21`, erneuert mit **Composer 2.10.3 in Docker** — die lokale 2.6.6 hätte den Lock auf `plugin-api-version: 2.6.0` zurückgestuft und `check: Lock-Format` rot gemacht, genau der Fall, für den `000-000-0106` das Gate gebaut hat. **Der Diff ist minimal und gemessen:** `0 installs, 1 update, 0 removals`, 86 Pakete vorher und nachher, +6 −6 Zeilen im Lock. Kein Manifest angefasst — `^7.4` erlaubte 7.4.21 schon. Beide Gates lokal gefahren, mit den Skripten selbst statt mit Nachbauten: `tools/check-lock-format.sh` Exit 0, `tools/ci/audit.sh` *No security vulnerability advisories found.* **Die offene Frage ist beantwortet und entlastet das Gate:** 7.4.18 lag seit dem 2026-09-09 im Lock, war also am 2026-09-29 schon betroffen — aber das Advisory kam erst am **2026-10-15** in die Datenbank von `FriendsOfPHP/security-advisories`. Das Feld `Reported at: 2026-09-15` ist der Tag der Meldung **an den Hersteller**, nicht der Tag der Veröffentlichung; dazwischen liegt ein Monat, in dem kein `composer audit` etwas finden konnte. Kein Loch, kein Folge-Task. **Offen bis zum PR-Lauf:** Testsuite und Deprecation-Gate — lokal wäre die Messung irreführend, weil `--no-install` das `vendor/` auf 7.4.18 stehen lässt.
+
 ## 2026-09-29
 - 000-000-0108 → done (per Pull Request auf `master`, #115)
 
