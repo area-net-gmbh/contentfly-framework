@@ -2,6 +2,11 @@
 
 # Quickstart — Schritt für Schritt zum eingerichteten Projekt
 
+> Diese Einsteiger-Anleitung zeigt die Bedienung mit Claude Code. Das Setup installiert
+> gleichzeitig den Codex-Adapter. Für Codex und den jederzeitigen Wechsel zwischen beiden gilt
+> dieselbe Projektanleitung mit der Aufrufzuordnung unter
+> [Runtime adapters](../docs/runtime-adapters.md): `/implement` entspricht `$an-implement`.
+
 Diese Anleitung ist für **alle im Team**, auch ohne Programmier- oder Git-Kenntnisse.
 Du musst nichts verstehen, was hier nicht erklärt wird. Beim ersten Mal dauert es
 etwa 45 Minuten, danach fünf.
@@ -22,9 +27,10 @@ Diese hier ist die Kurzfassung mit mehr Erklärung — beides beschreibt dasselb
 | **Terminal** | Ein Fenster, in dem du dem Rechner Befehle tippst statt zu klicken. Auf dem Mac heißt das Programm „Terminal", auf Windows „Git Bash" bzw. „PowerShell". |
 | **Befehl** | Eine Zeile Text, die du in dieses Fenster einfügst und mit **Enter** abschickst. |
 | **Ordner / Pfad** | Genau das, was du im Finder bzw. Explorer siehst. Ein Pfad ist die vollständige Adresse eines Ordners, z. B. `/Users/anna/Projekte/kunde-x`. |
-| **Projektwurzel** | Der oberste Ordner deines Projekts — der, in dem `CLAUDE.md` und `.an_framework` direkt nebeneinander liegen. Fast alles passiert von hier aus. |
+| **Projektwurzel** | Der oberste Ordner deines Projekts — der, in dem `CLAUDE.md`, `AGENTS.md` und `.an_framework` direkt nebeneinander liegen. Fast alles passiert von hier aus. |
 | **Git** | Ein Programm, das jede Version deiner Dateien mitschreibt, damit nichts verloren geht und mehrere Leute gleichzeitig arbeiten können. |
 | **Claude Code** | Das Programm, mit dem du im Terminal mit Claude arbeitest. Es darf Dateien in deinem Projekt lesen und schreiben. |
+| **Codex** | Alternative Agent-Runtime. Sie arbeitet auf denselben Projektdateien und wird parallel zu Claude Code eingerichtet. |
 
 **Kopieren und Einfügen ist ausdrücklich erwünscht — tipp nichts ab.** Jeder Befehl
 in dieser Anleitung ist eine Zeile, die du einfügst und mit Enter abschickst.
@@ -241,14 +247,31 @@ GitLab es erwartet. Je nach Git-Version hieße sie sonst `main`.
 ### B3. Das Framework holen
 
 Öffne im Browser die **Tags-Seite** des Framework-Projekts in GitLab und merke dir den
-**obersten** `v`-Eintrag — das ist die neueste Version, z. B. `v2.0.0`. Schreib **keine**
-Versionsnummer aus dieser Anleitung ab; nimm die aktuelle aus GitLab.
+**obersten** `v`-Eintrag — das ist die neueste Version. (Nimmst du Variante 2 weiter unten,
+steht dieselbe Version auch oben auf der **Releases**-Seite.)
 
-Dann das Framework als Ordner `.an_framework` hereinholen — **setze deine Version statt
-`v2.0.0` ein**:
+> **In den Befehlen unten steht `{VERSION}` als Platzhalter.** Ersetze ihn überall durch die
+> Nummer, die du gerade in GitLab gesehen hast — **mit** dem führenden `v`, also z. B. `v3.4.0`.
+> In dieser Anleitung steht absichtlich **keine** echte Versionsnummer: eine abgeschriebene wäre
+> spätestens nächsten Monat veraltet, und du hättest es nicht gemerkt. Vergisst du das Ersetzen,
+> bricht der Befehl mit einer Fehlermeldung ab — das ist gewollt und besser als ein stiller
+> Fehlgriff auf eine alte Version.
+
+Dafür gibt es **zwei Wege — du brauchst nur einen**. Sie führen zum identischen
+Ergebnis, Datei für Datei:
+
+| Weg | Wann |
+|---|---|
+| **Variante 1 — mit Git** | Der kürzere: zwei Zeilen im Terminal. Du brauchst dein GitLab-Passwort. |
+| **Variante 2 — ZIP herunterladen** | Ohne Git, ohne Passwort im Terminal. Du lädst eine Datei im Browser und entpackst sie. Gut, wenn Variante 1 beim Passwort hängt. |
+
+#### Variante 1 — mit Git
+
+Das Framework als Ordner `.an_framework` hereinholen — **`{VERSION}` durch deine Nummer
+ersetzen**:
 
 ```sh
-git clone --depth 1 --branch v2.0.0 http://gitlab.in.area-net.de/intern/ki-dev-framework.git .an_framework
+git clone --depth 1 --branch {VERSION} http://gitlab.in.area-net.de/intern/ki-dev-framework.git .an_framework
 rm -rf .an_framework/.git
 ```
 
@@ -259,6 +282,32 @@ Die zweite Zeile (`rm -rf .an_framework/.git`) macht aus dem geklonten Framework
 gewöhnliche Dateien deines Projekts. Genau das ist gewollt: so lädt später ein einfaches
 `git clone` die richtige Framework-Version automatisch mit — kein Submodule, kein
 Sonderwissen.
+
+#### Variante 2 — ZIP herunterladen (ohne Git)
+
+Gibt es **ab Version 3.4.0**. An jedem Release hängt ein fertiges ZIP des Frameworks.
+
+1. Öffne im Browser die **Releases**-Seite des Framework-Projekts in GitLab (neben der
+   Tags-Seite in der linken Leiste unter *Deploy → Releases*).
+2. Klicke beim **obersten** Release auf die Datei `an_framework-v….zip`.
+   **Nicht** auf *Source code (zip)* — diese Datei erzeugt GitLab automatisch, darin heißt
+   der Ordner anders und das Setup findet ihn nicht.
+3. Entpacke das ZIP **in deinen Projektordner**. Im Terminal, während du im Projektordner
+   stehst — **`{VERSION}` durch deine Nummer ersetzen**:
+
+```sh
+unzip -q ~/Downloads/an_framework-{VERSION}.zip -d .
+```
+
+> **Windows:** In Git Bash gibt es `unzip` nicht. Nimm stattdessen den Explorer:
+> Rechtsklick auf das ZIP → **Alle extrahieren…** → als Ziel deinen Projektordner wählen.
+
+Im ZIP steckt genau ein Ordner: `.an_framework`. Er beginnt mit einem Punkt und ist
+deshalb **im Finder unsichtbar** (im Windows-Explorer sichtbar) — das ist normal und kein
+Fehler. Die Prüfung unten zeigt dir, dass er da ist.
+
+Das `rm -rf .an_framework/.git` aus Variante 1 brauchst du hier **nicht**: im ZIP ist von
+Anfang an keine Git-Historie. Du kannst die heruntergeladene ZIP-Datei danach löschen.
 
 **Prüfung:**
 
@@ -281,7 +330,9 @@ Jetzt legt das Init-Skript die komplette Struktur an: den sichtbaren Ordner
 bash .an_framework/init.sh --name="Kunde X"
 ```
 
-Es zeigt Modus **NEW** und fragt einmal **Proceed? [y/N]** — tippe `y` und Enter.
+Es zeigt Modus **RETROFIT** und fragt einmal **Proceed? [y/N]** — tippe `y` und Enter.
+(RETROFIT heißt hier nur: der Ordner war nicht völlig leer — in **B2** ist bereits ein
+Git-Repository entstanden. Das ist richtig so.)
 
 Das Skript **überschreibt nichts** und macht **keinen** Commit. Es legt nur Dateien an,
 schreibt einen Bericht nach `an_project/SETUP-REPORT.md` und druckt am Ende den fertigen
@@ -293,16 +344,18 @@ Setup-Commit, den du gleich selbst abschickst (B6).
 ls -A
 ```
 
-Es müssen mindestens diese Namen auftauchen — `.an_framework`, `.claude`, `.gitignore`,
-`CLAUDE.md`, `an_project`. Das `-A` zeigt auch die Namen mit Punkt am Anfang.
+Es müssen mindestens diese Namen auftauchen — `.an_framework`, `.claude`, `.codex`, `.agents`,
+`.gitignore`, `CLAUDE.md`, `AGENTS.md`, `an_project`. Das `-A` zeigt auch Punkt-Ordner.
 
 ```sh
 ls -A .claude/commands
+ls -A .agents/skills
 ```
 
-Hier müssen **zehn** Dateien stehen (`board.md`, `briefing.md`, `commit.md`, `done.md`,
-`implement.md`, `new-epic.md`, `new-project.md`, `new-story.md`, `new-task.md`,
-`refine.md`). Sind es weniger als zehn, ist die in **B3** gewählte Version zu alt — hier
+Unter `.claude/commands` müssen **elf** Dateien stehen (`board.md`, `briefing.md`, `commit.md`, `done.md`,
+`implement.md`, `migrate-adrs.md`, `new-epic.md`, `new-project.md`, `new-story.md`, `new-task.md`,
+`refine.md`). Unter `.agents/skills` müssen entsprechend elf `an-*` Ordner stehen. Sind es
+weniger, ist die in **B3** gewählte Version zu alt — hier
 stoppen und im Team fragen.
 
 ### B5. Kurz prüfen
@@ -317,7 +370,7 @@ Das Init-Skript hat dir am Ende genau diese zwei Befehle ausgegeben — füge si
 (deine Version steht in der Commit-Zeile):
 
 ```sh
-git add -- .an_framework an_project .claude CLAUDE.md .gitignore
+git add -- .an_framework an_project .claude .codex .agents CLAUDE.md AGENTS.md .gitignore
 git commit -m "chore(setup): Projektgeruest aus ki-dev-framework 2.1.0"
 ```
 
@@ -402,7 +455,7 @@ git checkout -b chore/framework-setup
 ### C3. Eine Stolperfalle ausschließen
 
 ```sh
-git check-ignore -v .claude an_project CLAUDE.md
+git check-ignore -v .claude .codex .agents an_project CLAUDE.md AGENTS.md
 ```
 
 **Erwartete Ausgabe: keine.** Kommt etwas (z. B. `.gitignore:2:.claude/  .claude`),
@@ -415,9 +468,8 @@ jetzt unter `an_project/work/`, nicht im Projekt-Wurzelverzeichnis.)
 
 ### C4. Framework holen
 
-Führe **B3** genau so aus, wie es dort steht (neueste Version aus GitLab, dann
-`git clone --depth 1 --branch <version> … .an_framework` und `rm -rf .an_framework/.git`),
-und komm hierher zurück.
+Führe **B3** genau so aus, wie es dort steht — neueste Version aus GitLab, dann **eine**
+der beiden Varianten (Git-Clone oder ZIP-Download) — und komm hierher zurück.
 
 **Prüfung:** `cat .an_framework/VERSION` gibt eine Nummer aus.
 
@@ -455,7 +507,7 @@ Das Skript hat dir am Ende die benannten Befehle ausgegeben — die schicken das
 eigenen Zwischenstand auf deiner Nebenspur ab:
 
 ```sh
-git add -- .an_framework an_project .claude CLAUDE.md .gitignore CLAUDE-ARCHIVE.md
+git add -- .an_framework an_project .claude .codex .agents CLAUDE.md AGENTS.md .gitignore CLAUDE-ARCHIVE.md
 git commit -m "chore(setup): ki-dev-framework einbauen"
 git push -u origin HEAD
 ```
@@ -578,7 +630,8 @@ in der Vertrauensliste.
 Claude stellt dir vier Fragen (Titel, Beschreibung, Ziel, Tech-Stack) und schreibt die
 Antworten in `an_project/project-description.md`. Beim Tech-Stack wählst du aus einer
 Liste (Shopware Projekt · Shopware Plugin · Wordpress · Individual); die passende
-Stack-Beschreibung wird automatisch als `an_project/docs/tech-stack.md` mitgeladen.
+Stack-Beschreibung liegt als `an_project/docs/tech-stack.md` bereit und wird bei Bedarf
+geladen.
 Einfach im Chat antworten.
 
 ### E4. Arbeit anlegen
@@ -606,6 +659,21 @@ nur an, worunter etwas gehört.
 
 Zeigt alles auf einen Blick: was offen ist, was blockiert ist und was als Nächstes
 dran wäre. Ändert nichts — du kannst es jederzeit bedenkenlos tippen.
+
+### E5a. Die Doku für alle anderen zeigen
+
+```
+/doc
+```
+
+Baut die Projektdokumentation für Außenstehende und öffnet sie im Browser: Steckbrief,
+Funktionen, Technik, Schnittstellen, Abläufe, Zuständigkeiten. Gedacht für Kundinnen,
+Designer und Geschäftsführung — mit Suche und Navigation, ohne Server, ohne Internet.
+
+Ganz am Anfang ist dort noch wenig zu sehen: die Kapitel füllen sich, während am Projekt
+gearbeitet wird. Dass ein Kapitel „noch nicht ausgefüllt" sagt, ist deshalb kein Fehler,
+sondern eine Aufgabe. Den Ordner `an_project/stakeholder/html/` kannst du so, wie er ist,
+weitergeben — er funktioniert auf jedem Rechner durch Doppelklick auf `index.html`.
 
 ### E6. Arbeiten lassen
 
@@ -725,7 +793,12 @@ Diese Meldung hat **zwei** verschiedene Ursachen. Prüfe beide, in dieser Reihen
 
 ### F2. `Could not find remote branch <version>` / `Remote branch not found`
 
-**Bedeutet:** Die Version, die du in B3 eingetippt hast, gibt es nicht.
+**Zuerst prüfen:** Steht in deinem Befehl wörtlich `{VERSION}`? Dann hast du den Platzhalter
+nicht ersetzt. Genau dafür ist er da — der Befehl bricht ab, statt dir still eine veraltete
+Version zu holen. Nummer aus GitLab holen (**B3**), `{VERSION}` damit ersetzen, Befehl erneut
+ausführen.
+
+**Bedeutet sonst:** Die Version, die du in B3 eingesetzt hast, gibt es nicht.
 **Tu das:** Auf der **Tags-Seite** des Framework-Projekts in GitLab den obersten
 `v`-Eintrag nehmen und den `git clone`-Befehl aus **B3** damit wiederholen.
 
@@ -795,6 +868,19 @@ Schutzfunktion des ganzen Systems.
 
 **Bedeutet:** Du hast Claude in Git Bash gestartet.
 **Tu das:** Claude in **PowerShell** starten (siehe **A1**).
+
+### F13. Nach dem Entpacken gibt es kein `.an_framework`
+
+**Auf dem Bildschirm steht** bei `cat .an_framework/VERSION` ein `No such file or directory`,
+und `ls -A` zeigt stattdessen einen Ordner wie `ki-dev-framework-v3.4.0`.
+**Bedeutet:** In **B3 Variante 2** wurde *Source code (zip)* heruntergeladen statt der Datei
+`an_framework-v….zip`. Die erzeugt GitLab automatisch für jedes Release, und darin heißt der
+Ordner nach dem Projekt statt nach dem Zielort.
+**Tu das:** Den falsch entpackten Ordner löschen (`rm -rf ki-dev-framework-v*`) und **B3
+Variante 2** mit der richtigen Datei wiederholen.
+Meldet `unzip` dagegen `No such file or directory` und im Befehl steht wörtlich `{VERSION}`,
+hast du nur den Platzhalter nicht ersetzt — Nummer einsetzen und den Befehl wiederholen. Der Ordner liegt bei den Release-Assets
+unten auf der Release-Seite, nicht in der automatischen Download-Liste oben.
 
 ### Wenn hier nichts passt
 

@@ -1,0 +1,79 @@
+# PURPOSE: Release pipeline. On every vX.Y.Z tag it builds the core ZIP and attaches it to a
+# GitLab Release, so a project can take the framework without using git at all. The archive
+# is file-for-file what the git route produces — see scripts/build-release-zip.sh.
+#
+# Deliberately TAG-ONLY. Nothing in this repo is built or tested per commit: the release check
+# (scripts/check-contracts.sh) is a human-run gate, not a job. A "Run pipeline" from the UI is
+# allowed too, so the ZIP job can be tried on a branch before a tag depends on it.
+#
+# Both jobs need nothing but a shell and git. A shell runner ignores `image:` entirely; a docker
+# runner uses ANNA_CI_IMAGE / RELEASE_CLI_IMAGE, which you can repoint at an internal mirror
+# under Settings -> CI/CD -> Variables without touching this file.
+
+workflow:
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - when: never
+
+stages:
+  - build
+  - release
+
+variables:
+  ANNA_CI_IMAGE: "alpine/git:latest"
+  RELEASE_CLI_IMAGE: "registry.gitlab.com/gitlab-org/release-cli:latest"
+
+# The deliverable. Named `zip` because the job name ends up in the artifact URL below.
+zip:
+  stage: build
+  image:
+    name: "$ANNA_CI_IMAGE"
+    entrypoint: [""]
+  script:
+    # $CI_COMMIT_TAG is picked up by the script: on a tag pipeline it refuses to build a
+    # release whose VERSION was not bumped to match. On the manual branch run it is unset.
+    - sh scripts/build-release-zip.sh --out-dir dist
+  artifacts:
+    name: "anna-$CI_COMMIT_REF_NAME"
+    paths:
+      - dist/
+    # The artifact IS the release asset the link below points at. It must outlive the pipeline.
+    expire_in: never
+
+release:
+  stage: release
+  image:
+    name: "$RELEASE_CLI_IMAGE"
+    entrypoint: [""]
+  needs:
+    - job: zip
+      artifacts: false
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+  # The ZIP is the deliverable, the Release is the shop window. If this runner cannot reach
+  # the release-cli image, the tag still has its downloadable archive one job earlier.
+  allow_failure: true
+  script:
+    - 'echo "Creating GitLab Release for $CI_COMMIT_TAG"'
+  release:
+    tag_name: "$CI_COMMIT_TAG"
+    name: "ANNA $CI_COMMIT_TAG"
+    # Routing only, no setup commands — same rule as README.md. The sequences live once in
+    # tutorial/quickstart.md and tutorial/update.md; a third copy here would drift.
+    description: |
+      **Ohne Git einrichten:** unten bei den Release-Assets hängt `an_framework-$CI_COMMIT_TAG.zip`.
+      Herunterladen und entpacken — darin liegt genau ein Ordner `.an_framework`, der in die
+      Projektwurzel gehört. **Nicht** die automatisch erzeugte Datei *Source code (zip)* nehmen:
+      dort heißt der Ordner anders.
+
+      Schritt für Schritt:
+      [neues Projekt einrichten]($CI_PROJECT_URL/-/blob/$CI_COMMIT_TAG/tutorial/quickstart.md)
+      · [bestehendes Projekt aktualisieren]($CI_PROJECT_URL/-/blob/$CI_COMMIT_TAG/tutorial/update.md)
+
+      Der Inhalt des ZIP ist Datei für Datei derselbe wie beim Git-Weg.
+    assets:
+      links:
+        - name: "an_framework-$CI_COMMIT_TAG.zip (ANNA-Kern zum Entpacken)"
+          url: "$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_TAG/raw/dist/an_framework-$CI_COMMIT_TAG.zip?job=zip"
+          link_type: package

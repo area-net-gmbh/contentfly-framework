@@ -1,0 +1,8 @@
+name = "an-briefer"
+description = "Read-only project documentation and backlog scan for the framework briefing."
+sandbox_mode = "read-only"
+developer_instructions = """
+Read `.an_framework/agents/an-briefer.md` and follow it exactly. If the file is missing, stop and
+report that the framework is not initialized. Return only the bounded fact sheet requested by
+that role. Do not edit files and do not run mutating Git commands.
+"""

@@ -1,8 +1,9 @@
 <!-- PURPOSE: How the framework fits together — the two axes (data/logic, framework/project), the stub indirection, the dependency graph, the contracts that couple the system, and the honest failure modes. Read this before changing the structure. -->
 
-# ki-dev-framework — Architecture & Dependencies
+# ANNA — Architecture & Dependencies
 
-This repo is the **framework core**. Since v2 it is no longer a git submodule: a
+**ANNA** is the framework identity; `ki-dev-framework` remains the technical repository
+name for compatibility. This repo is the **framework core**. Since v2 it is no longer a git submodule: a
 project fetches a tagged snapshot of this repo, strips its `.git`, and commits the
 result as `.an_framework/`. So every path below that starts with `.an_framework/` is a
 path *inside this repo*, now living as ordinary committed files inside the project.
@@ -22,8 +23,8 @@ Two orthogonal axes, both true of every file at once: **data vs. logic**, and
   (`AGENT-GUIDE.md`, everything in `docs/`, `templates/`, `VERSION`, the project's
   `project-description.md`, its `docs/`, its work items, its `CHANGELOG.md`.)
 - **Logic files** — active. They *do* things and therefore reference data files.
-  (the ten commands in `commands/` plus the `implement-task` alias, the ten stubs that
-  load them, and `init.sh`.)
+  (the twelve workflows in `commands/` plus the `implement-task` alias, both runtime adapter
+  sets that load them, and `init.sh`.)
 
 > **Rule: logic depends on data, never the reverse. Data files have zero outgoing
 > dependencies.** You can rewrite any doc or template without breaking anything.
@@ -39,7 +40,8 @@ Two orthogonal axes, both true of every file at once: **data vs. logic**, and
   anything is written.** Editable *data* lives under the visible `an_project/`
   (`an_project/work/`, `an_project/docs/`, `an_project/CHANGELOG.md`,
   `an_project/project-description.md`); editable *config* stays at the project **root**
-  (`CLAUDE.md`, `.claude/`), because Claude Code discovers those only there.
+  (`CLAUDE.md`, `AGENTS.md`, `.claude/`, `.agents/`, `.codex/`), because each runtime
+  discovers its adapter only at or above the project root.
 
 ### The one rule, and how it is encoded in text
 
@@ -53,7 +55,7 @@ prefixed, the prefix carries the whole distinction:
 | `.an_framework/templates/task.md`, `.an_framework/docs/guidelines.md` | **read** — framework zone |
 | `an_project/work/`, `an_project/CHANGELOG.md`, `an_project/project-description.md` | **write target** — project zone |
 | `an_project/docs/git.md`, `an_project/docs/guidelines.md` | **read** — project overlays; read *after* their baseline |
-| `CLAUDE.md`, `.claude/`, `CLAUDE-ARCHIVE.md` | **project root** — never move under `an_project/` (discovery) |
+| `CLAUDE.md`, `AGENTS.md`, `.claude/`, `.agents/`, `.codex/` | **project root** — runtime discovery adapters |
 | a path handed to `git add` / `git commit` (`/commit` only) | **stage target** — project zone; `.an_framework` is never staged as project work |
 
 The load-bearing point: a command that *writes* into `.an_framework/…` would put project
@@ -77,29 +79,39 @@ setup-time logic, not a command, and the grep is scoped to `commands/`.
 ```
                     │ DATA (passive)                  │ LOGIC (active)
 ────────────────────┼─────────────────────────────────┼──────────────────────────
- FRAMEWORK ZONE     │ README.md                       │ commands/*.md  (10 + alias)
+ FRAMEWORK ZONE     │ README.md                       │ commands/*.md  (13 + alias)
  .an_framework/**   │ AGENT-GUIDE.md                  │
- READ-ONLY          │ docs/guidelines.md              │ (they read data,
- (by convention)    │ docs/git-conventions.md         │  they write only into
-                    │ docs/framework-architecture.md  │  the project zone)
-                    │ templates/{epic,story,task}.md  │
+ READ-ONLY          │ docs/guidelines.md              │ commands/implement/{task,
+ (by convention)    │ docs/git-conventions.md         │   story,epic}.md
+                    │ docs/git-branching.md           │
+                    │ docs/git-integration.md         │ agents/an-{scout,briefer}.md
+                    │ docs/stakeholder-doc.md         │ hooks/*.sh  (runtime, outside
+                    │ viewer/page.template.html       │              the model)
+                    │ viewer/assets/**                │ scripts/build-stakeholder-doc.py
+                    │                                 │   (runtime, writes only into
+                    │                                 │    an_project/stakeholder/html/)
+                    │ docs/framework-architecture.md  │ (they read data, they write
+                    │                                 │  only into the project zone)
+                    │ templates/{epic,story,task,adr}.md│
                     │ templates/tech-stack/*/stack.md │  init.sh  (setup-time logic:
                     │ tutorial/{quickstart,update,    │  reads skeleton/, writes the
                     │            how-to-use}          │  project zone, once)
                     │ VERSION                         │
 ────────────────────┼─────────────────────────────────┼──────────────────────────
- PROJECT ZONE       │ an_project/project-description.md│ .claude/commands/*.md  (10
- WRITABLE           │ an_project/docs/architecture.md  │  stubs — the only logic
-   data →           │ an_project/docs/technical.md     │  the project owns)
+ PROJECT ZONE       │ an_project/project-description.md│ .claude/commands/*.md (13)
+ WRITABLE           │ an_project/docs/architecture.md  │ .agents/skills/* (13)
+   data →           │ an_project/docs/technical.md     │ runtime adapter logic
    an_project/      │ an_project/docs/deployment.md    │
    config → root    │ an_project/docs/styleguide.md    │
                     │ an_project/docs/tech-stack.md    │
                     │ an_project/docs/guidelines.md (overlay)
                     │ an_project/docs/git.md        (overlay)
                     │ an_project/work/{epic,story,task}/
+                    │ an_project/stakeholder/*.md      │
+                    │ an_project/stakeholder/html/**   │ (generated output, not hand-written)
                     │ an_project/CHANGELOG.md          │
-                    │ CLAUDE.md            (stub, ROOT)│
-                    │ .claude/settings.json     (ROOT) │
+                    │ CLAUDE.md + AGENTS.md (guides)   │ .claude/agents/* + .codex/agents/*
+                    │                                 │ .claude/settings.json + .codex/*
 ────────────────────┴─────────────────────────────────┴──────────────────────────
  SETUP-TIME ONLY: skeleton/**  — templates for the whole PROJECT ZONE row, pre-split
    into skeleton/root/ (→ project root) and skeleton/an_project/ (→ an_project/).
@@ -108,13 +120,34 @@ setup-time logic, not a command, and the grep is scoped to `commands/`.
 
 ---
 
-## The stub indirection
+## Runtime adapters and stub indirection
 
-Two things had to cross the zone boundary from project into framework: the **slash
-commands** and the **agent guide**. Claude Code offers exactly one mechanism for
-each, and neither one reaches into `.an_framework/` on its own. Hence stubs.
+The framework has one shared behavioral core and two simultaneous adapters. Claude Code loads
+`CLAUDE.md`, `.claude/commands/`, `.claude/agents/`, and `.claude/settings.json`. Codex loads
+`AGENTS.md`, `.agents/skills/`, and `.codex/`. Both adapters read the same command and agent
+bodies from `.an_framework/`; neither owns workflow logic. See `docs/runtime-adapters.md` for
+the exact mapping and invocation syntax.
 
-### Commands — why the indirection exists
+Two things cross the zone boundary from project into framework: discoverable **workflows** and
+the **agent guide**. Runtime discovery does not scan `.an_framework/` directly, hence thin
+project-owned adapters.
+
+### Claude Code adapter
+
+Sub-agent roles are discovered in `<projekt>/.claude/agents/` and `~/.claude/agents/` — again
+not in `.an_framework/`. So `agents/an-scout.md` and `agents/an-briefer.md` hold the role, and
+the project owns a thin stub that carries the frontmatter and reads the core file.
+
+The frontmatter is the part that *must* live in the stub: `tools: Read, Grep, Glob` is what
+makes these roles read-only, and it is enforced by the runtime, not by the prompt. That is the
+whole reason to have named roles at all — before them, "use a read-only subagent, ≤ 25 lines" was
+prose repeated in four command files, and "read-only" was a request.
+
+Hooks are wired the same way for the same reason: `.claude/settings.json` is project-owned and
+cwd-only, so it points at `.an_framework/hooks/*.sh`. The script updates with the core; only the
+one-line pointer belongs to the project.
+
+### Claude Code commands — why the indirection exists
 
 Slash commands are discovered in `<cwd>/.claude/commands`, **its parent directories**,
 and `~/.claude/commands`. A directory at `.an_framework/.claude/commands` is in none of
@@ -124,7 +157,7 @@ those — there is no setting that extends the search path to it.
 commands still resolve while the rules do not — see *failure modes*. `.claude/settings.json`,
 by contrast, is cwd-only with no fallback.)
 
-So the project keeps ten real command files in its own `.claude/commands/`, each
+So the project keeps twelve real command files in its own `.claude/commands/`, each
 three short instructions wrapped in frontmatter, and each one does nothing but
 delegate. `skeleton/root/.claude/commands/new-task.md`:
 
@@ -159,7 +192,7 @@ Three parts, all load-bearing:
 Consequence: **stubs are near-frozen.** They change only when a command is added or
 removed, or when its `description` / `argument-hint` changes.
 
-### `CLAUDE.md` — the `@` import path
+### `CLAUDE.md` — the Claude Code `@` import path
 
 The project's `CLAUDE.md` pulls in the framework rules with a single line:
 
@@ -168,17 +201,28 @@ The project's `CLAUDE.md` pulls in the framework rules with a single line:
 ```
 
 This is an import, not a copy: the project never holds a stale duplicate of the rules.
-The rest of the file is the project's own — a pointer list, an optional
-`@an_project/docs/tech-stack.md` import that `/new-project` adds (a project-zone import,
-so it crosses no boundary), and a "Project-specific rules" section that wins over the
-imported text.
+The rest of the file is the project's own — a pointer list and a "Project-specific rules"
+section that wins over the imported text. `an_project/docs/tech-stack.md` is intentionally
+loaded on demand by commands that need stack detail, not imported into every session.
 
 The failure mode is what makes the next paragraph necessary: **a failed `@` import is
 skipped silently.** No error, no log. A session with a missing `.an_framework/` looks
 exactly like a healthy one, except the agent has never seen the work model. So
 `skeleton/root/CLAUDE.md` follows the import with a **load check** — an instruction to
 verify that a "Work model" section with the `EEE-SSS-TTTT` scheme actually arrived, and
-to stop and say so if it did not. That check is the only detection mechanism available.
+  to stop and say so if it did not. That check is the Claude adapter's detection mechanism.
+
+### Codex adapter
+
+Codex reads root `AGENTS.md` before work and discovers repository skills under
+`.agents/skills/`. Each `an-<workflow>/SKILL.md` contains discovery metadata, passes invocation
+arguments, and loads exactly one matching `.an_framework/commands/<workflow>.md`. Project-scoped
+read-only roles live in `.codex/agents/*.toml`; `sandbox_mode = "read-only"` is the runtime
+enforcement corresponding to Claude's restricted tool frontmatter. Hooks live in
+`.codex/hooks.json` and execute the same scripts as the Claude adapter.
+
+Both adapters are installed together. A runtime switch never changes `an_project/`, Git state,
+or the framework core.
 
 ---
 
@@ -194,6 +238,10 @@ to stop and say so if it did not. That check is the only detection mechanism ava
 - **Coupling:** the highest-blast-radius file in the repo — every word ships to every
   project. Treat edits as releases.
 
+The ADR rule is part of this public surface rather than an `implement`-only convention because
+binding architecture decisions can arise in any conversation. The full record lives under
+`an_project/docs/adr/`; `architecture.md` is only its linked index.
+
 #### `CLAUDE.md` — guide for working *on* the framework
 - **Role:** orients an agent editing this repo. States the read-only rule, the zone
   markers, and the grep guards.
@@ -202,23 +250,30 @@ to stop and say so if it did not. That check is the only detection mechanism ava
   that this repo is the framework core, so an agent that does see it cannot mistake it
   for the project's guide. Keep that first line.
 
-#### `commands/{board,briefing,commit,done,implement,new-epic,new-project,new-story,new-task,refine}.md`
-- **Role:** the ten real commands, in full. An eleventh file, `implement-task.md`, is a pure
+#### `commands/{anna,board,briefing,commit,doc,done,implement,migrate-adrs,new-epic,new-project,new-story,new-task,refine}.md`
+- **Role:** the thirteen shared workflows, in full. `implement-task.md` is an additional pure
   alias that reads `implement.md` and holds no logic — projects set up before v2.2 own a
   `.claude/commands/implement-task.md` stub, and `init.sh` never deletes or overwrites a stub
-  it already finds. The skeleton ships only `implement.md`, so new projects get ten stubs.
+  it already finds. The skeleton ships only `implement.md`, so new projects get twelve stubs.
+- **A second indirection inside `/implement`.** `commands/implement.md` is a **router**: it
+  normalises the id, reads the level off it, carries the context budget that binds the whole
+  run, and hands off to exactly **one** of `commands/implement/{task,story,epic}.md`. The three
+  level files are siblings and are never read together — that is the point. This is a context
+  decision, not a structural one: a task run would otherwise load the story and epic branches
+  it can never take. `implement-task.md` still points at the router, so the alias is unaffected.
 - **Read by:** the matching stub in the project's `.claude/commands/`.
 - **Reads / writes** (the only place the zone rule bites):
 
   | Command | Reads (framework zone) | Writes (project zone) |
   |---|---|---|
-  | `new-project` | `CLAUDE-ARCHIVE.md` when retrofitted (project zone, read as data); the `an_project/.framework-profile` marker; `templates/tech-stack/<slug>/{stack,runbook}.md` (full profile) | `an_project/project-description.md`, `an_project/docs/{tech-stack,runbook}.md`, the `@`-import line in `CLAUDE.md`, `an_project/CHANGELOG.md`, and after confirmation `an_project/docs/**` |
+  | `new-project` | `CLAUDE-ARCHIVE.md` when retrofitted (project zone, read as data); the `an_project/.framework-profile` marker; `templates/tech-stack/<slug>/{stack,runbook}.md` (full profile) | `an_project/project-description.md`, `an_project/docs/{tech-stack,runbook}.md`, `an_project/CHANGELOG.md`, and after confirmation `an_project/docs/**` |
   | `new-epic` | `.an_framework/templates/epic.md` | `an_project/work/epic/…`, `an_project/CHANGELOG.md` |
   | `new-story` | `.an_framework/templates/story.md` | `an_project/work/…`, `an_project/CHANGELOG.md` |
   | `new-task` | `.an_framework/templates/task.md` | `an_project/work/**`, `an_project/CHANGELOG.md` |
   | `refine` | `.an_framework/docs/guidelines.md` (narrowed by `an_project/docs/guidelines.md`) | the target file, `an_project/CHANGELOG.md` |
-  | `implement` | `.an_framework/docs/{guidelines,git-conventions}.md` (narrowed by `an_project/docs/{guidelines,git}.md`); `.an_framework/commands/{commit,new-task,new-story,refine}.md` for its handoffs | a git branch (`git checkout -b`) — the *task's* at task level, the *story's* at story level, **none** at epic level; the item's `status`; the code; `an_project/CHANGELOG.md`; auto-commits via `/commit` |
-  | `done` | `.an_framework/{docs/git-conventions.md, commands/commit.md}`, `an_project/docs/git.md` (integration branch), `an_project/work/**` frontmatter | the item's `status` (a story also flips its **child tasks**), the parent's checklist box, + `an_project/CHANGELOG.md`, committed on the item's branch **via `/commit`**; then git history — a **local** `--no-ff` merge into the integration branch, never a push. An epic has no branch: status only, no merge |
+  | `migrate-adrs` | `.an_framework/templates/adr.md`, legacy inline decisions and existing `an_project/docs/adr/**` | individual ADR files, the linked index in `architecture.md`, `an_project/CHANGELOG.md` |
+  | `implement` | `.an_framework/commands/implement/<level>.md` (exactly one); `.an_framework/docs/{guidelines,git-branching}.md` (narrowed by `an_project/docs/{guidelines,git}.md`); `.an_framework/commands/{commit,new-task,new-story,refine}.md` for its handoffs | a git branch (`git checkout -b`) — the *task's* at task level, the *story's* at story level, **none** at epic level; the item's `status`; the code; `an_project/CHANGELOG.md`; auto-commits via `/commit` |
+  | `done` | `.an_framework/{docs/git-integration.md, commands/commit.md}`, `an_project/docs/git.md` (integration branch), `an_project/work/**` frontmatter (by `Grep`, never by `Read`) | the item's `status` (a story also flips its **child tasks**), the parent's checklist box, + `an_project/CHANGELOG.md`, committed on the item's branch **via `/commit`**; then git history — a **local** `--no-ff` merge into the integration branch, never a push. An epic has no branch: status only, no merge |
   | `board` | — | nothing (read-only; no changelog entry) |
   | `briefing` | `an_project/project-description.md`, `an_project/docs/**`, `an_project/CHANGELOG.md`, `an_project/work/` (all project zone, read as data) | nothing (read-only; no changelog entry) |
   | `commit` | `.an_framework/docs/git-conventions.md` (narrowed by `an_project/docs/git.md`), `an_project/work/` frontmatter for the id | nothing in the working tree — the git index and history only |
@@ -240,6 +295,43 @@ to stop and say so if it did not. That check is the only detection mechanism ava
   outside `work/`. They depend on the template paths, the `an_project/work/` layout, the ID
   convention, and the frontmatter schema.
 
+#### `agents/an-scout.md` · `agents/an-briefer.md` — read-only roles
+- **Role:** the two delegation contracts. `an-scout` does code reconnaissance before an edit
+  (≤ 25 lines, `path:line`, no file contents); `an-briefer` scans the docs and backlog for
+  `/briefing` (≤ 40 lines, no excerpts).
+- **Read by:** the sub-agent runtime, through the project's `.claude/agents/<name>.md` stub.
+- **Used by:** `commands/implement.md` (*Context budget*) and `commands/briefing.md`, which now
+  name the role instead of restating its contract.
+- **Coupling:** the `tools:` list lives in the **stub**, not here — a role that needs a different
+  tool set needs the stub changed, which means `init.sh --update` and, for a project that already
+  has a differing stub, a hand decision (the stub loop never clobbers).
+
+#### `hooks/session-brief.sh` · `hooks/check-update.sh` · `hooks/guard-verbose-bash.sh` — runtime, outside the model
+- **Role:** deterministic context work the model should not have to do. `session-brief.sh`
+  (SessionStart) prints the ANNA ASCII wordmark, AREA-NET identity, a short briefing hint, and a bounded
+  orientation so a session after `/clear` needs no `/board`. It invokes `check-update.sh`,
+  which compares `.an_framework/VERSION` with stable GitLab tags at most once per 24 hours,
+  uses a two-second watchdog, caches under `.git/`, and stays silent on network/auth errors;
+  `guard-verbose-bash.sh` (PreToolUse on Bash) blocks a known test runner that has no output cap
+  and names the capped retry.
+- **Read by:** nothing in the model's context — they are *executed*, and only their stdout
+  (SessionStart) or stderr (a blocked PreToolUse) reaches it.
+- **Output adapters:** Claude invokes the script with `ANNA_HOOK_OUTPUT=json`, returning
+  `systemMessage` for the visible TUI welcome and `additionalContext` for the model. Codex creates
+  no session before its first prompt, so it uses built-in `tui.status_line` items at startup and
+  exposes the full banner through `$an-anna`; it has no ANNA `SessionStart` hook.
+- **Wired from:** the project's `.claude/settings.json`, `hooks` key, installed by `init.sh` only
+  when the project has none of its own.
+- **Coupling:** both **fail open** — any error exits 0 with no output. This is load-bearing: a
+  hook sits in front of every Bash call, and a hook that can fail closed can stop all work.
+- **Why not `PostToolUse` for the output cap:** by then the tool result is already in the
+  context. A `PostToolUse` hook can only *add* to it, never shorten it. Blocking before the call
+  is the only point where the cost can still be avoided.
+
+Claude file-write permissions use `Edit(path)` only; current Claude Code applies those rules to
+all file-editing tools. `init.sh --update` removes obsolete `Write(path)` entries from existing
+project settings so an old adapter cannot invalidate hook loading.
+
 #### `templates/` — two kinds
 - **Work-item blueprints** `{epic,story,task}.md` — read by `new-epic/story/task`
   (one line each). Their **frontmatter schema** (`id`, `title`, `status`, `depends_on`)
@@ -248,12 +340,20 @@ to stop and say so if it did not. That check is the only detection mechanism ava
   frontmatter**, read by `new-project` and copied to `an_project/docs/tech-stack.md`.
   A future `docker-compose.template.yml` may sit beside each `stack.md`; not built yet.
 
-#### `docs/guidelines.md` · `docs/git-conventions.md` — baselines
-- **Read by:** `AGENT-GUIDE.md` (by reference), `refine`, `implement`, and
-  `commit` (git-conventions only). **Narrowed by:** the project's
-  `an_project/docs/guidelines.md` / `an_project/docs/git.md`.
-- **Coupling:** git-conventions is no longer a passive leaf — `/commit` reads it to make
-  decisions, so a section renamed here changes command behaviour there.
+#### `docs/guidelines.md` · the three `docs/git-*.md` — baselines
+- **Read by:** `AGENT-GUIDE.md` (by reference), `refine` and `implement` (guidelines), and the
+  git files **one reader each** — `commit` → `git-conventions.md`, `implement` →
+  `git-branching.md`, `done` → `git-integration.md`.
+  **Narrowed by:** the project's `an_project/docs/guidelines.md` / `an_project/docs/git.md`.
+- **Why the git baseline is three files.** They are split along their readers, not their
+  subject: `/commit` needs the message format and never the branch schema; `/implement` needs
+  the branch schema and never the merge rules; `/done` needs merge and review-readiness and
+  never the type table. One reader each is the point — the split only pays while that holds. A
+  command that ends up reading two of the three loads *more* than the single combined file ever
+  cost it, which is exactly the regression the greps in the repo's `CLAUDE.md` watch for. The
+  single overlay `an_project/docs/git.md` narrows all three; conflict behaviour is unchanged.
+- **Coupling:** neither git file is a passive leaf — the commands read them to make decisions,
+  so a section renamed here changes command behaviour there.
 
 #### `docs/framework-architecture.md` (this file) · `README.md` · `tutorial/*`
 - Pure data / routing / manuals. `README.md` carries **no setup commands** by design;
@@ -264,6 +364,33 @@ to stop and say so if it did not. That check is the only detection mechanism ava
 - **Role:** the release number, tagged. Since there is no submodule gitlink, a project's
   committed `.an_framework/VERSION` **is** the record of which version it carries — it is
   load-bearing now, not merely documentation. Regenerate it from the tag on release.
+- **Enforced since v3.4:** the tag pipeline reads `VERSION` out of the tagged ref and aborts
+  unless it equals the tag. Before that, `VERSION` and the tag could drift apart silently and
+  a project would report a version nobody released.
+
+#### `.gitlab-ci.yml` + `scripts/build-release-zip.sh` — the second install route
+- **Role:** on every `vX.Y.Z` tag, package the core as `an_framework-v<version>.zip` and attach
+  it to a GitLab Release. The archive is `git archive --prefix=.an_framework/` over the tagged
+  ref — the tracked tree, unfiltered — so unpacking it in a project root produces exactly what
+  `git clone --depth 1 --branch <tag> … .an_framework` plus `rm -rf .an_framework/.git` produces.
+  That parity *is* the contract; `check-contracts.sh` diffs the archive against
+  `git ls-tree -r HEAD` on every run.
+- **Reads:** one git ref of **this** repo. **Writes:** `dist/` (git-ignored) and the CI artifact.
+  It never sees a project, which is why it is not a fourth exception to the read-only rule — it
+  sits with `check-contracts.sh` as release-time tooling, outside the runtime model entirely.
+- **Why it exists:** the git route needs a GitLab password in a terminal, and that is the step
+  the non-developer audience of `quickstart.md` actually stalls on (`F2` in its troubleshooting
+  list is exactly this). A browser download plus one `unzip` removes git from the bootstrap
+  without changing anything about the model: the core still arrives as plain committed files.
+- **Why dropped exec bits are harmless:** `git archive` records the modes, but Windows Explorer
+  discards them on extract. Nothing in the core is ever invoked directly — the adapters call
+  `bash …/hooks/*.sh` and `python3 …/scripts/build-stakeholder-doc.py`. A future command that
+  relies on `+x` would break the ZIP route and only on Windows.
+- **Coupling:** the GitLab job name `zip` is part of the asset URL
+  (`…/-/jobs/artifacts/<tag>/raw/dist/…?job=zip`), and the artifact is kept with
+  `expire_in: never` because it *is* the asset the Release links to. The `release` job is
+  `allow_failure: true`: if a runner cannot reach the `release-cli` image, the tag still has its
+  archive from the previous job.
 
 #### `init.sh` — setup-time logic in the core
 - **Role:** lays the project down from the core after the bootstrap. FILES ONLY — never
@@ -273,6 +400,24 @@ to stop and say so if it did not. That check is the only detection mechanism ava
 - **Reads:** `skeleton/root/`, `skeleton/an_project/`, `skeleton/gitignore.snippet`.
   **Writes:** the project zone (root config + `an_project/`). This is the single slot in
   the model where core logic reads `skeleton/` and writes the project — at setup only.
+
+#### `scripts/build-stakeholder-doc.py` + `viewer/**` — runtime logic that writes
+- **Role:** renders `an_project/stakeholder/*.md` into `an_project/stakeholder/html/` — a
+  self-contained HTML documentation for non-developers that opens over `file://` with no server
+  and no network. `viewer/page.template.html` is the page shell, `viewer/assets/` the CSS, JS,
+  Mermaid build and logo; the generator copies the assets into the output on every build.
+- **Reads:** the project's stakeholder Markdown, plus its own template and assets from the core.
+  **Writes:** `an_project/stakeholder/html/` and nothing else — the path guard sits in `build()`.
+- **Read by / invoked by:** the `doc` workflow; also `new-project`, `implement/task` and `done`
+  after they edit a chapter.
+- **Coupling:** this is the third and last place core logic runs at project runtime, after
+  `init.sh` (setup-time) and `hooks/*.sh` (runtime, read-only). It is the only one that writes
+  at runtime, and the only one that **fails loud** — a hook staying silent costs nothing, a
+  build silently doing nothing ships a stale document to a client.
+- **Two properties are load-bearing, and neither has a loud failure mode:** standard library
+  only on Python 3.9 (the audience runs macOS system Python), and deterministic output (the
+  displayed date comes from the source's `stand:` field, never from the clock — otherwise every
+  build dirties the worktree and the committed output becomes unreviewable).
 
 #### `skeleton/**` — write-only, at setup time
 - **Role:** the initial contents of a new project's zone, pre-partitioned into
@@ -286,44 +431,64 @@ to stop and say so if it did not. That check is the only detection mechanism ava
 ### Project zone — the files `skeleton/` seeds
 
 #### `CLAUDE.md` ← `skeleton/root/CLAUDE.md`  (project ROOT)
-- `@.an_framework/AGENT-GUIDE.md`, the load check, a pointer list, the optional
-  `@an_project/docs/tech-stack.md` import, and project rules that win over the import.
+- `@.an_framework/AGENT-GUIDE.md`, the load check, a pointer list, and project rules that
+  win over the import. Stack detail lives in `an_project/docs/tech-stack.md` and is loaded
+  on demand.
 
 #### `.claude/commands/*.md` ← `skeleton/root/.claude/commands/*.md`  (project ROOT)
-- The ten stubs. Filename-for-filename with `commands/`. The tightest coupling in the
+- The thirteen stubs. Filename-for-filename with the shared workflows. The tightest coupling in the
   system, and deliberately trivial: one name, one line.
+
+#### `.claude/agents/*.md` ← `skeleton/root/.claude/agents/*.md`  (project ROOT)
+- The two role stubs, installed by the same never-clobber loop as the command stubs (a
+  differing stub is backed up to `an_project/_pre-framework/claude-agents/` and the project's
+  stays active). The frontmatter — including the `tools:` allowlist that makes the role
+  read-only — lives here, not in the core; the body only points at `.an_framework/agents/`.
 
 #### `.claude/settings.json` ← `skeleton/root/.claude/settings.json`  (project ROOT)
 - `deny: ["Edit(/.an_framework/**)"]` — the **primary** automated guard (git no longer
-  backstops it, see *failure modes*). `allow` broadens along two axes but stays deliberately
-  scoped:
-  - **Project write-zones** — `Read`/`Edit`/`Write` on `an_project/**`, `src/**`, `tests/**`,
-    so routine work stops prompting. Not a blanket `**`: `CLAUDE.md`, `.claude/` and `.git`
-    stay prompt-gated, and the `.an_framework/` deny still wins over any allow (deny precedes
-    allow). A project may widen its own copy for stack-specific folders.
-  - **Git — flag forms, not verbs.** The pre-approved forms are the read probes plus
-    `git add --`, `git reset -q --`, `git commit -F -`, `git checkout -b`,
-    `git merge --no-ff --no-edit`, and the read-only `git for-each-ref` (`/done` lists
-    branches to find the task branch by id). Verbs and unbounded flag forms are excluded on
-    purpose — `Bash(git checkout:*)` would also admit `git checkout -- <file>`,
-    `Bash(git merge:*)` arbitrary merges, and even `Bash(git branch -d:*)` would admit a
-    *trailing* `-D` force-delete (`git branch -d x -D y`), so it is deliberately left out.
-    Consequence: the **branch switch** `git checkout <branch>` (`/done` steps 6–7,
-    `/implement` resume) and the optional `git branch -d` cleanup are **not**
-    pre-approved — they prompt once, which is the safe default — and `git push`,
-    `git reset --hard`, `git commit -a/--amend` likewise fall through to a prompt. The
-    flag-form allow cannot by itself stop `git add -- .an_framework`; that is `/commit`'s
-    staged-core preflight plus convention.
+  backstops it, see *failure modes*). `allow` removes routine prompts within the project:
+  - **Hooks** — the `hooks` key points at `.an_framework/hooks/*.sh` via
+    `${CLAUDE_PROJECT_DIR:-.}`, so the scripts update with the core. `init.sh` installs the
+    block **only** if the project has no `hooks` key of its own; otherwise it changes nothing
+    and writes what to merge into `an_project/SETUP-REPORT.md`. There is no per-event deep
+    merge — it would be fragile, and never-clobber-plus-report is this script's pattern.
+  - **Project writes** — `Edit(**)` covers the entire working tree. The more specific
+    `.an_framework/**` deny still wins, keeping the installed framework core immutable.
+  - **Git and inspection** — all `git` invocations and the common read-only commands `rg`,
+    `grep`, `ls`, `cat`, `head`, `tail`, `wc`, `file`, `stat`, and `pwd` are pre-approved.
+    This deliberately includes history-changing and remote Git operations; repository policy
+    remains the workflow's responsibility.
 - `init.sh` merges this file on retrofit (union) and **rewrites** a stale `Edit(/.framework/**)`
-  to `.an_framework` — the one entry the additive merge is allowed to replace. On an *update*
-  the already-initialised guard makes `init.sh` exit early, so a broadened default reaches
-  new and retrofit projects, not ones already initialised.
+  to `.an_framework` — the one entry the additive merge is allowed to replace. The same additive
+  merge runs during `init.sh --update`, so broadened defaults reach existing projects without
+  removing their project-specific rules.
+
+#### `.codex/config.toml` and `.codex/rules/anna.rules` (project ROOT)
+- Codex runs in `workspace-write`, so file changes below the project root do not need approval.
+- Project-local execution rules pre-approve all Git invocations and the same inspection commands
+  as the Claude adapter. Codex loads these rules only after the project has been trusted.
+- Commands outside these prefixes still follow `approval_policy = "on-request"`; sandbox escapes,
+  external writes, and other privileged operations therefore continue to ask.
 
 #### `an_project/…` ← `skeleton/an_project/…`
-- `project-description.md` (charter, read at session start), `docs/*` (project docs +
-  overlays + the copied `tech-stack.md`), `work/{epic,story,task}/` (the backlog, via
+- `project-description.md` (charter, read before project work), `docs/*` (project docs +
+  overlays + the copied `tech-stack.md`, loaded on demand), `work/{epic,story,task}/` (the backlog, via
   the frontmatter schema and ID convention), `CHANGELOG.md` (append-only, many writers,
   **never read to make a decision**).
+
+#### `an_project/stakeholder/**` ← `skeleton/an_project/stakeholder/**`
+- **Role:** the project documentation for outsiders. `steckbrief.md` is a pure `key: value`
+  head whose field order and labels live in the generator, so every project's documentation
+  opens the same way. Thirteen or, in a slim project, ten numbered chapters follow; the
+  filenames carry sort keys in tens, and the displayed chapter number is computed from the
+  position — which is why a slim project is still numbered gaplessly and why a chapter can be
+  inserted later without renaming anything.
+- **`html/` is output, not data.** It is rebuilt whole on every run and committed, so a
+  colleague without the toolchain can open the documentation straight from a checkout. That
+  only works because the build is deterministic; see the generator above.
+- **Coupling:** to the generator's Markdown dialect, which is deliberately a subset. A chapter
+  that uses something outside it does not degrade — the build fails and says which file.
 
 #### `.gitignore` ← `skeleton/gitignore.snippet`
 - The snippet is pasted into the project's `.gitignore`. It documents why
@@ -345,17 +510,23 @@ left-to-right, **writes never do**.
     │  (+ load check: verify it arrived)    ║        │ (names paths only — no execution)
     ├─▶ an_project/project-description.md    ║        ▼
     ├─▶ an_project/docs/* · tech-stack.md    ║   [ work model · ids · lifecycle · rules ]
+    │     (pointers; loaded on demand)       ║
     ├─▶ an_project/docs/guidelines.md ─narrows╫─▶ docs/guidelines.md      (baseline)
-    ├─▶ an_project/docs/git.md ───────narrows─╫─▶ docs/git-conventions.md (baseline)
+    ├─▶ an_project/docs/git.md ──narrows ALL─╫─▶ docs/git-conventions.md (baseline)
+    │                                        ║   docs/git-branching.md   (baseline)
+    │                                        ║   docs/git-integration.md (baseline)
     ├─▶ an_project/work/{epic,story,task}/   ║
     └─▶ an_project/CHANGELOG.md              ║
                                             ║
-  .claude/commands/<name>.md  (8 stubs,ROOT)║   commands/<name>.md   (8 real bodies)
+  .claude/commands/<name>.md  (11 stubs,ROOT)║  commands/<name>.md  (11 real bodies)
     │  "Read .an_framework/commands/<name>" ║        │
     │  "Arguments: $ARGUMENTS"  ────────────╫────────┘  (substituted in the STUB only)
     │        ┌──── new-epic/story/task ─────╫────────▶ templates/{epic,story,task}.md
     │        ├──── new-project ─────────────╫────────▶ templates/tech-stack/<slug>/stack.md
-    │        ├──── refine / implement ──────╫────────▶ docs/guidelines.md (+git-conventions)
+    │        ├──── refine ──────────────────╫────────▶ docs/guidelines.md
+    │        ├──── implement ───────────────╫────────▶ commands/implement/<level>.md
+    │        │                              ║          docs/guidelines.md · git-branching.md
+    │        ├──── done ────────────────────╫────────▶ docs/git-integration.md
     │        └──── commit ──────────────────╫────────▶ docs/git-conventions.md
     ▼                                       ║
   writes: an_project/**  ·  src/**          ║

@@ -1,8 +1,8 @@
 # How to use — Team-Guide für das ki-dev-framework
 
-Dieses Framework ist unsere gemeinsame Arbeitsgrundlage für Claude-Projekte. Es
+Dieses Framework ist unsere gemeinsame Arbeitsgrundlage für Claude-Code- und Codex-Projekte. Es
 sorgt dafür, dass alle Entwickler im **gleichen Format** arbeiten: gleiche
-Ordnerstruktur, gleiche Work-Items (Epics/Stories/Tasks), gleiche Slash-Commands,
+Ordnerstruktur, gleiche Work-Items (Epics/Stories/Tasks), gleiche Workflows,
 gleicher Changelog. Das Framework wird als **getaggter, mitcommitteter Stand unter
 `.an_framework/`** in dein Projekt geholt — ein einfaches `git clone` bringt es mit. Diese
 Datei erklärt dir als Entwickler, wie du damit arbeitest.
@@ -12,7 +12,7 @@ Datei erklärt dir als Entwickler, wie du damit arbeitest.
 > erklärt, für macOS und Windows, inklusive Installation und Fehlersuche. Dieses
 > Dokument hier setzt Git-Grundlagen voraus.
 >
-> `CLAUDE.md` (in deinem Projekt) und `.an_framework/AGENT-GUIDE.md` sind die
+> `CLAUDE.md` beziehungsweise `AGENTS.md` und `.an_framework/AGENT-GUIDE.md` sind die
 > Anleitung **für den Agenten**. Dieses `how-to-use.md` ist die Anleitung
 > **für dich**. Bei Unklarheiten über interne Mechanik ist
 > `.an_framework/docs/framework-architecture.md` die technische Referenz.
@@ -23,9 +23,9 @@ Datei erklärt dir als Entwickler, wie du damit arbeitest.
 
 Ein versionierter Framework-Kern plus ein Projekt-Skelett. Du holst den Kern als
 getaggten Stand nach `.an_framework/`, richtest das Projekt mit `init.sh` **einmal** ein,
-beschreibst dein Projekt, legst Arbeit in Epics/Stories/Tasks an und lässt Claude die
-Tasks abarbeiten. Nichts davon machst du von Hand — es gibt für jeden Schritt einen
-Slash-Command.
+beschreibst dein Projekt, legst Arbeit in Epics/Stories/Tasks an und lässt die aktive Runtime
+die Tasks abarbeiten. Nichts davon machst du von Hand — es gibt für jeden Schritt einen
+gemeinsamen Workflow.
 
 Das Wichtigste vorweg: **Framework und Projekt sind strikt getrennt.** Der Kern
 wird zur Laufzeit nur *gelesen*, dein Projekt-Inhalt liegt ausschließlich im
@@ -35,11 +35,15 @@ Projekt-Git.
 
 | Ort | Was drin ist |
 |-----|--------------|
-| `.an_framework/AGENT-GUIDE.md` | Die Regeln, die jedes Projekt per `@`-Import in seine `CLAUDE.md` zieht. |
-| `.an_framework/commands/` | Die zehn Slash-Commands im Volltext. |
+| `.an_framework/AGENT-GUIDE.md` | Die gemeinsamen Regeln, geladen durch den aktiven Runtime-Adapter. |
+| `.an_framework/commands/` | Die elf gemeinsamen Workflows im Volltext. |
 | `.an_framework/templates/` | Die Blueprints (`epic.md`, `story.md`, `task.md`), aus denen Work-Items entstehen. |
 | `.an_framework/docs/guidelines.md` | Baseline der Verhaltens- und Code-Regeln. |
-| `.an_framework/docs/git-conventions.md` | Baseline der Git-Konventionen. |
+| `.an_framework/docs/git-conventions.md` | Baseline des Commit-Formats (liest `/commit`). |
+| `.an_framework/docs/git-branching.md` | Baseline für das Branch-Schema (liest `/implement`). |
+| `.an_framework/docs/git-integration.md` | Baseline für Merge und PRs (liest `/done`). |
+| `.an_framework/agents/` | Die zwei Lese-Rollen `an-scout` (Code-Recherche) und `an-briefer` (Doku-Scan). |
+| `.an_framework/hooks/` | Zwei Shell-Hooks: Orientierung beim Sessionstart, Deckel auf ungefilterte Testläufe. |
 | `.an_framework/docs/framework-architecture.md` | Wie das Framework intern zusammenhängt. |
 | `.an_framework/skeleton/` | Das Projekt-Skelett — wird **einmal** beim Setup herauskopiert. |
 | `.an_framework/VERSION` | Die Version des mitcommitteten Kerns — seit v2 die maßgebliche Versionsangabe (kein Submodule-SHA mehr). |
@@ -49,13 +53,16 @@ Projekt-Git.
 | Ort | Was drin ist |
 |-----|--------------|
 | `CLAUDE.md` | Projekt-Stub: importiert `.an_framework/AGENT-GUIDE.md` und ergänzt Projekt-Regeln. |
+| `AGENTS.md` | Codex-Projekt-Stub: lädt denselben Guide und ergänzt Projekt-Regeln. |
 | `an_project/project-description.md` | Wofür das Projekt existiert (Titel, Beschreibung, Ziel). **Zuerst lesen.** |
 | `an_project/work/` | Der Backlog: `epic/`, `story/`, `task/`. Hier liegt die eigentliche Arbeit. |
 | `an_project/CHANGELOG.md` | Laufende Historie. **Alle** Commands außer `/board`, `/briefing` und `/commit` hängen hier automatisch an. |
 | `an_project/docs/guidelines.md` · `an_project/docs/git.md` | **Overlays** — verengen die Framework-Baseline. |
 | `an_project/docs/architecture.md` · `technical.md` · `deployment.md` · `styleguide.md` · `runbook.md` · `dev-guide.md` | Die Doku **deines** Projekts (`runbook`/`dev-guide` nur bei Full-Projekten, nicht im Slim-Profil). |
+| `an_project/docs/adr/` | Kleine Architecture Decision Records; `architecture.md` enthält nur den verlinkten Index. |
 | `.claude/commands/` | Zehn kurze Stubs, die auf `.an_framework/commands/` verweisen. |
-| `.claude/settings.json` | Sperrt Edits in `.an_framework/`; erlaubt Lesen/Schreiben in den Projekt-Ordnern (`an_project/`, `src/`, `tests/`) und die Git-Flag-Formen, die `/commit`, `/implement` und `/done` brauchen. |
+| `.claude/settings.json` | Sperrt Edits in `.an_framework/`; erlaubt ansonsten projektweit Schreiben sowie Git- und übliche Suchbefehle ohne Rückfrage. |
+| `.agents/skills/` · `.codex/` | Codex-Workflows, read-only Agenten, Hooks, Projektkonfiguration und projektlokale Berechtigungsregeln. |
 | `src/` … | Dein Code. |
 
 > **Merksatz:** Alles mit `.an_framework/`-Präfix wird gelesen (der read-only-Kern).
@@ -123,6 +130,12 @@ einzige harte Kontrakt im System.
 
 ## 3. Der typische Ablauf
 
+Die Beispiele unten zeigen die Claude-Code-Syntax. In Codex ersetzt du `/name` durch
+`$an-name`; beispielsweise `/implement 001-001-0001` durch
+`$an-implement 001-001-0001`. Beide Adapter lesen denselben Workflow und schreiben dieselben
+Projektdateien. Die vollständige Zuordnung steht in
+[runtime-adapters.md](../docs/runtime-adapters.md).
+
 Wenn du ein neues Projekt auf Basis des Frameworks startest (Setup siehe
 Abschnitt 7):
 
@@ -140,7 +153,7 @@ Abschnitt 7):
 
 Danach wiederholst du 3–8 nach Bedarf. `/board` ist dein Cockpit.
 
-### Warum unter `.claude/commands/` nur kurze Stubs liegen
+### Warum die Runtime-Adapter nur kurze Stubs enthalten
 
 Claude Code sucht Slash-Commands im **aktuellen Verzeichnis und dessen
 Elternverzeichnissen** sowie in `~/.claude/commands`. Ein Ordner
@@ -162,8 +175,9 @@ Zwei Details, die dahinterstecken:
 - Fehlt `.an_framework/commands/<name>.md`, bricht der Stub bewusst ab und meldet
   „Framework not initialised" — statt die Struktur zu improvisieren.
 
-Die Stubs sind Projekt-Dateien und werden mit eingecheckt. Die eigentliche Logik
-ändert sich nur im Framework-Repo.
+Codex folgt demselben Muster mit `.agents/skills/an-<name>/SKILL.md`. Die Adapter sind
+Projekt-Dateien und werden mit eingecheckt. Die eigentliche Logik ändert sich nur im
+Framework-Repo.
 
 ---
 
@@ -177,10 +191,12 @@ Die Stubs sind Projekt-Dateien und werden mit eingecheckt. Die eigentliche Logik
 | `/new-task ["EEE-SSS"] "Titel"` | Neuer Task unter Story/Epic oder ad-hoc | passender `an_project/work/`-Ort |
 | `/implement <id>` | Work-Item end-to-end umsetzen — **die ID entscheidet die Ebene**: Task, Story oder Epic. Branch anlegen, umsetzen, verifizieren, per `/commit` committen, auf `review` setzen | Branch, Status, Code, CHANGELOG |
 | `/done [<id>]` | Reviewtes Item lokal in den Integrationsbranch mergen (`--no-ff`, kein Push) und auf `done` setzen; eine Story nimmt ihre Tasks mit | Status, CHANGELOG, Git-Historie (lokaler Merge) |
+| `/migrate-adrs` | Alte Inline-Entscheidungen aus `architecture.md` in vollständige ADR-Einzeldateien überführen | `docs/adr/`, Architektur-Index, CHANGELOG |
 | `/refine <datei>` | Einen ausgefüllten Artefakt klarer/strukturierter machen | die Zieldatei |
 | `/commit [<id>] [<url>] [--de\|--en]` | Änderungen nach fachlicher Intention clustern und nach `git-conventions.md` committen | die Git-Historie (keine Projektdatei) |
 | `/board` | Status-Überblick des ganzen Backlogs (read-only) | — |
 | `/briefing [todos\|<abschnitt>]` | Kompaktes Onboarding-Briefing aus Doku + Backlog, damit ein:e Neu-Dazugestoßene:r nach dem Auschecken schnell produktiv ist (read-only) | — |
+| `/doc [update\|check]` | Stakeholder-Doku bauen und im Browser öffnen. `update` zieht die Kapitel nach, `check` berichtet nur | `an_project/stakeholder/` (bei `update`), `html/` (beim Bauen) |
 
 **Argumente-Hinweise:**
 - `/new-story 001 "Login-Formular"` → hängt die Story unter Epic `001`. Ohne die
@@ -192,15 +208,20 @@ Die Stubs sind Projekt-Dateien und werden mit eingecheckt. Die eigentliche Logik
   aus dem Task mit `status: in-progress`), eine `https://…`-URL wird als eigene
   `Ticket:`-Zeile ergänzt, `--en` / `--de` schaltet die Sprache für diesen einen
   Lauf um. Alles andere → der Command fragt nach, statt zu raten.
+- `/doc` → ohne Argument bauen und öffnen; das ist der Normalfall. `update` ist der
+  Handgriff für den Fall, dass die Doku wirklich hinterherläuft — normalerweise wird sie
+  beim Arbeiten mitgeführt (Abschnitt 5, *Die Stakeholder-Doku*). `check` ändert nichts.
 - `/briefing` → ohne Argument fragt der Command zuerst „komplettes Briefing" oder
   „nur Todos". `todos` gibt nur *Zuletzt gemacht* + *Als Nächstes* aus; ein
   Abschnittsname (z. B. `deployment`) erzeugt das volle Briefing mit diesem Abschnitt
   vertieft. Ideal direkt nach dem Auschecken für alle, die neu ins Projekt kommen.
 
-**Alle** Commands außer dreien tragen sich automatisch in `an_project/CHANGELOG.md` ein — auch
-`/new-project` und `/refine`, die gar kein Work-Item anfassen. Die drei Ausnahmen:
-`/board` und `/briefing` sind read-only, und `/commit` schreibt in die Git-Historie statt in
-Projektdateien — der Command, der die Änderung erzeugt hat, hat sie bereits geloggt. **Kein Command schreibt jemals nach `.an_framework/`** — alle
+**Alle** Commands außer vieren tragen sich automatisch in `an_project/CHANGELOG.md` ein — auch
+`/new-project` und `/refine`, die gar kein Work-Item anfassen. Die vier Ausnahmen:
+`/board` und `/briefing` sind read-only, `/commit` schreibt in die Git-Historie statt in
+Projektdateien — der Command, der die Änderung erzeugt hat, hat sie bereits geloggt —, und
+`/doc` loggt nur im `update`-Modus; das reine Ansehen ist kein Vorgang, den man in einer
+Historie wiederfinden muss. **Kein Command schreibt jemals nach `.an_framework/`** — alle
 Schreibziele sind projekt-eigene Pfade, und `/commit` staged den Kern `.an_framework`
 unter keinen Umständen als Projektarbeit mit.
 
@@ -259,7 +280,9 @@ Die Regeln stehen an **zwei** Stellen, und das ist Absicht.
 | Datei | Inhalt |
 |-------|--------|
 | `.an_framework/docs/guidelines.md` | Verhaltens- und Code-Regeln (Think Before Coding, Simplicity First, chirurgische Änderungen). Der Kern. |
-| `.an_framework/docs/git-conventions.md` | Branch-, Commit- und PR-Konventionen. |
+| `.an_framework/docs/git-conventions.md` | Commit-Format: Types, Scopes, Body, `Ref:`. |
+| `.an_framework/docs/git-branching.md` | Branch-Schema und die Ebene, auf der ein Branch entsteht. |
+| `.an_framework/docs/git-integration.md` | Merge in den Integrationsbranch, PRs, Review-Reife. |
 | `.an_framework/docs/framework-architecture.md` | Wie das Framework selbst gebaut ist — Referenz, keine Projektregel. |
 
 **Overlays (Projekt) — verengen die Baseline:**
@@ -279,6 +302,38 @@ Die Regeln stehen an **zwei** Stellen, und das ist Absicht.
 | `an_project/docs/dev-guide.md` | Backend-/Frontend-Struktur (Symfony immer in Bundles, Angular `src/modules`+`src/shared`) und wie man z. B. eine API-Route anlegt. Nur bei Full-Projekten. |
 | `an_project/docs/deployment.md` | Umgebungen, CI/CD, Release-Prozess (das **lokale** Setup steht im `runbook.md`). |
 | `an_project/docs/styleguide.md` | UI/Brand/Design-Tokens (bei Nicht-UI-Projekten `n/a`). |
+
+### Die Stakeholder-Doku — die Fassung für Außenstehende
+
+Alles oben ist für Entwickler geschrieben. Daneben steht `an_project/stakeholder/`: dieselbe
+Wahrheit, aber für Auftraggeber, Designer und Geschäftsführung — und als HTML, das sich ohne
+Server und ohne Internet im Browser öffnet. `/doc` baut es und öffnet es.
+
+| Datei | Inhalt |
+|-------|--------|
+| `an_project/stakeholder/steckbrief.md` | Der immer gleiche Kopf: Kunde, Zweck, Status, Stack in einem Satz, Entwicklungsbeginn, Release, Umgebungen, Ansprechpartner. Nur `schlüssel: wert` — Reihenfolge und Beschriftung kommen aus dem Generator, damit jedes Projekt gleich aussieht. |
+| `an_project/stakeholder/NNN-*.md` | Die Kapitel: Überblick, Funktionen, Technik, Schnittstellen, Module, Prozesse, Organisation, Deployment, Datenschutz, Roadmap, Risiken, Entscheidungen, Quellen. In Slim-Projekten zehn statt dreizehn. |
+| `an_project/stakeholder/html/` | **Erzeugt.** Wird bei jedem Bauen komplett neu geschrieben — hier nie etwas von Hand ändern. Mitcommittet, damit die Doku auch ohne ANNA aus einem Checkout heraus geöffnet werden kann. |
+
+Drei Dinge, die den Unterschied zu `an_project/docs/` ausmachen:
+
+- **Jeder Fachbegriff wird erklärt**, wo er zuerst auftaucht. Kein Quellcode, keine
+  Konfigurationsbeispiele. Wirkung statt Mechanik: nicht „Cronjob alle 5 Minuten", sondern
+  „Anfragen werden spätestens nach fünf Minuten zugestellt".
+- **Keine Zugangsdaten, keine Preise.** Nur *wo* ein Schlüssel liegt und *wer* herankommt. Das
+  Dokument ist dafür gemacht, an den Kunden zu gehen — behandle alles darin als weitergegeben.
+- **Zwei Kapitel gibt es nur hier:** *Prozesse & Abläufe* und *Organisation & Zusammenarbeit*.
+  Die stehen in keiner anderen Datei im Projekt, und sie sind der eigentliche Gewinn — niemand
+  sonst schreibt auf, wer was entscheidet und wie eine Anfrage tatsächlich durchläuft.
+
+**Gepflegt wird sie beim Arbeiten, nicht auf Zuruf.** `/new-project` füllt den Steckbrief aus
+dem Interview. `/implement` prüft am Ende jedes Tasks sechs Auslöser — externer Dienst, Modul,
+Deployment, sichtbare Funktion, Entscheidung, personenbezogene Daten — und zieht nur bei einem
+Treffer das betroffene Kapitel nach, im selben Commit. `/done` macht bei Story und Epic einen
+vollständigen Durchlauf. Läuft die Doku trotzdem hinterher, sagt der Startbanner es dir.
+
+Was ANNA nicht weiß, **erfindet sie nicht**: offene Stellen bleiben als „offen" sichtbar, und
+genau das macht die Lücke zur Aufgabe statt zum Irrtum.
 
 ### Die Overlay-Regel
 
@@ -315,6 +370,40 @@ Die Regeln stehen an **zwei** Stellen, und das ist Absicht.
 - **Unklar? Stopp.** Lieber `/refine` auf das Item oder eine Rückfrage, als bei
   unterspezifizierten Kriterien zu raten.
 
+### Context sparen — wann du eine Session beenden solltest
+
+Claude Code hat pro Session ein begrenztes Kontextfenster. Meldet es „Context low/full",
+ist das kein Fehler, sondern ein Signal: Die Session hat genug Historie gesammelt.
+
+Zwei Dinge nehmen dir das Framework dabei ab, ohne dass du etwas tun musst:
+
+- **Beim Sessionstart** — auch nach `/clear` — druckt ein Hook ein Dutzend Zeilen: aktueller
+  Branch, was gerade `in-progress` oder `review` ist, die letzten CHANGELOG-Einträge. Du musst
+  dich also nicht erst mit `/board` oder `/briefing` neu orientieren.
+- **Vor einem Testlauf** ohne Ausgabebegrenzung stoppt ein Hook den Aufruf und sagt Claude, es
+  solle mit `| tail -n 30` wiederholen. Ein grüner Testlauf in voller Länge ist das Teuerste,
+  was in den Context geraten kann. Bei einem Fehlschlag holt Claude sich die volle Ausgabe.
+
+Beide Hooks scheitern „nach außen offen": Geht etwas schief, tun sie schlicht nichts.
+
+Das Wichtige daran: **Es geht nichts verloren.** Nach jedem fertigen Task steht der ganze
+Zustand außerhalb der Session — der Branch in git, `status:` im Work-Item, der Eintrag im
+`an_project/CHANGELOG.md`. Deshalb:
+
+- Nach einem abgeschlossenen Task (oder einer abgeschlossenen Story) ruhig `/clear` — und dann
+  einfach weiterarbeiten. `/implement <story-id>` setzt automatisch beim ersten Task fort, der
+  noch nicht `review` oder `done` ist.
+- Wo du stehst, holst du dir in zwei Sekunden zurück: `/board` für den Status, oder
+  `/briefing todos` für „was ist zuletzt passiert, was kommt als Nächstes".
+- Ein langes Epic am Stück durchlaufen zu lassen, ist der teuerste Weg. `/implement` fragt
+  ohnehin vor jeder Story nach — das ist der natürliche Schnittpunkt für eine frische Session.
+- `/board` und `/briefing` lesen viel und schreiben nichts. Wenn möglich in einer eigenen
+  Session laufen lassen, nicht mitten in einer Implementierung.
+
+Die Commands selbst sind darauf ausgelegt, sparsam zu lesen (Frontmatter statt ganzer Dateien,
+Auslagerung großer Code-Recherchen an Subagenten). Was sie nicht können, ist die Historie
+deiner Session vergessen — das ist `/clear`.
+
 ---
 
 ## 7. Projekt aufsetzen
@@ -335,7 +424,11 @@ Die Regeln stehen an **zwei** Stellen, und das ist Absicht.
 
 Der Ablauf in einem Absatz: Projekt-Repo anlegen, den getaggten Framework-Stand nach
 `.an_framework/` klonen und dessen `.git` entfernen, `.an_framework/init.sh` **einmal**
-laufen lassen, den ausgegebenen Setup-Commit abschicken. Danach Claude Code **im
+laufen lassen, den ausgegebenen Setup-Commit abschicken. Seit v3.4.0 hängt an jedem Release
+derselbe Stand als ZIP — wer kein Git-Passwort im Terminal eingeben will, lädt es im Browser
+und entpackt es in die Projektwurzel. Der Inhalt ist Datei für Datei identisch; die Pipeline
+baut ihn aus genau dem getaggten Commit, damit die beiden Wege nicht auseinanderlaufen
+können. Danach Claude Code **im
 Projekt-Wurzelverzeichnis** öffnen (nicht in einem Unterordner, siehe Abschnitt 9).
 
 Was `init.sh` dir abnimmt — und was das für die Entwickler-Fälle bedeutet:
@@ -392,6 +485,9 @@ Was dabei passiert:
   verweigert deshalb ein gestagtes `.an_framework` als Projektarbeit.
 - Zurückrollen geht genauso: den alten Tag klonen und als `chore(framework)`-Commit
   abschicken.
+- Der Tausch selbst kann auch ohne Git passieren (ZIP vom Release, entpacken) — am Modell
+  ändert das nichts, weil der Kern in beiden Fällen als gewöhnliche committete Dateien im
+  Projekt liegt. Nur alte Releases vor v3.4.0 haben kein ZIP.
 
 **Der Kern-Tausch allein reicht nicht.** Er ersetzt nur `.an_framework/`. **Neue oder
 geänderte Skelett-Dateien wandern dabei NICHT ins Projekt** — das Skelett wird einmal beim

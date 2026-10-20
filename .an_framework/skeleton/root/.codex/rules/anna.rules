@@ -1,0 +1,13 @@
+# ANNA project defaults: routine repository work should not require repeated approvals.
+prefix_rule(pattern = ["git"], decision = "allow", justification = "Allow all Git workflows in an ANNA project.")
+prefix_rule(pattern = ["rg"], decision = "allow", justification = "Allow fast project searches.")
+prefix_rule(pattern = ["grep"], decision = "allow", justification = "Allow project text searches.")
+prefix_rule(pattern = ["ls"], decision = "allow", justification = "Allow directory inspection.")
+prefix_rule(pattern = ["cat"], decision = "allow", justification = "Allow file inspection.")
+prefix_rule(pattern = ["head"], decision = "allow", justification = "Allow bounded file inspection.")
+prefix_rule(pattern = ["tail"], decision = "allow", justification = "Allow bounded file inspection.")
+prefix_rule(pattern = ["wc"], decision = "allow", justification = "Allow file size inspection.")
+prefix_rule(pattern = ["file"], decision = "allow", justification = "Allow file type inspection.")
+prefix_rule(pattern = ["stat"], decision = "allow", justification = "Allow file metadata inspection.")
+prefix_rule(pattern = ["pwd"], decision = "allow", justification = "Allow working-directory inspection.")
+prefix_rule(pattern = ["python3", ".an_framework/scripts/build-stakeholder-doc.py"], decision = "allow", justification = "Allow building the stakeholder documentation.")

@@ -14,12 +14,9 @@
 
 ## This project
 
-- `an_project/project-description.md` — what this project is. **Read before starting.**
-- `an_project/docs/architecture.md` · `technical.md` · `deployment.md` · `styleguide.md` —
-  this project's own design and stack.
-- `an_project/docs/guidelines.md` · `an_project/docs/git.md` — this project's **narrowing** of the
-  framework rules. They add to `.an_framework/docs/`; on conflict they win.
-- `an_project/work/` — the backlog · `an_project/CHANGELOG.md` — running history.
+Start with `an_project/project-description.md` — what this project is. Everything else
+(`an_project/docs/`, `an_project/work/`, `an_project/CHANGELOG.md` and the overlay rule) is
+described in the imported guide under *Two zones*; this file does not repeat it.
 
 ## Project-specific rules
 

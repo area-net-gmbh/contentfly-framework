@@ -1,5 +1,5 @@
-<!-- PURPOSE: Slash command /briefing — brings a newly-joined developer up to speed right after checkout by distilling the project docs and backlog into a short onboarding briefing. Read-only: /briefing writes no files (no CHANGELOG entry), like /board. -->
-# /briefing — bring a new developer up to speed
+<!-- PURPOSE: Shared briefing workflow — distills project docs and backlog into a short onboarding briefing. -->
+# briefing — bring a new developer up to speed
 
 Produce a compact onboarding briefing from the project's own docs and backlog, so
 someone who just checked out the repo is productive in a few minutes. **Keep it short** —
@@ -14,15 +14,26 @@ Follow the argument (see below):
 - **any other argument** (e.g. `deployment`) → full briefing, but go deeper on the named
   section and keep the rest to one line each.
 
-## Sources (read all before you write)
+## Sources (summarize before you write)
+**Delegate the scan** to the **`an-briefer`** agent — one call. This workflow reads more files
+than any other command, and none of their contents belong in the main context. The agent's
+sources and its 40-line report contract live in `.an_framework/agents/an-briefer.md`, so just
+name the scope (full briefing, or the section to deepen). The main agent writes the final
+briefing from that report and is responsible for omissions and wording. If the agent is not
+available in this project, do the scan yourself under the same budget — section headings and
+first lines, never whole documents.
+
 - `an_project/project-description.md` — project name, purpose, goal.
 - `an_project/docs/architecture.md` · `technical.md` · `tech-stack.md` · `dev-guide.md` — architecture, stack & code structure.
 - `an_project/docs/runbook.md` — how to run the project locally (dev setup).
 - `an_project/docs/deployment.md` — environments, CI/CD & release process.
 - `an_project/docs/styleguide.md` · `guidelines.md` · `git.md` — conventions (mention briefly + link).
-- `an_project/CHANGELOG.md` — for "recently done" (newest dated blocks are at the top).
-- `an_project/work/` (`epic/`, `story/`, `task/`) — for progress & "what's next".
-- Project root: the entry-point files (`README`/`plan.md`, `CLAUDE.md`, and whatever run
+- `an_project/CHANGELOG.md` — read at most 60 lines; the newest blocks are at the top and
+  that is all this needs. Never read the whole file.
+- `an_project/work/` (`epic/`, `story/`, `task/`) — one bounded text search, pattern
+  `^(id|title|status|depends_on):`, returning matching content; read bodies only for the 1–3 next
+  items you name.
+- Project root: the entry-point files (`README`/`plan.md`, `CLAUDE.md`, `AGENTS.md`, and whatever run
   manifest the stack uses, e.g. `docker-compose.yml`, `package.json`, `Makefile`).
 
 If a source is missing, skip that point and mark it "not documented yet" — never invent
@@ -52,15 +63,17 @@ content.
 
 6. **What's next** — the 1–3 next open items: unblocked `todo` tasks (all `depends_on`
    are `done`) plus tasks in `in-progress`/`review` from `an_project/work/`. Keep it short
-   and close with: **full status & detail → `/board`.**
+   and close with: **full status & detail → run the `board` workflow.**
 
 ## Style
 - Terse, bullets over prose. A reader should grasp it in ~3 minutes.
 - File references as clickable relative paths (`an_project/docs/deployment.md`); don't
   repeat their contents.
-- Read-only: `/briefing` only reads and writes **no** files (no `an_project/CHANGELOG.md` entry).
+- Do not paste long doc sections or changelog runs. Distil them and link to the source.
+- Read-only: this workflow writes **no** files (no `an_project/CHANGELOG.md` entry).
 
-Arguments: $ARGUMENTS
+Arguments are supplied by the active runtime adapter. If present, use them to deepen only the
+requested section.
 <!-- No argument: ask "full briefing" or "todos only" first. "todos": sections 5 + 6 only.
      Otherwise (e.g. "deployment"): full briefing with the named section deepened. See
      "Decide the scope first" above. -->
