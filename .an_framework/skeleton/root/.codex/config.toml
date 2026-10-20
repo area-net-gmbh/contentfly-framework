@@ -1,0 +1,11 @@
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"
+
+[features]
+hooks = true
+
+[agents]
+max_concurrent_threads_per_session = 4
+
+[tui]
+status_line = ["project-name", "git-branch", "model-with-reasoning", "codex-version"]

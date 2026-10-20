@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="{{DESCRIPTION}}">
+  <meta name="generator" content="ki-dev-framework build-stakeholder-doc">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{{TITLE}}</title>
+  <link rel="icon" href="{{PREFIX}}assets/area-net-logo.png" type="image/png">
+  <link rel="stylesheet" href="{{PREFIX}}assets/documentation.css">
+  <script src="{{PREFIX}}assets/search-index.js" defer></script>
+  <script src="{{PREFIX}}assets/mermaid.min.js" defer></script>
+  <script src="{{PREFIX}}assets/documentation.js" defer></script>
+</head>
+<body data-page="{{PAGE_URL}}" data-root-prefix="{{PREFIX}}">
+  <a class="skip-link" href="#content">Zum Inhalt springen</a>
+  <header class="topbar">
+    <button class="nav-toggle" type="button" aria-controls="sidebar" aria-expanded="false"><span aria-hidden="true">☰</span><span class="sr-only">Navigation öffnen</span></button>
+    <a class="brand" href="{{PREFIX}}index.html" aria-label="Zur Übersicht der Projektdokumentation">
+      <img src="{{PREFIX}}assets/area-net-logo.png" alt="AREA-NET">
+      <span class="brand-context">Projektdokumentation</span>
+    </a>
+    <button class="search-trigger" type="button" aria-haspopup="dialog"><span aria-hidden="true">⌕</span><span>Dokumentation durchsuchen</span><kbd>Strg K</kbd></button>
+  </header>
+
+  <div class="layout">
+    <nav class="sidebar" id="sidebar" aria-label="Kapitelnavigation">
+      <div class="sidebar-heading">{{PROJECT_NAME}}</div>
+      <div class="document-status"><span class="status-dot"></span>{{PROJECT_STATUS}}</div>
+      {{SIDEBAR_FACTS}}
+      <ol class="chapter-nav">{{NAV}}</ol>
+      <div class="sidebar-footer">{{FOOTER}}</div>
+    </nav>
+
+    <main class="main" id="content">
+      <article class="content">
+{{CONTENT}}
+{{PAGER}}
+      </article>
+{{TOC}}
+    </main>
+  </div>
+
+  <div class="search-dialog" role="dialog" aria-modal="true" aria-labelledby="search-title" hidden>
+    <div class="search-box">
+      <div class="search-header">
+        <label id="search-title" for="documentation-search">Dokumentation durchsuchen</label>
+        <button class="search-close" type="button" aria-label="Suche schließen">×</button>
+      </div>
+      <input id="documentation-search" type="search" placeholder="Begriff, Kapitel oder Dienst …" autocomplete="off">
+      <div class="search-help">Mindestens zwei Zeichen eingeben · <kbd>Esc</kbd> schließt die Suche</div>
+      <ol class="search-results" aria-live="polite"></ol>
+    </div>
+  </div>
+  <div class="nav-backdrop" hidden></div>
+</body>
+</html>

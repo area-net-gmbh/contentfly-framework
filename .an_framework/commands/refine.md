@@ -1,10 +1,10 @@
-<!-- PURPOSE: Slash command /refine — reflects a filled-out artifact back to the user, then rewrites it clearly. -->
-# /refine — reflect on a filled-out artifact, then polish it
+<!-- PURPOSE: Shared refine workflow — reflects an artifact, then rewrites it clearly. -->
+# refine — reflect on a filled-out artifact, then polish it
 
 Turn a rough, human-filled artifact into a clear, well-structured document.
 Works on any artifact: `an_project/project-description.md`, an epic, a story, or a task.
 
-**Target file:** `$ARGUMENTS` (if empty, ask which file to refine).
+**Target file:** supplied by the active runtime adapter (if empty, ask which file to refine).
 
 ## Steps
 
@@ -15,18 +15,19 @@ Works on any artifact: `an_project/project-description.md`, an epic, a story, or
    what this is, its goal, and anything ambiguous. **Do not edit the file yet.**
 
 3. **Confirm** — List your assumptions and any open questions. Ask the user to
-   confirm or correct before you rewrite.
+   confirm or correct before you rewrite. A section or field that reads `entfällt` is **not**
+   an open question — it was declined deliberately; leave it as it is and do not raise it.
 
 4. **Rewrite** — Once confirmed, rewrite the file:
    - Keep the artifact's required section headers and any YAML frontmatter keys.
-   - Write the prose in **German** (the content-language rule in
-     `.an_framework/AGENT-GUIDE.md`); keep established technical terms English. Section
-     headers and frontmatter keys stay exactly as they are.
+   - Write the prose in **German** per the content-language rule in
+     `.an_framework/AGENT-GUIDE.md`. Section headers and frontmatter keys stay exactly as they are.
    - Improve clarity and structure; expand terse notes into proper prose.
    - Fold in the details the user confirmed. Add reasonable, faithful detail.
    - Never invent facts. Leave genuine unknowns as a short „Offene Fragen"-Notiz.
 
 5. **Changelog** — Append a dated entry to `an_project/CHANGELOG.md`: `- <file> refined: <one-line gist>`.
+   **Head-append only:** read `an_project/CHANGELOG.md` with `limit: 30` and edit at the `# Changelog` header or the topmost date block — the file grows without bound and is never read for logic, so it must never enter the context as a whole.
 
 6. **Summarize** — Briefly say what changed.
 

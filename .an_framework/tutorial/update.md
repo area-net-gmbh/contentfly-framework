@@ -78,11 +78,18 @@ brauchen einen Handgriff mehr. Überspring das nicht — es ist der einzige Schr
 
 ## Schritt 3 — Den Kern austauschen
 
-**Setze deine Version statt `v2.3.0` ein.**
+Zwei Wege, **du brauchst nur einen**. Das Ergebnis ist identisch, Datei für Datei.
+
+### Variante 1 — mit Git
+
+**`{VERSION}` ist ein Platzhalter** — ersetze ihn durch die Nummer aus Schritt 1, **mit**
+führendem `v`, also z. B. `v3.4.0`. In dieser Anleitung steht absichtlich keine echte Nummer:
+eine abgeschriebene wäre bald veraltet und du würdest beim Update auf einem alten Stand landen,
+ohne es zu merken. Nicht ersetzt, bricht der Befehl ab — genau das soll er.
 
 ```sh
 rm -rf .an_framework
-git clone --depth 1 --branch v2.3.0 http://gitlab.in.area-net.de/intern/ki-dev-framework.git .an_framework
+git clone --depth 1 --branch {VERSION} http://gitlab.in.area-net.de/intern/ki-dev-framework.git .an_framework
 rm -rf .an_framework/.git
 ```
 
@@ -96,6 +103,26 @@ Was die drei Zeilen tun:
 - Zeile 3 macht aus dem geklonten Framework gewöhnliche Dateien deines Projekts. Dadurch
   bringt später ein einfaches `git clone` bei allen anderen genau diese Version mit — kein
   Submodule, kein Sonderwissen.
+
+### Variante 2 — ZIP herunterladen (ohne Git)
+
+Möglich für Zielversionen **ab 3.4.0** — an jedem Release hängt ein fertiges ZIP des Kerns.
+
+Lade auf der **Releases**-Seite beim gewünschten Release die Datei `an_framework-v….zip`
+herunter (**nicht** *Source code (zip)* — darin heißt der Ordner anders). Dann, in der
+Projektwurzel, **`{VERSION}` wieder durch deine Nummer ersetzen**:
+
+```sh
+rm -rf .an_framework
+unzip -q ~/Downloads/an_framework-{VERSION}.zip -d .
+```
+
+Die erste Zeile ist dieselbe wie in Variante 1 und aus demselben Grund ungefährlich. Die
+zweite legt den neuen Kern als `.an_framework` an — ein `rm -rf .an_framework/.git` braucht
+es hier nicht, im ZIP ist keine Git-Historie.
+
+> **Windows:** In Git Bash gibt es `unzip` nicht. Lösche `.an_framework` im Explorer und
+> extrahiere das ZIP per Rechtsklick → **Alle extrahieren…** in die Projektwurzel.
 
 **Prüfung:**
 
@@ -118,6 +145,7 @@ Das listet dir die geänderten Kern-Dateien. Interessant sind vor allem drei Ort
 |---|---|
 | `.an_framework/skeleton/root/.claude/commands/` | Kam ein **Slash-Command** dazu? |
 | `.an_framework/skeleton/root/.claude/settings.json` | Kamen **Permissions** dazu? |
+| `.an_framework/skeleton/root/.codex/rules/anna.rules` | Kamen Codex-**Befehlsfreigaben** dazu? |
 | `.an_framework/skeleton/an_project/docs/` | Kam eine **Doku-Vorlage** dazu? |
 
 Alles unter `skeleton/` wandert **nicht** von allein in dein Projekt — dafür ist der
@@ -157,14 +185,17 @@ daneben. Entscheide von Hand, welche du behalten willst.
 ```sh
 cat .an_framework/VERSION
 ls -A .claude/commands
+ls -A .agents/skills
 ```
 
-Die Versionsnummer ist die neue, und in `.claude/commands` liegt für **jeden** Command aus
-`.an_framework/commands/` ein Stub. Fehlt einer, ist Schritt 5 nicht gelaufen.
+Die Versionsnummer ist die neue. In `.claude/commands` und `.agents/skills` liegt für jeden
+gemeinsamen Workflow ein Adapter. Fehlt einer, ist Schritt 5 nicht gelaufen.
 
-Starte danach Claude einmal neu (`claude` in der Projektwurzel) und tippe `/` — die neuen
-Commands müssen in der Liste auftauchen. Tun sie das nicht, hast du Claude vermutlich aus
-einem **Unterordner** gestartet.
+Starte danach die verwendete Runtime aus der Projektwurzel neu. Claude Code zeigt die neuen
+Slash-Commands unter `/`; Codex zeigt die neuen `an-*` Skills unter `$`.
+
+Steht im `SETUP-REPORT.md` **ADR migration needed**, merke dir den Hinweis, führe die Migration
+aber erst **nach dem separaten Framework-Commit in Schritt 7** aus. Der Ablauf steht dort.
 
 ## Schritt 7 — Als eigenen Commit abschicken
 
@@ -176,18 +207,27 @@ als Projektarbeit aufzunehmen.
 Er lautet:
 
 ```sh
-git add -- .an_framework .claude an_project
-git commit -m "chore(framework): Framework auf 2.3.0"
+git add -- .an_framework .claude .codex .agents AGENTS.md an_project
+git commit -m "chore(framework): Framework auf 3.2.0"
 ```
 
-`.claude` gehört mit hinein, weil Schritt 5 dort die neuen Stubs angelegt hat, `an_project`
-wegen des Setup-Berichts und eventueller neuer Doku-Vorlagen. Beachte: **`git add` mit
+Die Runtime-Adapter gehören mit hinein, `an_project` wegen des Setup-Berichts und eventueller
+neuer Doku-Vorlagen. Beachte: **`git add` mit
 ausdrücklichen Pfaden**, nie `git add -A` oder `git add .` — sonst rutscht unfertige
 Projektarbeit mit in den Framework-Commit.
 
 > Nur hier ist ein `git commit -m` in Ordnung: Der Text ist einzeilig, ohne Anführungs-
 > oder Sonderzeichen, und stammt nicht aus einem Modell. Für Projektarbeit bleibt es bei
 > `/commit`.
+
+### Schritt 7a — Bestehende Inline-ADRs migrieren
+
+Nur wenn der Setup-Report **ADR migration needed** meldet: Starte die Runtime neu und führe
+`/migrate-adrs` in Claude Code oder `$an-migrate-adrs` in Codex aus. Der Workflow behält
+vorhandene ADR-Nummern, führt Tabellenzeile und Detailabschnitt zusammen, fragt fehlende
+Begründungen gesammelt nach und lässt in `architecture.md` nur den verlinkten Index stehen.
+Committe diese Projekt-Dokumentation anschließend mit dem normalen `commit`-Workflow. Sie bleibt
+damit sauber vom vorangegangenen Framework-Update-Commit getrennt.
 
 Zum Schluss hochladen, damit dein Team dieselbe Version bekommt:
 
@@ -203,8 +243,10 @@ Ab jetzt holt sich jede Kollegin die neue Framework-Version mit einem gewöhnlic
 ## Wenn etwas schiefgeht
 
 **1 · `Could not find remote branch v… / Remote branch not found`**
-Der Tag existiert nicht. Fast immer ein Tippfehler oder eine ausgedachte Nummer. Zurück zu
-Schritt 1 und die Version wirklich aus GitLab holen. Steht `.an_framework` jetzt leer oder
+Steht im Befehl wörtlich `{VERSION}`, ist nur der Platzhalter stehengeblieben — Nummer aus
+Schritt 1 einsetzen und erneut ausführen. Sonst existiert der Tag nicht: fast immer ein
+Tippfehler oder eine ausgedachte Nummer. Zurück zu Schritt 1 und die Version wirklich aus
+GitLab holen. Steht `.an_framework` jetzt leer oder
 gar nicht da: einfach Schritt 3 mit der richtigen Version wiederholen.
 
 **2 · `fatal: destination path '.an_framework' already exists`**
@@ -240,6 +282,16 @@ Tabelle, sind keine nötig.
 
 | Version | Zusätzlich zu tun |
 |---|---|
+| **v3.4.0** | Drei Neuerungen, **keine zusätzlichen Handgriffe** über Schritt 5 hinaus. **(1) Auslieferung:** an jedem Tag hängt jetzt ein fertiges ZIP des Kerns (`an_framework-v….zip`) — ANNA lässt sich damit ohne Git und ohne Passwort im Terminal einrichten und aktualisieren, siehe **Schritt 3, Variante 2**. Inhaltlich ist es Datei für Datei derselbe Kern. **(2) Optionale Angaben:** `/new-project` fragt Ziel, Auftraggeber und Termine jetzt als *optional* — bei einem laufenden Projekt gibt es die oft nicht. Abgewählte Angaben werden als `entfällt` festgehalten und **nie wieder nachgefragt**; leer gelassene bleiben „offen" und kommen wie bisher zurück. Das gilt auch für ganze Kapitel der Stakeholder-Doku (`status: entfällt`). Bestehende Projekte profitieren sofort, ohne eine Datei zu ändern: den Zustand wertet der Kern aus. **(3) Testumgebung:** in einem Full-Projekt wird ab jetzt grundsätzlich **lokal in Docker** getestet — Features, neue Module und Plugins, Versions-Upgrades. Staging oder Live fasst ANNA nur an, wenn du es in der jeweiligen Nachricht ausdrücklich sagst und die Umgebung benennst. |
+| **v3.3.0** | Neu ist die **Stakeholder-Doku**: `an_project/stakeholder/` plus der Befehl `/doc` beziehungsweise `$an-doc`, der daraus eine HTML-Dokumentation für Auftraggeber, Designer und Geschäftsführung baut und im Browser öffnet — ohne Server, ohne Internet. Schritt 5 ist hier **Pflicht**: er kopiert das Kapitel-Grundgerüst und die neuen Befehls-Stubs ins Projekt und ergänzt in beiden Laufzeiten die Freigabe für das Build-Script. Danach einmal `/doc` tippen; die Kapitel sind zunächst leer und füllen sich, während gearbeitet wird (`/implement` zieht betroffene Kapitel am Task-Ende nach, `/done` macht bei Story und Epic einen vollständigen Durchlauf). Voraussetzung ist ein vorhandenes `python3` — auf macOS ist es dabei. Das erzeugte `an_project/stakeholder/html/` wird mitcommittet, damit die Doku auch ohne ANNA aus einem Checkout geöffnet werden kann; es wird bei jedem Bauen neu erzeugt und darf nie von Hand bearbeitet werden. |
+| **v3.2.5** | Reines Kontext-Update — **keine zusätzlichen Handgriffe**, der Kern-Austausch nach Schritt 5 genügt. ANNA empfiehlt jetzt am Ende von `/done` beziehungsweise `$an-done` einen Kontext-Reset: Item geschlossen, Zustand vollständig auf Platte, also neue Session (`/clear` in Claude Code, `/new` in Codex) und weiter mit `implement <next-id>`. Innerhalb einer Story wird bewusst **nicht** zurückgesetzt — dort sind die geladenen Regeldateien genau das, was jeden Task nach dem ersten billig macht. Der Reset bleibt dein Tastendruck: weder ein Command noch ein Hook kann eine Session leeren. |
+| **v3.2.4** | ANNA erlaubt Claude und Codex jetzt standardmäßig Schreibzugriffe im gesamten Projekt ohne Rückfrage; der installierte Kern `.an_framework/**` bleibt gesperrt. Alle Git-Aufrufe sowie übliche Such- und Lesebefehle sind in beiden Laufzeiten vorab freigegeben. Codex verwendet dafür `workspace-write` und projektlokale Regeln unter `.codex/rules/anna.rules`. Nach dem Framework-Austausch `bash .an_framework/init.sh --update` ausführen und das Projekt in der jeweiligen Laufzeit als vertrauenswürdig bestätigen. Achtung: Die Git-Freigabe umfasst bewusst auch destruktive und entfernte Operationen wie `reset --hard` und `push`. |
+| **v3.2.3** | Codex kann vor dem ersten Prompt keinen `SessionStart`-Hook ausführen. ANNA entfernt deshalb den irreführenden Codex-Startup-Hook und konfiguriert stattdessen eine sofort sichtbare Statusline aus Projekt, Branch, Modell und Codex-Version. Neu sind `/anna` in Claude und `$an-anna` in Codex: Banner, ANNA-Version und alle Runtime-Befehle auf einen Blick. Der Claude-Startup-Banner nennt jetzt ebenfalls die ANNA-Version. `init.sh --update` entfernt nur ANNAS bekannten Codex-Startup-Handler und ergänzt die Statusline, sofern das Projekt noch keine eigene `[tui]`-Konfiguration besitzt. |
+| **v3.2.2** | Codex zeigt erfolgreichen `SessionStart`-Plain-Text nur dem Modell als Kontext. ANNA liefert den Welcome-Screen deshalb nun auch dort als `systemMessage`-JSON aus; `init.sh --update` migriert den bisherigen Codex-Hookbefehl automatisch. Anschließend in Codex `/hooks` öffnen und die geänderte Definition nach Pfadprüfung erneut als vertrauenswürdig bestätigen, dann Codex vollständig beenden und neu starten. Ohne dieses Trust-Votum überspringt Codex den projektlokalen Hook. |
+| **v3.2.1** | Claude Code zeigt erfolgreichen `SessionStart`-Plain-Text nur dem Modell als Kontext, nicht als sichtbaren Starttext. ANNA liefert den Welcome-Screen deshalb für Claude als `systemMessage`-JSON aus; `init.sh --update` migriert den bisherigen Claude-Hookbefehl automatisch. Außerdem entfernt das Update veraltete `Write(path)`-Permission-Regeln aus `.claude/settings.json`; aktuelle Claude-Versionen verwenden dafür ausschließlich `Edit(path)`. Danach Claude vollständig beenden und neu starten. |
+| **v3.2** | Claude Code und Codex sind gleichwertige Runtime-Adapter über demselben Kern. Schritt 5 installiert `AGENTS.md`, elf `.agents/skills/an-*` Workflows, `.codex/agents/` und `.codex/hooks.json`; die vorhandenen Claude-Dateien bleiben bestehen. Danach kann jede Arbeit ohne Datenmigration in der jeweils anderen Runtime fortgesetzt werden. Bei bestehenden gleichnamigen Codex-Dateien überschreibt `init.sh` nichts und nennt den manuellen Merge im Setup-Report. Außerdem werden verbindliche Architekturentscheidungen ab jetzt als kompakte ADRs unter `an_project/docs/adr/` dokumentiert; `architecture.md` enthält nur Links. `init.sh --update` erkennt bestehende Inline-ADRs und fordert danach `/migrate-adrs` beziehungsweise `$an-migrate-adrs` an. |
+| **v3.1** | Zwei neue Teile, beide über Schritt 5. **Agent-Rollen:** `.claude/agents/an-scout.md` und `an-briefer.md` — Claude lagert Code-Recherche und den `/briefing`-Scan jetzt an feste, technisch lesend beschränkte Rollen aus. **Hooks:** ein SessionStart-Hook druckt beim Start (auch nach `/clear`) Branch, offene Items und die letzten CHANGELOG-Zeilen; ein zweiter blockt Testläufe ohne Ausgabebegrenzung und nennt die Wiederholung mit `| tail -n 30`. Beide Skripte liegen im Kern und scheitern nach außen offen. **Achtung:** hat deine `.claude/settings.json` bereits einen eigenen `hooks`-Key, rührt `init.sh` ihn nicht an — der Setup-Report sagt dir dann, welchen Block du von Hand übernehmen musst. Außerdem übergibt `/implement` beim Commit jetzt die Pfade, statt pro Task nachzufragen: der automatische Commit ist damit wirklich automatisch. |
+| **v3.0** | Reines Context-Update — **keine Migration, keine Umbenennung von Projektdaten.** Im Kern ist `/implement` jetzt ein Router, der pro Lauf nur noch die passende Ebenen-Datei lädt, und die Git-Baseline ist nach Leser in drei Dateien geteilt: `git-conventions.md` (Commit-Format, liest `/commit`), `git-branching.md` (Branch-Schema, liest `/implement`) und `git-integration.md` (Merge und PRs, liest `/done`). Alle drei werden weiterhin von der **einen** Datei `an_project/docs/git.md` verengt — dort ist nichts zu tun. Schritt 5 lohnt sich trotzdem: er zieht drei neue `deny`-Permissions nach, die verhindern, dass Claude die Tutorials und die Architektur-Doku im Kern liest (~110 KB, die kein Command braucht). |
 | **v2.3** | Story- und Task-Nummern werden jetzt **pro Elternteil** vergeben statt projektweit durchgezählt. **Keine zusätzlichen Handgriffe, nichts wird umnummeriert** — deine vorhandenen IDs, Ordnernamen, Branch-Namen und `Ref:`-Zeilen bleiben unverändert gültig. Was du merken wirst: `/new-story` und `/new-task` vergeben ab jetzt **kleinere** Nummern als früher, und in der bisherigen Nummerierung bleiben Lücken stehen. Beides ist richtig so. Was du dir merken musst: Eine ID gilt nur noch **vollständig**. `001-001-0001` und `001-002-0001` sind zwei verschiedene Tasks — ein Vertipper in `depends_on` sieht dadurch gültig aus. Und verschieb kein Item mehr zwischen Epics: In der ID steckt jetzt sein Elternteil. Details in [how-to-use.md, „IDs verstehen"](how-to-use.md). |
 | **v2.2** | Aus `/implement-task` wurde **`/implement`** — es nimmt jetzt Task-, Story- und Epic-IDs. Schritt 5 ist hier **Pflicht**, sonst fehlt der neue Stub und `/implement` existiert in deinem Projekt nicht. Dein alter Stub `.claude/commands/implement-task.md` bleibt liegen und funktioniert weiter (im Kern steht ein Alias). Du kannst ihn löschen, sobald sich alle an den neuen Namen gewöhnt haben. Neu ist außerdem `init.sh --update` selbst: vor v2.2 hat ein zweiter Lauf gar nichts getan. Kommst du von v2.1, benutze deshalb das `init.sh` aus dem **neuen** Kern — genau das tust du, wenn du Schritt 3 vor Schritt 5 machst. |
 | **v2.1** | Neuer Command `/done`. Schritt 5 nötig, damit sein Stub ankommt. Projekte, die über Push + Merge Request integrieren, brauchen ihn nicht. |

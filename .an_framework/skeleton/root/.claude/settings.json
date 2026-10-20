@@ -1,31 +1,51 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git status:*)",
-      "Bash(git diff:*)",
-      "Bash(git log:*)",
-      "Bash(git rev-parse:*)",
-      "Bash(git symbolic-ref:*)",
-      "Bash(git cat-file:*)",
-      "Bash(git for-each-ref:*)",
-      "Bash(test -e:*)",
-      "Bash(git add --:*)",
-      "Bash(git reset -q --:*)",
-      "Bash(git commit -F -:*)",
-      "Bash(git checkout -b:*)",
-      "Bash(git merge --no-ff --no-edit:*)",
-      "Read(an_project/**)",
-      "Read(src/**)",
-      "Read(tests/**)",
-      "Edit(an_project/**)",
-      "Write(an_project/**)",
-      "Edit(src/**)",
-      "Write(src/**)",
-      "Edit(tests/**)",
-      "Write(tests/**)"
+      "Bash(git *)",
+      "Bash(rg *)",
+      "Bash(grep *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(file *)",
+      "Bash(stat *)",
+      "Bash(pwd)",
+      "Bash(python3 .an_framework/scripts/build-stakeholder-doc.py*)",
+      "Edit(**)"
     ],
     "deny": [
-      "Edit(/.an_framework/**)"
+      "Edit(/.an_framework/**)",
+      "Read(.an_framework/tutorial/**)",
+      "Read(.an_framework/docs/framework-architecture.md)",
+      "Read(.an_framework/README.md)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ANNA_HOOK_OUTPUT=json bash \"${CLAUDE_PROJECT_DIR:-.}/.an_framework/hooks/session-brief.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.an_framework/hooks/guard-verbose-bash.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

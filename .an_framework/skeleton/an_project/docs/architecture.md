@@ -17,6 +17,11 @@
 
 <!-- Die Schnittstellen, die stabil bleiben müssen. -->
 
-## Key decisions
+## Architecture decisions
 
-<!-- Entscheidung · erwogene Alternativen · warum diese. -->
+<!-- Hier stehen nur Links und Kurzbezeichnungen. Jede verbindliche Architekturentscheidung
+     bekommt ihren vollständigen Record unter an_project/docs/adr/NNNN-<slug>.md. -->
+
+| ADR | Entscheidung | Status |
+|---|---|---|
+<!-- | [ADR 0001](adr/0001-beispiel.md) | Kurze Bezeichnung | accepted | -->

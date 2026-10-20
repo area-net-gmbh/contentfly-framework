@@ -1,0 +1,17 @@
+{
+  "description": "ANNA bounded shell output",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|exec_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.an_framework/hooks/guard-verbose-bash.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

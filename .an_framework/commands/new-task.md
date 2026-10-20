@@ -1,7 +1,7 @@
-<!-- PURPOSE: Slash command /new-task — creates a task under a story, an epic, or standalone, with the next free task number inside that parent. -->
-# /new-task — create a new task
+<!-- PURPOSE: Shared new-task workflow — creates the next task inside its optional parent. -->
+# new-task — create a new task
 
-**Args:** `$ARGUMENTS` — an optional parent id followed by a title.
+**Arguments:** supplied by the active runtime adapter; an optional parent id followed by a title.
 - Parent is a story (`EEE-SSS`) → task nested in that story.
 - Parent is an epic (`EEE`) → task nested directly in that epic (story part `000`).
 - No parent → ad-hoc task in `an_project/work/task/` (epic & story parts `000`).
@@ -17,7 +17,10 @@ If the title is missing, ask.
    - epic `EEE` → locate `an_project/work/epic/<EEE>-*/`. Prefix = `EEE-000`.
    - none → prefix = `000-000`.
    Stop if a named parent folder doesn't exist.
-2. **Next task #** — the number is **scoped to the parent**, not project-wide. Among every id whose `EEE-SSS` equals the prefix from step 1, take the highest `TTTT` and add 1; zero-pad to 4. No task under that parent yet → `0001`. Each prefix is its own counter — a story's tasks (`EEE-SSS`), an epic's own tasks (`EEE-000`) and the ad-hoc tasks (`000-000`) never share one.
+2. **Next task #** — the number is scoped to the parent. Search every existing `^id:` line under
+   `an_project/work` in one bounded operation and parse only those matches. Never list and open
+   every item. Among ids whose `EEE-SSS` equals the prefix from step 1, take the highest `TTTT`
+   and add 1; zero-pad to 4. No task under that parent yet → `0001`.
    Two things this must get right:
    - **Match the `EEE-SSS` prefix, not the folder.** An epic folder *contains* its story folders, so scanning the folder for an epic-level task (`EEE-000`) would pull in the stories' tasks and skip the number forward.
    - **Highest, never count.** Gaps are legal (a task was deleted, or the project predates scoped numbering); counting would hand out a number twice and point an old branch or `Ref:` at the wrong item.
@@ -25,5 +28,5 @@ If the title is missing, ask.
 4. **Create** — copy `.an_framework/templates/task.md` to `<parent folder>/<EEE>-<SSS>-<TTTT>-<slug>.md` (the story/epic folder, or `an_project/work/task/` for ad-hoc).
 5. **Fill** — set `id: <EEE>-<SSS>-<TTTT>`, `title`, and the `#` heading. Drop the PURPOSE comment.
 6. **Link** — if the parent is a story (has a `## Tasks` list), add `- [ ] <EEE>-<SSS>-<TTTT> — <title>`.
-7. **Changelog** — append `- <full id> task created: "<title>"`.
+7. **Changelog** — append `- <full id> task created: "<title>"`. **Head-append only:** read `an_project/CHANGELOG.md` with `limit: 30` and edit at the `# Changelog` header or the topmost date block — the file grows without bound and is never read for logic, so it must never enter the context as a whole.
 8. **Report** — print the new path and id.

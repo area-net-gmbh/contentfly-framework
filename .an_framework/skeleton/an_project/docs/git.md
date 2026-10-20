@@ -2,8 +2,12 @@
 
 # Git conventions — overlay
 
-Die Baseline ist `.an_framework/docs/git-conventions.md`. **Nicht hierher kopieren.**
-Bei Konflikt gewinnt diese Datei. `/commit` liest zuerst die Baseline, dann diese Datei.
+Diese eine Datei verengt **alle drei** Git-Baselines des Frameworks:
+`.an_framework/docs/git-conventions.md` (Commit-Format, liest `/commit`),
+`.an_framework/docs/git-branching.md` (Branch-Schema, liest `/implement`) und
+`.an_framework/docs/git-integration.md` (Merge und PRs, liest `/done`).
+**Nicht hierher kopieren.** Bei Konflikt gewinnt diese Datei; die Commands lesen zuerst die
+Baseline, dann diese Datei.
 
 ## Scopes
 
