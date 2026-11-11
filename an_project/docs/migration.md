@@ -4,7 +4,7 @@
 
 **Dieser Leitfaden ist der Weg. `an_project/docs/breaking-changes.md` ist das Register.**
 
-Das Register hat **167 Einträge in 14 Abschnitten** (Stand 2026-09-29, nachgezählt mit `000-000-0103`) und ist nach Epic und
+Das Register hat **169 Einträge in 14 Abschnitten** (Stand 2026-11-11, nachgezählt mit `000-000-0110`) und ist nach Epic und
 Story geordnet — also danach, *wann wir etwas geändert haben*. Das ist die richtige Ordnung zum
 Nachschlagen und die falsche zum Arbeiten. Hier steht die andere: **was ein Projekt tut, und in
 welcher Reihenfolge.**
@@ -99,7 +99,10 @@ Werte kommen nicht zurück. Ein abgelehnter Login dauert jetzt so lange wie ein 
 (`015-000-0018`) — das ist Absicht und kein Defekt, falls jemand die Antwortzeit überwacht.
 
 Die Einzelheiten stehen im Register unter *API* mit „ausgeliefert mit `v2.5.0`" — 24 Einträge,
-jeder mit dem Befehl oder SQL zum Prüfen des Bestands.
+jeder mit dem Befehl oder SQL zum Prüfen des Bestands. Dazu zwei Einträge „ausgeliefert mit
+`v2.5.1`" (`000-000-0108`): zwei Laufzeitfehler, von denen nur der erste etwas zu tun gibt —
+`/file/overwrite` hat `width`/`height` vom falschen Bild gespeichert, und die bereits
+gespeicherten Werte korrigiert der Fix nicht.
 
 ---
 
@@ -119,7 +122,7 @@ Für `v2.2.x` gilt derselbe Weg, dazu die Schritte aus *Von 2.2 auf 2.3* darunte
    SELECT COUNT(*) FROM pim_navItem;
    ```
    Kein Treffer und keine Zeilen: Die Schritte 3 und 4 betreffen das Projekt nicht.
-2. **Beziehen.** Die Constraint `^2.0` nimmt `2.5.0` mit: `composer update areanet/contentfly`.
+2. **Beziehen.** Die Constraint `^2.0` nimmt `2.5.1` mit: `composer update areanet/contentfly`.
 3. **Navigation — das Schema-Update erst lesen.** `orm:schema-tool:update --dump-sql` plant
    `DROP TABLE pim_nav` und `DROP TABLE pim_navItem`. Wer die Zeilen braucht, übernimmt **vorher**
    beide Entities nach `custom/Entity/` (Register unter *API*); dann meldet `--dump-sql` für sie
@@ -144,7 +147,7 @@ beschrieben.
 Für `v2.2.0` und `v2.2.1` gilt derselbe Weg; der Patch aus `v2.2.1` steckt in `v2.3.0` und braucht
 keinen eigenen Schritt.
 
-1. **Beziehen.** Die Constraint `^2.0` nimmt heute `2.5.0` mit: `composer update areanet/contentfly`
+1. **Beziehen.** Die Constraint `^2.0` nimmt heute `2.5.1` mit: `composer update areanet/contentfly`
    — dann gelten zusätzlich die Schritte aus *Von 2.4 auf 2.5* und *Von 2.3 auf 2.4* oben.
 2. **Rechte prüfen — hier kann still etwas wegfallen.**
    - Benutzer, Gruppen und Rechte verwalten nur noch Admins. Ein Nicht-Admin, der das bisher tat,
@@ -180,7 +183,7 @@ vorzeitig hinaus, und eine API-Antwort verliess den Server als `200 text/html` o
 
 **Wer keine Host-Blöcke benutzt, ist nicht betroffen** — dort galt immer schon der Default-Block.
 
-1. **Beziehen.** Die Constraint `^2.0` nimmt heute `2.5.0` mit: `composer update areanet/contentfly`
+1. **Beziehen.** Die Constraint `^2.0` nimmt heute `2.5.1` mit: `composer update areanet/contentfly`
    — dann gelten zusätzlich die Schritte aus *Von 2.4 auf 2.5*, *Von 2.3 auf 2.4* und
      *Von 2.2 auf 2.3* oben.
    Das aktualisiert von sich aus **nur dieses Paket**; für die Abhängigkeiten braucht es
@@ -215,7 +218,7 @@ Wer von 1.x kommt, folgt den neun Phasen unten; die Änderungen von 2.2 stecken 
 Wer auf `v2.0.0` steht, geht zuerst die Schritte *Von 2.0 auf 2.1* unten durch. Wer auf `v2.1.0`
 steht, braucht nur diese:
 
-1. **Beziehen.** Die Constraint `^2.0` nimmt heute `2.5.0` mit: `composer update areanet/contentfly`
+1. **Beziehen.** Die Constraint `^2.0` nimmt heute `2.5.1` mit: `composer update areanet/contentfly`
    — also gleich die Releases aus den Abschnitten darüber; die Schritte aus *Von 2.3 auf 2.4* und
    *Von 2.2 auf 2.3* gelten zusätzlich.
 2. **Konfiguration prüfen.** Der ImageMagick-Prozessor und `IMAGEMAGICK_EXECUTABLE` sind entfernt;

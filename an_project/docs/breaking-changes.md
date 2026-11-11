@@ -2387,6 +2387,52 @@ ausgeführt, und das ist Absicht: Wann Benutzer ausgesperrt werden, entscheidet 
    bis ein Admin ihnen ein Passwort setzt (über `/api/update` auf `PIM\User`, Feld `pass`).
 3. **Sperren.** Ein zweiter Lauf findet nichts mehr und sagt das auch so.
 
+### `/file/overwrite` — `width` und `height` kamen vom falschen Bild
+**Seit `000-000-0108` (2026-09-29), ausgeliefert mit `v2.5.1`.**
+
+**Betrifft jede Installation, die `/file/overwrite` benutzt hat.** Der Endpunkt las die Masse des
+neuen Bildes aus `$fileInfo` — der Laufvariable der `foreach`-Schleife, die vorher die Dateien
+verschoben hat, gelesen **nach** der Schleife. Zwei Folgen, und nur eine davon fiel auf:
+
+1. **Leeres Quellverzeichnis:** Die Schleife lief nie, `$fileInfo` war undefiniert — ein Fatal
+   mitten im Overwrite. Sichtbar, aber selten.
+2. **Der Regelfall:** Die Variable trug den **letzten** verschobenen Eintrag. Zu einem Bild
+   gehören das Original und seine Thumbnails, und welches davon zuletzt bewegt wurde, entscheidet
+   die Reihenfolge des Verzeichnisses. Gespeichert wurden also die Masse eines beliebigen
+   Thumbnails statt die des Bildes. **Unsichtbar** — die Datei ist richtig, nur die beiden Zahlen
+   am Datensatz sind es nicht.
+
+Gelesen wird jetzt der Name, den der Zieldatensatz trägt (`$fileDest->getName()`).
+
+*Was zu tun ist:*
+
+**Der Fix verhindert nur den nächsten falschen Wert; die bereits gespeicherten korrigiert er
+nicht.** Wer `/file/overwrite` auf Bilder angewandt hat, prüft den Bestand — betroffen sind
+Datensätze, deren `width`/`height` nicht zu der Datei auf der Platte passen:
+
+```sql
+SELECT id, name, width, height FROM pim_file
+ WHERE type LIKE 'image/%' AND (width IS NOT NULL OR height IS NOT NULL);
+```
+
+Die Zahlen gegen die Dateien unter `data/files/` abgleichen (`identify`, `file`, oder
+`getimagesize()`); abweichende Datensätze korrigieren oder die Datei erneut hochladen. **Wer den
+Endpunkt nie benutzt hat, hat nichts zu tun** — beim normalen Upload war die Stelle immer richtig.
+
+### `UniqueConstraintViolationException` — die Meldung nannte das Feld nicht mehr
+**Seit `000-000-0108` (2026-09-29), ausgeliefert mit `v2.5.1`.**
+
+**Nichts zu tun — die Zeile steht hier, weil sich eine Fehlerantwort ändert.** Lief ein Schreibweg
+in eine Unique-Verletzung, baute der `catch`-Zweig seine Meldung aus `$property` und `$value`,
+den Laufvariablen der Schleife darüber. War `data` leer, lief die Schleife nie und beide waren
+undefiniert: ein zweiter Fehler bei der Behandlung des ersten, und die Meldung, auf die es
+ankommt, ging verloren. Beide sind jetzt vorbelegt.
+
+Ein Projekt, das auf den **Wortlaut** dieser Fehlermeldung geprüft hat, bekommt sie in diesem
+Randfall jetzt überhaupt — vorher kam an derselben Stelle ein anderer Fehler. Auf den Wortlaut
+einer Fehlermeldung zu prüfen ist in beiden Fassungen keine tragfähige Grundlage; der Hinweis
+steht der Vollständigkeit halber.
+
 
 ## Paketgrenze (Epic `007`)
 
