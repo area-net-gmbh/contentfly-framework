@@ -44,7 +44,7 @@ class DatetimeType extends Type
                 'LOCAL_TIME'    => null,
                 'LOCAL'         => null,
                 'ISO8601'       => null,
-                'IMESTAMP'      => null
+                'TIMESTAMP'     => null
             );
         } else {
             return array(
