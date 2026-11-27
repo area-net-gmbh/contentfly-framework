@@ -1,7 +1,7 @@
 ---
 id: 016-001-0001
 title: Der Schlüssel heisst TIMESTAMP, auch im Zweig für ungültige Datumswerte
-status: review
+status: done
 depends_on: []
 ---
 
