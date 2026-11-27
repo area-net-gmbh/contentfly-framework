@@ -50,7 +50,7 @@ class DatetimeType extends Type
             return array(
                 'LOCAL_TIME'    => $object->$getter()->format('d.m.Y H:i'),
                 'LOCAL'         => $object->$getter()->format('d.m.Y'),
-                'ISO8601'       => $object->$getter()->format(\DateTime::ISO8601),
+                'ISO8601'       => $object->$getter()->format(\DateTime::ATOM),
                 'TIMESTAMP'     => $object->$getter()->getTimestamp()
             );
         }
