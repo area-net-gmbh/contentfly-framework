@@ -65,4 +65,4 @@ die Voraussetzung.
 ## Tasks
 <!-- Die Tasks dieser Story. Wird von /new-task synchron gehalten. -->
 - [ ] 016-001-0001 — Der Schlüssel heisst TIMESTAMP, auch im Zweig für ungültige Datumswerte
-- [ ] 016-001-0002 — Der ISO8601-Wert trägt den Offset mit Doppelpunkt, damit JavaScript ihn lesen muss
+- [x] 016-001-0002 — Der ISO8601-Wert trägt den Offset mit Doppelpunkt, damit JavaScript ihn lesen muss
