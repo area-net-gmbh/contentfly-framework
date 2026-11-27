@@ -362,13 +362,13 @@ class ApiController extends BaseController
      *         "created": {
      *           "LOCAL_TIME": "21.09.2026 08:09",
      *           "LOCAL": "21.09.2026",
-     *           "ISO8601": "2026-09-21T08:09:28+0200",
+     *           "ISO8601": "2026-09-21T08:09:28+02:00",
      *           "TIMESTAMP": 1789970968
      *         },
      *         "modified": {
      *           "LOCAL_TIME": "21.09.2026 08:09",
      *           "LOCAL": "21.09.2026",
-     *           "ISO8601": "2026-09-21T08:09:28+0200",
+     *           "ISO8601": "2026-09-21T08:09:28+02:00",
      *           "TIMESTAMP": 1789970968
      *         },
      *         "isIntern": false,
@@ -996,13 +996,13 @@ class ApiController extends BaseController
      *         "created": {
      *           "LOCAL_TIME": "21.09.2026 08:09",
      *           "LOCAL": "21.09.2026",
-     *           "ISO8601": "2026-09-21T08:09:28+0200",
+     *           "ISO8601": "2026-09-21T08:09:28+02:00",
      *           "TIMESTAMP": 1789970968
      *         },
      *         "modified": {
      *           "LOCAL_TIME": "21.09.2026 08:09",
      *           "LOCAL": "21.09.2026",
-     *           "ISO8601": "2026-09-21T08:09:28+0200",
+     *           "ISO8601": "2026-09-21T08:09:28+02:00",
      *           "TIMESTAMP": 1789970968
      *         },
      *         "isIntern": false,

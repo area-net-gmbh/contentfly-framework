@@ -2433,6 +2433,41 @@ Randfall jetzt überhaupt — vorher kam an derselben Stelle ein anderer Fehler.
 einer Fehlermeldung zu prüfen ist in beiden Fassungen keine tragfähige Grundlage; der Hinweis
 steht der Vollständigkeit halber.
 
+### `ISO8601` trägt den Offset mit Doppelpunkt — `+02:00` statt `+0200`
+**Seit `016-001-0002` (2026-11-27).**
+
+**Betrifft jede Antwort, die ein `datetime`-Feld mit einem gültigen Datum enthält** — also auch
+`created` und `modified` an jedem Datensatz. Ein Datums-Feld antwortet weiterhin mit denselben
+vier Schlüsseln; **der Schlüsselname `ISO8601` bleibt**, nur die Form seines Werts ändert sich:
+
+| | |
+|---|---|
+| vorher | `"ISO8601": "2026-09-21T08:09:28+0200"` |
+| jetzt | `"ISO8601": "2026-09-21T08:09:28+02:00"` |
+
+`LOCAL_TIME`, `LOCAL` und `TIMESTAMP` sind unberührt.
+
+**Warum:** Formatiert wurde mit `\DateTime::ISO8601`, und diese Konstante schreibt den Offset
+ohne Doppelpunkt — eine Form, die die JavaScript-Spezifikation nicht vorsieht; `Date.parse()`
+liest sie nicht zuverlässig. `\DateTime::ATOM` (gleichbedeutend mit `DATE_ATOM`) schreibt genau
+das Verlangte. Der Name des Schlüssels ist der Vertrag mit dem Client, das Format war der Fehler.
+
+*Was zu tun ist:*
+
+**Wer den Wert an `new Date(...)` oder `Date.parse(...)` gibt, hat nichts zu tun** — er liest ihn
+danach zuverlässiger als vorher. Anzupassen ist jeder Weg, der die **Zeichenkette** selbst
+auswertet statt sie zu parsen: ein Muster ohne Doppelpunkt im Offset, ein strikter Vergleich
+gegen einen gespeicherten Wert, eine Längenannahme (24 statt 25 Zeichen) oder eine Spalte mit
+fester Breite, in die der Wert unverändert geschrieben wird.
+
+```sh
+grep -rnE '\+[0-9]{4}"|ISO8601' <client-code>     # prüft der Client die Form selbst?
+```
+
+Bereits gespeicherte Werte ändert diese Zeile nicht — sie betrifft nur, was die API ab jetzt
+ausliefert. Die Beispiele in der API-Doku (`/api/list`, `/api/get`, `/file/get`) zeigen die neue
+Form mit.
+
 
 ## Paketgrenze (Epic `007`)
 

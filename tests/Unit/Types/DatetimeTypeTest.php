@@ -7,7 +7,8 @@ use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 
 /**
- * Both branches of a datetime field answer with the same four keys (`016-001-0001`).
+ * Both branches of a datetime field answer with the same four keys (`016-001-0001`),
+ * and the `ISO8601` value among them carries its offset with a colon (`016-001-0002`).
  *
  * THE FINDING. `DatetimeType::fromDatabase()` answers a datetime field as four
  * representations — `LOCAL_TIME`, `LOCAL`, `ISO8601`, `TIMESTAMP`. In the branch for an
@@ -65,6 +66,40 @@ class DatetimeTypeTest extends TestCase
 
         $this->assertSame(self::KEYS, array_keys($payload));
         $this->assertIsInt($payload['TIMESTAMP']);
+    }
+
+    /**
+     * The form of the `ISO8601` value: its offset carries a colon (`016-001-0002`).
+     *
+     * `\DateTime::ISO8601` wrote the offset as `+0200`. The JavaScript specification asks for
+     * `+02:00`, and `Date.parse()` does not read the other form reliably. `\DateTime::ATOM` —
+     * the class constant form of `DATE_ATOM`, same value `Y-m-d\TH:i:sP` — writes what is
+     * asked for. The key keeps its name `ISO8601`; only the form of its value changes.
+     *
+     * ── Why no zone is written into this test ──────────────────────────────────────────────
+     *
+     * What is under test is the form, not the zone of the test run. So the value is read with
+     * an offset of its own, which puts digits on both sides of the colon instead of the
+     * `+00:00` a UTC process would produce, and the expectation is derived from that same
+     * value: `format('P')` is the colon form of the offset, `format('O')` was the old one.
+     * Against the state before the fix both assertions fail on the missing colon.
+     */
+    public function testAValidDateCarriesItsOffsetWithAColon(): void
+    {
+        $value = new \DateTime('2026-11-27 14:30:00', new \DateTimeZone('+02:00'));
+
+        $payload = $this->read($value);
+
+        $this->assertMatchesRegularExpression(
+            '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/',
+            $payload['ISO8601'],
+            'The ISO8601 value ends in an offset of the form +02:00, which JavaScript reads'
+        );
+        $this->assertStringEndsWith(
+            $value->format('P'),
+            $payload['ISO8601'],
+            'And it is the offset the value itself carries, not one this test fixed in place'
+        );
     }
 
     /**
